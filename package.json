@@ -9,6 +9,18 @@
     "astro": "astro"
   },
   "dependencies": {
-    "astro": "^5.1.5"
+    "@stellar/stellar-sdk": "^13.1.0",
+    "passkey-kit": "^0.10.10",
+    "smol-sc-sdk": "file:./ext/smol-sc-sdk"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.6",
+    "svelte": "^5.17.3",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.3",
+    "sass": "^1.83.1",
+    "astro": "^5.1.6",
+    "@astrojs/svelte": "^7.0.3",
+    "@astrojs/tailwind": "^5.1.4"
   }
 }
