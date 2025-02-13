@@ -1,0 +1,10 @@
+---
+export const prerender = false;
+
+import Layout from '../../layouts/Layout.astro';
+import Glyph from '../../components/Glyph.svelte';
+---
+
+<Layout>
+	<Glyph id={Astro.params.id} />
+</Layout>

@@ -132,15 +132,15 @@
         let colors: number[] = []
         let legend: number[] = []
 
-        for (let pixel of pixels) {
-            let index = legend.indexOf(pixel)
-
-            if (index === -1) {
+        for (const pixel of pixels) {
+            if (!legend.includes(pixel))
                 legend.push(pixel)
-                colors.push(legend.length - 1)
-            } else {
-                colors.push(index)
-            }
+        }
+
+        legend.sort((a, b) => a - b)
+
+        for (const pixel of pixels) {
+            colors.push(legend.indexOf(pixel))
         }
 
         let at = await smol.glyph_mint({
@@ -152,6 +152,8 @@
             title: 'Hello World',
             story: 'Lorem Ipsum',
         })
+
+        // TODO rebuild TS bindings, we're missing at least one Error
 
         if (at.simulation && Api.isSimulationError(at.simulation)) {
             const match = at.simulation.error.match(/#(\d+)/);
@@ -166,18 +168,15 @@
             return
         }
 
-        if (at.simulation && Api.isSimulationSuccess(at.simulation)) {
-            console.log(at.simulation.minResourceFee);
-            console.log(at.simulation.transactionData.build().resourceFee());
-        }
-
         // @ts-ignore
-        // await account.sign(at, { keyId: $keyId })
+        await account.sign(at, { keyId: $keyId })
 
         // @ts-ignore
         let res = await server.send(at)
 
         console.log(res);
+
+        pixels = new Array(16 ** 2).fill(WHITE);
     }
 </script>
 

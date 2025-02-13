@@ -6,12 +6,12 @@ import {
   MethodOptions,
   Result,
   Spec as ContractSpec,
-} from '@stellar/stellar-sdk/contract';
+} from '@stellar/stellar-sdk/minimal/contract';
 import type {
   u32,
   i128,
   Option,
-} from '@stellar/stellar-sdk/contract';
+} from '@stellar/stellar-sdk/minimal/contract';
 
 if (typeof window !== 'undefined') {
   //@ts-ignore Buffer exists
@@ -244,7 +244,7 @@ export interface Client {
      * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
      */
     simulate?: boolean;
-  }) => Promise<AssembledTransaction<Result<Option<void>>>>
+  }) => Promise<AssembledTransaction<Result<Option<string>>>>
 
   /**
    * Construct and simulate a offer_sell_asset transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
@@ -264,7 +264,7 @@ export interface Client {
      * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
      */
     simulate?: boolean;
-  }) => Promise<AssembledTransaction<Result<Option<void>>>>
+  }) => Promise<AssembledTransaction<Result<Option<string>>>>
 
   /**
    * Construct and simulate a offer_sell_glyph_remove transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
@@ -386,6 +386,7 @@ export interface Client {
     simulate?: boolean;
   }) => Promise<AssembledTransaction<Result<i128>>>
 }
+
 export class Client extends ContractClient {
   static async deploy<T = Client>(
     /** Constructor/Initialization Args for the contract's `__constructor` method */
@@ -421,8 +422,8 @@ export class Client extends ContractClient {
         "AAAAAAAAAAAAAAAJZ2x5cGhfZ2V0AAAAAAAAAQAAAAAAAAALZ2x5cGhfaW5kZXgAAAAABAAAAAEAAAPpAAAH0AAAAAVHbHlwaAAAAAAAAAM=",
         "AAAAAAAAAAAAAAAPZ2x5cGhfb3duZXJfZ2V0AAAAAAEAAAAAAAAAC2dseXBoX2luZGV4AAAAAAQAAAABAAAD6QAAABMAAAAD",
         "AAAAAAAAAAAAAAAUZ2x5cGhfb3duZXJfdHJhbnNmZXIAAAACAAAAAAAAAAtnbHlwaF9pbmRleAAAAAAEAAAAAAAAAAJ0bwAAAAAAEwAAAAEAAAPpAAAD7QAAAAAAAAAD",
-        "AAAAAAAAAAAAAAAQb2ZmZXJfc2VsbF9nbHlwaAAAAAIAAAAAAAAABHNlbGwAAAAEAAAAAAAAAANidXkAAAAH0AAAAAhPZmZlckJ1eQAAAAEAAAPpAAAD6AAAA+0AAAAAAAAAAw==",
-        "AAAAAAAAAAAAAAAQb2ZmZXJfc2VsbF9hc3NldAAAAAIAAAAAAAAABHNlbGwAAAfQAAAADk9mZmVyU2VsbEFzc2V0AAAAAAAAAAAAA2J1eQAAAAAEAAAAAQAAA+kAAAPoAAAD7QAAAAAAAAAD",
+        "AAAAAAAAAAAAAAAQb2ZmZXJfc2VsbF9nbHlwaAAAAAIAAAAAAAAABHNlbGwAAAAEAAAAAAAAAANidXkAAAAH0AAAAAhPZmZlckJ1eQAAAAEAAAPpAAAD6AAAABMAAAAD",
+        "AAAAAAAAAAAAAAAQb2ZmZXJfc2VsbF9hc3NldAAAAAIAAAAAAAAABHNlbGwAAAfQAAAADk9mZmVyU2VsbEFzc2V0AAAAAAAAAAAAA2J1eQAAAAAEAAAAAQAAA+kAAAPoAAAAEwAAAAM=",
         "AAAAAAAAAAAAAAAXb2ZmZXJfc2VsbF9nbHlwaF9yZW1vdmUAAAAAAgAAAAAAAAAEc2VsbAAAAAQAAAAAAAAAA2J1eQAAAAPoAAAH0AAAAAhPZmZlckJ1eQAAAAEAAAPpAAAD7QAAAAAAAAAD",
         "AAAAAAAAAAAAAAAXb2ZmZXJfc2VsbF9hc3NldF9yZW1vdmUAAAAAAgAAAAAAAAAEc2VsbAAAB9AAAAAOT2ZmZXJTZWxsQXNzZXQAAAAAAAAAAAADYnV5AAAAAAQAAAABAAAD6QAAA+0AAAAAAAAAAw==",
         "AAAAAAAAAAAAAAAUb2ZmZXJfc2VsbF9nbHlwaF9nZXQAAAACAAAAAAAAAARzZWxsAAAABAAAAAAAAAADYnV5AAAAA+gAAAfQAAAACE9mZmVyQnV5AAAAAQAAA+kAAAPoAAAABAAAAAM=",
@@ -443,8 +444,8 @@ export class Client extends ContractClient {
     glyph_get: this.txFromJSON<Result<Glyph>>,
     glyph_owner_get: this.txFromJSON<Result<string>>,
     glyph_owner_transfer: this.txFromJSON<Result<void>>,
-    offer_sell_glyph: this.txFromJSON<Result<Option<void>>>,
-    offer_sell_asset: this.txFromJSON<Result<Option<void>>>,
+    offer_sell_glyph: this.txFromJSON<Result<Option<string>>>,
+    offer_sell_asset: this.txFromJSON<Result<Option<string>>>,
     offer_sell_glyph_remove: this.txFromJSON<Result<void>>,
     offer_sell_asset_remove: this.txFromJSON<Result<void>>,
     offer_sell_glyph_get: this.txFromJSON<Result<Option<u32>>>,

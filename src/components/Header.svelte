@@ -76,10 +76,12 @@
     }
 </script>
 
-<header class="flex items-center flex-wrap mb-2 px-2 pt-2">
-    <h1 class="flex items-center text-xl mr-auto">
+<header class="flex items-center flex-wrap p-2 bg-gray-100">
+    <h1 class="flex text-xl">
         <a href="/"><strong>SMOL</strong></a>
     </h1>
+
+    <a class="ml-2" href="/create">Create</a>
 
     <div class="flex items-center ml-auto">
         {#if $contractId}
