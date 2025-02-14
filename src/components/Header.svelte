@@ -1,4 +1,6 @@
 <script lang="ts">
+    export let pathname;
+
     import { onMount } from "svelte";
     import { keyId } from "../store/keyId";
     import { contractId } from "../store/contractId";
@@ -76,32 +78,37 @@
     }
 </script>
 
-<header class="flex items-center flex-wrap p-2 bg-gray-100">
-    <h1 class="flex text-xl">
-        <a href="/"><strong>SMOL</strong></a>
-    </h1>
-
-    <a class="ml-2" href="/create">Create</a>
-
-    <div class="flex items-center ml-auto">
-        {#if $contractId}
-            <a
-                class="mr-2 font-mono text-sm underline"
-                href="https://stellar.expert/explorer/public/contract/{$contractId}"
-                target="_blank">{truncate($contractId, 4)}</a
-            >
-            <!-- <span class="bg-green-700 text-yellow-100 px-3 py-1 rounded-full font-mono text-sm">{(Number($contractBalance ?? 0) / 1e7)} KALE</span> -->
-            <button class="text-white bg-black px-2 py-1 ml-2" on:click={logout}
-                >Logout</button
-            >
-        {:else}
-            <button class="underline mr-2" on:click={login}>Login</button>
-            <button
-                class="text-white bg-black px-2 py-1 disabled:bg-gray-400"
-                on:click={signUp}
-                disabled={creating}
-                >{creating ? "Creating..." : "Create New Account"}</button
-            >
-        {/if}
-    </div>
+<header class="p-2 bg-gray-100">
+    <div class="flex items-center flex-wrap max-w-[1024px] mx-auto">
+        <h1 class="flex text-xl">
+            <a href="/"><strong>SMOL</strong></a>
+        </h1>
+    
+        <a class={`ml-4 ${pathname === '/' ? 'underline' : ''}`} href="/">Home</a>
+        <a class={`ml-4 ${pathname === '/create' ? 'underline' : ''}`} href="/create">Create</a>
+        <a class={`ml-4 ${pathname === '/colors' ? 'underline' : ''}`} href="/colors">Colors</a>
+        <a class={`ml-4 ${pathname === '/offers' ? 'underline' : ''}`} href="/offers">Offers</a>
+    
+        <div class="flex items-center ml-auto">
+            {#if $contractId}
+                <a
+                    class="mr-2 font-mono text-sm underline"
+                    href="https://stellar.expert/explorer/public/contract/{$contractId}"
+                    target="_blank">{truncate($contractId, 4)}</a
+                >
+                <!-- <span class="bg-green-700 text-yellow-100 px-3 py-1 rounded-full font-mono text-sm">{(Number($contractBalance ?? 0) / 1e7)} KALE</span> -->
+                <button class="text-white bg-black px-2 py-1 ml-2" on:click={logout}
+                    >Logout</button
+                >
+            {:else}
+                <button class="underline mr-2" on:click={login}>Login</button>
+                <button
+                    class="text-white bg-black px-2 py-1 disabled:bg-gray-400"
+                    on:click={signUp}
+                    disabled={creating}
+                    >{creating ? "Creating..." : "Create New Account"}</button
+                >
+            {/if}
+        </div>
+    </div> 
 </header>

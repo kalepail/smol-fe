@@ -1,12 +1,15 @@
 <script lang="ts">
-    import { Api } from "@stellar/stellar-sdk/rpc";
+    import { Api } from "@stellar/stellar-sdk/minimal/rpc";
     import { contractId } from "../store/contractId";
     import { smol } from "../utils/smol";
     import { account, server } from "../utils/passkey-kit";
     import { keyId } from "../store/keyId";
     import { Errors } from "smol-sc-sdk";
+    import { intToHex, pixelToHex, WHITE } from "../utils";
 
-    const WHITE = 256 ** 3 - 1;
+    let minting = false;
+    let title = "";
+    let story = "";
 
     let red = 0;
     let green = 0;
@@ -24,12 +27,6 @@
             map.set(value, (map.get(value) || 0) + 1),
         new Map<number, number>(),
     ) as Map<number, number>;
-
-    // Example usage:
-    // const data = ['apple', 'banana', 'apple', 'orange', 'banana', 'banana'];
-    // const duplicatesMap = countDuplicates(data);
-    // console.log(Array.from(duplicatesMap)); // [['apple', 2], ['banana', 3], ['orange', 1]]
-    // [...new Set(pixels)] as number[];
 
     let dragX: number;
     let dragY: number;
@@ -108,18 +105,6 @@
                 break;
         }
     }
-    function pixelToHex(pixel: number) {
-        return `${intToHex((pixel >> 16) & 255)}${intToHex(
-            (pixel >> 8) & 255,
-        )}${intToHex(pixel & 255)}`;
-    }
-    function intToHex(int: number | string) {
-        if (typeof int === "string") int = int.replace(/\D/g, "");
-
-        if (!int) int = 0;
-
-        return int.toString(16).padStart(2, "0");
-    }
 
     function erase() {
         confirm("You're about to erase your progress 😱") &&
@@ -127,225 +112,255 @@
     }
     async function mint() {
         if (!$contractId)
-            throw new Error("No contract ID found. Please login.");
+            return alert("No contract ID found. Please login.");
 
-        let colors: number[] = []
-        let legend: number[] = []
+        if (!title)
+            return alert("Please provide a title for your glyph.");
 
-        for (const pixel of pixels) {
-            if (!legend.includes(pixel))
-                legend.push(pixel)
-        }
+        if (!story)
+            return alert("Please provide a story for your glyph.");
 
-        legend.sort((a, b) => a - b)
+        try {
+            minting = true;
 
-        for (const pixel of pixels) {
-            colors.push(legend.indexOf(pixel))
-        }
+            let colors: number[] = []
+            let legend: number[] = []
 
-        let at = await smol.glyph_mint({
-            author: $contractId,
-            owner: $contractId,
-            colors: Buffer.from(colors),
-            legend,
-            width: 16,
-            title: 'Hello World',
-            story: 'Lorem Ipsum',
-        })
-
-        // TODO rebuild TS bindings, we're missing at least one Error
-
-        if (at.simulation && Api.isSimulationError(at.simulation)) {
-            const match = at.simulation.error.match(/#(\d+)/);
-            const errorIndex = match?.[1];
-
-            if (errorIndex !== undefined) {
-                alert(Errors[Number(errorIndex) as keyof typeof Errors].message);
-            } else {
-                console.error(at.simulation.error);
+            for (const pixel of pixels) {
+                if (!legend.includes(pixel))
+                    legend.push(pixel)
             }
 
-            return
+            legend.sort((a, b) => a - b)
+
+            for (const pixel of pixels) {
+                colors.push(legend.indexOf(pixel))
+            }
+
+            let at = await smol.glyph_mint({
+                source: $contractId,
+                author: $contractId,
+                owner: $contractId,
+                colors: Buffer.from(colors),
+                legend,
+                width: 16,
+                title,
+                story,
+            })
+
+            if (at.simulation && Api.isSimulationError(at.simulation)) {
+                // TODO review errors that don't come from my SMOL contract
+
+                const match = at.simulation.error.match(/#(\d+)/);
+                const errorIndex = match?.[1];
+
+                if (errorIndex !== undefined) {
+                    alert(Errors[Number(errorIndex) as keyof typeof Errors].message);
+                } else {
+                    console.error(at.simulation.error);
+                }
+
+                return
+            }
+
+            await account.sign(at, { keyId: $keyId! })
+
+            let res = await server.send(at)
+
+            console.log(res);
+
+            pixels = new Array(16 ** 2).fill(WHITE);
+        } finally {
+            minting = false;
         }
-
-        // @ts-ignore
-        await account.sign(at, { keyId: $keyId })
-
-        // @ts-ignore
-        let res = await server.send(at)
-
-        console.log(res);
-
-        pixels = new Array(16 ** 2).fill(WHITE);
     }
 </script>
 
-<div class="max-w-[500px]">
-    <div
-        class="relative flex flex-wrap border-t select-none"
-        on:touchmove={onDragPixel}
-        on:mousemove={onDragPixel}
-        on:touchstart={onDragPixelStart}
-        on:mousedown={onDragPixelStart}
-        on:touchend={onDragPixelEnd}
-        on:mouseup={onDragPixelEnd}
-    >
-        {#each pixels as pixel, i}
+<div class="px-2 py-10">
+    <div class="flex max-w-[1024px] mx-auto">
+        <!-- TODO include the 3 little glyph previews -->
+
+        <div class="flex flex-col">
+            <!-- Pixel Grid -->
             <div
-                class="w-[calc(500px/16)] h-[calc(500px/16)] border-r border-b"
-                style="background-color: #{pixelToHex(pixel)}; {pixel === WHITE
-                    ? null
-                    : `border-color: #${pixelToHex(pixel)};`}"
-                data-i={i}
-            ></div>
-        {/each}
+                class="w-[512px] relative flex flex-wrap select-none shadow-[-1px_-1px_0_0] shadow-gray-200"
+                on:touchmove={onDragPixel}
+                on:mousemove={onDragPixel}
+                on:touchstart={onDragPixelStart}
+                on:mousedown={onDragPixelStart}
+                on:touchend={onDragPixelEnd}
+                on:mouseup={onDragPixelEnd}
+            >
+                {#each pixels as pixel, i}
+                    <div
+                        class="w-[calc(100%/16)] border-r border-b border-gray-200 aspect-square"
+                        style="background-color: #{pixelToHex(pixel)}; {pixel === WHITE
+                            ? null
+                            : `border-color: #${pixelToHex(pixel)};`}"
+                        data-i={i}
+                    ></div>
+                {/each}
 
-        <span
-            class="absolute w-[4px] h-[4px] bg-black/20 top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 rotate-45"
-        ></span>
-        <span
-            class="absolute w-[4px] h-[4px] bg-black/20 top-1/4 left-3/4 -translate-x-1/2 -translate-y-1/2 rotate-45"
-        ></span>
-        <span
-            class="absolute w-[4px] h-[4px] bg-black/20 top-3/4 left-3/4 -translate-x-1/2 -translate-y-1/2 rotate-45"
-        ></span>
-        <span
-            class="absolute w-[4px] h-[4px] bg-black/20 top-3/4 left-1/4 -translate-x-1/2 -translate-y-1/2 rotate-45"
-        ></span>
+                <!-- Markers -->
+                <span
+                    class="absolute w-[4px] h-[4px] bg-black/20 top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 rotate-45"
+                ></span>
+                <span
+                    class="absolute w-[4px] h-[4px] bg-black/20 top-1/4 left-3/4 -translate-x-1/2 -translate-y-1/2 rotate-45"
+                ></span>
+                <span
+                    class="absolute w-[4px] h-[4px] bg-black/20 top-3/4 left-3/4 -translate-x-1/2 -translate-y-1/2 rotate-45"
+                ></span>
+                <span
+                    class="absolute w-[4px] h-[4px] bg-black/20 top-3/4 left-1/4 -translate-x-1/2 -translate-y-1/2 rotate-45"
+                ></span>
 
-        <span
-            class="absolute w-[6px] h-[6px] bg-black/20 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-45"
-        ></span>
-    </div>
-
-    <div class="flex flex-wrap m-2 select-none">
-        {#each pixelsUniq as [pixel, count]}
-            <div>
-                <div
-                    class="w-[calc(300px/12)] h-[calc(300px/12)] border"
-                    style="background-color: #{pixelToHex(pixel)}; {pixel === WHITE
-                        ? null
-                        : `border-color: #${pixelToHex(pixel)};`}"
-                    on:click={() => setRGB(pixel)}
-                ></div>
-                <span class="text-xs font-mono">{count}</span>
+                <span
+                    class="absolute w-[6px] h-[6px] bg-black/20 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rotate-45"
+                ></span>
             </div>
-        {/each}
-    </div>
 
-    <div class="flex flex-col m-2" style="color: rgb({red}, {green}, {blue});">
-        <div class="flex">
-            <input
-                type="range"
-                min={0}
-                max={255}
-                step={1}
-                class="appearance-none w-full h-[36px] px-[2px] rounded-full outline-none"
-                style="background: linear-gradient(to right, #00{intToHex(
-                    green,
-                )}{intToHex(blue)}, #ff{intToHex(green)}{intToHex(blue)})"
-                bind:value={red}
-            />
-            <input
-                class="w-[64px] bg-neutral-800 text-white text-center rounded-lg ml-2"
-                type="text"
-                inputmode="numeric"
-                pattern="\d*"
-                min={0}
-                max={250}
-                step={1}
-                bind:value={red}
-                on:input={() => sanitizeChannel("red", red)}
-            />
+            <!-- Palette -->
+            <div class="flex flex-wrap mt-2 select-none">
+                {#each pixelsUniq as [pixel, count]}
+                    <div>
+                        <div
+                            class="w-[24px] aspect-square border"
+                            style="background-color: #{pixelToHex(pixel)}; {pixel === WHITE
+                                ? null
+                                : `border-color: #${pixelToHex(pixel)};`}"
+                            on:click={() => setRGB(pixel)}
+                        ></div>
+                        <span class="text-xs font-mono">{count}</span>
+                    </div>
+                {/each}
+            </div>
         </div>
-        <div class="flex my-2">
-            <input
-                type="range"
-                min={0}
-                max={255}
-                step={1}
-                class="appearance-none w-full h-[36px] px-[2px] rounded-full outline-none"
-                style="background: linear-gradient(to right, #{intToHex(
-                    red,
-                )}00{intToHex(blue)}, #{intToHex(red)}ff{intToHex(blue)})"
-                bind:value={green}
-            />
-            <input
-                class="w-[64px] bg-neutral-800 text-white text-center rounded-lg ml-2"
-                type="text"
-                inputmode="numeric"
-                pattern="\d*"
-                min={0}
-                max={250}
-                step={1}
-                bind:value={green}
-                on:input={() => sanitizeChannel("green", green)}
-            />
-        </div>
-        <div class="flex">
-            <input
-                type="range"
-                min={0}
-                max={255}
-                step={1}
-                class="appearance-none w-full h-[36px] px-[2px] rounded-full outline-none"
-                style="background: linear-gradient(to right, #{intToHex(
-                    red,
-                )}{intToHex(green)}00, #{intToHex(red)}{intToHex(green)}ff)"
-                bind:value={blue}
-            />
-            <input
-                class="w-[64px] bg-neutral-800 text-white text-center rounded-lg ml-2"
-                type="text"
-                inputmode="numeric"
-                pattern="\d*"
-                min={0}
-                max={250}
-                step={1}
-                bind:value={blue}
-                on:input={() => sanitizeChannel("blue", blue)}
-            />
-        </div>
-    </div>
 
-    <div class="flex mt-4 px-2">
-        <button class="flex items-center p-2 mr-auto" on:click={erase}>
-            <svg
-                class="mr-2"
-                viewBox="0 0 15 15"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                width="15"
-                height="15"
-                ><path
-                    d="M2.5 2.5l10 10m-5 2a7 7 0 110-14 7 7 0 010 14z"
-                    stroke="currentColor"
-                ></path></svg
-            >
-            Erase
-        </button>
-        <button
-            class="flex items-center p-2 pl-3 border-2 text-emerald-800 border-emerald-400 bg-emerald-50 rounded-full"
-            on:click={mint}
-        >
-            <svg
-                class="mr-2"
-                viewBox="0 0 15 15"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                width="15"
-                height="15"
-                ><path
-                    d="M14.5.5l.46.197a.5.5 0 00-.657-.657L14.5.5zm-14 6l-.197-.46a.5.5 0 00-.06.889L.5 6.5zm8 8l-.429.257a.5.5 0 00.889-.06L8.5 14.5zM14.303.04l-14 6 .394.92 14-6-.394-.92zM.243 6.93l5 3 .514-.858-5-3-.514.858zM5.07 9.757l3 5 .858-.514-3-5-.858.514zm3.889 4.94l6-14-.92-.394-6 14 .92.394zM14.146.147l-9 9 .708.707 9-9-.708-.708z"
-                    fill="currentColor"
-                ></path></svg
-            >
-            Publish
-            <span class="ml-2 font-mono text-xs border border-emerald-400 px-2 py-1 rounded-full">
-                1.00
-                <!-- ${estimateCost(pixelsUniq.size).toFixed(2)} -->
-            </span>
-        </button>
+        <div class="ml-10 w-full">
+            <!-- Title & Story -->
+            <div class="flex flex-col">
+                <input class="text-3xl font-bold mb-3 outline-none" type="text" placeholder="Glyph Title" bind:value={title} />
+                <input class="outline-none" type="text" placeholder="Include a short story describing your glyph's origins" bind:value={story} />
+            </div>
+
+            <!-- RGB Color Sliders -->
+            <div class="flex flex-col mt-8" style="color: rgb({red}, {green}, {blue});">
+                <div class="flex">
+                    <input
+                        type="range"
+                        min={0}
+                        max={255}
+                        step={1}
+                        class="appearance-none w-full h-[36px] px-[2px] rounded-full outline-none"
+                        style="background: linear-gradient(to right, #00{intToHex(
+                            green,
+                        )}{intToHex(blue)}, #ff{intToHex(green)}{intToHex(blue)})"
+                        bind:value={red}
+                    />
+                    <input
+                        class="w-[64px] bg-neutral-800 text-white text-center rounded-lg ml-2"
+                        type="text"
+                        inputmode="numeric"
+                        pattern="\d*"
+                        min={0}
+                        max={250}
+                        step={1}
+                        bind:value={red}
+                        on:input={() => sanitizeChannel("red", red)}
+                    />
+                </div>
+                <div class="flex my-2">
+                    <input
+                        type="range"
+                        min={0}
+                        max={255}
+                        step={1}
+                        class="appearance-none w-full h-[36px] px-[2px] rounded-full outline-none"
+                        style="background: linear-gradient(to right, #{intToHex(
+                            red,
+                        )}00{intToHex(blue)}, #{intToHex(red)}ff{intToHex(blue)})"
+                        bind:value={green}
+                    />
+                    <input
+                        class="w-[64px] bg-neutral-800 text-white text-center rounded-lg ml-2"
+                        type="text"
+                        inputmode="numeric"
+                        pattern="\d*"
+                        min={0}
+                        max={250}
+                        step={1}
+                        bind:value={green}
+                        on:input={() => sanitizeChannel("green", green)}
+                    />
+                </div>
+                <div class="flex">
+                    <input
+                        type="range"
+                        min={0}
+                        max={255}
+                        step={1}
+                        class="appearance-none w-full h-[36px] px-[2px] rounded-full outline-none"
+                        style="background: linear-gradient(to right, #{intToHex(
+                            red,
+                        )}{intToHex(green)}00, #{intToHex(red)}{intToHex(green)}ff)"
+                        bind:value={blue}
+                    />
+                    <input
+                        class="w-[64px] bg-neutral-800 text-white text-center rounded-lg ml-2"
+                        type="text"
+                        inputmode="numeric"
+                        pattern="\d*"
+                        min={0}
+                        max={250}
+                        step={1}
+                        bind:value={blue}
+                        on:input={() => sanitizeChannel("blue", blue)}
+                    />
+                </div>
+            </div> 
+            
+            <!-- Actions -->
+            <div class="flex mt-4">
+                <button class="flex items-center p-2 mr-auto" on:click={erase}>
+                    <svg
+                        class="mr-2"
+                        viewBox="0 0 15 15"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="15"
+                        height="15"
+                        ><path
+                            d="M2.5 2.5l10 10m-5 2a7 7 0 110-14 7 7 0 010 14z"
+                            stroke="currentColor"
+                        ></path></svg
+                    >
+                    Erase
+                </button>
+
+                <button
+                    class="flex items-center py-2 px-3 border-2 text-emerald-800 border-emerald-400 bg-emerald-50 rounded-full"
+                    on:click={mint}
+                >
+                    <svg
+                        class="mr-2"
+                        viewBox="0 0 15 15"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="15"
+                        height="15"
+                        ><path
+                            d="M14.5.5l.46.197a.5.5 0 00-.657-.657L14.5.5zm-14 6l-.197-.46a.5.5 0 00-.06.889L.5 6.5zm8 8l-.429.257a.5.5 0 00.889-.06L8.5 14.5zM14.303.04l-14 6 .394.92 14-6-.394-.92zM.243 6.93l5 3 .514-.858-5-3-.514.858zM5.07 9.757l3 5 .858-.514-3-5-.858.514zm3.889 4.94l6-14-.92-.394-6 14 .92.394zM14.146.147l-9 9 .708.707 9-9-.708-.708z"
+                            fill="currentColor"
+                        ></path></svg
+                    >
+                    Publish{minting ? "ing..." : ""}
+                    <span class="ml-2 font-mono text-xs border border-emerald-400 px-2 py-1 rounded-full">
+                        1 KALE
+                    </span>
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 

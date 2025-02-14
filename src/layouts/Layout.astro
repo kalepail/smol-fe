@@ -12,7 +12,7 @@ import Header from '../components/Header.svelte'
 		<title>Smol</title>
 	</head>
 	<body>
-		<Header client:only />
+		<Header pathname={Astro.originPathname} client:only />
 		<slot />
 	</body>
 </html>

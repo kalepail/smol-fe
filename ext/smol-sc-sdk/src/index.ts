@@ -25,15 +25,15 @@ export const Errors = {
   4: { message: "ColorAlreadyClaimed" },
   5: { message: "ColorNotClaimed" },
   6: { message: "GlyphTooBig" },
-  7: { message: "GlyphAlreadyMinted" },
-  8: { message: "GlyphNotMinted" },
-  9: { message: "GlyphIndex" },
+  7: { message: "LegendUnordered" },
+  8: { message: "GlyphAlreadyMinted" },
+  9: { message: "GlyphNotMinted" },
   10: { message: "OfferDuplicate" },
   11: { message: "OfferNotFound" },
   12: { message: "NoRoyaltiesToClaim" }
 }
 
-export type Storage = { tag: "Admin", values: void } | { tag: "FeeSAC", values: void } | { tag: "FeeAddress", values: void } | { tag: "ColorClaimFee", values: void } | { tag: "ColorOwnerRoyaltyRate", values: void } | { tag: "GlyphAuthorRoyaltyRate", values: void } | { tag: "GlyphIndex", values: void } | { tag: "ColorOwner", values: readonly [u32] } | { tag: "Glyph", values: readonly [u32] } | { tag: "GlyphIndexHashMap", values: readonly [Buffer] } | { tag: "GlyphOwner", values: readonly [u32] } | { tag: "OfferSellGlyph", values: readonly [u32] } | { tag: "OfferSellAsset", values: readonly [u32, string, i128] } | { tag: "Royalties", values: readonly [string, string] };
+export type Storage = { tag: "Admin", values: void } | { tag: "FeeSAC", values: void } | { tag: "FeeAddress", values: void } | { tag: "ColorClaimFee", values: void } | { tag: "ColorOwnerRoyaltyRate", values: void } | { tag: "GlyphMineFee", values: void } | { tag: "GlyphAuthorRoyaltyRate", values: void } | { tag: "GlyphIndex", values: void } | { tag: "ColorOwner", values: readonly [u32] } | { tag: "Glyph", values: readonly [u32] } | { tag: "GlyphIndexHashMap", values: readonly [Buffer] } | { tag: "GlyphOwner", values: readonly [u32] } | { tag: "OfferSellGlyph", values: readonly [u32] } | { tag: "OfferSellAsset", values: readonly [u32, string, i128] } | { tag: "Royalties", values: readonly [string, string] };
 export type OfferBuy = { tag: "Asset", values: readonly [string, i128] } | { tag: "Glyph", values: readonly [u32] };
 export type OfferSellAsset = readonly [string, string, i128];
 export type OfferSellAssetGet = readonly [Option<string>, string, i128];
@@ -149,7 +149,7 @@ export interface Client {
   /**
    * Construct and simulate a glyph_mint transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    */
-  glyph_mint: ({ author, owner, colors, legend, width, title, story }: { author: string, owner: string, colors: Buffer, legend: Array<u32>, width: u32, title: string, story: string }, options?: {
+  glyph_mint: ({ source, author, owner, colors, legend, width, title, story }: { source: string, author: string, owner: string, colors: Buffer, legend: Array<u32>, width: u32, title: string, story: string }, options?: {
     /**
      * The fee to pay for the transaction. Default: BASE_FEE
      */
@@ -386,11 +386,10 @@ export interface Client {
     simulate?: boolean;
   }) => Promise<AssembledTransaction<Result<i128>>>
 }
-
 export class Client extends ContractClient {
   static async deploy<T = Client>(
     /** Constructor/Initialization Args for the contract's `__constructor` method */
-    { admin, fee_sac, fee_address, color_claim_fee, color_owner_royalty_rate, glyph_author_royalty_rate }: { admin: string, fee_sac: string, fee_address: string, color_claim_fee: i128, color_owner_royalty_rate: i128, glyph_author_royalty_rate: i128 },
+    { admin, fee_sac, fee_address, color_claim_fee, glyph_mine_fee, color_owner_royalty_rate, glyph_author_royalty_rate }: { admin: string, fee_sac: string, fee_address: string, color_claim_fee: i128, glyph_mine_fee: i128, color_owner_royalty_rate: i128, glyph_author_royalty_rate: i128 },
     /** Options for initalizing a Client as well as for calling a method, with extras specific to deploying. */
     options: MethodOptions &
       Omit<ContractClientOptions, "contractId"> & {
@@ -402,23 +401,23 @@ export class Client extends ContractClient {
         format?: "hex" | "base64";
       }
   ): Promise<AssembledTransaction<T>> {
-    return ContractClient.deploy({ admin, fee_sac, fee_address, color_claim_fee, color_owner_royalty_rate, glyph_author_royalty_rate }, options)
+    return ContractClient.deploy({ admin, fee_sac, fee_address, color_claim_fee, glyph_mine_fee, color_owner_royalty_rate, glyph_author_royalty_rate }, options)
   }
   constructor(public readonly options: ContractClientOptions) {
     super(
-      new ContractSpec(["AAAABAAAAAAAAAAAAAAABUVycm9yAAAAAAAADAAAAAAAAAASQWxyZWFkeUluaXRpYWxpemVkAAAAAAABAAAAAAAAAA5Ob3RJbml0aWFsaXplZAAAAAAAAgAAAAAAAAAPQ29sb3JPdXRPZlJhbmdlAAAAAAMAAAAAAAAAE0NvbG9yQWxyZWFkeUNsYWltZWQAAAAABAAAAAAAAAAPQ29sb3JOb3RDbGFpbWVkAAAAAAUAAAAAAAAAC0dseXBoVG9vQmlnAAAAAAYAAAAAAAAAEkdseXBoQWxyZWFkeU1pbnRlZAAAAAAABwAAAAAAAAAOR2x5cGhOb3RNaW50ZWQAAAAAAAgAAAAAAAAACkdseXBoSW5kZXgAAAAAAAkAAAAAAAAADk9mZmVyRHVwbGljYXRlAAAAAAAKAAAAAAAAAA1PZmZlck5vdEZvdW5kAAAAAAAACwAAAAAAAAASTm9Sb3lhbHRpZXNUb0NsYWltAAAAAAAM",
-        "AAAAAgAAAAAAAAAAAAAAB1N0b3JhZ2UAAAAADgAAAAAAAAAAAAAABUFkbWluAAAAAAAAAAAAAAAAAAAGRmVlU0FDAAAAAAAAAAAAAAAAAApGZWVBZGRyZXNzAAAAAAAAAAAAAAAAAA1Db2xvckNsYWltRmVlAAAAAAAAAAAAAAAAAAAVQ29sb3JPd25lclJveWFsdHlSYXRlAAAAAAAAAAAAAAAAAAAWR2x5cGhBdXRob3JSb3lhbHR5UmF0ZQAAAAAAAAAAAAAAAAAKR2x5cGhJbmRleAAAAAAAAQAAAAAAAAAKQ29sb3JPd25lcgAAAAAAAQAAAAQAAAABAAAAAAAAAAVHbHlwaAAAAAAAAAEAAAAEAAAAAQAAAAAAAAARR2x5cGhJbmRleEhhc2hNYXAAAAAAAAABAAAD7gAAACAAAAABAAAAAAAAAApHbHlwaE93bmVyAAAAAAABAAAABAAAAAEAAAAAAAAADk9mZmVyU2VsbEdseXBoAAAAAAABAAAABAAAAAEAAAAAAAAADk9mZmVyU2VsbEFzc2V0AAAAAAADAAAABAAAABMAAAALAAAAAQAAAAAAAAAJUm95YWx0aWVzAAAAAAAAAgAAABMAAAAT",
+      new ContractSpec(["AAAABAAAAAAAAAAAAAAABUVycm9yAAAAAAAADQAAAAAAAAASQWxyZWFkeUluaXRpYWxpemVkAAAAAAABAAAAAAAAAA5Ob3RJbml0aWFsaXplZAAAAAAAAgAAAAAAAAAPQ29sb3JPdXRPZlJhbmdlAAAAAAMAAAAAAAAAE0NvbG9yQWxyZWFkeUNsYWltZWQAAAAABAAAAAAAAAAPQ29sb3JOb3RDbGFpbWVkAAAAAAUAAAAAAAAAC0dseXBoVG9vQmlnAAAAAAYAAAAAAAAAD0xlZ2VuZFVub3JkZXJlZAAAAAAHAAAAAAAAABJHbHlwaEFscmVhZHlNaW50ZWQAAAAAAAgAAAAAAAAADkdseXBoTm90TWludGVkAAAAAAAJAAAAAAAAAApHbHlwaEluZGV4AAAAAAAKAAAAAAAAAA5PZmZlckR1cGxpY2F0ZQAAAAAACwAAAAAAAAANT2ZmZXJOb3RGb3VuZAAAAAAAAAwAAAAAAAAAEk5vUm95YWx0aWVzVG9DbGFpbQAAAAAADQ==",
+        "AAAAAgAAAAAAAAAAAAAAB1N0b3JhZ2UAAAAADwAAAAAAAAAAAAAABUFkbWluAAAAAAAAAAAAAAAAAAAGRmVlU0FDAAAAAAAAAAAAAAAAAApGZWVBZGRyZXNzAAAAAAAAAAAAAAAAAA1Db2xvckNsYWltRmVlAAAAAAAAAAAAAAAAAAAVQ29sb3JPd25lclJveWFsdHlSYXRlAAAAAAAAAAAAAAAAAAAMR2x5cGhNaW5lRmVlAAAAAAAAAAAAAAAWR2x5cGhBdXRob3JSb3lhbHR5UmF0ZQAAAAAAAAAAAAAAAAAKR2x5cGhJbmRleAAAAAAAAQAAAAAAAAAKQ29sb3JPd25lcgAAAAAAAQAAAAQAAAABAAAAAAAAAAVHbHlwaAAAAAAAAAEAAAAEAAAAAQAAAAAAAAARR2x5cGhJbmRleEhhc2hNYXAAAAAAAAABAAAD7gAAACAAAAABAAAAAAAAAApHbHlwaE93bmVyAAAAAAABAAAABAAAAAEAAAAAAAAADk9mZmVyU2VsbEdseXBoAAAAAAABAAAABAAAAAEAAAAAAAAADk9mZmVyU2VsbEFzc2V0AAAAAAADAAAABAAAABMAAAALAAAAAQAAAAAAAAAJUm95YWx0aWVzAAAAAAAAAgAAABMAAAAT",
         "AAAAAgAAAAAAAAAAAAAACE9mZmVyQnV5AAAAAgAAAAEAAAAAAAAABUFzc2V0AAAAAAAAAgAAABMAAAALAAAAAQAAAAAAAAAFR2x5cGgAAAAAAAABAAAABA==",
         "AAAAAQAAAAAAAAAAAAAADk9mZmVyU2VsbEFzc2V0AAAAAAADAAAAAAAAAAEwAAAAAAAAEwAAAAAAAAABMQAAAAAAABMAAAAAAAAAATIAAAAAAAAL",
         "AAAAAQAAAAAAAAAAAAAAEU9mZmVyU2VsbEFzc2V0R2V0AAAAAAAAAwAAAAAAAAABMAAAAAAAA+gAAAATAAAAAAAAAAExAAAAAAAAEwAAAAAAAAABMgAAAAAAAAs=",
         "AAAAAQAAAAAAAAAAAAAABUdseXBoAAAAAAAABAAAAAAAAAAGYXV0aG9yAAAAAAATAAAAAAAAAAZjb2xvcnMAAAAAAA4AAAAAAAAABmxlZ2VuZAAAAAAD6gAAAAQAAAAAAAAABXdpZHRoAAAAAAAABA==",
-        "AAAAAAAAAAAAAAANX19jb25zdHJ1Y3RvcgAAAAAAAAYAAAAAAAAABWFkbWluAAAAAAAAEwAAAAAAAAAHZmVlX3NhYwAAAAATAAAAAAAAAAtmZWVfYWRkcmVzcwAAAAATAAAAAAAAAA9jb2xvcl9jbGFpbV9mZWUAAAAACwAAAAAAAAAYY29sb3Jfb3duZXJfcm95YWx0eV9yYXRlAAAACwAAAAAAAAAZZ2x5cGhfYXV0aG9yX3JveWFsdHlfcmF0ZQAAAAAAAAsAAAABAAAD6QAAA+0AAAAAAAAAAw==",
+        "AAAAAAAAAAAAAAANX19jb25zdHJ1Y3RvcgAAAAAAAAcAAAAAAAAABWFkbWluAAAAAAAAEwAAAAAAAAAHZmVlX3NhYwAAAAATAAAAAAAAAAtmZWVfYWRkcmVzcwAAAAATAAAAAAAAAA9jb2xvcl9jbGFpbV9mZWUAAAAACwAAAAAAAAAOZ2x5cGhfbWluZV9mZWUAAAAAAAsAAAAAAAAAGGNvbG9yX293bmVyX3JveWFsdHlfcmF0ZQAAAAsAAAAAAAAAGWdseXBoX2F1dGhvcl9yb3lhbHR5X3JhdGUAAAAAAAALAAAAAQAAA+kAAAPtAAAAAAAAAAM=",
         "AAAAAAAAAAAAAAAGdXBkYXRlAAAAAAAGAAAAAAAAAAVhZG1pbgAAAAAAA+gAAAATAAAAAAAAAAdmZWVfc2FjAAAAA+gAAAATAAAAAAAAAAtmZWVfYWRkcmVzcwAAAAPoAAAAEwAAAAAAAAAPY29sb3JfY2xhaW1fZmVlAAAAA+gAAAALAAAAAAAAABhjb2xvcl9vd25lcl9yb3lhbHR5X3JhdGUAAAPoAAAACwAAAAAAAAAZZ2x5cGhfYXV0aG9yX3JveWFsdHlfcmF0ZQAAAAAAA+gAAAALAAAAAQAAA+kAAAPtAAAAAAAAAAM=",
         "AAAAAAAAAAAAAAAHdXBncmFkZQAAAAABAAAAAAAAAARoYXNoAAAD7gAAACAAAAABAAAD6QAAA+0AAAAAAAAAAw==",
         "AAAAAAAAAAAAAAALY29sb3JfY2xhaW0AAAAAAwAAAAAAAAAGc291cmNlAAAAAAATAAAAAAAAAAVvd25lcgAAAAAAABMAAAAAAAAABWNvbG9yAAAAAAAABAAAAAEAAAPpAAAD7QAAAAAAAAAD",
         "AAAAAAAAAAAAAAAPY29sb3Jfb3duZXJfZ2V0AAAAAAEAAAAAAAAABWNvbG9yAAAAAAAABAAAAAEAAAPpAAAAEwAAAAM=",
         "AAAAAAAAAAAAAAAUY29sb3Jfb3duZXJfdHJhbnNmZXIAAAACAAAAAAAAAAVjb2xvcgAAAAAAAAQAAAAAAAAAAnRvAAAAAAATAAAAAQAAA+kAAAPtAAAAAAAAAAM=",
-        "AAAAAAAAAAAAAAAKZ2x5cGhfbWludAAAAAAABwAAAAAAAAAGYXV0aG9yAAAAAAATAAAAAAAAAAVvd25lcgAAAAAAABMAAAAAAAAABmNvbG9ycwAAAAAADgAAAAAAAAAGbGVnZW5kAAAAAAPqAAAABAAAAAAAAAAFd2lkdGgAAAAAAAAEAAAAAAAAAAV0aXRsZQAAAAAAABAAAAAAAAAABXN0b3J5AAAAAAAAEAAAAAEAAAPpAAAABAAAAAM=",
+        "AAAAAAAAAAAAAAAKZ2x5cGhfbWludAAAAAAACAAAAAAAAAAGc291cmNlAAAAAAATAAAAAAAAAAZhdXRob3IAAAAAABMAAAAAAAAABW93bmVyAAAAAAAAEwAAAAAAAAAGY29sb3JzAAAAAAAOAAAAAAAAAAZsZWdlbmQAAAAAA+oAAAAEAAAAAAAAAAV3aWR0aAAAAAAAAAQAAAAAAAAABXRpdGxlAAAAAAAAEAAAAAAAAAAFc3RvcnkAAAAAAAAQAAAAAQAAA+kAAAAEAAAAAw==",
         "AAAAAAAAAAAAAAAJZ2x5cGhfZ2V0AAAAAAAAAQAAAAAAAAALZ2x5cGhfaW5kZXgAAAAABAAAAAEAAAPpAAAH0AAAAAVHbHlwaAAAAAAAAAM=",
         "AAAAAAAAAAAAAAAPZ2x5cGhfb3duZXJfZ2V0AAAAAAEAAAAAAAAAC2dseXBoX2luZGV4AAAAAAQAAAABAAAD6QAAABMAAAAD",
         "AAAAAAAAAAAAAAAUZ2x5cGhfb3duZXJfdHJhbnNmZXIAAAACAAAAAAAAAAtnbHlwaF9pbmRleAAAAAAEAAAAAAAAAAJ0bwAAAAAAEwAAAAEAAAPpAAAD7QAAAAAAAAAD",
