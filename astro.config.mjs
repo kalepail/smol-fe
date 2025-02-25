@@ -2,6 +2,7 @@
 import { defineConfig } from 'astro/config';
 import tailwind from '@astrojs/tailwind';
 import svelte from '@astrojs/svelte';
+import { nodeModulesPolyfillPlugin } from 'esbuild-plugins-node-modules-polyfill';
 
 import cloudflare from '@astrojs/cloudflare';
 
@@ -10,8 +11,16 @@ export default defineConfig({
   integrations: [tailwind(), svelte()],
   adapter: cloudflare(),
   vite: {
-    ssr: {
-      external: ['node:buffer'],
+    optimizeDeps: {
+      esbuildOptions: {
+        define: {
+          global: 'globalThis',
+        },
+        plugins: [
+          // @ts-ignore
+          nodeModulesPolyfillPlugin()
+        ]
+      }
     },
   },
 });

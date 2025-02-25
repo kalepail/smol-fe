@@ -12,14 +12,17 @@
   "dependencies": {
     "@astrojs/cloudflare": "^12.2.2",
     "@stellar/stellar-sdk": "^13.1.0",
+    "buffer": "^6.0.3",
     "passkey-kit": "^0.10.13",
     "smol-sc-sdk": "link:./ext/smol-sc-sdk"
   },
   "devDependencies": {
     "@astrojs/svelte": "^7.0.4",
     "@astrojs/tailwind": "^6.0.0",
+    "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
     "@types/node": "^22.13.4",
     "astro": "^5.3.0",
+    "esbuild-plugins-node-modules-polyfill": "^1.7.0",
     "sass": "^1.85.0",
     "svelte": "^5.20.0",
     "tailwindcss": "^3.4.17",
