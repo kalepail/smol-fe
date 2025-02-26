@@ -125,8 +125,8 @@
                 disabled={(!!id && !!interval) || !prompt}>⚡︎ Generate</button
             >
             <aside class="text-xs mt-1 self-start">
-                * Will take roughly 6 minutes to fully generate. <br /> Even longer
-                during times of heavy load.
+                * Will take roughly 6 minutes to fully generate.
+                <br /> &nbsp;&nbsp; Even longerduring times of heavy load.
             </aside>
         </form>
 
