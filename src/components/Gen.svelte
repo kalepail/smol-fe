@@ -171,7 +171,7 @@
                 </h1>
 
                 {#if data && data?.[5]}
-                    {#each data && data?.[5] as song, index}
+                    {#each data && data?.[5] as song, index (song.music_id)}
                         {#if song.audio}
                             <audio
                                 class="mb-2"
