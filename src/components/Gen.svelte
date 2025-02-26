@@ -105,7 +105,7 @@
     }
 </script>
 
-<!-- Add loading icons -->
+<!-- TODO add loading icons -->
 
 <div class="px-2 py-10">
     <div class="flex flex-col items-center max-w-[1024px] mx-auto">
@@ -182,7 +182,7 @@
                             Your browser does not support the audio element.
                         </audio>
                     {/each}
-                {:else}
+                {:else if interval}
                     <Loader />
                 {/if}
             </li>
