@@ -1,26 +1,38 @@
 <script lang="ts">
     import { onMount } from "svelte";
+    import Loader from "./Loader.svelte";
 
     const url = new URL(location.href);
 
     let prompt: string = "";
     let id: string | null = url.searchParams.get("id") || null;
     let data: any = null;
+    let audioElements: HTMLAudioElement[] = [];
     let interval: NodeJS.Timeout | null = null;
 
     onMount(async () => {
         const res = await getGen();
 
         switch (res.steps.status) {
-            case 'queued':
-            case 'running':
-            case 'paused':
-            case 'waiting':
-            case 'waitingForPause':
+            case "queued":
+            case "running":
+            case "paused":
+            case "waiting":
+            case "waitingForPause":
                 interval = setInterval(getGen, 1000 * 5);
-            break;
+                break;
         }
     });
+
+    function playAudio(index: number) {
+        audioElements.forEach((audio, i) => {
+            if (i !== index) {
+                audio.pause();
+            } else {
+                audio.play();
+            }
+        });
+    }
 
     async function postGen() {
         if (!prompt) return;
@@ -30,19 +42,29 @@
 
         if (interval) {
             clearInterval(interval);
-            interval = null
+            interval = null;
         }
 
-        id = await fetch(`https://smol-workflow.sdf-ecosystem.workers.dev?prompt=${prompt}`, {
-            method: "POST",
-            // headers: {
-            //     "Content-Type": "application/json",
-            // },
-            // body: JSON.stringify({ prompt }),
-        }).then(async (res) => {
+        id = await fetch(
+            `https://smol-workflow.sdf-ecosystem.workers.dev?prompt=${prompt}`,
+            {
+                method: "POST",
+                // headers: {
+                //     "Content-Type": "application/json",
+                // },
+                // body: JSON.stringify({ prompt }),
+            },
+        ).then(async (res) => {
             if (res.ok) return res.text();
             else throw await res.text();
         });
+
+        prompt = "";
+
+        if (id) {
+            url.searchParams.set("id", id);
+            window.history.replaceState({}, "", url);
+        }
 
         interval = setInterval(getGen, 1000 * 5);
 
@@ -52,9 +74,6 @@
     async function getGen() {
         if (!id) return;
 
-        url.searchParams.set("id", id);
-        window.history.replaceState({}, '', url);
-
         return fetch(`https://smol-workflow.sdf-ecosystem.workers.dev?id=${id}`)
             .then(async (res) => {
                 if (res.ok) return res.json();
@@ -63,24 +82,22 @@
             .then((res) => {
                 console.log(res);
 
-                prompt = "";
                 data = res.do.map(([, d]: any) => d);
 
                 switch (res.steps.status) {
-                    case 'errored':
-                    case 'terminated':
-                    case 'complete':
-                    case 'unknown':
+                    case "errored":
+                    case "terminated":
+                    case "complete":
+                    case "unknown":
                         if (interval) {
                             clearInterval(interval);
-                            interval = null
+                            interval = null;
                         }
-
-                        if (res.steps.status !== 'complete') {
+                        if (res.steps.status !== "complete") {
                             // TODO show step failures in the UI vs using alert
                             alert(`Failed with status: ${res.steps.status}`);
                         }
-                    break;
+                        break;
                 }
 
                 return res;
@@ -102,11 +119,14 @@
                 rows="4"
                 bind:value={prompt}
             ></textarea>
-            <button type="submit" class="text-white bg-indigo-500 px-5 py-1 disabled:bg-gray-400" disabled={!prompt || !!interval}
-                >⚡︎ Generate</button
+            <button
+                type="submit"
+                class="text-white bg-indigo-500 px-5 py-1 disabled:bg-gray-400"
+                disabled={(!!id && !!interval) || !prompt}>⚡︎ Generate</button
             >
             <aside class="text-xs mt-1 self-start">
-                * Will take roughly 5 minutes to fully generate. <br> Even longer during times of heavy load.
+                * Will take roughly 6 minutes to fully generate. <br /> Even longer
+                during times of heavy load.
             </aside>
         </form>
 
@@ -149,19 +169,31 @@
                         href="https://aisonggenerator.io/">AI Song Generator</a
                     >)
                 </h1>
-                
-                {#each data && data?.[5] as song}
-                    <audio class="mb-2" controls>
-                        <source src={song.audio} type="audio/mpeg" />
-                        Your browser does not support the audio element.
-                    </audio>
-                {/each}
+
+                {#if data && data?.[5]}
+                    {#each data && data?.[5] as song, index}
+                        <audio
+                            class="mb-2"
+                            bind:this={audioElements[index]}
+                            on:play={() => playAudio(index)}
+                            controls
+                        >
+                            <source src={song.audio} type="audio/mpeg" />
+                            Your browser does not support the audio element.
+                        </audio>
+                    {/each}
+                {:else}
+                    <Loader />
+                {/if}
             </li>
 
             <li>
                 <h1>Lyrics:</h1>
-                <pre class="[&>code]:text-xs"><code>Title: <strong>{data && data?.[3]?.title}</strong></code>
-<code>Tags: <em>{data && data?.[3]?.style.join(', ')}</em></code>
+                <pre class="[&>code]:text-xs"><code
+                        >Title: <strong>{data && data?.[3]?.title}</strong
+                        ></code
+                    >
+<code>Tags: <em>{data && data?.[3]?.style.join(", ")}</em></code>
 
 <code>{data && data?.[3]?.lyrics}</code></pre>
             </li>
