@@ -46,13 +46,13 @@
         }
 
         id = await fetch(
-            `https://smol-workflow.sdf-ecosystem.workers.dev?prompt=${prompt}`,
+            `https://smol-workflow.sdf-ecosystem.workers.dev`,
             {
                 method: "POST",
-                // headers: {
-                //     "Content-Type": "application/json",
-                // },
-                // body: JSON.stringify({ prompt }),
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ prompt }),
             },
         ).then(async (res) => {
             if (res.ok) return res.text();
