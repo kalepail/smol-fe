@@ -172,15 +172,17 @@
 
                 {#if data && data?.[5]}
                     {#each data && data?.[5] as song, index}
-                        <audio
-                            class="mb-2"
-                            bind:this={audioElements[index]}
-                            on:play={() => playAudio(index)}
-                            controls
-                        >
-                            <source src={song.audio} type="audio/mpeg" />
-                            Your browser does not support the audio element.
-                        </audio>
+                        {#if song.audio}
+                            <audio
+                                class="mb-2"
+                                bind:this={audioElements[index]}
+                                on:play={() => playAudio(index)}
+                                controls
+                            >
+                                <source src={song.audio} type="audio/mpeg" />
+                                Your browser does not support the audio element.
+                            </audio>
+                        {/if}
                     {/each}
                 {:else if interval}
                     <Loader />
