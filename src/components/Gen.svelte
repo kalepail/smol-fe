@@ -13,7 +13,7 @@
     onMount(async () => {
         const res = await getGen();
 
-        switch (res.steps.status) {
+        switch (res?.steps?.status) {
             case "queued":
             case "running":
             case "paused":
