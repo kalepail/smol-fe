@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount } from "svelte";
+    import { onDestroy, onMount } from "svelte";
     import Loader from "./Loader.svelte";
 
     const url = new URL(location.href);
@@ -21,6 +21,13 @@
             case "waitingForPause":
                 interval = setInterval(getGen, 1000 * 5);
                 break;
+        }
+    });
+
+    onDestroy(() => {
+        if (interval) {
+            clearInterval(interval);
+            interval = null;
         }
     });
 
