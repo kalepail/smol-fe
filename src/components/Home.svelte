@@ -64,7 +64,7 @@
         {#each glyphs as glyph}
             <li class="w-1/6 p-2">
                 <a class="block ring-1 ring-gray-200 shadow-md rounded-md overflow-hidden" href={`/glyph/${glyph.id}`}>
-                    <img class="w-full aspect-square object-contain rendering-pixelated border-b border-gray-100" src={`https://smol-be.sdf-ecosystem.workers.dev/glyph/${glyph.id}.png`} alt={glyph.title} />
+                    <img class="w-full aspect-square object-contain pixelated border-b border-gray-100" src={`https://smol-be.sdf-ecosystem.workers.dev/glyph/${glyph.id}.png`} alt={glyph.title} />
                     <h1 class="p-2">{glyph.title}</h1>
                 </a>
             </li>

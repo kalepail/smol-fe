@@ -5,6 +5,6 @@ export default {
 		extend: {},
 	},
 	plugins: [
-		require('tailwindcss-image-rendering')(),
+		
 	],
 }

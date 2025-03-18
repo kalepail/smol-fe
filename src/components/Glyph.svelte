@@ -37,7 +37,7 @@
         <div class="flex flex-col">
             <!-- Pixel Grid -->
             <div class="w-[448px] aspect-square shadow-[0_0_0_1px] shadow-gray-200">
-                <img class="w-full object-contain rendering-pixelated" src={`https://smol-be.sdf-ecosystem.workers.dev/glyph/${id}.png`} alt={glyph?.title} />
+                <img class="w-full object-contain pixelated" src={`https://smol-be.sdf-ecosystem.workers.dev/glyph/${id}.png`} alt={glyph?.title} />
             </div>
         </div>
 

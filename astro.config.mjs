@@ -1,14 +1,13 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
-import tailwind from '@astrojs/tailwind';
 import svelte from '@astrojs/svelte';
 import { nodeModulesPolyfillPlugin } from 'esbuild-plugins-node-modules-polyfill';
-
 import cloudflare from '@astrojs/cloudflare';
+import tailwindcss from '@tailwindcss/vite';
 
 // https://astro.build/config
 export default defineConfig({
-  integrations: [tailwind(), svelte()],
+  integrations: [svelte()],
   adapter: cloudflare(),
   vite: {
     optimizeDeps: {
@@ -22,5 +21,6 @@ export default defineConfig({
         ]
       }
     },
+    plugins: [tailwindcss()],
   },
 });

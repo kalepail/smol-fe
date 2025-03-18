@@ -13,6 +13,12 @@
     onMount(async () => {
         const res = await getGen();
 
+        // Job is in the queue, no progress has been made yet though
+        if (res?.steps?.length === 0) {
+            interval = setInterval(getGen, 1000 * 5);
+            return;
+        }
+
         switch (res?.steps?.status) {
             case "queued":
             case "running":
@@ -91,6 +97,12 @@
 
                 data = res.do.map(([, d]: any) => d);
 
+                // status: "queued" // means that instance is waiting to be started (see concurrency limits)
+                // | "running" | "paused" | "errored" | "terminated" // user terminated the instance while it was running
+                // | "complete" | "waiting" // instance is hibernating and waiting for sleep or event to finish
+                // | "waitingForPause" // instance is finishing the current work to pause
+                // | "unknown";
+
                 switch (res.steps.status) {
                     case "errored":
                     case "terminated":
@@ -133,7 +145,7 @@
             >
             <aside class="text-xs mt-1 self-start">
                 * Will take roughly 6 minutes to fully generate.
-                <br /> &nbsp;&nbsp; Even longerduring times of heavy load.
+                <br /> &nbsp;&nbsp; Even longer during times of heavy load.
             </aside>
         </form>
 
@@ -141,6 +153,9 @@
             <li>
                 <h1>Id:</h1>
                 <pre><code class="text-xs">{id}</code></pre>
+                {#if data && data?.[4]}
+                    {JSON.stringify(data?.[4], null, 2)}
+                {/if}
             </li>
 
             <li>
@@ -158,7 +173,7 @@
 
                 {#if data && data?.[1]}
                     <img
-                        class="aspect-square object-contain rendering-pixelated w-[256px]"
+                        class="aspect-square object-contain pixelated w-[256px]"
                         src={`data:image/png;base64,${data?.[1]}`}
                     />
                 {/if}
@@ -177,8 +192,11 @@
                     >)
                 </h1>
 
-                {#if data && data?.[5]}
-                    {#each data && data?.[5] as song, index (song.music_id)}
+                <!-- [4] is nsfw tags -->
+                <!-- [5] is the song ids -->
+
+                {#if data && data?.[6]}
+                    {#each data && data?.[6] as song, index (song.music_id)}
                         {#if song.audio}
                             <audio
                                 class="mb-2"
@@ -189,6 +207,8 @@
                                 <source src={song.audio} type="audio/mpeg" />
                                 Your browser does not support the audio element.
                             </audio>
+                        {:else}
+                            <Loader />
                         {/if}
                     {/each}
                 {:else if interval}
