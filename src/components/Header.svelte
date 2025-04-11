@@ -42,10 +42,7 @@
                 keyIdBase64,
                 contractId: cid,
                 signedTx,
-            } = await account.createWallet(
-                "smol.xyz",
-                "SMOL Player",
-            );
+            } = await account.createWallet("smol.xyz", "SMOL Player");
 
             await server.send(signedTx);
 
@@ -78,17 +75,12 @@
     }
 </script>
 
-<header class="p-2 bg-gray-100">
+<header class="relative p-2 bg-amber-950 text-amber-500">
     <div class="flex items-center flex-wrap max-w-[1024px] mx-auto">
         <h1 class="flex text-xl">
             <a href="/"><strong>SMOL</strong></a>
         </h1>
-    
-        <a class={`ml-4 ${pathname === '/' ? 'underline' : ''}`} href="/">Home</a>
-        <a class={`ml-4 ${pathname === '/create' ? 'underline' : ''}`} href="/create">Create</a>
-        <a class={`ml-4 ${pathname === '/colors' ? 'underline' : ''}`} href="/colors">Colors</a>
-        <a class={`ml-4 ${pathname === '/offers' ? 'underline' : ''}`} href="/offers">Offers</a>
-    
+
         <div class="flex items-center ml-auto">
             {#if $contractId}
                 <a
@@ -97,8 +89,9 @@
                     target="_blank">{truncate($contractId, 4)}</a
                 >
                 <!-- <span class="bg-green-700 text-yellow-100 px-3 py-1 rounded-full font-mono text-sm">{(Number($contractBalance ?? 0) / 1e7)} KALE</span> -->
-                <button class="text-white bg-black px-2 py-1 ml-2" on:click={logout}
-                    >Logout</button
+                <button
+                    class="text-amber-950 bg-amber-500 px-2 py-1 ml-2"
+                    on:click={logout}>Logout</button
                 >
             {:else}
                 <button class="underline mr-2" on:click={login}>Login</button>
@@ -110,5 +103,27 @@
                 >
             {/if}
         </div>
-    </div> 
+    </div>
+
+    <!-- <div class="polygon"></div> -->
 </header>
+
+<style lang="scss">
+    .polygon {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        width: 100%;
+        height: 300px;
+        background-color: oklch(0.266 0.079 36.259);
+
+        /* Using clip-path for a hexagon shape */
+        clip-path: polygon(
+            0 0,
+            100% 0,
+            0 100%,
+            0 100%,
+        );
+    }
+</style>
