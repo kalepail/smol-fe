@@ -96,7 +96,7 @@
             {:else}
                 <button class="underline mr-2" on:click={login}>Login</button>
                 <button
-                    class="text-white bg-black px-2 py-1 disabled:bg-gray-400"
+                    class="text-amber-950 bg-amber-500 px-2 py-1 disabled:bg-gray-400"
                     on:click={signUp}
                     disabled={creating}
                     >{creating ? "Creating..." : "Create New Account"}</button
