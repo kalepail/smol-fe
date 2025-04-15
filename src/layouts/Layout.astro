@@ -10,7 +10,7 @@ const {
 	title = "Smol", 
 	description = "Smol art onchain",
 	song_url = "https://cdn2.aisonggenerator.io/04eeed9d-4c63-4e54-ad7a-d25cbd89dc2a.mp3",
-	image_url = "https://smol.xyz/download.png?v=2",
+	image_url = "https://smol.xyz/meta.png?v=1",
 } = Astro.props;
 
 import Header from '../components/Header.svelte'
@@ -22,7 +22,7 @@ import '../styles/global.css'
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<link rel="icon" type="image/png" href="/favicon.png" />
 		<meta name="generator" content={Astro.generator} />
 		<title>{title}</title>
 
@@ -33,7 +33,6 @@ import '../styles/global.css'
 		<meta property="og:image" content={image_url} />
 		<meta property="og:audio" content={song_url} />
 		<meta property="og:audio:type" content="audio/mpeg" />
-		<meta property="og:audio:secure_url" content={song_url} />
 
 		<meta name="twitter:card" content="summary_large_image" />
 		<meta name="twitter:title" content={title} />
