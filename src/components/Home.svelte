@@ -11,8 +11,9 @@
     let interval: NodeJS.Timeout | null = null;
     let failed: boolean = false;
 
+    data = data.do;
+
     onMount(async () => {
-        data = data.do
         url = new URL(window.location.href);
 
         const res = await getGen();

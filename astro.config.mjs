@@ -1,7 +1,7 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import svelte from '@astrojs/svelte';
-import { nodeModulesPolyfillPlugin } from 'esbuild-plugins-node-modules-polyfill';
+// import { nodeModulesPolyfillPlugin } from 'esbuild-plugins-node-modules-polyfill';
 import cloudflare from '@astrojs/cloudflare';
 import tailwindcss from '@tailwindcss/vite';
 
