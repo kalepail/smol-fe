@@ -111,6 +111,7 @@
             window.history.replaceState({}, "", url);
         }
 
+        failed = false;
         interval = setInterval(getGen, 1000 * 5);
 
         // After `interval` so the "Generate" button will disable immediately
