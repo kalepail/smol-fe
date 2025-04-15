@@ -9,7 +9,7 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   output: 'server',
   integrations: [svelte()],
-  // adapter: cloudflare(),
+  adapter: cloudflare(),
   vite: {
     optimizeDeps: {
       esbuildOptions: {
