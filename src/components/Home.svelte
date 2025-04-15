@@ -200,7 +200,7 @@
 
             <li>
                 <h1>Id:</h1>
-                <pre><code class="text-xs">{id}</code></pre>
+                <pre class="whitespace-pre-wrap break-all"><code class="text-xs">{id}</code></pre>
 
                 {#if data && data?.nsfw}
                     {#if data.nsfw?.safe === false}
@@ -276,7 +276,7 @@
 
             <li>
                 <h1>Lyrics:</h1>
-                <pre class="[&>code]:text-xs"><code
+                <pre class="whitespace-pre-wrap break-words [&>code]:text-xs"><code
                         >Title: <strong>{data && data?.lyrics?.title}</strong
                         ></code
                     >
