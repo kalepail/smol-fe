@@ -1,8 +1,18 @@
 ---
-import Home from '../components/Home.svelte';
-import Layout from '../layouts/Layout.astro';
+import Home from "../components/Home.svelte";
+import Layout from "../layouts/Layout.astro";
+
+const id = Astro.url.searchParams.get("id");
+const data = id
+	? await fetch(
+			`https://smol-workflow.sdf-ecosystem.workers.dev?id=${id}`,
+		).then(async (res) => {
+			if (res.ok) return res.json();
+			return null;
+		})
+	: null;
 ---
 
 <Layout>
-	<Home client:only />
-</Plain>
+	<Home client:load id={id} data={data} />
+</Layout>

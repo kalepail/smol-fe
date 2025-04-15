@@ -1,6 +1,4 @@
 <script lang="ts">
-    export let pathname;
-
     import { onMount } from "svelte";
     import { keyId } from "../store/keyId";
     import { contractId } from "../store/contractId";
@@ -104,26 +102,4 @@
             {/if}
         </div>
     </div>
-
-    <!-- <div class="polygon"></div> -->
 </header>
-
-<style lang="scss">
-    .polygon {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        width: 100%;
-        height: 300px;
-        background-color: oklch(0.266 0.079 36.259);
-
-        /* Using clip-path for a hexagon shape */
-        clip-path: polygon(
-            0 0,
-            100% 0,
-            0 100%,
-            0 100%,
-        );
-    }
-</style>

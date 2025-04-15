@@ -1,15 +1,15 @@
 ---
 interface Props {
-	title: string;
-	description: string;
-	song_url: string;
-	image_url: string;
+	title?: string;
+	description?: string;
+	song_url?: string;
+	image_url?: string;
 }
 
 const { 
 	title = "Smol", 
 	description = "Smol art onchain",
-	song_url = "https://cdn2.aisonggenerator.io/04eeed9d-4c63-4e54-ad7a-d25cbd89dc2a.mp3",
+	song_url = "https://cdn2.aisonggenerator.io/491bb94b-79df-41bb-b09b-2d295f1dfd05.mp3",
 	image_url = "https://smol.xyz/meta.png?v=1",
 } = Astro.props;
 
@@ -41,7 +41,7 @@ import '../styles/global.css'
 		<meta name="twitter:url" content={Astro.url} />
 	</head>
 	<body>
-		<Header pathname={Astro.originPathname} client:only />
+		<Header client:only />
 		<slot />
 	</body>
 </html>

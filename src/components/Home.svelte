@@ -1,17 +1,20 @@
 <script lang="ts">
+    export let id: string | null;
+    export let data: any;
+
     import { onDestroy, onMount } from "svelte";
     import Loader from "./Loader.svelte";
 
-    const url = new URL(location.href);
-
+    let url: URL;
     let prompt: string = "";
-    let id: string | null = url.searchParams.get("id") || null;
-    let data: any = null;
     let audioElements: HTMLAudioElement[] = [];
     let interval: NodeJS.Timeout | null = null;
     let failed: boolean = false;
 
     onMount(async () => {
+        data = data.do
+        url = new URL(window.location.href);
+
         const res = await getGen();
 
         // Job is in the queue, no progress has been made yet though

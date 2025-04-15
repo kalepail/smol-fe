@@ -7,18 +7,19 @@ import tailwindcss from '@tailwindcss/vite';
 
 // https://astro.build/config
 export default defineConfig({
+  output: 'server',
   integrations: [svelte()],
-  adapter: cloudflare(),
+  // adapter: cloudflare(),
   vite: {
     optimizeDeps: {
       esbuildOptions: {
-        define: {
-          global: 'globalThis',
-        },
-        plugins: [
-          // @ts-ignore
-          nodeModulesPolyfillPlugin()
-        ]
+        // define: {
+        //   global: 'globalThis',
+        // },
+        // plugins: [
+        //   // @ts-ignore
+        //   nodeModulesPolyfillPlugin()
+        // ]
       }
     },
     plugins: [tailwindcss()],
