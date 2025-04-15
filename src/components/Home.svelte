@@ -11,7 +11,7 @@
     let interval: NodeJS.Timeout | null = null;
     let failed: boolean = false;
 
-    data = data.do;
+    data = data?.do;
 
     onMount(async () => {
         url = new URL(window.location.href);
