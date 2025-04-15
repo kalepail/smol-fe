@@ -9,6 +9,7 @@
     let data: any = null;
     let audioElements: HTMLAudioElement[] = [];
     let interval: NodeJS.Timeout | null = null;
+    let failed: boolean = false;
 
     onMount(async () => {
         const res = await getGen();
@@ -84,6 +85,37 @@
         // After `interval` so the "Generate" button will disable immediately
         await getGen();
     }
+    async function retryGen() {
+        data = null;
+
+        if (interval) {
+            clearInterval(interval);
+            interval = null;
+        }
+
+        id = await fetch(
+            `https://smol-workflow.sdf-ecosystem.workers.dev?id=${id}&retry=true`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            },
+        ).then(async (res) => {
+            if (res.ok) return res.text();
+            else throw await res.text();
+        });
+
+        if (id) {
+            url.searchParams.set("id", id);
+            window.history.replaceState({}, "", url);
+        }
+
+        interval = setInterval(getGen, 1000 * 5);
+
+        // After `interval` so the "Generate" button will disable immediately
+        await getGen();
+    }
     async function getGen() {
         if (!id) return;
 
@@ -115,6 +147,7 @@
                         if (res.steps.status !== "complete") {
                             // TODO show step failures in the UI vs using alert
                             // alert(`Failed with status: ${res.steps.status}`);
+                            failed = true
                         }
                         break;
                 }
@@ -126,7 +159,7 @@
 
 <!-- TODO add loading icons -->
 
-<div class="px-2 py-10 bg-amber-50">
+<div class="px-2 py-10 bg-amber-50 border-b border-amber-200">
     <div class="flex flex-col items-center max-w-[1024px] mx-auto">
         <form
             class="flex flex-col items-end max-w-[512px] w-full"
@@ -154,6 +187,12 @@
 <div class="px-2 py-10">
     <div class="flex flex-col items-center max-w-[1024px] mx-auto">
         <ul class="max-w-[512px] w-full [&>li]:mb-5 [&>li>h1]:font-bold">
+            {#if failed}
+                <li>
+                    <button class="text-white bg-indigo-500 px-5 py-1 disabled:bg-gray-400" on:click={retryGen} disabled={!!id && !!interval}>Retry</button>
+                </li>
+            {/if}
+
             <li>
                 <h1>Id:</h1>
                 <pre><code class="text-xs">{id}</code></pre>
