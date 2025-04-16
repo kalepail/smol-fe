@@ -4,7 +4,6 @@
 
     import { onDestroy, onMount } from "svelte";
     import Loader from "./Loader.svelte";
-    import { AudioPlayer } from 'svelte-mp3';
 
     let url: URL;
     let prompt: string = "";
