@@ -131,9 +131,9 @@
                 else throw await res.text();
             })
             .then((res) => {
-                console.log(res);
+                // console.log(res);
 
-                data = res.do // .map(([, d]: any) => d);
+                data = res.do
 
                 // status: "queued" // means that instance is waiting to be started (see concurrency limits)
                 // | "running" | "paused" | "errored" | "terminated" // user terminated the instance while it was running
@@ -233,7 +233,7 @@
                 {#if data && data?.image_base64}
                     <img
                         class="aspect-square object-contain pixelated w-[256px]"
-                        src={`data:image/png;base64,${data.image_base64}`}
+                        src={`/image/${id}.png`}
                     />
                 {/if}
             </li>

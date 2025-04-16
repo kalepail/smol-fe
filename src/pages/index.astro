@@ -13,6 +13,11 @@ const data = id
 	: null;
 ---
 
-<Layout>
+<Layout 
+	title={data?.do?.lyrics?.title} 
+	description={data?.do?.payload?.prompt}
+	song_url={data?.do?.songs?.[0]?.audio}
+	image_url=`${Astro.url.origin?.toString()}/image/${id}.png` 
+>
 	<Home client:load id={id} data={data} />
 </Layout>
