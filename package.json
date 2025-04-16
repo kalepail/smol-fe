@@ -14,6 +14,7 @@
     "@stellar/stellar-sdk": "^13.2.0",
     "@tailwindcss/vite": "^4.1.3",
     "buffer": "^6.0.3",
+    "jimp": "^1.6.0",
     "passkey-kit": "^0.10.20",
     "smol-sc-sdk": "link:./ext/smol-sc-sdk"
   },
