@@ -4,6 +4,7 @@
 
     import { onDestroy, onMount } from "svelte";
     import Loader from "./Loader.svelte";
+    import { AudioPlayer } from 'svelte-mp3';
 
     let url: URL;
     let prompt: string = "";
@@ -15,6 +16,7 @@
 
     onMount(async () => {
         url = new URL(window.location.href);
+        id = url.searchParams.get("id");
 
         const res = await getGen();
 
@@ -260,11 +262,9 @@
                                 class="mb-2"
                                 bind:this={audioElements[index]}
                                 on:play={() => playAudio(index)}
+                                src={song.audio}
                                 controls
-                            >
-                                <source src={song.audio} type="audio/mpeg" />
-                                Your browser does not support the audio element.
-                            </audio>
+                            ></audio>
                         {:else}
                             <Loader />
                         {/if}
