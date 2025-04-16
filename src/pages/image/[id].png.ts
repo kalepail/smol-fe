@@ -1,4 +1,5 @@
 import type { APIRoute } from "astro";
+import { Buffer } from "buffer";
 
 // TODO this is a very bad way to do this, but it works for now
 
