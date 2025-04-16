@@ -30,14 +30,14 @@ import '../styles/global.css'
 		<meta property="og:description" content={description} />
 		<meta property="og:type" content="website">
 		<meta property="og:url" content={Astro.url} />
-		<meta property="og:image" content={image_url} />
+		<meta property="og:image" content=`${image_url}?scale=16` />
 		<meta property="og:audio" content={song_url} />
 		<meta property="og:audio:type" content="audio/mpeg" />
 
 		<meta name="twitter:card" content="summary_large_image" />
 		<meta name="twitter:title" content={title} />
 		<meta name="twitter:description" content={description} />
-		<meta name="twitter:image" content={image_url} />
+		<meta name="twitter:image" content=`${image_url}?scale=16` />
 		<meta name="twitter:url" content={Astro.url} />
 	</head>
 	<body>
