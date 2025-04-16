@@ -11,8 +11,6 @@
     let interval: NodeJS.Timeout | null = null;
     let failed: boolean = false;
 
-    data = data?.do;
-
     onMount(async () => {
         url = new URL(window.location.href);
         id = url.searchParams.get("id");
@@ -64,16 +62,13 @@
             interval = null;
         }
 
-        id = await fetch(
-            `https://smol-workflow.sdf-ecosystem.workers.dev`,
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ prompt }),
+        id = await fetch(`https://smol-workflow.sdf-ecosystem.workers.dev`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
             },
-        ).then(async (res) => {
+            body: JSON.stringify({ prompt }),
+        }).then(async (res) => {
             if (res.ok) return res.text();
             else throw await res.text();
         });
@@ -133,7 +128,7 @@
             .then((res) => {
                 // console.log(res);
 
-                data = res.do
+                data = res.do;
 
                 // status: "queued" // means that instance is waiting to be started (see concurrency limits)
                 // | "running" | "paused" | "errored" | "terminated" // user terminated the instance while it was running
@@ -153,7 +148,7 @@
                         if (res.steps.status !== "complete") {
                             // TODO show step failures in the UI vs using alert
                             // alert(`Failed with status: ${res.steps.status}`);
-                            failed = true
+                            failed = true;
                         }
                         break;
                 }
@@ -195,22 +190,33 @@
         <ul class="max-w-[512px] w-full [&>li]:mb-5 [&>li>h1]:font-bold">
             {#if failed}
                 <li>
-                    <button class="text-white bg-indigo-500 px-5 py-1 disabled:bg-gray-400" on:click={retryGen} disabled={!!id && !!interval}>Retry</button>
+                    <button
+                        class="text-white bg-indigo-500 px-5 py-1 disabled:bg-gray-400"
+                        on:click={retryGen}
+                        disabled={!!id && !!interval}>Retry</button
+                    >
                 </li>
             {/if}
 
             <li>
                 <h1>Id:</h1>
-                <pre class="whitespace-pre-wrap break-all"><code class="text-xs">{id}</code></pre>
+                <pre class="whitespace-pre-wrap break-all"><code class="text-xs"
+                        >{id}</code
+                    ></pre>
 
                 {#if data && data?.nsfw}
                     {#if data.nsfw?.safe === false}
-                        <span class="bg-rose-400 text-rose-1000 uppercase text-xs font-mono px-2 py-1 rounded-full">
+                        <span
+                            class="bg-rose-400 text-rose-1000 uppercase text-xs font-mono px-2 py-1 rounded-full"
+                        >
                             unsafe —
                             {data.nsfw?.categories.join(", ")}
                         </span>
                     {:else}
-                        <span class="bg-lime-400 text-lime-1000 uppercase text-xs font-mono px-2 py-1 rounded-full">safe</span>
+                        <span
+                            class="bg-lime-400 text-lime-1000 uppercase text-xs font-mono px-2 py-1 rounded-full"
+                            >safe</span
+                        >
                     {/if}
                 {/if}
             </li>
@@ -275,7 +281,8 @@
 
             <li>
                 <h1>Lyrics:</h1>
-                <pre class="whitespace-pre-wrap break-words [&>code]:text-xs"><code
+                <pre
+                    class="whitespace-pre-wrap break-words [&>code]:text-xs"><code
                         >Title: <strong>{data && data?.lyrics?.title}</strong
                         ></code
                     >
