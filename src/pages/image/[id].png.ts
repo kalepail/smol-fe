@@ -3,6 +3,7 @@ import { Buffer } from "buffer";
 import { Jimp, ResizeStrategy } from "jimp";
 
 // TODO this is a very bad way to do this, but it works for now
+// We should be saving all gens to R2, KV and even SQL
 
 export const GET: APIRoute = async ({ params, url }) => {
 	const scale = url.searchParams.get('scale');
@@ -15,6 +16,15 @@ export const GET: APIRoute = async ({ params, url }) => {
 			return null;
 		})
 		: null;
+
+	if (!data?.do?.image_base64) {
+		return new Response(null, {
+			status: 404,
+			headers: {
+				"Cache-Control": "no-store",
+			}
+		});
+	}
 
 	let img: Buffer = Buffer.from(data.do.image_base64, 'base64');
 

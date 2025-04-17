@@ -1,0 +1,28 @@
+---
+import Home from "../components/Home.svelte";
+import Layout from "../layouts/Layout.astro";
+
+const id = Astro.params.id;
+const data = id
+	? await fetch(`https://smol-workflow.sdf-ecosystem.workers.dev?id=${id}`)
+			.then(async (res) => {
+				if (res.ok) return res.json();
+				return null;
+			})
+			.then((data) => {
+				if (data?.do?.image_base64) {
+					data.do.image_base64 = "true";
+				}
+				return data;
+			})
+	: null;
+---
+
+<Layout
+	title={data?.do?.lyrics?.title}
+	description={data?.do?.payload?.prompt}
+	song_url={data?.do?.songs?.[0]?.audio}
+	image_url={id && `${Astro.url.origin?.toString()}/image/${id}.png`}
+>
+	<Home client:load id={id} data={data?.do} />
+</Layout>

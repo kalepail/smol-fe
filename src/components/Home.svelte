@@ -11,11 +11,8 @@
     let interval: NodeJS.Timeout | null = null;
     let failed: boolean = false;
 
-    // TODO switch away from using the id query param and just use path segments
-
     onMount(async () => {
         url = new URL(window.location.href);
-        id = url.searchParams.get("id");
 
         const res = await getGen();
 
@@ -78,8 +75,7 @@
         prompt = "";
 
         if (id) {
-            url.searchParams.set("id", id);
-            window.history.replaceState({}, "", url);
+            window.history.replaceState({}, "", `/${id}`);
         }
 
         interval = setInterval(getGen, 1000 * 5);
@@ -109,8 +105,7 @@
         });
 
         if (id) {
-            url.searchParams.set("id", id);
-            window.history.replaceState({}, "", url);
+            window.history.replaceState({}, "", `/${id}`);
         }
 
         failed = false;
