@@ -1,4 +1,5 @@
 ---
+import { undefined } from "astro:schema";
 import Home from "../components/Home.svelte";
 import Layout from "../layouts/Layout.astro";
 
@@ -22,7 +23,7 @@ const data = id
 	title={data?.do?.lyrics?.title}
 	description={data?.do?.payload?.prompt}
 	song_url={data?.do?.songs?.[0]?.audio}
-	image_url=`${Astro.url.origin?.toString()}/image/${id}.png`
+	image_url={id && `${Astro.url.origin?.toString()}/image/${id}.png`}
 >
-	<Home client:load id={id} data={data.do} />
+	<Home client:load id={id} data={data?.do} />
 </Layout>
