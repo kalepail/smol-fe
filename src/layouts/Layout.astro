@@ -25,6 +25,12 @@ import '../styles/global.css'
 		<link rel="apple-touch-icon" href={title !== 'Smol' && image_url ? image_url : "/favicon_2.png" }>
 		<link rel="icon" type="image/png" href={title !== 'Smol' && image_url ? image_url : "/favicon_2.png" } />
 		<meta name="generator" content={Astro.generator} />
+		<meta name="apple-mobile-web-app-capable" content="yes">
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+		<meta name="apple-mobile-web-app-title" content={title}>
+		<meta name="theme-color" content="#000000">
+		<link rel="manifest" href="/manifest.json">
+
 		<title>{title}</title>
 
 		<meta property="og:title" content={title} />
