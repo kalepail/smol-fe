@@ -4,23 +4,15 @@
 
     import { onDestroy, onMount } from "svelte";
     import Loader from "./Loader.svelte";
+    import { contractId } from "../store/contractId";
 
-    let url: URL;
     let prompt: string = "";
     let audioElements: HTMLAudioElement[] = [];
     let interval: NodeJS.Timeout | null = null;
     let failed: boolean = false;
 
     onMount(async () => {
-        url = new URL(window.location.href);
-
         const res = await getGen();
-
-        // Job is in the queue, no progress has been made yet though
-        if (res?.steps?.length === 0) {
-            interval = setInterval(getGen, 1000 * 5);
-            return;
-        }
 
         switch (res?.steps?.status) {
             case "queued":
@@ -29,7 +21,7 @@
             case "waiting":
             case "waitingForPause":
                 interval = setInterval(getGen, 1000 * 5);
-                break;
+            break;
         }
     });
 
@@ -55,6 +47,7 @@
 
         id = null;
         data = null;
+        failed = false;
 
         if (interval) {
             clearInterval(interval);
@@ -66,7 +59,10 @@
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({ prompt }),
+            body: JSON.stringify({
+                address: $contractId,
+                prompt
+            }),
         }).then(async (res) => {
             if (res.ok) return res.text();
             else throw await res.text();
@@ -92,7 +88,7 @@
         }
 
         id = await fetch(
-            `https://smol-workflow.sdf-ecosystem.workers.dev?id=${id}&retry=true`,
+            `https://smol-workflow.sdf-ecosystem.workers.dev/retry/${id}`,
             {
                 method: "POST",
                 headers: {
@@ -117,7 +113,7 @@
     async function getGen() {
         if (!id) return;
 
-        return fetch(`https://smol-workflow.sdf-ecosystem.workers.dev?id=${id}`)
+        return fetch(`https://smol-workflow.sdf-ecosystem.workers.dev/${id}`)
             .then(async (res) => {
                 if (res.ok) return res.json();
                 else throw await res.text();
@@ -125,7 +121,7 @@
             .then((res) => {
                 // console.log(res);
 
-                data = res.do;
+                data = res?.do;
 
                 // status: "queued" // means that instance is waiting to be started (see concurrency limits)
                 // | "running" | "paused" | "errored" | "terminated" // user terminated the instance while it was running
@@ -133,7 +129,7 @@
                 // | "waitingForPause" // instance is finishing the current work to pause
                 // | "unknown";
 
-                switch (res.steps.status) {
+                switch (res?.steps?.status) {
                     case "errored":
                     case "terminated":
                     case "complete":
@@ -147,7 +143,7 @@
                             // alert(`Failed with status: ${res.steps.status}`);
                             failed = true;
                         }
-                        break;
+                    break;
                 }
 
                 return res;
@@ -157,30 +153,32 @@
 
 <!-- TODO add loading icons -->
 
-<div class="px-2 py-10 bg-amber-50 border-b border-amber-200">
-    <div class="flex flex-col items-center max-w-[1024px] mx-auto">
-        <form
-            class="flex flex-col items-end max-w-[512px] w-full"
-            on:submit|preventDefault={postGen}
-        >
-            <textarea
-                class="border p-2 mb-2 w-full bg-white"
-                placeholder="Write an epic prompt for an even epic'er gen"
-                rows="4"
-                bind:value={prompt}
-            ></textarea>
-            <button
-                type="submit"
-                class="text-white bg-indigo-500 px-5 py-1 disabled:bg-gray-400"
-                disabled={(!!id && !!interval) || !prompt}>⚡︎ Generate</button
+{#if $contractId}
+    <div class="px-2 py-10 bg-amber-50 border-b border-amber-200">
+        <div class="flex flex-col items-center max-w-[1024px] mx-auto">
+            <form
+                class="flex flex-col items-end max-w-[512px] w-full"
+                on:submit|preventDefault={postGen}
             >
-            <aside class="text-xs mt-1 self-start">
-                * Will take roughly 6 minutes to fully generate.
-                <br /> &nbsp;&nbsp; Even longer during times of heavy load.
-            </aside>
-        </form>
+                <textarea
+                    class="border p-2 mb-2 w-full bg-white"
+                    placeholder="Write an epic prompt for an even epic'er gen"
+                    rows="4"
+                    bind:value={prompt}
+                ></textarea>
+                <button
+                    type="submit"
+                    class="text-white bg-indigo-500 px-5 py-1 disabled:bg-gray-400"
+                    disabled={(!!id && !!interval) || !prompt}>⚡︎ Generate</button
+                >
+                <aside class="text-xs mt-1 self-start">
+                    * Will take roughly 6 minutes to fully generate.
+                    <br /> &nbsp;&nbsp; Even longer during times of heavy load.
+                </aside>
+            </form>
+        </div>
     </div>
-</div>
+{/if}
 
 <div class="px-2 py-10">
     <div class="flex flex-col items-center max-w-[1024px] mx-auto">
@@ -236,7 +234,7 @@
                 {#if data && data?.image_base64}
                     <img
                         class="aspect-square object-contain pixelated w-[256px]"
-                        src={`/image/${id}.png`}
+                        src={`https://smol-workflow.sdf-ecosystem.workers.dev/image/${id}.png`}
                     />
                 {/if}
             </li>
@@ -264,7 +262,7 @@
                                 class="mb-2"
                                 bind:this={audioElements[index]}
                                 on:play={() => playAudio(index)}
-                                src={song.audio}
+                                src={song.status < 4 ? song.audio : `https://smol-workflow.sdf-ecosystem.workers.dev/song/${song.music_id}.mp3`}
                                 controls
                             ></audio>
                         {:else}
