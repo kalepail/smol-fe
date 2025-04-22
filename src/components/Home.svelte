@@ -235,6 +235,11 @@
                     <img
                         class="aspect-square object-contain pixelated w-[256px]"
                         src={`https://smol-workflow.sdf-ecosystem.workers.dev/image/${id}.png`}
+                        on:error={(e) => { 
+                            // @ts-ignore
+                            e.currentTarget.src = `data:image/png;base64,${data.image_base64}` 
+                        }}
+                        alt={data?.lyrics?.title}
                     />
                 {/if}
             </li>
@@ -263,6 +268,10 @@
                                 bind:this={audioElements[index]}
                                 on:play={() => playAudio(index)}
                                 src={song.status < 4 ? song.audio : `https://smol-workflow.sdf-ecosystem.workers.dev/song/${song.music_id}.mp3`}
+                                on:error={(e) => { 
+                                    // @ts-ignore
+                                    e.currentTarget.src = song.audio
+                                }}
                                 controls
                             ></audio>
                         {:else}
