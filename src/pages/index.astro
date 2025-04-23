@@ -1,6 +1,12 @@
 ---
-import Home from "../components/Home.svelte";
+import Home from '../components/Home.svelte';
 import Layout from "../layouts/Layout.astro";
+
+const { results } = await fetch(`https://smol-workflow.sdf-ecosystem.workers.dev`)
+	.then(async (res) => {
+		if (res.ok) return res.json();
+		return { results: [] };
+	})
 ---
 
 <Layout
@@ -9,5 +15,5 @@ import Layout from "../layouts/Layout.astro";
 	song_url="https://cdn2.aisonggenerator.io/491bb94b-79df-41bb-b09b-2d295f1dfd05.mp3"
 	image_url="https://smol.xyz/meta.png?v=1"
 >
-	<Home client:load />
+	<Home {results} client:load />
 </Layout>

@@ -79,6 +79,8 @@
             <a href="/"><strong>SMOL</strong></a>
         </h1>
 
+        <a class="ml-6 px-3 rounded-full hover:bg-amber-900 {location.pathname.endsWith('create') && 'border'}" href="/create">+ Create</a>
+
         <div class="flex items-center ml-auto">
             {#if $contractId}
                 <a

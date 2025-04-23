@@ -1,5 +1,5 @@
 ---
-import Home from "../components/Home.svelte";
+import Smol from "../components/Smol.svelte";
 import Layout from "../layouts/Layout.astro";
 
 const id = Astro.params.id;
@@ -24,5 +24,5 @@ const data = id
 	song_url={data?.do?.songs?.[0]?.audio}
 	image_url={id && `https://smol-workflow.sdf-ecosystem.workers.dev/image/${id}.png`}
 >
-	<Home client:load id={id} data={data?.do} />
+	<Smol client:load id={id} data={data?.do} />
 </Layout>
