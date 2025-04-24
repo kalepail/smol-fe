@@ -23,34 +23,10 @@
     let prompt: string = "";
     let is_public: boolean = true;
     let is_instrumental: boolean = false;
-    let best_song: string = data?.songs?.[0]?.music_id;
+    let best_song: string = d1?.Song_1;
     let audioElements: HTMLAudioElement[] = [];
     let interval: NodeJS.Timeout | null = null;
     let failed: boolean = false;
-
-    $: if (best_song) {
-       handleSelectionChange(best_song);
-    }
-
-    async function handleSelectionChange(song_id: string) {
-        if (d1?.Song_1 === song_id) {
-            return;
-        }
-
-        // only switch if you're the author
-        // only switch if selection is different
-        console.log('Selected:', song_id);
-
-        await fetch(
-            `${import.meta.env.PUBLIC_API_URL}/${id}/${song_id}`,
-            {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            },
-        );
-    }
     
     onMount(async () => {
         const res = await getGen();
@@ -81,6 +57,22 @@
                 audio.play();
             }
         });
+    }
+
+    async function selectBestSong(song_id: string) {
+        // TODO 
+        // only switch if you're the author
+        // only switch if selection is different
+
+        await fetch(
+            `${import.meta.env.PUBLIC_API_URL}/${id}/${song_id}`,
+            {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            },
+        );
     }
 
     async function postGen() {
@@ -340,7 +332,7 @@
                                     controls
                                 ></audio>
 
-                                <input type="radio" value={song.music_id} bind:group={best_song}>
+                                <input type="radio" value={song.music_id} bind:group={best_song} on:change={() => selectBestSong(song.music_id)} />
                                 
                                 {#if song.music_id === best_song}
                                     <span class="text-xl ml-2">👈</span>
