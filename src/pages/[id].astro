@@ -25,7 +25,7 @@ const data = id
 		data?.d1?.Song_1 
 		? `${import.meta.env.PUBLIC_API_URL}/song/${data.d1.Song_1}.mp3`
 		: data?.do?.songs?.[0]?.audio
-		? `${import.meta.env.PUBLIC_API_URL}/song/${data?.do?.songs?.[0]?.audio}.mp3`
+		? `${import.meta.env.PUBLIC_API_URL}/song/${data?.do?.songs?.[0]?.music_id}.mp3`
 		: "https://cdn2.aisonggenerator.io/491bb94b-79df-41bb-b09b-2d295f1dfd05.mp3"}
 	image_url={id ? `${import.meta.env.PUBLIC_API_URL}/image/${id}.png` : "https://smol.xyz/meta.png?v=1"}
 >
