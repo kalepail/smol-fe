@@ -12,6 +12,8 @@
     // collect songs
     // remix songs
     // create playlists
+    // private gens
+    // instrumentals
 
     let prompt: string = "";
     let audioElements: HTMLAudioElement[] = [];
@@ -61,7 +63,7 @@
             interval = null;
         }
 
-        id = await fetch(`https://smol-workflow.sdf-ecosystem.workers.dev`, {
+        id = await fetch(import.meta.env.PUBLIC_API_URL, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -95,7 +97,7 @@
         }
 
         id = await fetch(
-            `https://smol-workflow.sdf-ecosystem.workers.dev/retry/${id}`,
+            `${import.meta.env.PUBLIC_API_URL}/retry/${id}`,
             {
                 method: "POST",
                 headers: {
@@ -123,7 +125,7 @@
     async function getGen() {
         if (!id) return;
 
-        return fetch(`https://smol-workflow.sdf-ecosystem.workers.dev/${id}`)
+        return fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`)
             .then(async (res) => {
                 if (res.ok) return res.json();
                 else throw await res.text();
@@ -249,7 +251,7 @@
                 {#if data && data?.image_base64}
                     <img
                         class="aspect-square object-contain pixelated w-[256px]"
-                        src={`https://smol-workflow.sdf-ecosystem.workers.dev/image/${id}.png`}
+                        src={`${import.meta.env.PUBLIC_API_URL}/image/${id}.png`}
                         on:error={(e) => { 
                             // @ts-ignore
                             e.currentTarget.src = `data:image/png;base64,${data.image_base64}` 
@@ -282,7 +284,7 @@
                                 class="mb-2"
                                 bind:this={audioElements[index]}
                                 on:play={() => playAudio(index)}
-                                src={song.status < 4 ? song.audio : `https://smol-workflow.sdf-ecosystem.workers.dev/song/${song.music_id}.mp3`}
+                                src={song.status < 4 ? song.audio : `${import.meta.env.PUBLIC_API_URL}/song/${song.music_id}.mp3`}
                                 on:error={(e) => { 
                                     // @ts-ignore
                                     e.currentTarget.src = song.audio
