@@ -6,6 +6,9 @@
     import Loader from "./Loader.svelte";
     import { contractId } from "../store/contractId";
 
+    let d1 = data?.d1
+    data = data?.do
+
     // TODO 
     // tweak just the song vs the image
     // make a song private or public
@@ -15,14 +18,40 @@
     // private gens
     // instrumentals
     // toggle track_1 vs track_2
+    // toggle public vs private
 
     let prompt: string = "";
     let is_public: boolean = true;
     let is_instrumental: boolean = false;
+    let best_song: string = data?.songs?.[0]?.music_id;
     let audioElements: HTMLAudioElement[] = [];
     let interval: NodeJS.Timeout | null = null;
     let failed: boolean = false;
 
+    $: if (best_song) {
+       handleSelectionChange(best_song);
+    }
+
+    async function handleSelectionChange(song_id: string) {
+        if (d1?.Song_1 === song_id) {
+            return;
+        }
+
+        // only switch if you're the author
+        // only switch if selection is different
+        console.log('Selected:', song_id);
+
+        await fetch(
+            `${import.meta.env.PUBLIC_API_URL}/${id}/${song_id}`,
+            {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            },
+        );
+    }
+    
     onMount(async () => {
         const res = await getGen();
 
@@ -139,6 +168,7 @@
                 // console.log(res);
 
                 data = res?.do;
+                best_song = data?.songs?.[0]?.music_id
 
                 // status: "queued" // means that instance is waiting to be started (see concurrency limits)
                 // | "running" | "paused" | "errored" | "terminated" // user terminated the instance while it was running
@@ -297,17 +327,26 @@
                 {#if data && data?.songs}
                     {#each data && data.songs as song, index (song.music_id)}
                         {#if song.audio}
-                            <audio
-                                class="mb-2"
-                                bind:this={audioElements[index]}
-                                on:play={() => playAudio(index)}
-                                src={song.status < 4 ? song.audio : `${import.meta.env.PUBLIC_API_URL}/song/${song.music_id}.mp3`}
-                                on:error={(e) => { 
-                                    // @ts-ignore
-                                    e.currentTarget.src = song.audio
-                                }}
-                                controls
-                            ></audio>
+                            <div class="flex items-center mb-2">
+                                <audio
+                                    class="mr-2"
+                                    bind:this={audioElements[index]}
+                                    on:play={() => playAudio(index)}
+                                    src={song.status < 4 ? song.audio : `${import.meta.env.PUBLIC_API_URL}/song/${song.music_id}.mp3`}
+                                    on:error={(e) => { 
+                                        // @ts-ignore
+                                        e.currentTarget.src = song.audio
+                                    }}
+                                    controls
+                                ></audio>
+
+                                <input type="radio" value={song.music_id} bind:group={best_song}>
+                                
+                                {#if song.music_id === best_song}
+                                    <span class="text-xl ml-2">👈</span>
+                                    <span class="text-xs ml-2 mt-1">better</span>
+                                {/if}
+                            </div>
                         {:else}
                             <Loader />
                         {/if}

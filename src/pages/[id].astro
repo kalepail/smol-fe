@@ -9,12 +9,6 @@ const data = id
 				if (res.ok) return res.json();
 				return null;
 			})
-			.then((data) => {
-				if (data?.do?.image_base64) {
-					data.do.image_base64 = "true";
-				}
-				return data;
-			})
 	: null;
 ---
 
@@ -24,5 +18,5 @@ const data = id
 	song_url={data?.do?.songs?.[0]?.audio}
 	image_url={id && `${import.meta.env.PUBLIC_API_URL}/image/${id}.png`}
 >
-	<Smol client:load id={id} data={data?.do} />
+	<Smol client:load id={id} data={data} />
 </Layout>
