@@ -14,6 +14,7 @@
     // create playlists
     // private gens
     // instrumentals
+    // toggle track_1 vs track_2
 
     let prompt: string = "";
     let audioElements: HTMLAudioElement[] = [];
@@ -156,10 +157,6 @@
                             failed = true;
                         }
                     break;
-                }
-
-                if (res?.steps === null && !res?.do?.songs) {
-                    failed = true;
                 }
 
                 return res;
