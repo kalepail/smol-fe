@@ -9,13 +9,19 @@ const data = id
 				if (res.ok) return res.json();
 				return null;
 			})
+			.then((data) => {
+				if (data?.do?.image_base64) {
+					data.do.image_base64 = "OK";
+				}
+				return data;
+			})
 	: null;
 ---
 
 <Layout
 	title={data?.do?.lyrics?.title}
 	description={data?.do?.payload?.prompt}
-	song_url={data?.d1?.Song_1 ? `https://cdn2.aisonggenerator.io/${data?.d1?.Song_1}.mp3` : "https://cdn2.aisonggenerator.io/491bb94b-79df-41bb-b09b-2d295f1dfd05.mp3"}
+	song_url={data?.d1?.Song_1 ? `${import.meta.env.PUBLIC_API_URL}/song/${data.d1.Song_1}.mp3` : "https://cdn2.aisonggenerator.io/491bb94b-79df-41bb-b09b-2d295f1dfd05.mp3"}
 	image_url={id ? `${import.meta.env.PUBLIC_API_URL}/image/${id}.png` : "https://smol.xyz/meta.png?v=1"}
 >
 	<Smol client:load id={id} data={data} />
