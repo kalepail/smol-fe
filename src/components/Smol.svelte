@@ -17,6 +17,8 @@
     // toggle track_1 vs track_2
 
     let prompt: string = "";
+    let is_public: boolean = true;
+    let is_instrumental: boolean = false;
     let audioElements: HTMLAudioElement[] = [];
     let interval: NodeJS.Timeout | null = null;
     let failed: boolean = false;
@@ -71,7 +73,9 @@
             },
             body: JSON.stringify({
                 address: $contractId,
-                prompt
+                prompt,
+                public: is_public,
+                instrumental: is_instrumental,
             }),
         }).then(async (res) => {
             if (res.ok) return res.text();
@@ -180,12 +184,28 @@
                     rows="4"
                     bind:value={prompt}
                 ></textarea>
-                <button
-                    type="submit"
-                    class="text-white bg-indigo-500 px-5 py-1 disabled:bg-gray-400 self-end"
-                    disabled={(!!id && !!interval) || !prompt}>⚡︎ Generate</button
-                >
-                <aside class="text-xs mt-1 self-start">
+
+                <div class="flex w-full mb-5">
+                    <div>
+                        <label class="flex items-center" for="public">
+                            <span class="text-xs mr-2">Public</span>
+                            <input type="checkbox" name="public" id="public" bind:checked={is_public} >
+                        </label>
+
+                        <label class="flex items-center" for="instrumental">
+                            <span class="text-xs mr-2">Instrumental</span>
+                            <input type="checkbox" name="instrumental" id="instrumental" bind:checked={is_instrumental} >
+                        </label>
+                    </div>
+
+                    <button
+                        type="submit"
+                        class="ml-auto text-white bg-indigo-500 px-5 py-1 disabled:bg-gray-400"
+                        disabled={(!!id && !!interval) || !prompt}>⚡︎ Generate</button
+                    >                    
+                </div>
+
+                <aside class="text-xs self-start">
                     * Will take roughly 6 minutes to fully generate.
                     <br /> &nbsp;&nbsp; Even longer during times of heavy load.
                 </aside>
