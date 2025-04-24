@@ -15,7 +15,7 @@ const data = id
 <Layout
 	title={data?.do?.lyrics?.title}
 	description={data?.do?.payload?.prompt}
-	song_url={data?.do?.songs?.[0]?.audio}
+	song_url={data?.d1?.Song_1}
 	image_url={id && `${import.meta.env.PUBLIC_API_URL}/image/${id}.png`}
 >
 	<Smol client:load id={id} data={data} />
