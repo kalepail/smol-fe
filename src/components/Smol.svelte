@@ -160,7 +160,7 @@
                 // console.log(res);
 
                 data = res?.do;
-                best_song = data?.songs?.[0]?.music_id
+                best_song = res?.d1?.Song_1;
 
                 // status: "queued" // means that instance is waiting to be started (see concurrency limits)
                 // | "running" | "paused" | "errored" | "terminated" // user terminated the instance while it was running
