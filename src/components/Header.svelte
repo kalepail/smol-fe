@@ -79,12 +79,12 @@
             <a href="/"><strong>SMOL</strong></a>
         </h1>
 
-        <a
+        <!-- <a
             class="ml-4 px-3 rounded-full hover:bg-lime-900 {location.pathname.endsWith(
                 'create',
             ) && 'border'}"
             href="/create">+ Create</a
-        >
+        > -->
 
         <div class="flex items-center ml-auto">
             {#if $contractId}
