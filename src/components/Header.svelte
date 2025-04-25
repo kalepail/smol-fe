@@ -73,13 +73,18 @@
     }
 </script>
 
-<header class="relative p-2 bg-amber-950 text-amber-500">
+<header class="relative p-2 bg-slate-800 text-lime-500">
     <div class="flex items-center flex-wrap max-w-[1024px] mx-auto">
         <h1 class="flex text-xl">
             <a href="/"><strong>SMOL</strong></a>
         </h1>
 
-        <a class="ml-4 px-3 rounded-full hover:bg-amber-900 {location.pathname.endsWith('create') && 'border'}" href="/create">+ Create</a>
+        <a
+            class="ml-4 px-3 rounded-full hover:bg-lime-900 {location.pathname.endsWith(
+                'create',
+            ) && 'border'}"
+            href="/create">+ Create</a
+        >
 
         <div class="flex items-center ml-auto">
             {#if $contractId}
@@ -90,13 +95,13 @@
                 >
                 <!-- <span class="bg-green-700 text-yellow-100 px-3 py-1 rounded-full font-mono text-sm">{(Number($contractBalance ?? 0) / 1e7)} KALE</span> -->
                 <button
-                    class="text-amber-950 bg-amber-500 px-2 py-1 ml-2"
+                    class="text-black bg-lime-500 px-2 py-1 ml-2"
                     on:click={logout}>Logout</button
                 >
             {:else}
                 <button class="underline mr-2" on:click={login}>Login</button>
                 <button
-                    class="text-amber-950 bg-amber-500 px-2 py-1 disabled:bg-gray-400"
+                    class="text-black bg-lime-500 px-2 py-1 disabled:bg-slate-400"
                     on:click={signUp}
                     disabled={creating}
                     >{creating ? "Creating..." : "Create New Account"}</button

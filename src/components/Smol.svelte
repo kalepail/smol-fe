@@ -29,9 +29,7 @@
     let failed: boolean = false;
     
     onMount(async () => {
-        const res = await getGen();
-
-        switch (res?.wf?.status) {
+        switch (data?.wf?.status) {
             case "queued":
             case "running":
             case "paused":
@@ -195,8 +193,8 @@
 
 <!-- TODO add loading icons -->
 
-{#if $contractId}
-    <div class="px-2 py-10 bg-amber-50 border-b border-amber-200">
+{#if $contractId && !id}
+    <div class="px-2 py-10 bg-slate-900 border-b border-slate-800">
         <div class="flex flex-col items-center max-w-[1024px] mx-auto">
             <form
                 class="flex flex-col items-start max-w-[512px] w-full"
@@ -204,7 +202,7 @@
             >
                 <!-- <h1 class="mb-2">Create your own</h1> -->
                 <textarea
-                    class="border p-2 mb-2 w-full bg-white"
+                    class="border p-2 mb-2 w-full bg-white text-black"
                     placeholder="Write an epic prompt for an even epic'er gen"
                     rows="4"
                     bind:value={prompt}
@@ -225,7 +223,7 @@
 
                     <button
                         type="submit"
-                        class="ml-auto text-white bg-indigo-500 px-5 py-1 disabled:bg-gray-400"
+                        class="ml-auto text-white bg-lime-500 px-5 py-1 disabled:bg-slate-400"
                         disabled={(!!id && !!interval) || !prompt}>⚡︎ Generate</button
                     >                    
                 </div>
@@ -245,7 +243,7 @@
             {#if failed}
                 <li>
                     <button
-                        class="text-white bg-indigo-500 px-5 py-1 disabled:bg-gray-400"
+                        class="text-white bg-lime-500 px-5 py-1 disabled:bg-slate-400"
                         on:click={retryGen}
                         disabled={!!id && !!interval}>Retry</button
                     >

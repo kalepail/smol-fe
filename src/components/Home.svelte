@@ -1,12 +1,26 @@
 <script lang="ts">
+    import MiniAudioPlayer from "./MiniAudioPlayer.svelte";
+
     export let results: any;
 </script>
 
-<ul class="flex flex-wrap">
+<!-- TODO have the bg of each card match the image primary color -->
+
+<div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2 m-2">
     {#each results as smol}
-        <li class="relative w-1/3 sm:w-1/6 lg:w-1/9 flex">
-            <img class="aspect-square object-contain pixelated w-full" src={`${import.meta.env.PUBLIC_API_URL}/image/${smol.Id}.png`} alt="">
-            <a class="absolute inset-0" href={`/${smol.Id}`}></a>
-        </li>
+        <div class="flex flex-col bg-slate-700 rounded overflow-hidden">
+            <div class="relative">
+                <img class="aspect-square object-contain pixelated w-full shadow-md" src={`${import.meta.env.PUBLIC_API_URL}/image/${smol.Id}.png`} alt={smol.Title} />
+                <a class="absolute inset-0" href={`/${smol.Id}`}></a>
+            </div>
+
+            <div class="flex items-center relative p-2 flex-1">
+                <h1 class="relative z-1 leading-4 text-sm text-white">{smol.Title}</h1>
+                <div class="absolute inset-0 z-0 bg-[length:100%_100%] bg-no-repeat opacity-80 scale-y-[-1] blur-lg" style="background-image: url({import.meta.env.PUBLIC_API_URL}/image/{smol.Id}.png);"></div>
+                <div class="relative z-2 pl-2 ml-auto">
+                    <MiniAudioPlayer song={`${import.meta.env.PUBLIC_API_URL}/song/${smol.Song_1}.mp3`} />
+                </div>
+            </div>
+        </div>
     {/each}
-</ul>
+</div>
