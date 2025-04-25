@@ -357,7 +357,7 @@
                     >
 <code>Tags: <em>{data && data?.lyrics?.style.join(", ")}</em></code>
 
-<code>{data && data?.lyrics?.lyrics}</code></pre>
+{#if d1?.Instrumental !== 1}<code>{data && data?.lyrics?.lyrics}</code>{/if}</pre>
             </li>
         </ul>
     </div>
