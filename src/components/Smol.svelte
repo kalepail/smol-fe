@@ -7,7 +7,7 @@
     import { contractId } from "../store/contractId";
 
     let d1 = data?.d1
-    data = data?.do
+    let kv_do = data?.kv_do
 
     // TODO 
     // tweak just the song vs the image
@@ -31,7 +31,7 @@
     onMount(async () => {
         const res = await getGen();
 
-        switch (res?.steps?.status) {
+        switch (res?.wf?.status) {
             case "queued":
             case "running":
             case "paused":
@@ -79,7 +79,8 @@
         if (!prompt) return;
 
         id = null;
-        data = null;
+        d1 = null;
+        kv_do = null;
         failed = false;
 
         if (interval) {
@@ -115,7 +116,8 @@
         await getGen();
     }
     async function retryGen() {
-        data = null;
+        d1 = null;
+        kv_do = null;
 
         if (interval) {
             clearInterval(interval);
@@ -159,8 +161,9 @@
             .then((res) => {
                 // console.log(res);
 
-                data = res?.do;
-                best_song = res?.d1?.Song_1;
+                d1 = res?.d1;
+                kv_do = res?.kv_do;
+                best_song = d1?.Song_1;
 
                 // status: "queued" // means that instance is waiting to be started (see concurrency limits)
                 // | "running" | "paused" | "errored" | "terminated" // user terminated the instance while it was running
@@ -168,7 +171,7 @@
                 // | "waitingForPause" // instance is finishing the current work to pause
                 // | "unknown";
 
-                switch (res?.steps?.status) {
+                switch (res?.wf?.status) {
                     case "errored":
                     case "terminated":
                     case "complete":
@@ -177,9 +180,9 @@
                             clearInterval(interval);
                             interval = null;
                         }
-                        if (res.steps.status !== "complete") {
+                        if (res.wf.status !== "complete") {
                             // TODO show step failures in the UI vs using alert
-                            // alert(`Failed with status: ${res.steps.status}`);
+                            // alert(`Failed with status: ${res.wf.status}`);
                             failed = true;
                         }
                     break;
@@ -255,13 +258,13 @@
                         >{id}</code
                     ></pre>
 
-                {#if data && data?.nsfw}
-                    {#if data.nsfw?.safe === false}
+                {#if kv_do && kv_do?.nsfw}
+                    {#if kv_do.nsfw?.safe === false}
                         <span
                             class="bg-rose-400 text-rose-1000 uppercase text-xs font-mono px-2 py-1 rounded-full"
                         >
                             unsafe —
-                            {data.nsfw?.categories.join(", ")}
+                            {kv_do.nsfw?.categories.join(", ")}
                         </span>
                     {:else}
                         <span
@@ -274,7 +277,7 @@
 
             <li>
                 <h1>Prompt:</h1>
-                <p>{data && data?.payload?.prompt}</p>
+                <p>{kv_do && kv_do?.payload?.prompt}</p>
             </li>
 
             <!-- [1] is reply tweet id -->
@@ -287,22 +290,22 @@
                     >)
                 </h1>
 
-                {#if data && data?.image_base64}
+                {#if kv_do && kv_do?.image_base64}
                     <img
                         class="aspect-square object-contain pixelated w-[256px]"
                         src={`${import.meta.env.PUBLIC_API_URL}/image/${id}.png`}
                         on:error={(e) => { 
                             // @ts-ignore
-                            e.currentTarget.src = `data:image/png;base64,${data.image_base64}` 
+                            e.currentTarget.src = `data:image/png;base64,${kv_do.image_base64}` 
                         }}
-                        alt={data?.lyrics?.title}
+                        alt={kv_do?.lyrics?.title}
                     />
                 {/if}
             </li>
 
             <li>
                 <h1>Description:</h1>
-                <p>{data && data?.description}</p>
+                <p>{kv_do && kv_do?.description}</p>
             </li>
 
             <li>
@@ -316,8 +319,8 @@
                 <!-- [5] is nsfw tags -->
                 <!-- [6] is the song ids -->
 
-                {#if data && data?.songs}
-                    {#each data && data.songs as song, index (song.music_id)}
+                {#if kv_do && kv_do?.songs}
+                    {#each kv_do && kv_do.songs as song, index (song.music_id)}
                         {#if song.audio}
                             <div class="flex items-center mb-2">
                                 <audio
@@ -352,12 +355,12 @@
                 <h1>Lyrics:</h1>
                 <pre
                     class="whitespace-pre-wrap break-words [&>code]:text-xs"><code
-                        >Title: <strong>{data && data?.lyrics?.title}</strong
+                        >Title: <strong>{kv_do && kv_do?.lyrics?.title}</strong
                         ></code
                     >
-<code>Tags: <em>{data && data?.lyrics?.style.join(", ")}</em></code>
+<code>Tags: <em>{kv_do && kv_do?.lyrics?.style.join(", ")}</em></code>
 
-{#if d1?.Instrumental !== 1}<code>{data && data?.lyrics?.lyrics}</code>{/if}</pre>
+{#if d1?.Instrumental !== 1}<code>{kv_do && kv_do?.lyrics?.lyrics}</code>{/if}</pre>
             </li>
         </ul>
     </div>
