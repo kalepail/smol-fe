@@ -259,14 +259,14 @@
                 {#if kv_do && kv_do?.nsfw}
                     {#if kv_do.nsfw?.safe === false}
                         <span
-                            class="bg-rose-400 text-rose-1000 uppercase text-xs font-mono px-2 py-1 rounded-full"
+                            class="bg-rose-400 text-rose-900 uppercase text-xs font-mono px-2 py-1 rounded-full"
                         >
                             unsafe —
                             {kv_do.nsfw?.categories.join(", ")}
                         </span>
                     {:else}
                         <span
-                            class="bg-lime-400 text-lime-1000 uppercase text-xs font-mono px-2 py-1 rounded-full"
+                            class="bg-lime-400 text-lime-900 uppercase text-xs font-mono px-2 py-1 rounded-full"
                             >safe</span
                         >
                     {/if}
@@ -333,11 +333,11 @@
                                     controls
                                 ></audio>
 
-                                <input type="radio" value={song.music_id} bind:group={best_song} on:change={() => selectBestSong(song.music_id)} />
+                                <input class="scale-150 m-2" type="radio" value={song.music_id} bind:group={best_song} on:change={() => selectBestSong(song.music_id)} />
                                 
                                 {#if song.music_id === best_song}
-                                    <span class="text-xl ml-2">👈</span>
-                                    <span class="text-xs ml-2 mt-1">better</span>
+                                    <span class="text-2xl ml-2">👈</span>
+                                    <span class="ml-2 mt-1">better</span>
                                 {/if}
                             </div>
                         {:else}
