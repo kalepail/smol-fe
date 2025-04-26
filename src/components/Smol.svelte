@@ -336,7 +336,7 @@
                                 <input class="scale-150 m-2" type="radio" value={song.music_id} bind:group={best_song} on:change={() => selectBestSong(song.music_id)} />
                                 
                                 {#if song.music_id === best_song}
-                                    <span class="text-2xl ml-2">👈</span>
+                                    <span class="text-2xl ml-1">👈</span>
                                     <span class="ml-2 mt-1">better</span>
                                 {/if}
                             </div>
