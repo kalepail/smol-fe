@@ -16,21 +16,38 @@
     function togglePlay() {
         if (!audio) return;
 
-        const current = get(currentAudio);
+        // Set the source only on the first play attempt
+        if (!audio.src) {
+            audio.src = song;
+            audio.load();
+        }
 
-        if (current && current.audio !== audio) {
-            current.pause(); // fully pause + reset UI of previous component
+        const other = get(currentAudio);
+
+        if (other && other.audio !== audio) {
+            other.audio.pause();
+            other.audio.currentTime = 0;
+            other.resetProgress();
         }
 
         if (playing) {
             audio.pause();
             currentAudio.set(null);
+            playing = false;
         } else {
-            audio.play();
-            currentAudio.set({ audio, pause: pauseFromOutside });
+            if (audio.readyState >= 2) { // HAVE_CURRENT_DATA or higher
+                 audio.play();
+                 currentAudio.set({audio, resetProgress});
+                 playing = true;
+            } else {
+                // If not ready, wait for 'canplay' event
+                audio.addEventListener('canplay', () => {
+                    audio.play();
+                    currentAudio.set({audio, resetProgress});
+                    playing = true;
+                }, { once: true });
+            }
         }
-
-        playing = !playing;
     }
 
     function updateProgress() {
@@ -43,11 +60,6 @@
         progress = 0;
         playing = false;
         currentAudio.set(null);
-    }
-
-    function pauseFromOutside() {
-        audio.pause();
-        playing = false;
     }
 </script>
 
@@ -67,7 +79,7 @@
             cx="32"
             cy="32"
             r={radius}
-            stroke="white"
+            stroke="#7cce00"
             stroke-width="4"
             fill="none"
             stroke-linecap="round"
@@ -109,8 +121,8 @@
 </div>
 
 <audio
+    preload="none"
     bind:this={audio}
-    src={song}
     on:timeupdate={updateProgress}
     on:ended={resetProgress}
 ></audio>

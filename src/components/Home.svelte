@@ -4,19 +4,22 @@
     export let results: any;
 </script>
 
-<!-- TODO have the bg of each card match the image primary color -->
+<!-- TODO 
+ have the bg of each card match the image primary color 
+ progressive loading of images and music
+ -->
 
 <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2 m-2">
     {#each results as smol}
         <div class="flex flex-col bg-slate-700 rounded overflow-hidden">
             <div class="relative">
-                <img class="aspect-square object-contain pixelated w-full shadow-md" src={`${import.meta.env.PUBLIC_API_URL}/image/${smol.Id}.png`} alt={smol.Title} />
-                <a class="absolute inset-0" href={`/${smol.Id}`}></a>
+                <img class="aspect-square object-contain pixelated w-full shadow-md" src={`${import.meta.env.PUBLIC_API_URL}/image/${smol.Id}.png`} alt={smol.Title} loading="lazy" />
+                <a class="absolute inset-0" href={`/${smol.Id}`} aria-label={smol.Title}></a>
             </div>
 
             <div class="flex items-center relative p-2 flex-1">
                 <h1 class="relative z-1 leading-4 text-sm text-white">{smol.Title}</h1>
-                <div class="absolute inset-0 z-0 bg-[length:100%_100%] bg-no-repeat opacity-80 scale-y-[-1] blur-lg" style="background-image: url({import.meta.env.PUBLIC_API_URL}/image/{smol.Id}.png);"></div>
+                <img class="absolute inset-0 z-0 opacity-80 scale-y-[-1] w-full h-full blur-lg" src={`${import.meta.env.PUBLIC_API_URL}/image/${smol.Id}.png`} alt={smol.Title} loading="lazy" />
                 <div class="relative z-2 pl-2 ml-auto">
                     <MiniAudioPlayer song={`${import.meta.env.PUBLIC_API_URL}/song/${smol.Song_1}.mp3`} />
                 </div>

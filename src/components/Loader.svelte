@@ -9,7 +9,7 @@
         cy="25"
         r="20"
         fill="none"
-        stroke="#000000"
+        stroke="white"
         stroke-width="4"
         stroke-dasharray="31.4 31.4"
         stroke-linecap="round"

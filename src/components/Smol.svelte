@@ -194,7 +194,7 @@
 <!-- TODO add loading icons -->
 
 {#if $contractId && !id}
-    <div class="px-2 py-10 bg-slate-900 border-b border-slate-800">
+    <div class="px-2 py-10 bg-slate-900">
         <div class="flex flex-col items-center max-w-[1024px] mx-auto">
             <form
                 class="flex flex-col items-start max-w-[512px] w-full"
@@ -202,7 +202,7 @@
             >
                 <!-- <h1 class="mb-2">Create your own</h1> -->
                 <textarea
-                    class="border p-2 mb-2 w-full bg-white text-black"
+                    class="p-2 mb-4 w-full bg-slate-800 text-white outline-3 outline-offset-3 outline-slate-800 rounded focus:outline-slate-700"
                     placeholder="Write an epic prompt for an even epic'er gen"
                     rows="4"
                     bind:value={prompt}
@@ -223,7 +223,7 @@
 
                     <button
                         type="submit"
-                        class="ml-auto text-white bg-lime-500 px-5 py-1 disabled:bg-slate-400"
+                        class="ml-auto text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1 disabled:opacity-50"
                         disabled={(!!id && !!interval) || !prompt}>⚡︎ Generate</button
                     >                    
                 </div>
@@ -243,9 +243,9 @@
             {#if failed}
                 <li>
                     <button
-                        class="text-white bg-lime-500 px-5 py-1 disabled:bg-slate-400"
+                        class="text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1 disabled:opacity-50"
                         on:click={retryGen}
-                        disabled={!!id && !!interval}>Retry</button
+                        disabled={!!id && !!interval}>⚡︎ Retry</button
                     >
                 </li>
             {/if}

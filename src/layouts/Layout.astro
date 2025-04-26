@@ -49,7 +49,7 @@ import '../styles/global.css'
 		<meta name="twitter:url" content={Astro.url} />
 	</head>
 	<body class="bg-slate-950 text-white">
-		<Header client:only />
+		<Header client:load />
 		<slot />
 	</body>
 </html>

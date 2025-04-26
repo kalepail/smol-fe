@@ -6,6 +6,7 @@
     import { truncate } from "../utils/base";
     // import { contractBalance, updateContractBalance } from "../store/contractBalance";
 
+    let unsure = true;
     let creating = false;
 
     onMount(async () => {
@@ -16,6 +17,8 @@
 
             contractId.set(cid);
         }
+
+        unsure = false;
     });
 
     // contractId.subscribe(async (cid) => {
@@ -75,38 +78,40 @@
 
 <header class="relative p-2 bg-slate-800 text-lime-500">
     <div class="flex items-center flex-wrap max-w-[1024px] mx-auto">
-        <h1 class="flex text-xl">
+        <h1 class="flex text-xl py-1">
             <a href="/"><strong>SMOL</strong></a>
         </h1>
 
         <!-- <a
-            class="ml-4 px-3 rounded-full hover:bg-lime-900 {location.pathname.endsWith(
+            class="ml-4 hover:underline {!import.meta.env.SSR && location.pathname.endsWith(
                 'create',
-            ) && 'border'}"
+            ) && 'underline'}"
             href="/create">+ Create</a
         > -->
 
-        <div class="flex items-center ml-auto">
-            {#if $contractId}
-                <a
-                    class="mr-2 font-mono text-sm underline"
-                    href="https://stellar.expert/explorer/public/contract/{$contractId}"
-                    target="_blank">{truncate($contractId, 4)}</a
-                >
-                <!-- <span class="bg-green-700 text-yellow-100 px-3 py-1 rounded-full font-mono text-sm">{(Number($contractBalance ?? 0) / 1e7)} KALE</span> -->
-                <button
-                    class="text-black bg-lime-500 px-2 py-1 ml-2"
-                    on:click={logout}>Logout</button
-                >
-            {:else}
-                <button class="underline mr-2" on:click={login}>Login</button>
-                <button
-                    class="text-black bg-lime-500 px-2 py-1 disabled:bg-slate-400"
-                    on:click={signUp}
-                    disabled={creating}
-                    >{creating ? "Creating..." : "Create New Account"}</button
-                >
-            {/if}
-        </div>
+        {#if !unsure}
+            <div class="flex items-center ml-auto">
+                {#if $contractId}
+                    <a
+                        class="mr-4 font-mono text-sm underline"
+                        href="https://stellar.expert/explorer/public/contract/{$contractId}"
+                        target="_blank">{truncate($contractId, 4)}</a
+                    >
+                    <!-- <span class="bg-green-700 text-yellow-100 px-3 py-1 rounded-full font-mono text-sm">{(Number($contractBalance ?? 0) / 1e7)} KALE</span> -->
+                    <button
+                        class="text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1"
+                        on:click={logout}>Logout</button
+                    >
+                {:else}
+                    <button class="mr-4 hover:underline" on:click={login}>Login</button>
+                    <button
+                        class="text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1 disabled:opacity-50"
+                        on:click={signUp}
+                        disabled={creating}
+                        >{creating ? "Creating..." : "Create New Account"}</button
+                    >
+                {/if}
+            </div>
+        {/if}
     </div>
 </header>
