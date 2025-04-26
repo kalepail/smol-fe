@@ -6,10 +6,10 @@
     import Loader from "./Loader.svelte";
     import { contractId } from "../store/contractId";
 
-    let d1 = data?.d1
-    let kv_do = data?.kv_do
+    let d1 = data?.d1;
+    let kv_do = data?.kv_do;
 
-    // TODO 
+    // TODO
     // tweak just the song vs the image
     // make a song private or public
     // collect songs
@@ -27,7 +27,7 @@
     let audioElements: HTMLAudioElement[] = [];
     let interval: NodeJS.Timeout | null = null;
     let failed: boolean = false;
-    
+
     onMount(async () => {
         switch (data?.wf?.status) {
             case "queued":
@@ -36,7 +36,7 @@
             case "waiting":
             case "waitingForPause":
                 interval = setInterval(getGen, 1000 * 5);
-            break;
+                break;
         }
     });
 
@@ -58,19 +58,16 @@
     }
 
     async function selectBestSong(song_id: string) {
-        // TODO 
+        // TODO
         // only switch if you're the author
         // only switch if selection is different
 
-        await fetch(
-            `${import.meta.env.PUBLIC_API_URL}/${id}/${song_id}`,
-            {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                },
+        await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}/${song_id}`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
             },
-        );
+        });
     }
 
     async function postGen() {
@@ -122,18 +119,15 @@
             interval = null;
         }
 
-        id = await fetch(
-            `${import.meta.env.PUBLIC_API_URL}/retry/${id}`,
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    address: $contractId,
-                }),
+        id = await fetch(`${import.meta.env.PUBLIC_API_URL}/retry/${id}`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
             },
-        ).then(async (res) => {
+            body: JSON.stringify({
+                address: $contractId,
+            }),
+        }).then(async (res) => {
             if (res.ok) return res.text();
             else throw await res.text();
         });
@@ -183,7 +177,7 @@
                             // alert(`Failed with status: ${res.wf.status}`);
                             failed = true;
                         }
-                    break;
+                        break;
                 }
 
                 return res;
@@ -212,20 +206,31 @@
                     <div>
                         <label class="flex items-center" for="public">
                             <span class="text-xs mr-2">Public</span>
-                            <input type="checkbox" name="public" id="public" bind:checked={is_public} >
+                            <input
+                                type="checkbox"
+                                name="public"
+                                id="public"
+                                bind:checked={is_public}
+                            />
                         </label>
 
                         <label class="flex items-center" for="instrumental">
                             <span class="text-xs mr-2">Instrumental</span>
-                            <input type="checkbox" name="instrumental" id="instrumental" bind:checked={is_instrumental} >
+                            <input
+                                type="checkbox"
+                                name="instrumental"
+                                id="instrumental"
+                                bind:checked={is_instrumental}
+                            />
                         </label>
                     </div>
 
                     <button
                         type="submit"
                         class="ml-auto text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1 disabled:opacity-50"
-                        disabled={(!!id && !!interval) || !prompt}>⚡︎ Generate</button
-                    >                    
+                        disabled={(!!id && !!interval) || !prompt}
+                        >⚡︎ Generate</button
+                    >
                 </div>
 
                 <aside class="text-xs self-start">
@@ -284,7 +289,8 @@
                 <h1 class="mb-2">
                     Image: (powered by <a
                         class="underline"
-                        href="https://www.pixellab.ai/">PixelLab</a
+                        href="https://www.pixellab.ai/"
+                        target="_blank">PixelLab</a
                     >)
                 </h1>
 
@@ -292,9 +298,9 @@
                     <img
                         class="aspect-square object-contain pixelated w-[256px]"
                         src={`${import.meta.env.PUBLIC_API_URL}/image/${id}.png`}
-                        on:error={(e) => { 
+                        on:error={(e) => {
                             // @ts-ignore
-                            e.currentTarget.src = `data:image/png;base64,${kv_do.image_base64}` 
+                            e.currentTarget.src = `data:image/png;base64,${kv_do.image_base64}`;
                         }}
                         alt={kv_do?.lyrics?.title}
                     />
@@ -310,7 +316,8 @@
                 <h1 class="mb-2">
                     Songs: (powered by <a
                         class="underline"
-                        href="https://aisonggenerator.io/">AI Song Generator</a
+                        href="https://aisonggenerator.io/"
+                        target="_blank">AI Song Generator</a
                     >)
                 </h1>
 
@@ -325,16 +332,25 @@
                                     class="mr-2"
                                     bind:this={audioElements[index]}
                                     on:play={() => playAudio(index)}
-                                    src={song.status < 4 ? song.audio : `${import.meta.env.PUBLIC_API_URL}/song/${song.music_id}.mp3`}
-                                    on:error={(e) => { 
+                                    src={song.status < 4
+                                        ? song.audio
+                                        : `${import.meta.env.PUBLIC_API_URL}/song/${song.music_id}.mp3`}
+                                    on:error={(e) => {
                                         // @ts-ignore
-                                        e.currentTarget.src = song.audio
+                                        e.currentTarget.src = song.audio;
                                     }}
                                     controls
                                 ></audio>
 
-                                <input class="scale-150 m-2" type="radio" value={song.music_id} bind:group={best_song} on:change={() => selectBestSong(song.music_id)} />
-                                
+                                <input
+                                    class="scale-150 m-2"
+                                    type="radio"
+                                    value={song.music_id}
+                                    bind:group={best_song}
+                                    on:change={() =>
+                                        selectBestSong(song.music_id)}
+                                />
+
                                 {#if song.music_id === best_song}
                                     <span class="text-2xl ml-1">👈</span>
                                     <span class="ml-2 mt-1">better</span>
@@ -358,7 +374,8 @@
                     >
 <code>Tags: <em>{kv_do && kv_do?.lyrics?.style.join(", ")}</em></code>
 
-{#if d1?.Instrumental !== 1}<code>{kv_do && kv_do?.lyrics?.lyrics}</code>{/if}</pre>
+{#if d1?.Instrumental !== 1}<code>{kv_do && kv_do?.lyrics?.lyrics}</code
+                        >{/if}</pre>
             </li>
         </ul>
     </div>
