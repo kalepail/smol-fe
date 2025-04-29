@@ -7,7 +7,7 @@
     import { contractId } from "../store/contractId";
     import { account, server } from "../utils/passkey-kit";
     import { truncate } from "../utils/base";
-    import Cookies from 'js-cookie'
+    import Cookies from "js-cookie";
     // import { contractBalance, updateContractBalance } from "../store/contractBalance";
 
     keyId.set(_kid);
@@ -31,36 +31,38 @@
     // })
 
     async function login() {
-        const { 
-            // rawResponse, 
-            keyIdBase64, contractId: cid } = await account.connectWallet();
+        const {
+            rawResponse,
+            keyIdBase64,
+            contractId: cid,
+        } = await account.connectWallet();
 
-        // await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {
-        //     method: "POST",
-        //     headers: {
-        //         "Content-Type": "application/json",
-        //     },
-        //     body: JSON.stringify({
-        //         type: 'connect',
-        //         keyId: keyIdBase64,
-        //         contractId: cid,
-        //         response: rawResponse,
-        //     }),
-        //     credentials: 'include'
-        // })
-        //     .then(async (res) => {
-        //         if (!res.ok)
-        //             throw await res.text();
-        //     })
+        await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                type: "connect",
+                keyId: keyIdBase64,
+                contractId: cid,
+                response: rawResponse,
+            }),
+            credentials: "include",
+        }).then(async (res) => {
+            if (!res.ok) throw await res.text();
+        });
 
         keyId.set(keyIdBase64);
         contractId.set(cid);
 
-        Cookies.set('smol_keyid', keyIdBase64, {
+        Cookies.set("smol_keyid", keyIdBase64, {
             expires: 30,
             secure: true,
-            sameSite: 'None',
+            sameSite: "None",
         });
+
+        // TODO store the contract too so we don't have to make a RPC call for every page load
     }
 
     async function signUp() {
@@ -68,38 +70,36 @@
 
         try {
             const {
-                // rawResponse,
+                rawResponse,
                 keyIdBase64,
                 contractId: cid,
                 signedTx,
             } = await account.createWallet("smol.xyz", "SMOL Player");
 
-            // await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {
-            //     method: "POST",
-            //     headers: {
-            //         "Content-Type": "application/json",
-            //     },
-            //     body: JSON.stringify({
-            //         type: 'create',
-            //         keyId: keyIdBase64,
-            //         response: rawResponse,
-            //     }),
-            //     credentials: 'include'
-            // })
-            //     .then(async (res) => {
-            //         if (!res.ok)
-            //             throw await res.text();
-            //     })
+            await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    type: "create",
+                    keyId: keyIdBase64,
+                    response: rawResponse,
+                }),
+                credentials: "include",
+            }).then(async (res) => {
+                if (!res.ok) throw await res.text();
+            });
 
             await server.send(signedTx);
 
             keyId.set(keyIdBase64);
             contractId.set(cid);
 
-            Cookies.set('smol_keyid', keyIdBase64, {
+            Cookies.set("smol_keyid", keyIdBase64, {
                 expires: 30,
                 secure: true,
-                sameSite: 'None',
+                sameSite: "None",
             });
         } finally {
             creating = false;
@@ -110,7 +110,7 @@
         keyId.set(null);
         contractId.set(null);
 
-        Cookies.remove('smol_keyid');
+        Cookies.remove("smol_keyid");
 
         Object.keys(localStorage).forEach((key) => {
             if (key.includes("smol:")) {
@@ -154,7 +154,9 @@
                     on:click={logout}>Logout</button
                 >
             {:else}
-                <button class="mr-4 hover:underline" on:click={login}>Login</button>
+                <button class="mr-4 hover:underline" on:click={login}
+                    >Login</button
+                >
                 <button
                     class="text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1 disabled:opacity-50"
                     on:click={signUp}

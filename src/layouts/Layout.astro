@@ -21,6 +21,8 @@ let _cid: string | undefined;
 
 const _kid = Astro.cookies.get('smol_keyid')?.value;
 
+// TODO allow connecting wallets with keyId and contractId passed as args to avoid the RPC call
+
 if (_kid) {
 	const { contractId } = await account.connectWallet({ keyId: _kid });
 	_cid = contractId;
