@@ -67,6 +67,7 @@
             headers: {
                 "Content-Type": "application/json",
             },
+            credentials: "include",
         });
     }
 
@@ -88,6 +89,7 @@
             headers: {
                 "Content-Type": "application/json",
             },
+            credentials: "include",
             body: JSON.stringify({
                 address: $contractId,
                 prompt,
@@ -124,6 +126,7 @@
             headers: {
                 "Content-Type": "application/json",
             },
+            credentials: "include",
             body: JSON.stringify({
                 address: $contractId,
             }),
@@ -145,7 +148,9 @@
     async function getGen() {
         if (!id) return;
 
-        return fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`)
+        return fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
+            credentials: "include",
+        })
             .then(async (res) => {
                 if (res.ok) return res.json();
                 else throw await res.text();

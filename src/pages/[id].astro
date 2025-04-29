@@ -4,7 +4,9 @@ import Layout from "../layouts/Layout.astro";
 
 const id = Astro.params.id;
 const data = id
-	? await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`)
+	? await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
+			credentials: "include",
+		})
 			.then(async (res) => {
 				if (res.ok) return res.json();
 				return null;
@@ -21,13 +23,14 @@ const data = id
 <Layout
 	title={data?.kv_do?.lyrics?.title}
 	description={data?.kv_do?.payload?.prompt}
-	song_url={
-		data?.d1?.Song_1 
+	song_url={data?.d1?.Song_1
 		? `${import.meta.env.PUBLIC_API_URL}/song/${data.d1.Song_1}.mp3`
 		: data?.kv_do?.songs?.[0]?.audio
-		? `${import.meta.env.PUBLIC_API_URL}/song/${data?.kv_do?.songs?.[0]?.music_id}.mp3`
-		: "https://cdn2.aisonggenerator.io/491bb94b-79df-41bb-b09b-2d295f1dfd05.mp3"}
-	image_url={id ? `${import.meta.env.PUBLIC_API_URL}/image/${id}.png` : "https://smol.xyz/meta.png"}
+			? `${import.meta.env.PUBLIC_API_URL}/song/${data?.kv_do?.songs?.[0]?.music_id}.mp3`
+			: "https://cdn2.aisonggenerator.io/491bb94b-79df-41bb-b09b-2d295f1dfd05.mp3"}
+	image_url={id
+		? `${import.meta.env.PUBLIC_API_URL}/image/${id}.png`
+		: "https://smol.xyz/meta.png"}
 >
 	<Smol client:load id={id} data={data} />
 </Layout>
