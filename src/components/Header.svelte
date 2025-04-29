@@ -42,13 +42,13 @@
             headers: {
                 "Content-Type": "application/json",
             },
+            credentials: "include",
             body: JSON.stringify({
                 type: "connect",
                 keyId: keyIdBase64,
                 contractId: cid,
                 response: rawResponse,
             }),
-            credentials: "include",
         }).then(async (res) => {
             if (!res.ok) throw await res.text();
         });
@@ -81,12 +81,12 @@
                 headers: {
                     "Content-Type": "application/json",
                 },
+                credentials: "include",
                 body: JSON.stringify({
                     type: "create",
                     keyId: keyIdBase64,
                     response: rawResponse,
                 }),
-                credentials: "include",
             }).then(async (res) => {
                 if (!res.ok) throw await res.text();
             });
