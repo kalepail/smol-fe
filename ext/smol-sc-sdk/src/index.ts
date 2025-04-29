@@ -1,4 +1,4 @@
-import { Buffer } from "buffer";
+// import { Buffer } from "buffer";
 import {
   AssembledTransaction,
   Client as ContractClient,
@@ -13,10 +13,10 @@ import type {
   Option,
 } from '@stellar/stellar-sdk/minimal/contract';
 
-if (typeof window !== 'undefined') {
-  //@ts-ignore Buffer exists
-  window.Buffer = window.Buffer || Buffer;
-}
+// if (typeof window !== 'undefined') {
+//   //@ts-ignore Buffer exists
+//   window.Buffer = window.Buffer || Buffer;
+// }
 
 export const Errors = {
   1: { message: "AlreadyInitialized" },
