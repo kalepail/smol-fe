@@ -27,7 +27,25 @@
     // })
 
     async function login() {
-        const { keyIdBase64, contractId: cid } = await account.connectWallet();
+        const { rawResponse, keyIdBase64, contractId: cid } = await account.connectWallet();
+
+        await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                type: 'connect',
+                keyId: keyIdBase64,
+                contractId: cid,
+                response: rawResponse,
+            }),
+            credentials: 'include'
+        })
+            .then(async (res) => {
+                if (!res.ok)
+                    throw await res.text();
+            })
 
         keyId.set(keyIdBase64);
         localStorage.setItem("smol:keyId", keyIdBase64);
@@ -40,10 +58,28 @@
 
         try {
             const {
+                rawResponse,
                 keyIdBase64,
                 contractId: cid,
                 signedTx,
             } = await account.createWallet("smol.xyz", "SMOL Player");
+
+            await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    type: 'create',
+                    keyId: keyIdBase64,
+                    response: rawResponse,
+                }),
+                credentials: 'include'
+            })
+                .then(async (res) => {
+                    if (!res.ok)
+                        throw await res.text();
+                })
 
             await server.send(signedTx);
 

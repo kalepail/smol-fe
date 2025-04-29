@@ -4,6 +4,7 @@ import svelte from '@astrojs/svelte';
 // import { nodeModulesPolyfillPlugin } from 'esbuild-plugins-node-modules-polyfill';
 import cloudflare from '@astrojs/cloudflare';
 import tailwindcss from '@tailwindcss/vite';
+import mkcert from 'vite-plugin-mkcert';
 
 // https://astro.build/config
 export default defineConfig({
@@ -22,6 +23,9 @@ export default defineConfig({
         // ]
       }
     },
-    plugins: [tailwindcss()],
+    plugins: [
+      mkcert(),
+      tailwindcss()
+    ],
   },
 });

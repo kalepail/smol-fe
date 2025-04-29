@@ -10,23 +10,24 @@
     "astro": "astro"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "^12.5.1",
     "@stellar/stellar-sdk": "^13.3.0",
-    "@tailwindcss/vite": "^4.1.4",
     "buffer": "^6.0.3",
     "jimp": "^1.6.0",
-    "passkey-kit": "^0.10.21",
+    "passkey-kit": "^0.10.24",
     "smol-sc-sdk": "link:./ext/smol-sc-sdk"
   },
   "devDependencies": {
+    "@astrojs/cloudflare": "^12.5.1",
     "@astrojs/svelte": "^7.0.11",
     "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
-    "@types/node": "^22.14.1",
-    "astro": "^5.7.5",
+    "@tailwindcss/vite": "^4.1.4",
+    "@types/node": "^22.15.3",
+    "astro": "^5.7.8",
     "esbuild-plugins-node-modules-polyfill": "^1.7.0",
     "sass": "^1.87.0",
     "svelte": "^5.28.2",
     "tailwindcss": "^4.1.4",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vite-plugin-mkcert": "^1.17.8"
   }
 }

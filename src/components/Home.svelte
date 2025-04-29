@@ -7,6 +7,9 @@
 <!-- TODO 
  have the bg of each card match the image primary color 
  progressive loading of images and music
+
+ build a mini audio player that shows more details of the current song
+ also find a way to maintain this player across the app
  -->
 
 <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2 m-2">

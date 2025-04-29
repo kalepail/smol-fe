@@ -187,57 +187,65 @@
 
 <!-- TODO add loading icons -->
 
-{#if $contractId && !id}
+{#if !id}
     <div class="px-2 py-10 bg-slate-900">
         <div class="flex flex-col items-center max-w-[1024px] mx-auto">
-            <form
-                class="flex flex-col items-start max-w-[512px] w-full"
-                on:submit|preventDefault={postGen}
-            >
-                <!-- <h1 class="mb-2">Create your own</h1> -->
-                <textarea
-                    class="p-2 mb-4 w-full bg-slate-800 text-white outline-3 outline-offset-3 outline-slate-800 rounded focus:outline-slate-700"
-                    placeholder="Write an epic prompt for an even epic'er gen"
-                    rows="4"
-                    bind:value={prompt}
-                ></textarea>
+            {#if !$contractId}
+                <h1
+                    class="bg-rose-950 border border-rose-400 rounded px-2 py-1"
+                >
+                    Login or Create New Account
+                </h1>
+            {:else}
+                <form
+                    class="flex flex-col items-start max-w-[512px] w-full"
+                    on:submit|preventDefault={postGen}
+                >
+                    <!-- <h1 class="mb-2">Create your own</h1> -->
+                    <textarea
+                        class="p-2 mb-4 w-full bg-slate-800 text-white outline-3 outline-offset-3 outline-slate-800 rounded focus:outline-slate-700"
+                        placeholder="Write an epic prompt for an even epic'er gen"
+                        rows="4"
+                        bind:value={prompt}
+                    ></textarea>
 
-                <div class="flex w-full mb-5">
-                    <div>
-                        <label class="flex items-center" for="public">
-                            <span class="text-xs mr-2">Public</span>
-                            <input
-                                type="checkbox"
-                                name="public"
-                                id="public"
-                                bind:checked={is_public}
-                            />
-                        </label>
+                    <div class="flex w-full mb-5">
+                        <div>
+                            <label class="flex items-center" for="public">
+                                <span class="text-xs mr-2">Public</span>
+                                <input
+                                    type="checkbox"
+                                    name="public"
+                                    id="public"
+                                    bind:checked={is_public}
+                                />
+                            </label>
 
-                        <label class="flex items-center" for="instrumental">
-                            <span class="text-xs mr-2">Instrumental</span>
-                            <input
-                                type="checkbox"
-                                name="instrumental"
-                                id="instrumental"
-                                bind:checked={is_instrumental}
-                            />
-                        </label>
+                            <label class="flex items-center" for="instrumental">
+                                <span class="text-xs mr-2">Instrumental</span>
+                                <input
+                                    type="checkbox"
+                                    name="instrumental"
+                                    id="instrumental"
+                                    bind:checked={is_instrumental}
+                                />
+                            </label>
+                        </div>
+
+                        <button
+                            type="submit"
+                            class="ml-auto text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1 disabled:opacity-50"
+                            disabled={(!!id && !!interval) || !prompt}
+                            >⚡︎ Generate</button
+                        >
                     </div>
 
-                    <button
-                        type="submit"
-                        class="ml-auto text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1 disabled:opacity-50"
-                        disabled={(!!id && !!interval) || !prompt}
-                        >⚡︎ Generate</button
-                    >
-                </div>
-
-                <aside class="text-xs self-start">
-                    * Will take roughly 6 minutes to fully generate.
-                    <br /> &nbsp;&nbsp; Even longer during times of heavy load.
-                </aside>
-            </form>
+                    <aside class="text-xs self-start">
+                        * Will take roughly 6 minutes to fully generate.
+                        <br /> &nbsp;&nbsp; Even longer during times of heavy load.
+                    </aside>
+                </form>
+            {/if}
         </div>
     </div>
 {/if}
