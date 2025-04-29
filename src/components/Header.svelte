@@ -1,24 +1,28 @@
 <script lang="ts">
+    export let _kid: string | null;
+    export let _cid: string | null;
+
     import { onMount } from "svelte";
     import { keyId } from "../store/keyId";
     import { contractId } from "../store/contractId";
     import { account, server } from "../utils/passkey-kit";
     import { truncate } from "../utils/base";
+    import Cookies from 'js-cookie'
     // import { contractBalance, updateContractBalance } from "../store/contractBalance";
 
-    let unsure = true;
+    keyId.set(_kid);
+    contractId.set(_cid);
+
     let creating = false;
 
     onMount(async () => {
-        if ($keyId) {
+        if ($keyId && !$contractId) {
             const { contractId: cid } = await account.connectWallet({
                 keyId: $keyId,
             });
 
             contractId.set(cid);
         }
-
-        unsure = false;
     });
 
     // contractId.subscribe(async (cid) => {
@@ -27,30 +31,36 @@
     // })
 
     async function login() {
-        const { rawResponse, keyIdBase64, contractId: cid } = await account.connectWallet();
+        const { 
+            // rawResponse, 
+            keyIdBase64, contractId: cid } = await account.connectWallet();
 
-        await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                type: 'connect',
-                keyId: keyIdBase64,
-                contractId: cid,
-                response: rawResponse,
-            }),
-            credentials: 'include'
-        })
-            .then(async (res) => {
-                if (!res.ok)
-                    throw await res.text();
-            })
+        // await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {
+        //     method: "POST",
+        //     headers: {
+        //         "Content-Type": "application/json",
+        //     },
+        //     body: JSON.stringify({
+        //         type: 'connect',
+        //         keyId: keyIdBase64,
+        //         contractId: cid,
+        //         response: rawResponse,
+        //     }),
+        //     credentials: 'include'
+        // })
+        //     .then(async (res) => {
+        //         if (!res.ok)
+        //             throw await res.text();
+        //     })
 
         keyId.set(keyIdBase64);
-        localStorage.setItem("smol:keyId", keyIdBase64);
-
         contractId.set(cid);
+
+        Cookies.set('smol_keyid', keyIdBase64, {
+            expires: 30,
+            secure: true,
+            sameSite: 'None',
+        });
     }
 
     async function signUp() {
@@ -58,35 +68,39 @@
 
         try {
             const {
-                rawResponse,
+                // rawResponse,
                 keyIdBase64,
                 contractId: cid,
                 signedTx,
             } = await account.createWallet("smol.xyz", "SMOL Player");
 
-            await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    type: 'create',
-                    keyId: keyIdBase64,
-                    response: rawResponse,
-                }),
-                credentials: 'include'
-            })
-                .then(async (res) => {
-                    if (!res.ok)
-                        throw await res.text();
-                })
+            // await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {
+            //     method: "POST",
+            //     headers: {
+            //         "Content-Type": "application/json",
+            //     },
+            //     body: JSON.stringify({
+            //         type: 'create',
+            //         keyId: keyIdBase64,
+            //         response: rawResponse,
+            //     }),
+            //     credentials: 'include'
+            // })
+            //     .then(async (res) => {
+            //         if (!res.ok)
+            //             throw await res.text();
+            //     })
 
             await server.send(signedTx);
 
             keyId.set(keyIdBase64);
-            localStorage.setItem("smol:keyId", keyIdBase64);
-
             contractId.set(cid);
+
+            Cookies.set('smol_keyid', keyIdBase64, {
+                expires: 30,
+                secure: true,
+                sameSite: 'None',
+            });
         } finally {
             creating = false;
         }
@@ -95,6 +109,8 @@
     function logout() {
         keyId.set(null);
         contractId.set(null);
+
+        Cookies.remove('smol_keyid');
 
         Object.keys(localStorage).forEach((key) => {
             if (key.includes("smol:")) {
@@ -125,29 +141,27 @@
             href="/create">+ Create</a
         > -->
 
-        {#if !unsure}
-            <div class="flex items-center ml-auto">
-                {#if $contractId}
-                    <a
-                        class="mr-4 font-mono text-sm underline"
-                        href="https://stellar.expert/explorer/public/contract/{$contractId}"
-                        target="_blank">{truncate($contractId, 4)}</a
-                    >
-                    <!-- <span class="bg-green-700 text-yellow-100 px-3 py-1 rounded-full font-mono text-sm">{(Number($contractBalance ?? 0) / 1e7)} KALE</span> -->
-                    <button
-                        class="text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1"
-                        on:click={logout}>Logout</button
-                    >
-                {:else}
-                    <button class="mr-4 hover:underline" on:click={login}>Login</button>
-                    <button
-                        class="text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1 disabled:opacity-50"
-                        on:click={signUp}
-                        disabled={creating}
-                        >{creating ? "Creating..." : "Create New Account"}</button
-                    >
-                {/if}
-            </div>
-        {/if}
+        <div class="flex items-center ml-auto">
+            {#if $contractId}
+                <a
+                    class="mr-4 font-mono text-sm underline"
+                    href="https://stellar.expert/explorer/public/contract/{$contractId}"
+                    target="_blank">{truncate($contractId, 4)}</a
+                >
+                <!-- <span class="bg-green-700 text-yellow-100 px-3 py-1 rounded-full font-mono text-sm">{(Number($contractBalance ?? 0) / 1e7)} KALE</span> -->
+                <button
+                    class="text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1"
+                    on:click={logout}>Logout</button
+                >
+            {:else}
+                <button class="mr-4 hover:underline" on:click={login}>Login</button>
+                <button
+                    class="text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1 disabled:opacity-50"
+                    on:click={signUp}
+                    disabled={creating}
+                    >{creating ? "Creating..." : "Create New Account"}</button
+                >
+            {/if}
+        </div>
     </div>
 </header>

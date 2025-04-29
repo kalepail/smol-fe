@@ -1,4 +1,8 @@
 ---
+import Header from '../components/Header.svelte'
+import '../styles/global.css'
+import { account } from '../utils/passkey-kit';
+
 interface Props {
 	title?: string;
 	description?: string;
@@ -13,8 +17,14 @@ const {
 	image_url,
 } = Astro.props;
 
-import Header from '../components/Header.svelte'
-import '../styles/global.css'
+let _cid: string | undefined;
+
+const _kid = Astro.cookies.get('smol_keyid')?.value;
+
+if (_kid) {
+	const { contractId } = await account.connectWallet({ keyId: _kid });
+	_cid = contractId;
+}
 ---
 
 <!doctype html>
@@ -49,7 +59,7 @@ import '../styles/global.css'
 		<meta name="twitter:url" content={Astro.url} />
 	</head>
 	<body class="bg-slate-950 text-white">
-		<Header client:load />
+		<Header {_kid} {_cid} client:load />
 		<slot />
 	</body>
 </html>
