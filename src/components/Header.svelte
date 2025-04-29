@@ -85,6 +85,7 @@
                 body: JSON.stringify({
                     type: "create",
                     keyId: keyIdBase64,
+                    contractId: cid,
                     response: rawResponse,
                 }),
             }).then(async (res) => {
