@@ -1,51 +1,40 @@
-<script>
-    import { currentAudio } from "../store/audioManager";
-    import { get } from "svelte/store";
-
+<script lang="ts">
+    export let id;
+    export let playing_id;
     export let song;
+    export let songToggle;
+    export let songNext: Function;
 
-    let audio;
-    let playing = false;
+    let audio: HTMLAudioElement;
     let progress = 0;
 
     const radius = 24;
     const circumference = 2 * Math.PI * radius;
 
-    $: dashOffset = circumference - (progress / 100) * circumference;
-
-    function togglePlay() {
-        if (!audio) return;
-
-        // Set the source only on the first play attempt
-        if (!audio.src) {
-            audio.src = song;
-            audio.load();
-        }
-
-        const other = get(currentAudio);
-
-        if (other && other.audio !== audio) {
-            other.audio.pause();
-            other.audio.currentTime = 0;
-            other.resetProgress();
-        }
-
+    $: playing = playing_id === id;
+    $: nothing_playing = playing_id === null;
+    $: dash_offset = circumference - (progress / 100) * circumference;
+    $: if (audio) {
         if (playing) {
-            audio.pause();
-            currentAudio.set(null);
-            playing = false;
-        } else {
-            if (audio.readyState >= 2) { // HAVE_CURRENT_DATA or higher
-                 audio.play();
-                 currentAudio.set({audio, resetProgress});
-                 playing = true;
+            if (!audio.src) {
+                audio.src = song;
+                audio.load();
+            }
+
+            if (audio.readyState >= 2) {
+                audio.play();
             } else {
-                // If not ready, wait for 'canplay' event
-                audio.addEventListener('canplay', () => {
-                    audio.play();
-                    currentAudio.set({audio, resetProgress});
-                    playing = true;
-                }, { once: true });
+                audio.addEventListener(
+                    "canplay",
+                    () => audio.play(),
+                    { once: true },
+                );
+            }
+        } else {
+            audio.pause();
+
+            if (!nothing_playing) {
+                resetProgress();
             }
         }
     }
@@ -57,9 +46,13 @@
     }
 
     function resetProgress() {
+        audio.currentTime = 0;
         progress = 0;
-        playing = false;
-        currentAudio.set(null);
+    }
+
+    function songEnded() {
+        resetProgress();
+        songNext();
     }
 </script>
 
@@ -84,12 +77,12 @@
             fill="none"
             stroke-linecap="round"
             stroke-dasharray={circumference}
-            stroke-dashoffset={dashOffset}
+            stroke-dashoffset={dash_offset}
         />
     </svg>
 
     <button
-        on:click={togglePlay}
+        on:click={songToggle}
         class="absolute inset-1 flex items-center justify-center text-white"
     >
         {#if playing}
@@ -124,5 +117,5 @@
     preload="none"
     bind:this={audio}
     on:timeupdate={updateProgress}
-    on:ended={resetProgress}
+    on:ended={songEnded}
 ></audio>
