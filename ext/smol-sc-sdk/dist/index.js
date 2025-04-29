@@ -1,9 +1,9 @@
-// import { Buffer } from "buffer";
+import { Buffer } from "buffer";
 import { Client as ContractClient, Spec as ContractSpec, } from '@stellar/stellar-sdk/minimal/contract';
-// if (typeof window !== 'undefined') {
-//   //@ts-ignore Buffer exists
-//   window.Buffer = window.Buffer || Buffer;
-// }
+if (typeof window !== 'undefined') {
+    //@ts-ignore Buffer exists
+    window.Buffer = window.Buffer || Buffer;
+}
 export const Errors = {
     1: { message: "AlreadyInitialized" },
     2: { message: "NotInitialized" },
