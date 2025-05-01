@@ -4,9 +4,7 @@ import Layout from "../layouts/Layout.astro";
 
 const id = Astro.params.id;
 const data = id
-	? await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
-			credentials: "include",
-		})
+	? await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`)
 			.then(async (res) => {
 				if (res.ok) return res.json();
 				return null;

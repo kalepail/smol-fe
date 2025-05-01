@@ -1,4 +1,9 @@
+<script lang="ts">
+    export let classNames: string | undefined = undefined
+</script>
+
 <svg
+    class={classNames}
     width="50"
     height="50"
     viewBox="0 0 50 50"

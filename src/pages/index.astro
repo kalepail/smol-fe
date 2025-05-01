@@ -1,14 +1,11 @@
 ---
-import Home from '../components/Home.svelte';
+import Home from "../components/Home.svelte";
 import Layout from "../layouts/Layout.astro";
 
-const results = await fetch(import.meta.env.PUBLIC_API_URL, {
-	credentials: "include",
-})
-	.then(async (res) => {
-		if (res.ok) return res.json();
-		return [];
-	});
+const results = await fetch(import.meta.env.PUBLIC_API_URL).then((res) => {
+	if (res.ok) return res.json();
+	return [];
+});
 ---
 
 <Layout
