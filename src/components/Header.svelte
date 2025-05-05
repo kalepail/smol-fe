@@ -140,12 +140,12 @@
             <a href="/"><strong>SMOL</strong></a>
         </h1>
 
-        <!-- <a
+        <a
             class="ml-4 hover:underline {!import.meta.env.SSR && location.pathname.endsWith(
                 'create',
             ) && 'underline'}"
             href="/create">+ Create</a
-        > -->
+        >
 
         <div class="flex items-center ml-auto">
             {#if $contractId}
