@@ -3,6 +3,12 @@
     import BarAudioPlayer from "./BarAudioPlayer.svelte";
     import { onMount } from "svelte";
     import Loader from "./Loader.svelte";
+    import { Address, hash, StrKey, xdr } from "@stellar/stellar-sdk/minimal";
+    import { contractId } from "../store/contractId";
+    import { Client } from 'fp-sdk'
+    import { publicKey } from "../utils/base";
+    import { account } from "../utils/passkey-kit";
+    import { keyId } from "../store/keyId";
 
     export let results: any;
 
@@ -78,12 +84,50 @@
     }
 
     async function songLike(smol: any) {
-        smol.Liking = true;
-
         try {
+            smol.Liking = true;
+
+            let xdr_string: string | undefined = undefined
+
+            // if selling
+            if (smol.Liked) {
+                if (!$contractId || !$keyId)
+                    return
+
+                const contract_id: string | undefined = StrKey.encodeContract(hash(xdr.HashIdPreimage.envelopeTypeContractId(
+                    new xdr.HashIdPreimageContractId({
+                        networkId: hash(Buffer.from(import.meta.env.PUBLIC_NETWORK_PASSPHRASE)),
+                        contractIdPreimage: xdr.ContractIdPreimage.contractIdPreimageFromAddress(
+                            new xdr.ContractIdPreimageFromAddress({
+                                address: Address.fromString(publicKey).toScAddress(),
+                                salt: Buffer.from(smol.Id, 'hex'),
+                            })
+                        )
+                    })
+                ).toXDR()));
+
+                const contract = new Client({
+                    contractId: contract_id,
+                    rpcUrl: import.meta.env.PUBLIC_RPC_URL,
+                    networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
+                });
+
+                let at = await contract.burn({
+                    from: $contractId,
+                    amount: 1n,
+                });
+
+                at = await account.sign(at, { keyId: $keyId })
+
+                xdr_string = at.built?.toXDR()
+            }
+
             await fetch(`${import.meta.env.PUBLIC_API_URL}/like/${smol.Id}`, {
                 method: "PUT",
                 credentials: "include",
+                body: JSON.stringify({
+                    xdr: xdr_string
+                })
             }).then(async (res) => {
                 if (!res.ok) throw await res.text();
             });

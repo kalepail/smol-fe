@@ -16,12 +16,17 @@
     let creating = false;
 
     onMount(async () => {
-        if ($keyId && !$contractId) {
-            const { contractId: cid } = await account.connectWallet({
-                keyId: $keyId,
-            });
+        if ($keyId) {
+            if (!$contractId) {
+                const { contractId: cid } = await account.connectWallet({
+                    keyId: $keyId,
+                });
 
-            contractId.set(cid);
+                contractId.set(cid);
+            } else {
+                await account.connectWallet({keyId: $keyId});
+            }
+            
         }
     });
 

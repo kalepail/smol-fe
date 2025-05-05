@@ -387,7 +387,7 @@
                     >
 <code>Tags: <em>{kv_do && kv_do?.lyrics?.style.join(", ")}</em></code>
 
-{#if d1?.Instrumental !== 1}<code>{kv_do && kv_do?.lyrics?.lyrics}</code
+{#if is_instrumental || d1?.Instrumental !== 1}<code>{kv_do && kv_do?.lyrics?.lyrics}</code
                         >{/if}</pre>
             </li>
         </ul>
