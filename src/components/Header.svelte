@@ -144,9 +144,16 @@
 
         <a
             class="ml-5 hover:underline {!import.meta.env.SSR && location.pathname.endsWith(
-                'me',
+                'created',
             ) && 'underline'}"
             href="/created">Created</a
+        >
+
+        <a
+            class="ml-5 hover:underline {!import.meta.env.SSR && location.pathname.endsWith(
+                'me',
+            ) && 'underline'}"
+            href="/liked">Liked</a
         >
 
         <a
