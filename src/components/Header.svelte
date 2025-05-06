@@ -42,7 +42,7 @@
             contractId: cid,
         } = await account.connectWallet();
 
-        await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {
+        const jwt = await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -55,19 +55,19 @@
                 response: rawResponse,
             }),
         }).then(async (res) => {
-            if (!res.ok) throw await res.text();
+            if (res.ok)
+                return res.text();
+            throw await res.text();
         });
 
         keyId.set(keyIdBase64);
         contractId.set(cid);
 
-        Cookies.set("smol_keyid", keyIdBase64, {
+        Cookies.set("smol_token", jwt, {
             expires: 30,
             secure: true,
             sameSite: "None",
         });
-
-        // TODO store the contract too so we don't have to make a RPC call for every page load
     }
 
     async function signUp() {
@@ -81,7 +81,7 @@
                 signedTx,
             } = await account.createWallet("smol.xyz", "SMOL Player");
 
-            await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {
+            const jwt = await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -94,7 +94,9 @@
                     response: rawResponse,
                 }),
             }).then(async (res) => {
-                if (!res.ok) throw await res.text();
+                if (res.ok)
+                    return res.text();
+                throw await res.text();
             });
 
             await server.send(signedTx);
@@ -102,7 +104,7 @@
             keyId.set(keyIdBase64);
             contractId.set(cid);
 
-            Cookies.set("smol_keyid", keyIdBase64, {
+            Cookies.set("smol_token", jwt, {
                 expires: 30,
                 secure: true,
                 sameSite: "None",
@@ -116,7 +118,7 @@
         keyId.set(null);
         contractId.set(null);
 
-        Cookies.remove("smol_keyid");
+        Cookies.remove("smol_token");
 
         Object.keys(localStorage).forEach((key) => {
             if (key.includes("smol:")) {

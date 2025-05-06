@@ -1,7 +1,6 @@
 ---
 import Header from '../components/Header.svelte'
 import '../styles/global.css'
-import { account } from '../utils/passkey-kit';
 
 interface Props {
 	title?: string;
@@ -17,15 +16,16 @@ const {
 	image_url,
 } = Astro.props;
 
-let _cid: string | undefined;
+let _kid = null
+let _cid = null
 
-const _kid = Astro.cookies.get('smol_keyid')?.value;
+const token = Astro.cookies.get('smol_token')?.value?.split('.')?.[1];
 
-// TODO allow connecting wallets with keyId and contractId passed as args to avoid the RPC call
-
-if (_kid) {
-	const { contractId } = await account.connectWallet({ keyId: _kid });
-	_cid = contractId;
+if (token) {
+	const { sub, key } = JSON.parse(atob(token));
+	
+	_kid = key;
+	_cid = sub;
 }
 ---
 

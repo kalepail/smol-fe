@@ -19,6 +19,7 @@
     // instrumentals
     // toggle track_1 vs track_2
     // toggle public vs private
+    // toggle private vs public
 
     let prompt: string = "";
     let is_public: boolean = true;
