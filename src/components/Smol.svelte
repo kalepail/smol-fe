@@ -65,12 +65,24 @@
                 "Content-Type": "application/json",
             },
             credentials: "include",
-        }).then(async (res) => {
-            if (res.ok)
-                console.log(await res.text());
         });
 
         d1.Public = d1.Public === 1 ? 0 : 1;
+    }
+
+    async function deleteSong() {
+        if (!confirm("Are you sure you want to delete this song?"))
+            return;
+
+        await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
+            method: "DELETE",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            credentials: "include",
+        });
+
+        window.history.replaceState({}, "", "/");
     }
 
     async function selectBestSong(song_id: string) {
@@ -282,10 +294,9 @@
 
             <li>
                 <h1>Id:</h1>
-                <pre class="whitespace-pre-wrap break-all"><code class="text-xs"
-                        >{id}</code
-                    ></pre>
+                <pre class="whitespace-pre-wrap break-all"><code class="text-xs">{id}</code></pre>
 
+                <div class="flex items-center">
                 {#if kv_do && kv_do?.nsfw}
                     {#if kv_do.nsfw?.safe === false}
                         <span
@@ -301,17 +312,40 @@
                         >
 
                         <button
-                            class="uppercase text-xs font-mono text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1"
+                            class="uppercase text-xs font-mono ring rounded px-2 py-1 mx-2
+                            {d1.Public
+                                ? 'text-amber-500 bg-amber-500/20 ring-amber-500 hover:bg-amber-500/30'
+                                : 'text-blue-500 bg-blue-500/20 ring-blue-500 hover:bg-blue-500/30'}"
                             on:click={makeSongPublic}
                         >
                             {#if d1.Public}
-                                Make private
+                                Unpublish
                             {:else}
-                                Make public
+                                Publish
                             {/if}
                         </button>
                     {/if}
+
+                    <button
+                        class="uppercase text-xs font-mono ring rounded px-2 py-1 text-rose-500 bg-rose-500/20 ring-rose-500 hover:bg-rose-500/30"
+                        aria-label="Delete"
+                        on:click={deleteSong}
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 16 16"
+                            fill="currentColor"
+                            class="size-4"
+                        >
+                            <path
+                                fill-rule="evenodd"
+                                d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z"
+                                clip-rule="evenodd"
+                            />
+                        </svg>
+                    </button>
                 {/if}
+                </div>
             </li>
 
             <li>
