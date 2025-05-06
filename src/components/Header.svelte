@@ -143,13 +143,20 @@
         </h1>
 
         <a
-            class="ml-4 hover:underline {!import.meta.env.SSR && location.pathname.endsWith(
+            class="ml-5 hover:underline {!import.meta.env.SSR && location.pathname.endsWith(
+                'me',
+            ) && 'underline'}"
+            href="/me">Me</a
+        >
+
+        <a
+            class="mx-auto hover:underline {!import.meta.env.SSR && location.pathname.endsWith(
                 'create',
             ) && 'underline'}"
             href="/create">+ Create</a
         >
 
-        <div class="flex items-center ml-auto">
+        <div class="flex items-center">
             {#if $contractId}
                 <a
                     class="mr-4 font-mono text-sm underline"
