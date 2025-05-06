@@ -138,35 +138,41 @@
 
 <header class="relative p-2 bg-slate-800 text-lime-500">
     <div class="flex items-center flex-wrap max-w-[1024px] mx-auto">
-        <h1 class="flex text-xl py-1">
-            <a href="/"><strong>SMOL</strong></a>
-        </h1>
+        <div class="flex items-center mr-auto">
+            <h1 class="flex text-xl py-1">
+                <a href="/"><strong>SMOL</strong></a>
+            </h1>
 
-        <a
-            class="ml-5 hover:underline {!import.meta.env.SSR && location.pathname.endsWith(
-                'created',
-            ) && 'underline'}"
-            href="/created">Created</a
-        >
-
-        <a
-            class="ml-5 hover:underline {!import.meta.env.SSR && location.pathname.endsWith(
-                'liked',
-            ) && 'underline'}"
-            href="/liked">Liked</a
-        >
-
-        <a
-            class="mx-auto px-5 hover:underline {!import.meta.env.SSR && location.pathname.endsWith(
-                'create',
-            ) && 'underline'}"
-            href="/create">+ Create</a
-        >
-
-        <div class="flex items-center">
             {#if $contractId}
                 <a
-                    class="mr-4 font-mono text-sm underline"
+                    class="ml-5 hover:underline {!import.meta.env.SSR && location.pathname.endsWith(
+                        'created',
+                    ) && 'underline'}"
+                    href="/created">Created</a
+                >
+
+                <a
+                    class="mx-5 hover:underline {!import.meta.env.SSR && location.pathname.endsWith(
+                        'liked',
+                    ) && 'underline'}"
+                    href="/liked">Liked</a
+                >
+            {/if}
+        </div>
+
+        {#if $contractId}
+            <a
+                class="hover:underline {!import.meta.env.SSR && location.pathname.endsWith(
+                    'create',
+                ) && 'underline'}"
+                href="/create">+ Create</a
+            >
+        {/if}
+
+        <div class="flex items-center ml-auto">
+            {#if $contractId}
+                <a
+                    class="mx-5 font-mono text-sm underline"
                     href="https://stellar.expert/explorer/public/contract/{$contractId}"
                     target="_blank">{truncate($contractId, 4)}</a
                 >
@@ -176,7 +182,7 @@
                     on:click={logout}>Logout</button
                 >
             {:else}
-                <button class="mr-4 hover:underline" on:click={login}
+                <button class="mr-5 hover:underline" on:click={login}
                     >Login</button
                 >
                 <button
