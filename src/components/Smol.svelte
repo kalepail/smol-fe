@@ -20,6 +20,7 @@
     // toggle track_1 vs track_2
     // toggle public vs private
     // toggle private vs public
+    // only show action buttons like public/private and delete if we're the song author
 
     let prompt: string = "";
     let is_public: boolean = true;
@@ -82,7 +83,8 @@
             credentials: "include",
         });
 
-        window.history.replaceState({}, "", "/");
+        history.replaceState({}, "", "/");
+        location.reload();
     }
 
     async function selectBestSong(song_id: string) {
@@ -128,7 +130,7 @@
         prompt = "";
 
         if (id) {
-            window.history.pushState({}, "", `/${id}`);
+            history.pushState({}, "", `/${id}`);
         }
 
         interval = setInterval(getGen, 1000 * 5);
@@ -160,7 +162,7 @@
         });
 
         if (id) {
-            window.history.pushState({}, "", `/${id}`);
+            history.pushState({}, "", `/${id}`);
         }
 
         failed = false;
@@ -311,39 +313,43 @@
                             >safe</span
                         >
 
-                        <button
-                            class="uppercase text-xs font-mono ring rounded px-2 py-1 mx-2
-                            {d1.Public
-                                ? 'text-amber-500 bg-amber-500/20 ring-amber-500 hover:bg-amber-500/30'
-                                : 'text-blue-500 bg-blue-500/20 ring-blue-500 hover:bg-blue-500/30'}"
-                            on:click={makeSongPublic}
-                        >
-                            {#if d1.Public}
-                                Unpublish
-                            {:else}
-                                Publish
-                            {/if}
-                        </button>
+                        {#if d1.Address === $contractId}
+                            <button
+                                class="uppercase text-xs font-mono ring rounded px-2 py-1 mx-2
+                                {d1.Public
+                                    ? 'text-amber-500 bg-amber-500/20 ring-amber-500 hover:bg-amber-500/30'
+                                    : 'text-blue-500 bg-blue-500/20 ring-blue-500 hover:bg-blue-500/30'}"
+                                on:click={makeSongPublic}
+                            >
+                                {#if d1.Public}
+                                    Unpublish
+                                {:else}
+                                    Publish
+                                {/if}
+                            </button>
+                        {/if}
                     {/if}
 
-                    <button
-                        class="uppercase text-xs font-mono ring rounded px-2 py-1 text-rose-500 bg-rose-500/20 ring-rose-500 hover:bg-rose-500/30"
-                        aria-label="Delete"
-                        on:click={deleteSong}
-                    >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 16 16"
-                            fill="currentColor"
-                            class="size-4"
+                    {#if d1.Address === $contractId}
+                        <button
+                            class="uppercase text-xs font-mono ring rounded px-2 py-1 text-rose-500 bg-rose-500/20 ring-rose-500 hover:bg-rose-500/30"
+                            aria-label="Delete"
+                            on:click={deleteSong}
                         >
-                            <path
-                                fill-rule="evenodd"
-                                d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z"
-                                clip-rule="evenodd"
-                            />
-                        </svg>
-                    </button>
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 16 16"
+                                fill="currentColor"
+                                class="size-4"
+                            >
+                                <path
+                                    fill-rule="evenodd"
+                                    d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z"
+                                    clip-rule="evenodd"
+                                />
+                            </svg>
+                        </button>
+                    {/if}
                 {/if}
                 </div>
             </li>
@@ -412,15 +418,17 @@
                                     controls
                                 ></audio>
 
-                                <input
-                                    class="scale-150 m-2"
-                                    type="radio"
-                                    value={song.music_id}
-                                    bind:group={best_song}
-                                    on:change={() =>
-                                        selectBestSong(song.music_id)}
-                                />
-
+                                {#if d1.Address === $contractId}
+                                    <input
+                                        class="scale-150 m-2"
+                                        type="radio"
+                                        value={song.music_id}
+                                        bind:group={best_song}
+                                        on:change={() =>
+                                            selectBestSong(song.music_id)}
+                                    />
+                                {/if}
+                                
                                 {#if song.music_id === best_song}
                                     <span class="text-2xl ml-1">👈</span>
                                     <span class="ml-2 mt-1">better</span>
