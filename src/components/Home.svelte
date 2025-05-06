@@ -14,24 +14,25 @@
 
     let previous_id: string | null = null;
     let playing_id: string | null = null;
+    let likes: any[] = [];
 
-    onMount(async () => {
-        let likes = [];
-
-        if ($contractId) {
+    contractId.subscribe(async (cid) => {
+        if (cid) {
             likes = await fetch(`${import.meta.env.PUBLIC_API_URL}/likes`, {
                 credentials: "include",
             }).then(async (res) => {
                 if (res.ok) return res.json();
                 return [];
             });
+
+            results = results.map((smol: any) => {
+                smol.Liked = likes.some((id: string) => id === smol.Id);
+                return smol;
+            });
         }
+    });
 
-        results = results.map((smol: any) => {
-            smol.Liked = likes.some((id: string) => id === smol.Id);
-            return smol;
-        });
-
+    onMount(async () => {
         if ("mediaSession" in navigator) {
             navigator.mediaSession.setActionHandler("previoustrack", () => {
                 if (previous_id) {
