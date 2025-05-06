@@ -58,11 +58,22 @@
         });
     }
 
-    async function selectBestSong(song_id: string) {
-        // TODO
-        // only switch if you're the author
-        // only switch if selection is different
+    async function makeSongPublic() {
+        await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            credentials: "include",
+        }).then(async (res) => {
+            if (res.ok)
+                console.log(await res.text());
+        });
 
+        d1.Public = d1.Public === 1 ? 0 : 1;
+    }
+
+    async function selectBestSong(song_id: string) {
         await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}/${song_id}`, {
             method: "PUT",
             headers: {
@@ -288,6 +299,17 @@
                             class="bg-lime-400 text-lime-900 uppercase text-xs font-mono px-2 py-1 rounded-full"
                             >safe</span
                         >
+
+                        <button
+                            class="uppercase text-xs font-mono text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1"
+                            on:click={makeSongPublic}
+                        >
+                            {#if d1.Public}
+                                Make private
+                            {:else}
+                                Make public
+                            {/if}
+                        </button>
                     {/if}
                 {/if}
             </li>
@@ -388,7 +410,8 @@
                     >
 <code>Tags: <em>{kv_do && kv_do?.lyrics?.style.join(", ")}</em></code>
 
-{#if is_instrumental || d1?.Instrumental !== 1}<code>{kv_do && kv_do?.lyrics?.lyrics}</code
+{#if is_instrumental || d1?.Instrumental !== 1}<code
+                            >{kv_do && kv_do?.lyrics?.lyrics}</code
                         >{/if}</pre>
             </li>
         </ul>
