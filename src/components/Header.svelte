@@ -146,7 +146,7 @@
             class="ml-5 hover:underline {!import.meta.env.SSR && location.pathname.endsWith(
                 'me',
             ) && 'underline'}"
-            href="/me">Me</a
+            href="/created">Created</a
         >
 
         <a
