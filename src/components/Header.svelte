@@ -157,7 +157,7 @@
         >
 
         <a
-            class="mx-auto hover:underline {!import.meta.env.SSR && location.pathname.endsWith(
+            class="mx-auto px-5 hover:underline {!import.meta.env.SSR && location.pathname.endsWith(
                 'create',
             ) && 'underline'}"
             href="/create">+ Create</a
