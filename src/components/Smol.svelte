@@ -232,7 +232,6 @@
                     class="flex flex-col items-start max-w-[512px] w-full"
                     on:submit|preventDefault={postGen}
                 >
-                    <!-- <h1 class="mb-2">Create your own</h1> -->
                     <textarea
                         class="p-2 mb-4 w-full bg-slate-800 text-white outline-3 outline-offset-3 outline-slate-800 rounded focus:outline-slate-700"
                         placeholder="Write an epic prompt for an even epic'er gen"

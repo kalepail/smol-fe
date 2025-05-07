@@ -213,7 +213,7 @@
                 ></a>
             </div>
 
-            <div class="flex items-center relative p-2 flex-1">
+            <div class="flex items-center relative p-2 flex-1 overflow-hidden">
                 <h1 class="relative z-1 leading-4 text-sm text-white">
                     {smol.Title}
                 </h1>
