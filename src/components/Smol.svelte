@@ -312,15 +312,15 @@
                             >safe</span
                         >
 
-                        {#if d1.Address === $contractId}
+                        {#if d1?.Address === $contractId}
                             <button
                                 class="uppercase text-xs font-mono ring rounded px-2 py-1 mx-2
-                                {d1.Public
+                                {d1?.Public
                                     ? 'text-amber-500 bg-amber-500/20 ring-amber-500 hover:bg-amber-500/30'
                                     : 'text-blue-500 bg-blue-500/20 ring-blue-500 hover:bg-blue-500/30'}"
                                 on:click={makeSongPublic}
                             >
-                                {#if d1.Public}
+                                {#if d1?.Public}
                                     Unpublish
                                 {:else}
                                     Publish
@@ -329,7 +329,7 @@
                         {/if}
                     {/if}
 
-                    {#if d1.Address === $contractId}
+                    {#if d1?.Address === $contractId}
                         <button
                             class="uppercase text-xs font-mono ring rounded px-2 py-1 text-rose-500 bg-rose-500/20 ring-rose-500 hover:bg-rose-500/30"
                             aria-label="Delete"
@@ -417,7 +417,7 @@
                                     controls
                                 ></audio>
 
-                                {#if d1.Address === $contractId}
+                                {#if d1?.Address === $contractId}
                                     <input
                                         class="scale-150 m-2"
                                         type="radio"
