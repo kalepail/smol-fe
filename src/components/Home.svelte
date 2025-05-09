@@ -6,7 +6,7 @@
     import { Address, hash, StrKey, xdr } from "@stellar/stellar-sdk/minimal";
     import { contractId } from "../store/contractId";
     import { Client } from 'fp-sdk'
-    import { publicKey } from "../utils/base";
+    import { publicKey, rpc } from "../utils/base";
     import { account } from "../utils/passkey-kit";
     import { keyId } from "../store/keyId";
 
@@ -122,7 +122,12 @@
                     amount: 1n,
                 });
 
-                at = await account.sign(at, { keyId: $keyId })
+                const { sequence } = await rpc.getLatestLedger()
+
+                at = await account.sign(at, { 
+                    keyId: $keyId,
+                    expiration: sequence + 60 // 30 minutes roughly
+                })
 
                 xdr_string = at.built?.toXDR()
             }
