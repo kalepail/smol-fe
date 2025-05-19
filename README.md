@@ -7,20 +7,20 @@ This project is the web interface for the **Smol** music generator. It uses [Ast
 Install dependencies and start the local dev server:
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
 Build for production:
 
 ```bash
-npm run build
+pnpm run build
 ```
 
 Run a preview of the build output:
 
 ```bash
-npm run preview
+pnpm run preview
 ```
 
 The app relies on several environment variables for RPC connections and API endpoints. Set at least the following in your environment before running locally or deploying:
