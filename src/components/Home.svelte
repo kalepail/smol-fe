@@ -158,7 +158,7 @@
                     <button
                         class="absolute z-2 right-0 bottom-0 p-2 bg-slate-950/50 rounded-tl-lg backdrop-blur-xs {!smol.Liked &&
                             !smol.Liking &&
-                            'opacity-0 group-hover:opacity-100'}"
+                            'opacity-0 group-hover:opacity-100 hover:bg-slate-950/70'}"
                         aria-label="Like"
                         disabled={smol.Liking}
                         on:click={() => songLike(smol)}
@@ -233,7 +233,7 @@
 </div>
 
 <BarAudioPlayer 
-    classNames="fixed z-2 p-2 bottom-2 rounded-md left-4 right-4 bg-slate-950/50 backdrop-blur" 
+    classNames="fixed z-2 p-2 bottom-2 w-full max-w-1/2 min-w-[300px] left-1/2 -translate-x-1/2 rounded-md bg-slate-950/50 backdrop-blur" 
     {songNext}
     onLike={songLike}
 />

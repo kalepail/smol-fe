@@ -59,7 +59,7 @@
         transition:fade={{ duration: 200 }}
     >
         <div class="flex items-center justify-between max-w-7xl mx-auto">
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-4 mr-4">
                 <img 
                     src={`${import.meta.env.PUBLIC_API_URL}/image/${$currentSong.Id}.png`}
                     alt={$currentSong.Title}
@@ -67,14 +67,14 @@
                 />
                 <div>
                     <h3 class="text-white font-medium">{$currentSong.Title}</h3>
-                    <p class="text-gray-400 text-sm">Smol</p>
+                    <!-- <p class="text-gray-400 text-sm">Smol</p> -->
                 </div>
             </div>
             
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2">
                 {#if $contractId}
                     <button
-                        class="p-2 bg-slate-950/50 rounded-lg backdrop-blur-xs hover:bg-slate-950/70 transition-colors"
+                        class="p-2 rounded-lg backdrop-blur-xs hover:bg-slate-950/70 transition-colors"
                         aria-label="Like"
                         disabled={$currentSong?.Liking || !$currentSong}
                         on:click={() => onLike($currentSong)}
