@@ -1,48 +1,65 @@
-# Astro Starter Kit: Basics
+# Smol Frontend
 
-```sh
-npm create astro@latest -- --template basics
+This project is the web interface for the **Smol** music generator. It uses [Astro](https://astro.build/) with Svelte components and connects to Soroban smart contracts through locally generated SDKs.
+
+## Getting Started
+
+Install dependencies and start the local dev server:
+
+```bash
+npm install
+npm run dev
 ```
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/withastro/astro/tree/latest/examples/basics)
-[![Open with CodeSandbox](https://assets.codesandbox.io/github/button-edit-lime.svg)](https://codesandbox.io/p/sandbox/github/withastro/astro/tree/latest/examples/basics)
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/withastro/astro?devcontainer_path=.devcontainer/basics/devcontainer.json)
+Build for production:
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+```bash
+npm run build
+```
 
-![just-the-basics](https://github.com/withastro/astro/assets/2244813/a0a5533c-a856-4198-8470-2d67b1d7c554)
+Run a preview of the build output:
 
-## 🚀 Project Structure
+```bash
+npm run preview
+```
 
-Inside of your Astro project, you'll see the following folders and files:
+The app relies on several environment variables for RPC connections and API endpoints. Set at least the following in your environment before running locally or deploying:
 
-```text
+- `PUBLIC_RPC_URL`
+- `PUBLIC_NETWORK_PASSPHRASE`
+- `PUBLIC_API_URL`
+- `PUBLIC_WALLET_WASM_HASH`
+- `PUBLIC_LAUNCHTUBE_URL`
+- `PUBLIC_LAUNCHTUBE_JWT`
+
+## Project Structure
+
+```
 /
-├── public/
-│   └── favicon.svg
-├── src/
-│   ├── layouts/
-│   │   └── Layout.astro
-│   └── pages/
-│       └── index.astro
-└── package.json
+├── src/            Application source code
+│   ├── components/ Svelte components used on pages
+│   ├── layouts/    Astro layouts (main HTML shell)
+│   ├── pages/      Astro pages that mount Svelte components
+│   ├── store/      Small Svelte stores (keyId, contractId, etc.)
+│   ├── styles/     Tailwind-based global CSS
+│   └── utils/      Utilities for blockchain interaction
+├── ext/            Generated Soroban SDKs
+│   ├── smol-sc-sdk/
+│   └── fp-sdk/
+├── public/         Static assets and site manifest
+└── package.json    Project metadata and scripts
 ```
 
-To learn more about the folder structure of an Astro project, refer to [our guide on project structure](https://docs.astro.build/en/basics/project-structure/).
+### Local SDKs
 
-## 🧞 Commands
+Under `ext/` you will find two folders (`smol-sc-sdk` and `fp-sdk`). These contain TypeScript clients generated from the corresponding Soroban smart contracts. Their READMEs explain how to regenerate the bindings if the contracts are updated.
 
-All commands are run from the root of the project, from a terminal:
+## Next Steps
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+- Review the Svelte components (`src/components/`) to learn how the UI interacts with the stores and the blockchain.
+- Explore `src/utils/passkey-kit.ts` to understand wallet creation and transaction signing using PasskeyKit.
+- Check the SDKs in `ext/` for the contract methods available.
+- Read the comments in components like `Home.svelte` and `Smol.svelte` for hints on upcoming features and workflow.
 
-## 👀 Want to learn more?
+Enjoy building with Smol!
 
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
