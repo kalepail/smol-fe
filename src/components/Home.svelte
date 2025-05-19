@@ -14,6 +14,8 @@
 
     let previous_id: string | null = null;
     let playing_id: string | null = null;
+    let playing_smol: any | null = null;
+    let progress = 0;
     let likes: any[] = [];
 
     contractId.subscribe(async (cid) => {
@@ -67,25 +69,43 @@
         }
     });
 
-    function songToggle(id: string) {
+    $: if (playing_smol && "mediaSession" in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: playing_smol.Title,
+            album: "Smol",
+            artwork: [
+                {
+                    src: `${import.meta.env.PUBLIC_API_URL}/image/${playing_smol.Id}.png?scale=8`,
+                    sizes: "512x512",
+                    type: "image/png",
+                },
+            ],
+        });
+    }
+
+    function songToggle(smol: any) {
+        const id = smol.Id;
         previous_id = playing_id;
-        playing_id = playing_id === id ? null : id;
+        if (playing_id === id) {
+            playing_id = null;
+            playing_smol = null;
+            progress = 0;
+        } else {
+            playing_id = id;
+            playing_smol = smol;
+            progress = 0;
+        }
     }
 
     function songNext() {
         if (playing_id === null || results.length === 0) return;
 
-        // Get an array of all IDs except the currently playing one
-        const otherIds = results
-            .filter((smol: any) => smol.Id !== playing_id)
-            .map((smol: any) => smol.Id);
+        const others = results.filter((s: any) => s.Id !== playing_id);
+        if (others.length === 0) return;
 
-        // If there are no other songs, return
-        if (otherIds.length === 0) return;
-
-        // Select a random ID from the available options
-        const randomIndex = Math.floor(Math.random() * otherIds.length);
-        songToggle(otherIds[randomIndex]);
+        const randomIndex = Math.floor(Math.random() * others.length);
+        songToggle(others[randomIndex]);
+        progress = 0;
     }
 
     async function songLike(smol: any) {
@@ -149,13 +169,10 @@
     }
 </script>
 
-<!-- TODO 
- have the bg of each card match the image primary color 
+<!-- TODO
+ have the bg of each card match the image primary color
  progressive loading of images and music
-
- build a mini audio player that shows more details of the current song
- also find a way to maintain this player across the app
- -->
+-->
 
 <div
     class="relative grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2 m-2 pb-10"
@@ -232,9 +249,8 @@
                     <MiniAudioPlayer
                         id={smol.Id}
                         {playing_id}
-                        song={`${import.meta.env.PUBLIC_API_URL}/song/${smol.Song_1}.mp3`}
-                        songToggle={() => songToggle(smol.Id)}
-                        {songNext}
+                        {progress}
+                        songToggle={() => songToggle(smol)}
                     />
                 </div>
             </div>
@@ -242,4 +258,10 @@
     {/each}
 </div>
 
-<!-- <BarAudioPlayer classNames="fixed z-2 p-2 bottom-0 left-0 right-0 bg-slate-950/50 backdrop-blur" /> -->
+<BarAudioPlayer
+    {playing_smol}
+    {playing_id}
+    bind:progress
+    songToggle={() => playing_smol && songToggle(playing_smol)}
+    {songNext}
+/>
