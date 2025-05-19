@@ -66,7 +66,7 @@
                     class="w-12 h-12 rounded object-cover"
                 />
                 <div>
-                    <h3 class="text-white font-medium">{$currentSong.Title}</h3>
+                    <h3 class="text-white font-medium leading-5">{$currentSong.Title}</h3>
                     <!-- <p class="text-gray-400 text-sm">Smol</p> -->
                 </div>
             </div>
