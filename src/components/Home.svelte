@@ -9,11 +9,16 @@
     import { publicKey, rpc } from "../utils/base";
     import { account } from "../utils/passkey-kit";
     import { keyId } from "../store/keyId";
+    import { 
+        playingId, 
+        currentSong, 
+        audioProgress, 
+        selectSong, 
+        togglePlayPause 
+    } from "../store/audio";
 
     export let results: any;
 
-    let previous_id: string | null = null;
-    let playing_id: string | null = null;
     let likes: any[] = [];
 
     contractId.subscribe(async (cid) => {
@@ -35,69 +40,58 @@
     onMount(async () => {
         if ("mediaSession" in navigator) {
             navigator.mediaSession.setActionHandler("previoustrack", () => {
-                if (previous_id) {
-                    songToggle(previous_id);
+                const currentIndex = results.findIndex((s: any) => s.Id === $currentSong?.Id);
+                if (currentIndex > 0) {
+                    selectSong(results[currentIndex - 1]);
+                } else if (results.length > 0) {
+                    selectSong(results[results.length - 1]);
                 }
             });
 
             navigator.mediaSession.setActionHandler("nexttrack", () => {
                 songNext();
             });
-
-            // navigator.mediaSession.setActionHandler('play', () => {
-            //     play();
-            // });
-
-            // navigator.mediaSession.setActionHandler('pause', () => {
-            //     pause();
-            // });
-
-            navigator.mediaSession.metadata = new MediaMetadata({
-                // title: 'Song Title',
-                // artist: 'Artist Name',
-                album: "Smol",
-                artwork: [
-                    {
-                        src: `https://smol-workflow.sdf-ecosystem.workers.dev/image/${playing_id}.png?scale=8`,
-                        sizes: "512x512",
-                        type: "image/png",
-                    },
-                ],
-            });
         }
     });
 
-    function songToggle(id: string) {
-        previous_id = playing_id;
-        playing_id = playing_id === id ? null : id;
+    $: if ("mediaSession" in navigator && $currentSong) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: $currentSong.Title,
+            artist: "Smol",
+            album: "Smol",
+            artwork: [
+                {
+                    src: `${import.meta.env.PUBLIC_API_URL}/image/${$currentSong.Id}.png?scale=8`,
+                    sizes: "512x512",
+                    type: "image/png",
+                },
+            ],
+        });
+    } else if ("mediaSession" in navigator && !$currentSong) {
+        navigator.mediaSession.metadata = null;
     }
 
     function songNext() {
-        if (playing_id === null || results.length === 0) return;
+        if (results.length === 0) return;
+        const currentId = $currentSong?.Id;
+        let nextIndex = 0;
 
-        // Get an array of all IDs except the currently playing one
-        const otherIds = results
-            .filter((smol: any) => smol.Id !== playing_id)
-            .map((smol: any) => smol.Id);
-
-        // If there are no other songs, return
-        if (otherIds.length === 0) return;
-
-        // Select a random ID from the available options
-        const randomIndex = Math.floor(Math.random() * otherIds.length);
-        songToggle(otherIds[randomIndex]);
+        if (currentId) {
+            const currentIndex = results.findIndex((smol: any) => smol.Id === currentId);
+            if (currentIndex !== -1 && currentIndex < results.length - 1) {
+                nextIndex = currentIndex + 1;
+            } 
+        }
+        selectSong(results[nextIndex]);
     }
 
     async function songLike(smol: any) {
         try {
             smol.Liking = true;
-
-            let xdr_string: string | undefined = undefined
-
-            // if selling
+            let xdr_string: string | undefined = undefined;
             if (smol.Liked) {
                 if (!$contractId || !$keyId)
-                    return
+                    return;
 
                 const contract_id: string | undefined = StrKey.encodeContract(hash(xdr.HashIdPreimage.envelopeTypeContractId(
                     new xdr.HashIdPreimageContractId({
@@ -122,14 +116,12 @@
                     amount: 1n,
                 });
 
-                const { sequence } = await rpc.getLatestLedger()
-
+                const { sequence } = await rpc.getLatestLedger();
                 at = await account.sign(at, { 
                     keyId: $keyId,
-                    expiration: sequence + 60 // 30 minutes roughly
-                })
-
-                xdr_string = at.built?.toXDR()
+                    expiration: sequence + 60
+                });
+                xdr_string = at.built?.toXDR();
             }
 
             await fetch(`${import.meta.env.PUBLIC_API_URL}/like/${smol.Id}`, {
@@ -149,18 +141,10 @@
     }
 </script>
 
-<!-- TODO 
- have the bg of each card match the image primary color 
- progressive loading of images and music
-
- build a mini audio player that shows more details of the current song
- also find a way to maintain this player across the app
- -->
-
 <div
     class="relative grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2 m-2 pb-10"
 >
-    {#each results as smol}
+    {#each results as smol (smol.Id)}
         <div class="flex flex-col bg-slate-700 rounded overflow-hidden">
             <div class="group relative">
                 <img
@@ -231,10 +215,16 @@
                 <div class="relative z-2 pl-2 ml-auto">
                     <MiniAudioPlayer
                         id={smol.Id}
-                        {playing_id}
-                        song={`${import.meta.env.PUBLIC_API_URL}/song/${smol.Song_1}.mp3`}
-                        songToggle={() => songToggle(smol.Id)}
-                        {songNext}
+                        playing_id={$playingId}
+                        songToggle={() => {
+                            if ($currentSong?.Id === smol.Id) {
+                                togglePlayPause();
+                            } else {
+                                selectSong(smol);
+                            }
+                        }}
+                        songNext={songNext} 
+                        progress={$currentSong?.Id === smol.Id ? $audioProgress : 0}
                     />
                 </div>
             </div>
@@ -242,4 +232,8 @@
     {/each}
 </div>
 
-<!-- <BarAudioPlayer classNames="fixed z-2 p-2 bottom-0 left-0 right-0 bg-slate-950/50 backdrop-blur" /> -->
+<BarAudioPlayer 
+    classNames="fixed z-2 p-2 bottom-2 rounded-md left-4 right-4 bg-slate-950/50 backdrop-blur" 
+    {songNext}
+    onLike={songLike}
+/>

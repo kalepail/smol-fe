@@ -1,12 +1,9 @@
 <script lang="ts">
     export let id;
     export let playing_id;
-    export let song;
     export let songToggle;
     export let songNext: Function;
-
-    let audio: HTMLAudioElement;
-    let progress = 0;
+    export let progress = 0;
 
     const radius = 24;
     const circumference = 2 * Math.PI * radius;
@@ -14,46 +11,6 @@
     $: playing = playing_id === id;
     $: nothing_playing = playing_id === null;
     $: dash_offset = circumference - (progress / 100) * circumference;
-    $: if (audio) {
-        if (playing) {
-            if (!audio.src) {
-                audio.src = song;
-                audio.load();
-            }
-
-            if (audio.readyState >= 2) {
-                audio.play();
-            } else {
-                audio.addEventListener(
-                    "canplay",
-                    () => audio.play(),
-                    { once: true },
-                );
-            }
-        } else {
-            audio.pause();
-
-            if (!nothing_playing) {
-                resetProgress();
-            }
-        }
-    }
-
-    function updateProgress() {
-        if (audio?.duration) {
-            progress = (audio.currentTime / audio.duration) * 100;
-        }
-    }
-
-    function resetProgress() {
-        audio.currentTime = 0;
-        progress = 0;
-    }
-
-    function songEnded() {
-        resetProgress();
-        songNext();
-    }
 </script>
 
 <div class="relative w-9 h-9">
@@ -112,10 +69,3 @@
         {/if}
     </button>
 </div>
-
-<audio
-    preload="none"
-    bind:this={audio}
-    on:timeupdate={updateProgress}
-    on:ended={songEnded}
-></audio>
