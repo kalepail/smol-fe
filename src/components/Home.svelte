@@ -5,16 +5,16 @@
     import Loader from "./Loader.svelte";
     import { Address, hash, StrKey, xdr } from "@stellar/stellar-sdk/minimal";
     import { contractId } from "../store/contractId";
-    import { Client } from 'fp-sdk'
+    import { Client } from "fp-sdk";
     import { publicKey, rpc } from "../utils/base";
     import { account } from "../utils/passkey-kit";
     import { keyId } from "../store/keyId";
-    import { 
-        playingId, 
-        currentSong, 
-        audioProgress, 
-        selectSong, 
-        togglePlayPause 
+    import {
+        playingId,
+        currentSong,
+        audioProgress,
+        selectSong,
+        togglePlayPause,
     } from "../store/audio";
 
     export let results: any;
@@ -40,7 +40,9 @@
     onMount(async () => {
         if ("mediaSession" in navigator) {
             navigator.mediaSession.setActionHandler("previoustrack", () => {
-                const currentIndex = results.findIndex((s: any) => s.Id === $currentSong?.Id);
+                const currentIndex = results.findIndex(
+                    (s: any) => s.Id === $currentSong?.Id,
+                );
                 if (currentIndex > 0) {
                     selectSong(results[currentIndex - 1]);
                 } else if (results.length > 0) {
@@ -77,10 +79,12 @@
         let nextIndex = 0;
 
         if (currentId) {
-            const currentIndex = results.findIndex((smol: any) => smol.Id === currentId);
+            const currentIndex = results.findIndex(
+                (smol: any) => smol.Id === currentId,
+            );
             if (currentIndex !== -1 && currentIndex < results.length - 1) {
                 nextIndex = currentIndex + 1;
-            } 
+            }
         }
         selectSong(results[nextIndex]);
     }
@@ -90,25 +94,38 @@
             smol.Liking = true;
             let xdr_string: string | undefined = undefined;
             if (smol.Liked) {
-                if (!$contractId || !$keyId)
-                    return;
+                if (!$contractId || !$keyId) return;
 
-                const contract_id: string | undefined = StrKey.encodeContract(hash(xdr.HashIdPreimage.envelopeTypeContractId(
-                    new xdr.HashIdPreimageContractId({
-                        networkId: hash(Buffer.from(import.meta.env.PUBLIC_NETWORK_PASSPHRASE)),
-                        contractIdPreimage: xdr.ContractIdPreimage.contractIdPreimageFromAddress(
-                            new xdr.ContractIdPreimageFromAddress({
-                                address: Address.fromString(publicKey).toScAddress(),
-                                salt: Buffer.from(smol.Id, 'hex'),
-                            })
-                        )
-                    })
-                ).toXDR()));
+                const contract_id: string | undefined = StrKey.encodeContract(
+                    hash(
+                        xdr.HashIdPreimage.envelopeTypeContractId(
+                            new xdr.HashIdPreimageContractId({
+                                networkId: hash(
+                                    Buffer.from(
+                                        import.meta.env
+                                            .PUBLIC_NETWORK_PASSPHRASE,
+                                    ),
+                                ),
+                                contractIdPreimage:
+                                    xdr.ContractIdPreimage.contractIdPreimageFromAddress(
+                                        new xdr.ContractIdPreimageFromAddress({
+                                            address:
+                                                Address.fromString(
+                                                    publicKey,
+                                                ).toScAddress(),
+                                            salt: Buffer.from(smol.Id, "hex"),
+                                        }),
+                                    ),
+                            }),
+                        ).toXDR(),
+                    ),
+                );
 
                 const contract = new Client({
                     contractId: contract_id,
                     rpcUrl: import.meta.env.PUBLIC_RPC_URL,
-                    networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
+                    networkPassphrase: import.meta.env
+                        .PUBLIC_NETWORK_PASSPHRASE,
                 });
 
                 let at = await contract.burn({
@@ -117,9 +134,9 @@
                 });
 
                 const { sequence } = await rpc.getLatestLedger();
-                at = await account.sign(at, { 
+                at = await account.sign(at, {
                     keyId: $keyId,
-                    expiration: sequence + 60
+                    expiration: sequence + 60,
                 });
                 xdr_string = at.built?.toXDR();
             }
@@ -128,8 +145,8 @@
                 method: "PUT",
                 credentials: "include",
                 body: JSON.stringify({
-                    xdr: xdr_string
-                })
+                    xdr: xdr_string,
+                }),
             }).then(async (res) => {
                 if (!res.ok) throw await res.text();
             });
@@ -223,8 +240,10 @@
                                 selectSong(smol);
                             }
                         }}
-                        songNext={songNext} 
-                        progress={$currentSong?.Id === smol.Id ? $audioProgress : 0}
+                        {songNext}
+                        progress={$currentSong?.Id === smol.Id
+                            ? $audioProgress
+                            : 0}
                     />
                 </div>
             </div>
@@ -232,8 +251,8 @@
     {/each}
 </div>
 
-<BarAudioPlayer 
-    classNames="fixed z-2 p-2 bottom-2 lg:w-full left-4 right-4 lg:max-w-1/2 lg:min-w-[300px] lg:left-1/2 lg:-translate-x-1/2 rounded-md bg-slate-950/50 backdrop-blur" 
+<BarAudioPlayer
+    classNames="fixed z-2 p-2 bottom-2 lg:w-full left-4 right-4 lg:max-w-1/2 lg:min-w-[300px] lg:left-1/2 lg:-translate-x-1/2 rounded-md bg-slate-950/50 backdrop-blur-lg border border-white/20 shadow-lg"
     {songNext}
     onLike={songLike}
 />
