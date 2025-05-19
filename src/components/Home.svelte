@@ -233,7 +233,7 @@
 </div>
 
 <BarAudioPlayer 
-    classNames="fixed z-2 p-2 bottom-2 w-full max-w-1/2 min-w-[300px] left-1/2 -translate-x-1/2 rounded-md bg-slate-950/50 backdrop-blur" 
+    classNames="fixed z-2 p-2 bottom-2 lg:w-full left-4 right-4 lg:max-w-1/2 lg:min-w-[300px] lg:left-1/2 lg:-translate-x-1/2 rounded-md bg-slate-950/50 backdrop-blur" 
     {songNext}
     onLike={songLike}
 />
