@@ -74,12 +74,18 @@
         creating = true;
 
         try {
+            const username = prompt("Enter your username");
+
+            if (!username) {
+                throw new Error("Username is required");
+            }
+
             const {
                 rawResponse,
                 keyIdBase64,
                 contractId: cid,
                 signedTx,
-            } = await account.createWallet("smol.xyz", "SMOL Player");
+            } = await account.createWallet("smol.xyz", `SMOL — ${username}`);
 
             const jwt = await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {
                 method: "POST",
@@ -92,6 +98,7 @@
                     keyId: keyIdBase64,
                     contractId: cid,
                     response: rawResponse,
+                    username,
                 }),
             }).then(async (res) => {
                 if (res.ok)

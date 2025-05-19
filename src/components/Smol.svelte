@@ -29,6 +29,7 @@
     let audioElements: HTMLAudioElement[] = [];
     let interval: NodeJS.Timeout | null = null;
     let failed: boolean = false;
+    let playlist: string | null = null;
 
     onMount(async () => {
         switch (data?.wf?.status) {
@@ -40,6 +41,9 @@
                 interval = setInterval(getGen, 1000 * 5);
                 break;
         }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        playlist = urlParams.get("playlist");
     });
 
     onDestroy(() => {
@@ -72,8 +76,7 @@
     }
 
     async function deleteSong() {
-        if (!confirm("Are you sure you want to delete this song?"))
-            return;
+        if (!confirm("Are you sure you want to delete this song?")) return;
 
         await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
             method: "DELETE",
@@ -121,6 +124,7 @@
                 prompt,
                 public: is_public,
                 instrumental: is_instrumental,
+                playlist,
             }),
         }).then(async (res) => {
             if (res.ok) return res.text();
@@ -182,8 +186,6 @@
                 else throw await res.text();
             })
             .then((res) => {
-                // console.log(res);
-
                 d1 = res?.d1;
                 kv_do = res?.kv_do;
                 best_song = d1?.Song_1;
@@ -264,10 +266,17 @@
 
                         <button
                             type="submit"
-                            class="ml-auto text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1 disabled:opacity-50"
+                            class="flex items-center ml-auto text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1 disabled:opacity-50"
                             disabled={(!!id && !!interval) || !prompt}
-                            >⚡︎ Generate</button
                         >
+                            ⚡︎ Generate
+                            {#if playlist}
+                                <span
+                                    class="text-xs font-mono bg-lime-500 text-black px-2 py-1 rounded-full ml-1"
+                                    >{playlist}</span
+                                >
+                            {/if}
+                        </button>
                     </div>
 
                     <aside class="text-xs self-start">
@@ -288,68 +297,78 @@
                     <button
                         class="text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1 disabled:opacity-50"
                         on:click={retryGen}
-                        disabled={!!id && !!interval}>⚡︎ Retry</button
+                        disabled={!!id && !!interval}
                     >
+                        ⚡︎ Retry
+                        {#if playlist}
+                            <span
+                                class="text-xs font-mono bg-lime-500 text-black px-2 py-1 rounded-full ml-1"
+                                >{playlist}</span
+                            >
+                        {/if}
+                    </button>
                 </li>
             {/if}
 
             <li>
                 <h1>Id:</h1>
-                <pre class="whitespace-pre-wrap break-all"><code class="text-xs">{id}</code></pre>
+                <pre class="whitespace-pre-wrap break-all"><code class="text-xs"
+                        >{id}</code
+                    ></pre>
 
                 <div class="flex items-center">
-                {#if kv_do && kv_do?.nsfw}
-                    {#if kv_do.nsfw?.safe === false}
-                        <span
-                            class="bg-rose-400 text-rose-900 uppercase text-xs font-mono px-2 py-1 rounded-full"
-                        >
-                            unsafe —
-                            {kv_do.nsfw?.categories.join(", ")}
-                        </span>
-                    {:else}
-                        <span
-                            class="bg-lime-400 text-lime-900 uppercase text-xs font-mono px-2 py-1 rounded-full"
-                            >safe</span
-                        >
+                    {#if kv_do && kv_do?.nsfw}
+                        {#if kv_do.nsfw?.safe === false}
+                            <span
+                                class="bg-rose-400 text-rose-900 uppercase text-xs font-mono px-2 py-1 rounded-full"
+                            >
+                                unsafe —
+                                {kv_do.nsfw?.categories.join(", ")}
+                            </span>
+                        {:else}
+                            <span
+                                class="bg-lime-400 text-lime-900 uppercase text-xs font-mono px-2 py-1 rounded-full"
+                                >safe</span
+                            >
+
+                            {#if d1?.Address === $contractId}
+                                <button
+                                    class="uppercase text-xs font-mono ring rounded px-2 py-1 mx-2
+                                {d1?.Public
+                                        ? 'text-amber-500 bg-amber-500/20 ring-amber-500 hover:bg-amber-500/30'
+                                        : 'text-blue-500 bg-blue-500/20 ring-blue-500 hover:bg-blue-500/30'}"
+                                    on:click={makeSongPublic}
+                                >
+                                    {#if d1?.Public}
+                                        Unpublish
+                                    {:else}
+                                        Publish
+                                    {/if}
+                                </button>
+                            {/if}
+                        {/if}
 
                         {#if d1?.Address === $contractId}
                             <button
-                                class="uppercase text-xs font-mono ring rounded px-2 py-1 mx-2
-                                {d1?.Public
-                                    ? 'text-amber-500 bg-amber-500/20 ring-amber-500 hover:bg-amber-500/30'
-                                    : 'text-blue-500 bg-blue-500/20 ring-blue-500 hover:bg-blue-500/30'}"
-                                on:click={makeSongPublic}
+                                class="uppercase text-xs font-mono ring rounded px-2 py-1 text-rose-500 bg-rose-500/20 ring-rose-500 hover:bg-rose-500/30"
+                                aria-label="Delete"
+                                on:click={deleteSong}
                             >
-                                {#if d1?.Public}
-                                    Unpublish
-                                {:else}
-                                    Publish
-                                {/if}
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 16 16"
+                                    fill="currentColor"
+                                    class="size-4"
+                                >
+                                    <path
+                                        fill-rule="evenodd"
+                                        d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z"
+                                        clip-rule="evenodd"
+                                    />
+                                </svg>
                             </button>
                         {/if}
                     {/if}
-
-                    {#if d1?.Address === $contractId}
-                        <button
-                            class="uppercase text-xs font-mono ring rounded px-2 py-1 text-rose-500 bg-rose-500/20 ring-rose-500 hover:bg-rose-500/30"
-                            aria-label="Delete"
-                            on:click={deleteSong}
-                        >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                viewBox="0 0 16 16"
-                                fill="currentColor"
-                                class="size-4"
-                            >
-                                <path
-                                    fill-rule="evenodd"
-                                    d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z"
-                                    clip-rule="evenodd"
-                                />
-                            </svg>
-                        </button>
-                    {/if}
-                {/if}
                 </div>
             </li>
 
@@ -427,7 +446,7 @@
                                             selectBestSong(song.music_id)}
                                     />
                                 {/if}
-                                
+
                                 {#if song.music_id === best_song}
                                     <span class="text-2xl ml-1">👈</span>
                                     <span class="ml-2 mt-1">better</span>
