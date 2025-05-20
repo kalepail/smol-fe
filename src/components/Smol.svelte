@@ -433,6 +433,7 @@
                                         // @ts-ignore
                                         e.currentTarget.src = song.audio;
                                     }}
+                                    preload="none"
                                     controls
                                 ></audio>
 
