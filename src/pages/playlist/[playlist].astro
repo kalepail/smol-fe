@@ -1,5 +1,6 @@
 ---
 import Home from "../../components/Home.svelte";
+import Leaderboard from "../../components/Leaderboard.svelte";
 import Layout from "../../layouts/Layout.astro";
 
 const results = await fetch(`${import.meta.env.PUBLIC_API_URL}/playlist/${Astro.params.playlist}`)
@@ -15,5 +16,6 @@ const results = await fetch(`${import.meta.env.PUBLIC_API_URL}/playlist/${Astro.
 	song_url="https://cdn2.aisonggenerator.io/491bb94b-79df-41bb-b09b-2d295f1dfd05.mp3"
 	image_url="https://smol.xyz/favicon.png"
 >
-	<Home {results} client:load />
+	<Leaderboard smols={results.smols} users={results.users} client:load />
+	<Home results={results.smols} client:load />
 </Layout>
