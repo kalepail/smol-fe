@@ -14,6 +14,7 @@
     contractId.set(_cid);
 
     let creating = false;
+    let playlist: string | null = null;
 
     onMount(async () => {
         if ($keyId) {
@@ -26,8 +27,9 @@
             } else {
                 await account.connectWallet({keyId: $keyId});
             }
-            
         }
+
+        playlist = localStorage.getItem("smol:playlist");
     });
 
     // contractId.subscribe(async (cid) => {
@@ -146,8 +148,17 @@
 <header class="relative p-2 bg-slate-800 text-lime-500">
     <div class="flex items-center flex-wrap max-w-[1024px] mx-auto">
         <div class="flex items-center mr-auto">
-            <h1 class="flex text-xl py-1">
+            <h1 class="flex flex-col text-xl py-1">
                 <a href="/"><strong>SMOL</strong></a>
+
+                {#if playlist}
+                    <a
+                        class="text-sm hover:underline {!import.meta.env.SSR && location.pathname.endsWith(
+                            playlist,
+                        ) && 'underline'}"
+                        href={`/playlist/${playlist}`}>{playlist}</a
+                    >
+                {/if}
             </h1>
 
             {#if $contractId}
@@ -168,12 +179,14 @@
         </div>
 
         {#if $contractId}
-            <a
-                class="hover:underline {!import.meta.env.SSR && location.pathname.endsWith(
-                    'create',
-                ) && 'underline'}"
-                href="/create">+ Create</a
-            >
+            <div class="flex items-center">
+                <a
+                    class="hover:underline {!import.meta.env.SSR && location.pathname.endsWith(
+                        'create',
+                    ) && 'underline'}"
+                    href="/create">+ Create</a
+                >
+            </div>
         {/if}
 
         <div class="flex items-center ml-auto">
