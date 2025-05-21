@@ -38,7 +38,12 @@
             case "paused":
             case "waiting":
             case "waitingForPause":
-                interval = setInterval(getGen, 1000 * 5);
+                interval = setInterval(getGen, 1000 * 6);
+                break;
+            case "errored":
+            case "terminated":
+            case "unknown":
+                failed = true;
                 break;
         }
 
@@ -149,7 +154,7 @@
             history.pushState({}, "", `/${id}`);
         }
 
-        interval = setInterval(getGen, 1000 * 5);
+        interval = setInterval(getGen, 1000 * 6);
 
         // After `interval` so the "Generate" button will disable immediately
         await getGen();
@@ -182,7 +187,7 @@
         }
 
         failed = false;
-        interval = setInterval(getGen, 1000 * 5);
+        interval = setInterval(getGen, 1000 * 6);
 
         // After `interval` so the "Generate" button will disable immediately
         await getGen();
@@ -223,6 +228,11 @@
                             failed = true;
                         }
                         break;
+                }
+
+                if (interval && !res?.wf?.status) {
+                    clearInterval(interval);
+                    interval = null;
                 }
 
                 return res;
