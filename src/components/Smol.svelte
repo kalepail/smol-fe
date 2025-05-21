@@ -43,7 +43,11 @@
         }
 
         const urlParams = new URLSearchParams(window.location.search);
-        playlist = urlParams.get("playlist");
+        playlist = urlParams.get("playlist") || localStorage.getItem("smol:playlist");
+
+        if (playlist) {
+            localStorage.setItem("smol:playlist", playlist);
+        }
     });
 
     onDestroy(() => {
@@ -61,6 +65,14 @@
                 audio.play();
             }
         });
+    }
+
+    function removePlaylist() {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("playlist");
+        history.replaceState({}, "", url.toString());
+        localStorage.removeItem("smol:playlist");
+        location.reload();
     }
 
     async function makeSongPublic() {
@@ -271,10 +283,19 @@
                         >
                             ⚡︎ Generate
                             {#if playlist}
-                                <span
-                                    class="text-xs font-mono bg-lime-500 text-black px-2 py-1 rounded-full ml-1"
-                                    >{playlist}</span
-                                >
+                                <span class="flex items-center text-xs font-mono bg-lime-500 text-black px-2 py-1 rounded-full ml-1">
+                                    {playlist}
+                                    <button 
+                                        type="button"
+                                        on:click|stopPropagation|preventDefault={removePlaylist} 
+                                        class="ml-1.5 -mr-0.5 p-0.5 rounded-full hover:bg-black/20 text-black"
+                                        aria-label="Remove playlist"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-3">
+                                            <path d="M2.22 2.22a.75.75 0 0 1 1.06 0L8 6.94l4.72-4.72a.75.75 0 0 1 1.06 1.06L9.06 8l4.72 4.72a.75.75 0 1 1-1.06 1.06L8 9.06l-4.72 4.72a.75.75 0 0 1-1.06-1.06L6.94 8 2.22 3.28a.75.75 0 0 1 0-1.06Z" />
+                                        </svg>
+                                    </button>
+                                </span>
                             {/if}
                         </button>
                     </div>
@@ -301,10 +322,19 @@
                     >
                         ⚡︎ Retry
                         {#if playlist}
-                            <span
-                                class="text-xs font-mono bg-lime-500 text-black px-2 py-1 rounded-full ml-1"
-                                >{playlist}</span
-                            >
+                            <span class="flex items-center text-xs font-mono bg-lime-500 text-black px-2 py-1 rounded-full ml-1">
+                                {playlist}
+                                <button 
+                                    type="button"
+                                    on:click|stopPropagation|preventDefault={removePlaylist} 
+                                    class="ml-1.5 -mr-0.5 p-0.5 rounded-full hover:bg-black/20 text-black"
+                                    aria-label="Remove playlist"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-3">
+                                        <path d="M2.22 2.22a.75.75 0 0 1 1.06 0L8 6.94l4.72-4.72a.75.75 0 0 1 1.06 1.06L9.06 8l4.72 4.72a.75.75 0 1 1-1.06 1.06L8 9.06l-4.72 4.72a.75.75 0 0 1-1.06-1.06L6.94 8 2.22 3.28a.75.75 0 0 1 0-1.06Z" />
+                                    </svg>
+                                </button>
+                            </span>
                         {/if}
                     </button>
                 </li>

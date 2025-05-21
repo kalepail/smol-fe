@@ -17,5 +17,5 @@ const results = await fetch(`${import.meta.env.PUBLIC_API_URL}/playlist/${Astro.
 	image_url="https://smol.xyz/favicon.png"
 >
 	<Leaderboard smols={results.smols} users={results.users} client:load />
-	<Home results={results.smols} client:load />
+	<Home results={results.smols} playlist={Astro.params.playlist} client:load />
 </Layout>

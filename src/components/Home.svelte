@@ -18,6 +18,7 @@
     } from "../store/audio";
 
     export let results: any;
+    export let playlist: string | null;
 
     let likes: any[] = [];
 
@@ -53,6 +54,10 @@
             navigator.mediaSession.setActionHandler("nexttrack", () => {
                 songNext();
             });
+        }
+
+        if (playlist) {
+            localStorage.setItem("smol:playlist", playlist);
         }
     });
 
