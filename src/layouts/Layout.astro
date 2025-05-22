@@ -5,14 +5,14 @@ import '../styles/global.css'
 interface Props {
 	title?: string;
 	description?: string;
-	song_url?: string;
+	song_url?: string | null;
 	image_url?: string | null;
 }
 
 const { 
 	title, 
-	description,
-	song_url,
+	description = "Smol art onchain",
+	song_url = "https://cdn2.aisonggenerator.io/491bb94b-79df-41bb-b09b-2d295f1dfd05.mp3",
 	image_url,
 } = Astro.props;
 
@@ -35,8 +35,8 @@ if (token) {
 		<meta charset="UTF-8" />
 		<meta name="robots" content="index, follow" />
 		<meta name="viewport" content="width=device-width, initial-scale=1">
-		<link rel="apple-touch-icon" href={title !== 'Smol' && image_url ? image_url : "/favicon.png" }>
-		<link rel="icon" type="image/png" href={title !== 'Smol' && image_url ? image_url : "/favicon.png" } />
+		<link rel="apple-touch-icon" href={image_url ? image_url : "/favicon.png"} />
+		<link rel="icon" type="image/png" href={image_url ? image_url : "/favicon.png"} />
 		<meta name="generator" content={Astro.generator} />
 		<meta name="mobile-web-app-capable" content="yes">
 		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -50,14 +50,14 @@ if (token) {
 		<meta property="og:description" content={description} />
 		<meta property="og:type" content="music.song" />
 		<meta property="og:url" content={Astro.url} />
-		<meta property="og:image" content=`${image_url}?scale=16` />
+		<meta property="og:image" content={image_url ? `${image_url}?scale=16` : "/meta.png"} />
 		<meta property="og:audio" content={song_url} />
 		<meta property="og:audio:type" content="audio/mpeg" />
 
 		<meta name="twitter:card" content="summary_large_image" />
 		<meta name="twitter:title" content={title} />
 		<meta name="twitter:description" content={description} />
-		<meta name="twitter:image" content=`${image_url}?scale=16` />
+		<meta name="twitter:image" content={image_url ? `${image_url}?scale=16` : "/meta.png"} />
 		<meta name="twitter:url" content={Astro.url} />
 	</head>
 	<body class="bg-slate-950 text-white">

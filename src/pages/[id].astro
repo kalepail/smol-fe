@@ -25,10 +25,10 @@ const data = id
 		? `${import.meta.env.PUBLIC_API_URL}/song/${data.d1.Song_1}.mp3`
 		: data?.kv_do?.songs?.[0]?.audio
 			? `${import.meta.env.PUBLIC_API_URL}/song/${data?.kv_do?.songs?.[0]?.music_id}.mp3`
-			: "https://cdn2.aisonggenerator.io/491bb94b-79df-41bb-b09b-2d295f1dfd05.mp3"}
+			: null}
 	image_url={id
 		? `${import.meta.env.PUBLIC_API_URL}/image/${id}.png`
-		: "https://smol.xyz/favicon.png"}
+		: null}
 >
 	<Smol client:load id={id} data={data} />
 </Layout>
