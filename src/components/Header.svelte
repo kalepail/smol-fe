@@ -150,15 +150,6 @@
         <div class="flex items-center mr-auto">
             <h1 class="flex flex-col text-xl py-1">
                 <a href="/"><strong>SMOL</strong></a>
-
-                {#if playlist}
-                    <a
-                        class="text-sm hover:underline {!import.meta.env.SSR && location.pathname.endsWith(
-                            playlist,
-                        ) && 'underline'}"
-                        href={`/playlist/${playlist}`}>{playlist}</a
-                    >
-                {/if}
             </h1>
 
             {#if $contractId}
@@ -213,5 +204,16 @@
                 >
             {/if}
         </div>
+    </div>
+
+    <div class="flex items-center flex-wrap max-w-[1024px] mx-auto">
+        {#if playlist}
+            <a
+                class="text-sm hover:underline {!import.meta.env.SSR && location.pathname.endsWith(
+                    playlist,
+                ) && 'underline'}"
+                href={`/playlist/${playlist}`}>{playlist}</a
+            >
+        {/if}
     </div>
 </header>
