@@ -30,13 +30,11 @@
     let interval: NodeJS.Timeout | null = null;
     let failed: boolean = false;
     let playlist: string | null = null;
-    let likingInProgress: boolean = false;
-
-    const PROMPT_MAX_LENGTH = 1000;
 
     function limitPromptLength() {
-        if (prompt.length > PROMPT_MAX_LENGTH) {
-            prompt = prompt.substring(0, PROMPT_MAX_LENGTH);
+        const maxLength = is_instrumental ? 500 : 1000;
+        if (prompt.length > maxLength) {
+            prompt = prompt.substring(0, maxLength);
         }
     }
 
@@ -247,6 +245,11 @@
                 return res;
             });
     }
+
+    // Reactive statement to apply length limit when is_instrumental changes
+    $: if (is_instrumental || !is_instrumental) {
+        limitPromptLength();
+    }
 </script>
 
 <!-- TODO add loading icons -->
@@ -273,7 +276,7 @@
                         on:input={limitPromptLength}
                     ></textarea>
                     <small class="text-xs text-slate-400 self-end mb-2">
-                        {prompt.length} / {PROMPT_MAX_LENGTH}
+                        {prompt.length} / {is_instrumental ? 500 : 1000}
                     </small>
 
                     <div class="flex w-full mb-5">
@@ -524,7 +527,7 @@
                     >
 <code>Tags: <em>{kv_do && kv_do?.lyrics?.style.join(", ")}</em></code>
 
-{#if !is_instrumental && !d1?.Instrumental}<code
+{#if !kv_do?.payload?.instrumental && !is_instrumental && !d1?.Instrumental}<code
                             >{kv_do && kv_do?.lyrics?.lyrics}</code
                         >{/if}</pre>
             </li>
