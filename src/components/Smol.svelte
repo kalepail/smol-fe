@@ -30,6 +30,15 @@
     let interval: NodeJS.Timeout | null = null;
     let failed: boolean = false;
     let playlist: string | null = null;
+    let likingInProgress: boolean = false;
+
+    const PROMPT_MAX_LENGTH = 1250;
+
+    function limitPromptLength() {
+        if (prompt.length > PROMPT_MAX_LENGTH) {
+            prompt = prompt.substring(0, PROMPT_MAX_LENGTH);
+        }
+    }
 
     onMount(async () => {
         switch (data?.wf?.status) {
@@ -257,11 +266,15 @@
                     on:submit|preventDefault={postGen}
                 >
                     <textarea
-                        class="p-2 mb-4 w-full bg-slate-800 text-white outline-3 outline-offset-3 outline-slate-800 rounded focus:outline-slate-700"
+                        class="p-2 mb-3 w-full bg-slate-800 text-white outline-3 outline-offset-3 outline-slate-800 rounded focus:outline-slate-700"
                         placeholder="Write an epic prompt for an even epic'er gen"
                         rows="4"
                         bind:value={prompt}
+                        on:input={limitPromptLength}
                     ></textarea>
+                    <small class="text-xs text-slate-400 self-end mb-2">
+                        {prompt.length} / {PROMPT_MAX_LENGTH}
+                    </small>
 
                     <div class="flex w-full mb-5">
                         <div>
