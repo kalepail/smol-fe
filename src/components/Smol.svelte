@@ -32,7 +32,7 @@
     let playlist: string | null = null;
     let likingInProgress: boolean = false;
 
-    const PROMPT_MAX_LENGTH = 1250;
+    const PROMPT_MAX_LENGTH = 550;
 
     function limitPromptLength() {
         if (prompt.length > PROMPT_MAX_LENGTH) {
