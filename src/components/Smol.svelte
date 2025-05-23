@@ -32,7 +32,7 @@
     let playlist: string | null = null;
 
     function limitPromptLength() {
-        const maxLength = is_instrumental ? 400 : 1000;
+        const maxLength = is_instrumental ? 380 : 1000;
         if (prompt.length > maxLength) {
             prompt = prompt.substring(0, maxLength);
         }
@@ -276,7 +276,7 @@
                         on:input={limitPromptLength}
                     ></textarea>
                     <small class="text-xs text-slate-400 self-end mb-2">
-                        {prompt.length} / {is_instrumental ? 400 : 1000}
+                        {prompt.length} / {is_instrumental ? 380 : 1000}
                     </small>
 
                     <div class="flex w-full mb-5">
