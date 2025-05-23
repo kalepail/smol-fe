@@ -66,9 +66,10 @@
         contractId.set(cid);
 
         Cookies.set("smol_token", jwt, {
-            expires: 30,
+            path: "/",
             secure: true,
             sameSite: "None",
+            expires: 30,
         });
     }
 
@@ -114,9 +115,10 @@
             contractId.set(cid);
 
             Cookies.set("smol_token", jwt, {
-                expires: 30,
+                path: "/",
                 secure: true,
                 sameSite: "None",
+                expires: 30,
             });
         } finally {
             creating = false;
