@@ -129,7 +129,12 @@
         keyId.set(null);
         contractId.set(null);
 
-        Cookies.remove("smol_token");
+        Cookies.remove("smol_token", {
+            path: "/",
+            secure: true,
+            sameSite: "Lax",
+            domain: ".smol.xyz",
+        });
 
         Object.keys(localStorage).forEach((key) => {
             if (key.includes("smol:")) {
