@@ -390,27 +390,23 @@
                     ></pre>
 
                 <div class="flex items-center">
-                    {#if interval}
-                        <Loader classNames="size-7 mr-2" />
-                    {/if}
-
                     {#if kv_do && kv_do?.nsfw}
                         {#if kv_do.nsfw?.safe === false}
                             <span
-                                class="bg-rose-400 text-rose-900 uppercase text-xs font-mono px-2 py-1 rounded-full"
+                                class="bg-rose-400 text-rose-900 uppercase text-xs font-mono px-2 py-1 rounded-full mr-2"
                             >
                                 unsafe —
                                 {kv_do.nsfw?.categories.join(", ")}
                             </span>
                         {:else}
                             <span
-                                class="bg-lime-400 text-lime-900 uppercase text-xs font-mono px-2 py-1 rounded-full"
+                                class="bg-lime-400 text-lime-900 uppercase text-xs font-mono px-2 py-1 rounded-full mr-2"
                                 >safe</span
                             >
 
                             {#if d1?.Address === $contractId}
                                 <button
-                                    class="uppercase text-xs font-mono ring rounded px-2 py-1 ml-2
+                                    class="uppercase text-xs font-mono ring rounded px-2 py-1
                                 {d1?.Public
                                         ? 'text-amber-500 bg-amber-500/20 ring-amber-500 hover:bg-amber-500/30'
                                         : 'text-blue-500 bg-blue-500/20 ring-blue-500 hover:bg-blue-500/30'}"
@@ -445,6 +441,10 @@
                                 </svg>
                             </button>
                         {/if}
+                    {/if}
+
+                    {#if interval}
+                        <Loader classNames="size-7" />
                     {/if}
                 </div>
             </li>
