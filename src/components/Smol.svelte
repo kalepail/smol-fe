@@ -91,9 +91,6 @@
     async function makeSongPublic() {
         await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
             method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-            },
             credentials: "include",
         });
 
@@ -105,9 +102,6 @@
 
         await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
             method: "DELETE",
-            headers: {
-                "Content-Type": "application/json",
-            },
             credentials: "include",
         });
 
@@ -118,9 +112,6 @@
     async function selectBestSong(song_id: string) {
         await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}/${song_id}`, {
             method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-            },
             credentials: "include",
         });
     }
@@ -140,10 +131,10 @@
 
         id = await fetch(import.meta.env.PUBLIC_API_URL, {
             method: "POST",
+            credentials: "include",
             headers: {
                 "Content-Type": "application/json",
             },
-            credentials: "include",
             body: JSON.stringify({
                 address: $contractId,
                 prompt,
@@ -178,10 +169,10 @@
 
         id = await fetch(`${import.meta.env.PUBLIC_API_URL}/retry/${id}`, {
             method: "POST",
+            credentials: "include",
             headers: {
                 "Content-Type": "application/json",
             },
-            credentials: "include",
             body: JSON.stringify({
                 address: $contractId,
             }),

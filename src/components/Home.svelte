@@ -149,6 +149,9 @@
             await fetch(`${import.meta.env.PUBLIC_API_URL}/like/${smol.Id}`, {
                 method: "PUT",
                 credentials: "include",
+                headers: {
+                    "Content-Type": "application/json",
+                },
                 body: JSON.stringify({
                     xdr: xdr_string,
                 }),
