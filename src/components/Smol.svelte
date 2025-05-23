@@ -437,11 +437,7 @@
 
             <li>
                 <h1 class="mb-2">
-                    Image: (powered by <a
-                        class="underline"
-                        href="https://www.pixellab.ai/"
-                        target="_blank">PixelLab</a
-                    >)
+                    Image:
                 </h1>
 
                 {#if kv_do && kv_do?.image_base64}
@@ -464,17 +460,13 @@
 
             <li>
                 <h1 class="mb-2">
-                    Songs: (powered by <a
-                        class="underline"
-                        href="https://aisonggenerator.io/"
-                        target="_blank">AI Song Generator</a
-                    >)
+                    Songs:
                 </h1>
 
                 <!-- [5] is nsfw tags -->
                 <!-- [6] is the song ids -->
 
-                {#if kv_do && kv_do?.songs}
+                {#if kv_do && kv_do?.songs?.length}
                     {#each kv_do && kv_do.songs as song, index (song.music_id)}
                         {#if song.audio}
                             <div class="flex items-center mb-2">
