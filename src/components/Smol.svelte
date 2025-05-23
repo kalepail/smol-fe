@@ -55,7 +55,8 @@
         }
 
         const urlParams = new URLSearchParams(window.location.search);
-        playlist = urlParams.get("playlist") || localStorage.getItem("smol:playlist");
+        playlist =
+            urlParams.get("playlist") || localStorage.getItem("smol:playlist");
 
         if (playlist) {
             localStorage.setItem("smol:playlist", playlist);
@@ -230,14 +231,12 @@
                             interval = null;
                         }
                         if (res.wf.status !== "complete") {
-                            // TODO show step failures in the UI vs using alert
-                            // alert(`Failed with status: ${res.wf.status}`);
                             failed = true;
                         }
                         break;
                 }
 
-                if (interval && !res?.wf?.status) {
+                if (interval && d1) {
                     clearInterval(interval);
                     interval = null;
                 }
@@ -309,16 +308,25 @@
                         >
                             ⚡︎ Generate
                             {#if playlist}
-                                <span class="flex items-center text-xs font-mono bg-lime-500 text-black px-2 py-1 rounded-full ml-1">
+                                <span
+                                    class="flex items-center text-xs font-mono bg-lime-500 text-black px-2 py-1 rounded-full ml-1"
+                                >
                                     {playlist}
-                                    <button 
+                                    <button
                                         type="button"
-                                        on:click|stopPropagation|preventDefault={removePlaylist} 
+                                        on:click|stopPropagation|preventDefault={removePlaylist}
                                         class="ml-1.5 -mr-0.5 p-0.5 rounded-full hover:bg-black/20 text-black"
                                         aria-label="Remove playlist"
                                     >
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-3">
-                                            <path d="M2.22 2.22a.75.75 0 0 1 1.06 0L8 6.94l4.72-4.72a.75.75 0 0 1 1.06 1.06L9.06 8l4.72 4.72a.75.75 0 1 1-1.06 1.06L8 9.06l-4.72 4.72a.75.75 0 0 1-1.06-1.06L6.94 8 2.22 3.28a.75.75 0 0 1 0-1.06Z" />
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            viewBox="0 0 16 16"
+                                            fill="currentColor"
+                                            class="size-3"
+                                        >
+                                            <path
+                                                d="M2.22 2.22a.75.75 0 0 1 1.06 0L8 6.94l4.72-4.72a.75.75 0 0 1 1.06 1.06L9.06 8l4.72 4.72a.75.75 0 1 1-1.06 1.06L8 9.06l-4.72 4.72a.75.75 0 0 1-1.06-1.06L6.94 8 2.22 3.28a.75.75 0 0 1 0-1.06Z"
+                                            />
                                         </svg>
                                     </button>
                                 </span>
@@ -348,16 +356,25 @@
                     >
                         ⚡︎ Retry
                         {#if playlist}
-                            <span class="flex items-center text-xs font-mono bg-lime-500 text-black px-2 py-1 rounded-full ml-1">
+                            <span
+                                class="flex items-center text-xs font-mono bg-lime-500 text-black px-2 py-1 rounded-full ml-1"
+                            >
                                 {playlist}
-                                <button 
+                                <button
                                     type="button"
-                                    on:click|stopPropagation|preventDefault={removePlaylist} 
+                                    on:click|stopPropagation|preventDefault={removePlaylist}
                                     class="ml-1.5 -mr-0.5 p-0.5 rounded-full hover:bg-black/20 text-black"
                                     aria-label="Remove playlist"
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="size-3">
-                                        <path d="M2.22 2.22a.75.75 0 0 1 1.06 0L8 6.94l4.72-4.72a.75.75 0 0 1 1.06 1.06L9.06 8l4.72 4.72a.75.75 0 1 1-1.06 1.06L8 9.06l-4.72 4.72a.75.75 0 0 1-1.06-1.06L6.94 8 2.22 3.28a.75.75 0 0 1 0-1.06Z" />
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        viewBox="0 0 16 16"
+                                        fill="currentColor"
+                                        class="size-3"
+                                    >
+                                        <path
+                                            d="M2.22 2.22a.75.75 0 0 1 1.06 0L8 6.94l4.72-4.72a.75.75 0 0 1 1.06 1.06L9.06 8l4.72 4.72a.75.75 0 1 1-1.06 1.06L8 9.06l-4.72 4.72a.75.75 0 0 1-1.06-1.06L6.94 8 2.22 3.28a.75.75 0 0 1 0-1.06Z"
+                                        />
                                     </svg>
                                 </button>
                             </span>
@@ -373,6 +390,10 @@
                     ></pre>
 
                 <div class="flex items-center">
+                    {#if interval}
+                        <Loader classNames="size-7 mr-2" />
+                    {/if}
+
                     {#if kv_do && kv_do?.nsfw}
                         {#if kv_do.nsfw?.safe === false}
                             <span
@@ -389,7 +410,7 @@
 
                             {#if d1?.Address === $contractId}
                                 <button
-                                    class="uppercase text-xs font-mono ring rounded px-2 py-1 mx-2
+                                    class="uppercase text-xs font-mono ring rounded px-2 py-1 ml-2
                                 {d1?.Public
                                         ? 'text-amber-500 bg-amber-500/20 ring-amber-500 hover:bg-amber-500/30'
                                         : 'text-blue-500 bg-blue-500/20 ring-blue-500 hover:bg-blue-500/30'}"
@@ -406,7 +427,7 @@
 
                         {#if d1?.Address === $contractId}
                             <button
-                                class="uppercase text-xs font-mono ring rounded px-2 py-1 text-rose-500 bg-rose-500/20 ring-rose-500 hover:bg-rose-500/30"
+                                class="uppercase text-xs font-mono ring rounded px-2 py-1 text-rose-500 bg-rose-500/20 ring-rose-500 hover:bg-rose-500/30 ml-2"
                                 aria-label="Delete"
                                 on:click={deleteSong}
                             >
@@ -436,9 +457,7 @@
             <!-- [1] is reply tweet id -->
 
             <li>
-                <h1 class="mb-2">
-                    Image:
-                </h1>
+                <h1 class="mb-2">Image:</h1>
 
                 {#if kv_do && kv_do?.image_base64}
                     <img
@@ -459,8 +478,12 @@
             </li>
 
             <li>
-                <h1 class="mb-2">
+                <h1 class="flex items-center mb-2">
                     Songs:
+                    {#if interval && kv_do?.songs?.some((song: any) => song.audio)}
+                        <Loader classNames="size-7 ml-2" />
+                        <small class="ml-2 text-xs text-slate-400 font-normal">streaming...</small>
+                    {/if}
                 </h1>
 
                 <!-- [5] is nsfw tags -->
@@ -468,8 +491,8 @@
 
                 {#if kv_do && kv_do?.songs?.length}
                     {#each kv_do && kv_do.songs as song, index (song.music_id)}
-                        {#if song.audio}
-                            <div class="flex items-center mb-2">
+                        <div class="flex items-center mb-2">
+                            {#if song.audio}
                                 <audio
                                     class="mr-2"
                                     bind:this={audioElements[index]}
@@ -500,10 +523,10 @@
                                     <span class="text-2xl ml-1">👈</span>
                                     <span class="ml-2 mt-1">better</span>
                                 {/if}
-                            </div>
-                        {:else}
-                            <Loader />
-                        {/if}
+                            {:else}
+                                <Loader />
+                            {/if}
+                        </div>
                     {/each}
                 {:else if interval}
                     <Loader />
