@@ -125,7 +125,7 @@
         }
     }
 
-    function logout() {
+    async function logout() {
         keyId.set(null);
         contractId.set(null);
 
@@ -141,6 +141,11 @@
             if (key.includes("smol:")) {
                 sessionStorage.removeItem(key);
             }
+        });
+
+        await fetch(`${import.meta.env.PUBLIC_API_URL}/logout`, {
+            method: "POST",
+            credentials: "include",
         });
 
         location.reload();
