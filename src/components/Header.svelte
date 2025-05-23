@@ -152,7 +152,7 @@
             method: "POST",
         });
 
-        // location.reload();
+        location.reload();
     }
 </script>
 
