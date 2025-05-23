@@ -67,7 +67,8 @@
         Cookies.set("smol_token", jwt, {
             path: "/",
             secure: true,
-            sameSite: "None",
+            sameSite: "Lax",
+            domain: ".smol.xyz",
             expires: 30,
         });
     }
@@ -115,7 +116,8 @@
             Cookies.set("smol_token", jwt, {
                 path: "/",
                 secure: true,
-                sameSite: "None",
+                sameSite: "Lax",
+                domain: ".smol.xyz",
                 expires: 30,
             });
         } finally {
