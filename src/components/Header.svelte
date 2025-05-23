@@ -49,7 +49,6 @@
             headers: {
                 "Content-Type": "application/json",
             },
-            credentials: "include",
             body: JSON.stringify({
                 type: "connect",
                 keyId: keyIdBase64,
@@ -95,7 +94,6 @@
                 headers: {
                     "Content-Type": "application/json",
                 },
-                credentials: "include",
                 body: JSON.stringify({
                     type: "create",
                     keyId: keyIdBase64,
@@ -145,7 +143,6 @@
 
         await fetch(`${import.meta.env.PUBLIC_API_URL}/logout`, {
             method: "POST",
-            credentials: "include",
         });
 
         location.reload();

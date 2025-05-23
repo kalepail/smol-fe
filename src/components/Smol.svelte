@@ -203,9 +203,7 @@
     async function getGen() {
         if (!id) return;
 
-        return fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
-            credentials: "include",
-        })
+        return fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`)
             .then(async (res) => {
                 if (res.ok) return res.json();
                 else throw await res.text();
