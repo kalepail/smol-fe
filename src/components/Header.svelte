@@ -143,9 +143,9 @@
             }
         });
 
-        await fetch(`${import.meta.env.PUBLIC_API_URL}/logout`, {
-            method: "POST",
-        });
+        // await fetch(`${import.meta.env.PUBLIC_API_URL}/logout`, {
+        //     method: "POST",
+        // });
 
         location.reload();
     }
