@@ -71,6 +71,14 @@
             domain: ".smol.xyz",
             expires: 30,
         });
+
+        // Sepecial case for localhost
+        // Cookies.set("smol_token", jwt, {
+        //     path: "/",
+        //     secure: true,
+        //     sameSite: "None",
+        //     expires: 30,
+        // });
     }
 
     async function signUp() {
@@ -135,6 +143,13 @@
             sameSite: "Lax",
             domain: ".smol.xyz",
         });
+
+        // Sepecial case for localhost
+        // Cookies.remove("smol_token", {
+        //     path: "/",
+        //     secure: true,
+        //     sameSite: "None",
+        // });
 
         Object.keys(localStorage).forEach((key) => {
             if (key.includes("smol:")) {

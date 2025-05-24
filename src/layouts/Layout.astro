@@ -32,7 +32,7 @@ if (token) {
 <!doctype html>
 <html lang="en">
 	<head>
-		<meta charset="UTF-8" />
+		<meta charset="utf-8">
 		<meta name="robots" content="index, follow" />
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<link rel="apple-touch-icon" href={image_url ? image_url : "/favicon.png"} />
@@ -45,20 +45,40 @@ if (token) {
 		<link rel="manifest" href="/manifest.json">
 
 		<title>{title}</title>
+		<meta name="description" content={description}>
+		<meta name="medium" content="audio">
+		<link rel="canonical" href={Astro.url}>
 
 		<meta property="og:title" content={title} />
 		<meta property="og:description" content={description} />
 		<meta property="og:type" content="music.song" />
 		<meta property="og:url" content={Astro.url} />
-		<meta property="og:image" content={image_url ? `${image_url}?scale=16` : "/meta.png"} />
+		<meta property="og:image" content={image_url ? `${image_url}?scale=8` : "/meta.png"} />
+		<meta property="og:image:width" content="512">
+		<meta property="og:image:height" content="512">
+		<meta property="og:image:type" content="image/png">
 		<meta property="og:audio" content={song_url} />
-		<meta property="og:audio:type" content="audio/mpeg" />
+		<meta property="og:audio:type" content="audio/mpeg">
 
-		<meta name="twitter:card" content="summary_large_image" />
+		<!-- <link rel="alternate" type="application/json+oembed" href="//embed//"> -->
+
+		<!-- <meta property="og:video" content="">
+		<meta property="og:video:secure_url" content="">
+		<meta property="og:video:type" content="video/mp4">
+		<meta property="og:video:width" content="1024">
+		<meta property="og:video:height" content="1024">
+		<meta property="og:type" content="video.other"> -->
+
+		<meta name="twitter:card" content="player" />
+		<meta name="twitter:site" content="@smolxyz">
 		<meta name="twitter:title" content={title} />
 		<meta name="twitter:description" content={description} />
 		<meta name="twitter:image" content={image_url ? `${image_url}?scale=16` : "/meta.png"} />
 		<meta name="twitter:url" content={Astro.url} />
+		<!-- <meta name="twitter:player" content="//embed//"> -->
+		<meta name="twitter:player:stream" content={song_url}>
+		<meta name="twitter:player:width" content="760">
+		<meta name="twitter:player:height" content="240">
 	</head>
 	<body class="bg-slate-950 text-white">
 		<Header {_kid} {_cid} client:load />
