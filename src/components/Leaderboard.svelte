@@ -99,7 +99,7 @@
         </h2>
 
         {#if !$leaderboardData || $leaderboardData.length === 0}
-            <p class="text-center text-slate-400 py-8">No leaderboard data available. Ensure 'smols' and 'users' props are provided and contain data.</p>
+            <p class="text-center text-slate-400 py-8">No leaderboard data available yet.</p>
         {:else}
             <div class="overflow-x-auto shadow-lg rounded-lg">
                 <table class="min-w-full bg-slate-800 border border-slate-700 rounded-b-lg overflow-hidden">
