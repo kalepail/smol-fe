@@ -73,7 +73,10 @@
                 totalViews: viewCountsByAddress[user.Address] || 0, // Added total views
             }));
 
-            processedEntries.sort((a, b) => {
+            // Filter out entries where username is "kalepail"
+            const filteredEntries = processedEntries.filter(entry => entry.username !== "kalepail");
+
+            filteredEntries.sort((a, b) => {
                 if (b.totalPlays !== a.totalPlays) {
                     return b.totalPlays - a.totalPlays;
                 }
@@ -83,7 +86,7 @@
                 return b.songCount - a.songCount; // Then by songCount if totalViews are also equal
             });
 
-            return processedEntries;
+            return filteredEntries;
         }
     );
 
