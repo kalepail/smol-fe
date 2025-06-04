@@ -131,8 +131,8 @@
 
 </script>
 
-<div class="px-2 py-10 bg-slate-900 text-white">
-    <div class="max-w-[1024px] mx-auto">
+<div class="px-2 py-10 bg-slate-900 overflow-hidden text-white">
+    <div class="max-w-[1024px] overflow-hidden mx-auto">
         <!-- <h2 class="text-2xl font-bold mb-6 text-center">
             Leaderboard
         </h2> -->
@@ -154,29 +154,29 @@
                     <div 
                         bind:this={scrollContainer}
                         on:scroll={handleScroll}
-                        class="overflow-y-auto max-h-[450px] relative min-w-[800px]" 
+                        class="overflow-y-auto overflow-x-hidden max-h-[450px] relative min-w-[800px]" 
                         style="scrollbar-gutter: stable;"
                     >
                         <!-- Sticky header wrapper -->
                         <div class="sticky top-0 z-20">
-                            <table class="w-full bg-slate-800 border-t border-x border-slate-700" style="table-layout: fixed;">
+                            <table class="w-full bg-slate-800 border-t border-x border-slate-700">
                                 <thead class="bg-slate-700">
                                     <tr>
-                                        <th class="text-left py-3 px-4 md:px-6 font-semibold uppercase tracking-wider text-sm" style="width: 100px;">Rank</th>
-                                        <th class="text-left py-3 px-4 md:px-6 font-semibold uppercase tracking-wider text-sm" style="width: 140px;">Username</th>
-                                        <th class="text-right py-3 px-4 md:px-6 font-semibold uppercase tracking-wider text-sm" style="width: 180px;">
+                                        <th class="text-left py-3 px-4 font-semibold uppercase tracking-wider text-sm" style="width: 100px;">Rank</th>
+                                        <th class="text-left py-3 px-4 font-semibold uppercase tracking-wider text-sm" style="width: 140px;">Username</th>
+                                        <th class="text-right py-3 px-4 font-semibold uppercase tracking-wider text-sm" style="width: 180px;">
                                             <div>Smols Created</div>
                                             <div class="text-xs font-normal text-slate-400">(5 pts each)</div>
                                         </th>
-                                        <th class="text-right py-3 px-4 md:px-6 font-semibold uppercase tracking-wider text-sm" style="width: 160px;">
+                                        <th class="text-right py-3 px-4 font-semibold uppercase tracking-wider text-sm" style="width: 160px;">
                                             <div>Total Views</div>
                                             <div class="text-xs font-normal text-slate-400">(1 pt each)</div>
                                         </th>
-                                        <th class="text-right py-3 px-4 md:px-6 font-semibold uppercase tracking-wider text-sm" style="width: 160px;">
+                                        <th class="text-right py-3 px-4 font-semibold uppercase tracking-wider text-sm" style="width: 160px;">
                                             <div>Total Plays</div>
                                             <div class="text-xs font-normal text-slate-400">(2 pts each)</div>
                                         </th>
-                                        <th class="text-right py-3 px-4 md:px-6 font-bold uppercase tracking-wider text-sm text-amber-400" style="width: 110px;">Total</th>
+                                        <th class="text-right py-3 px-4 font-bold uppercase tracking-wider text-sm text-amber-400" style="width: 110px;">Total</th>
                                     </tr>
                                 </thead>
                             </table>
@@ -190,16 +190,16 @@
                         </div>
                         
                         <!-- Table body (separate table for proper alignment) -->
-                        <table class="w-full bg-slate-800 border-slate-700 -mt-[1px]" style="table-layout: fixed;">
+                        <table class="w-full bg-slate-800 border-slate-700 -mt-[1px]">
                             <tbody class="divide-y divide-slate-600">
                                 {#each $leaderboardData as entry, index (entry.address)}
                                     <tr class="hover:bg-slate-750 transition-colors duration-150">
-                                        <td class="py-3 px-4 md:px-6 text-slate-300 whitespace-nowrap" style="width: 100px;">{index + 1}</td>
-                                        <td class="py-3 px-4 md:px-6 font-medium whitespace-nowrap" style="width: 140px;">{entry.username}</td>
-                                        <td class="py-3 px-4 md:px-6 text-right text-slate-300 whitespace-nowrap" style="width: 180px;">{entry.songCount.toLocaleString()}</td>
-                                        <td class="py-3 px-4 md:px-6 text-right text-slate-300 whitespace-nowrap" style="width: 160px;">{entry.totalViews.toLocaleString()}</td>
-                                        <td class="py-3 px-4 md:px-6 text-right text-slate-300 whitespace-nowrap" style="width: 160px;">{entry.totalPlays.toLocaleString()}</td>
-                                        <td class="py-3 px-4 md:px-6 text-right font-bold text-amber-400 whitespace-nowrap" style="width: 110px;">{entry.totalPoints.toLocaleString()}</td>
+                                        <td class="py-3 px-4 text-slate-300 whitespace-nowrap" style="width: 100px;">{index + 1}</td>
+                                        <td class="py-3 px-4 font-medium whitespace-nowrap" style="width: 140px;">{entry.username}</td>
+                                        <td class="py-3 px-4 text-right text-slate-300 whitespace-nowrap" style="width: 180px;">{entry.songCount.toLocaleString()}</td>
+                                        <td class="py-3 px-4 text-right text-slate-300 whitespace-nowrap" style="width: 160px;">{entry.totalViews.toLocaleString()}</td>
+                                        <td class="py-3 px-4 text-right text-slate-300 whitespace-nowrap" style="width: 160px;">{entry.totalPlays.toLocaleString()}</td>
+                                        <td class="py-3 px-4 text-right font-bold text-amber-400 whitespace-nowrap" style="width: 110px;">{entry.totalPoints.toLocaleString()}</td>
                                     </tr>
                                 {/each}
                             </tbody>
