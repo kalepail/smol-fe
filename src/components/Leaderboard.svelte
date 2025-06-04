@@ -133,9 +133,9 @@
 
 <div class="px-2 py-10 bg-slate-900 text-white">
     <div class="max-w-[1024px] mx-auto">
-        <h2 class="text-2xl font-bold mb-6 text-center">
+        <!-- <h2 class="text-2xl font-bold mb-6 text-center">
             Leaderboard
-        </h2>
+        </h2> -->
 
         {#if !$leaderboardData || $leaderboardData.length === 0}
             <p class="text-center text-slate-400 py-8">No leaderboard data available yet.</p>
@@ -143,7 +143,7 @@
             <div class="relative overflow-hidden shadow-lg rounded-lg">
                 <!-- Bottom shadow -->
                 <div 
-                    class="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black/80 to-transparent z-30 pointer-events-none transition-opacity duration-300"
+                    class="absolute left-0 bottom-0 right-0 h-10 bg-gradient-to-t from-slate-900 to-transparent z-30 pointer-events-none transition-opacity duration-300"
                     class:opacity-100={showBottomShadow}
                     class:opacity-0={!showBottomShadow}
                 ></div>
@@ -154,7 +154,7 @@
                     <div 
                         bind:this={scrollContainer}
                         on:scroll={handleScroll}
-                        class="overflow-y-auto max-h-[520px] relative min-w-[800px]" 
+                        class="overflow-y-auto max-h-[450px] relative min-w-[800px]" 
                         style="scrollbar-gutter: stable;"
                     >
                         <!-- Sticky header wrapper -->
