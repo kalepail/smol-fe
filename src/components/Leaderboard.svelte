@@ -40,6 +40,27 @@
     $: smolsStore.set(smols); // Svelte's reactive statement
     $: usersStore.set(users); // Svelte's reactive statement
 
+    // Scroll state for shadows
+    let scrollContainer: HTMLDivElement | undefined;
+    let showTopShadow = false;
+    let showBottomShadow = false;
+
+    function handleScroll() {
+        if (scrollContainer) {
+            const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
+            showTopShadow = scrollTop > 0;
+            showBottomShadow = scrollTop < scrollHeight - clientHeight - 1;
+        }
+    }
+
+    // Check scroll on mount and when data changes
+    $: if (scrollContainer && $leaderboardData.length > 0) {
+        // Use setTimeout to ensure DOM is updated
+        setTimeout(() => {
+            handleScroll();
+        }, 0);
+    }
+
     const leaderboardData: Readable<LeaderboardEntry[]> = derived(
         [smolsStore, usersStore],
         ([$smols, $users]) => {
@@ -101,29 +122,76 @@
         {#if !$leaderboardData || $leaderboardData.length === 0}
             <p class="text-center text-slate-400 py-8">No leaderboard data available yet.</p>
         {:else}
-            <div class="overflow-x-auto shadow-lg rounded-lg">
-                <table class="min-w-full bg-slate-800 border border-slate-700 rounded-b-lg overflow-hidden">
-                    <thead class="bg-slate-700">
-                        <tr>
-                            <th class="text-left py-3 px-4 md:px-6 font-semibold uppercase tracking-wider text-sm">Rank</th>
-                            <th class="text-left py-3 px-4 md:px-6 font-semibold uppercase tracking-wider text-sm">Username</th>
-                            <th class="text-right py-3 px-4 md:px-6 font-semibold uppercase tracking-wider text-sm">Smols Created</th>
-                            <th class="text-right py-3 px-4 md:px-6 font-semibold uppercase tracking-wider text-sm">Total Views</th>
-                            <th class="text-right py-3 px-4 md:px-6 font-semibold uppercase tracking-wider text-sm">Total Plays</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-600">
-                        {#each $leaderboardData as entry, index (entry.address)}
-                            <tr class="hover:bg-slate-750 transition-colors duration-150">
-                                <td class="py-3 px-4 md:px-6 text-slate-300">{index + 1}</td>
-                                <td class="py-3 px-4 md:px-6 font-medium">{entry.username}</td>
-                                <td class="py-3 px-4 md:px-6 text-right text-slate-300">{entry.songCount.toLocaleString()}</td>
-                                <td class="py-3 px-4 md:px-6 text-right text-slate-300">{entry.totalViews.toLocaleString()}</td>
-                                <td class="py-3 px-4 md:px-6 text-right font-semibold text-lime-400">{entry.totalPlays.toLocaleString()}</td>
-                            </tr>
-                        {/each}
-                    </tbody>
-                </table>
+            <div class="relative overflow-hidden shadow-lg rounded-lg">
+                <!-- Bottom shadow -->
+                <div 
+                    class="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-slate-900 to-transparent z-30 pointer-events-none transition-opacity duration-300"
+                    class:opacity-100={showBottomShadow}
+                    class:opacity-0={!showBottomShadow}
+                ></div>
+
+                <!-- Scrollable container -->
+                <div 
+                    bind:this={scrollContainer}
+                    on:scroll={handleScroll}
+                    class="overflow-y-auto max-h-[520px] relative" 
+                    style="scrollbar-gutter: stable;"
+                >
+                    <!-- Sticky header wrapper -->
+                    <div class="sticky top-0 z-20">
+                        <table class="min-w-full bg-slate-800 border-t border-x border-slate-700">
+                            <!-- Define column widths -->
+                            <colgroup>
+                                <col class="w-24"> <!-- Rank -->
+                                <col class="w-auto"> <!-- Username -->
+                                <col class="w-48"> <!-- Smols Created -->
+                                <col class="w-48"> <!-- Total Views -->
+                                <col class="w-48"> <!-- Total Plays -->
+                            </colgroup>
+                            
+                            <thead class="bg-slate-700">
+                                <tr>
+                                    <th class="text-left py-3 px-4 md:px-6 font-semibold uppercase tracking-wider text-sm">Rank</th>
+                                    <th class="text-left py-3 px-4 md:px-6 font-semibold uppercase tracking-wider text-sm">Username</th>
+                                    <th class="text-right py-3 px-4 md:px-6 font-semibold uppercase tracking-wider text-sm">Smols Created</th>
+                                    <th class="text-right py-3 px-4 md:px-6 font-semibold uppercase tracking-wider text-sm">Total Views</th>
+                                    <th class="text-right py-3 px-4 md:px-6 font-semibold uppercase tracking-wider text-sm">Total Plays</th>
+                                </tr>
+                            </thead>
+                        </table>
+                        
+                        <!-- Top shadow attached to sticky wrapper -->
+                        <div 
+                            class="absolute left-0 right-0 h-10 bg-gradient-to-b from-slate-900 to-transparent pointer-events-none transition-opacity duration-300"
+                            class:opacity-100={showTopShadow}
+                            class:opacity-0={!showTopShadow}
+                        ></div>
+                    </div>
+                    
+                    <!-- Table body (separate table for proper alignment) -->
+                    <table class="min-w-full bg-slate-800 border-slate-700 -mt-[1px]">
+                        <!-- Same column widths as header -->
+                        <colgroup>
+                            <col class="w-24"> <!-- Rank -->
+                            <col class="w-auto"> <!-- Username -->
+                            <col class="w-48"> <!-- Smols Created -->
+                            <col class="w-48"> <!-- Total Views -->
+                            <col class="w-48"> <!-- Total Plays -->
+                        </colgroup>
+                        
+                        <tbody class="divide-y divide-slate-600">
+                            {#each $leaderboardData as entry, index (entry.address)}
+                                <tr class="hover:bg-slate-750 transition-colors duration-150">
+                                    <td class="py-3 px-4 md:px-6 text-slate-300">{index + 1}</td>
+                                    <td class="py-3 px-4 md:px-6 font-medium">{entry.username}</td>
+                                    <td class="py-3 px-4 md:px-6 text-right text-slate-300">{entry.songCount.toLocaleString()}</td>
+                                    <td class="py-3 px-4 md:px-6 text-right text-slate-300">{entry.totalViews.toLocaleString()}</td>
+                                    <td class="py-3 px-4 md:px-6 text-right font-semibold text-lime-400">{entry.totalPlays.toLocaleString()}</td>
+                                </tr>
+                            {/each}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         {/if}
     </div>
@@ -131,4 +199,29 @@
 
 <style>
     /* Tailwind CSS is primarily used. Add specific overrides or non-Tailwind styles here if necessary. */
+    
+    /* Custom scrollbar styles */
+    .overflow-y-auto::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    .overflow-y-auto::-webkit-scrollbar-track {
+        background: rgb(30 41 59); /* slate-800 */
+        border-radius: 4px;
+    }
+    
+    .overflow-y-auto::-webkit-scrollbar-thumb {
+        background: rgb(71 85 105); /* slate-600 */
+        border-radius: 4px;
+    }
+    
+    .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+        background: rgb(100 116 139); /* slate-500 */
+    }
+    
+    /* Firefox scrollbar */
+    .overflow-y-auto {
+        scrollbar-width: thin;
+        scrollbar-color: rgb(71 85 105) rgb(30 41 59);
+    }
 </style>
