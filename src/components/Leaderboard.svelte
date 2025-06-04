@@ -30,6 +30,7 @@
         songCount: number;
         totalPlays: number;
         totalViews: number; // Added total views
+        totalPoints: number; // Added total points with weighted calculation
     }
 
     // Create writable stores for props to make them reactive with `derived`
@@ -86,25 +87,42 @@
                 }
             }
 
-            const processedEntries: LeaderboardEntry[] = $users.map((user: UserData): LeaderboardEntry => ({
-                username: user.Username,
-                address: user.Address,
-                songCount: songCountsByAddress[user.Address] || 0,
-                totalPlays: playCountsByAddress[user.Address] || 0,
-                totalViews: viewCountsByAddress[user.Address] || 0, // Added total views
-            }));
+            const processedEntries: LeaderboardEntry[] = $users.map((user: UserData): LeaderboardEntry => {
+                const songCount = songCountsByAddress[user.Address] || 0;
+                const totalPlays = playCountsByAddress[user.Address] || 0;
+                const totalViews = viewCountsByAddress[user.Address] || 0;
+                
+                // Calculate weighted total points
+                const totalPoints = (songCount * 5) + (totalViews * 1) + (totalPlays * 2);
+                
+                return {
+                    username: user.Username,
+                    address: user.Address,
+                    songCount,
+                    totalPlays,
+                    totalViews,
+                    totalPoints
+                };
+            });
 
             // Filter out entries where username is "kalepail"
             const filteredEntries = processedEntries.filter(entry => entry.username !== "kalepail");
 
             filteredEntries.sort((a, b) => {
+                // Sort by total points first
+                if (b.totalPoints !== a.totalPoints) {
+                    return b.totalPoints - a.totalPoints;
+                }
+                // Then by plays if points are equal
                 if (b.totalPlays !== a.totalPlays) {
                     return b.totalPlays - a.totalPlays;
                 }
-                if (b.totalViews !== a.totalViews) { // Sort by totalViews if totalPlays are equal
+                // Then by views
+                if (b.totalViews !== a.totalViews) {
                     return b.totalViews - a.totalViews;
                 }
-                return b.songCount - a.songCount; // Then by songCount if totalViews are also equal
+                // Finally by song count
+                return b.songCount - a.songCount;
             });
 
             return filteredEntries;
@@ -125,72 +143,88 @@
             <div class="relative overflow-hidden shadow-lg rounded-lg">
                 <!-- Bottom shadow -->
                 <div 
-                    class="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-slate-900 to-transparent z-30 pointer-events-none transition-opacity duration-300"
+                    class="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black/80 to-transparent z-30 pointer-events-none transition-opacity duration-300"
                     class:opacity-100={showBottomShadow}
                     class:opacity-0={!showBottomShadow}
                 ></div>
 
-                <!-- Scrollable container -->
-                <div 
-                    bind:this={scrollContainer}
-                    on:scroll={handleScroll}
-                    class="overflow-y-auto max-h-[520px] relative" 
-                    style="scrollbar-gutter: stable;"
-                >
-                    <!-- Sticky header wrapper -->
-                    <div class="sticky top-0 z-20">
-                        <table class="min-w-full bg-slate-800 border-t border-x border-slate-700">
-                            <!-- Define column widths -->
+                <!-- Horizontal scroll wrapper -->
+                <div class="overflow-x-auto">
+                    <!-- Scrollable container -->
+                    <div 
+                        bind:this={scrollContainer}
+                        on:scroll={handleScroll}
+                        class="overflow-y-auto max-h-[520px] relative min-w-[800px]" 
+                        style="scrollbar-gutter: stable;"
+                    >
+                        <!-- Sticky header wrapper -->
+                        <div class="sticky top-0 z-20">
+                            <table class="w-full bg-slate-800 border-t border-x border-slate-700">
+                                <!-- Define column widths -->
+                                <colgroup>
+                                    <col style="min-width: 100px;"> <!-- Rank -->
+                                    <col style="min-width: 200px;"> <!-- Username -->
+                                    <col style="min-width: 190px;"> <!-- Smols Created -->
+                                    <col style="min-width: 170px;"> <!-- Total Views -->
+                                    <col style="min-width: 170px;"> <!-- Total Plays -->
+                                    <col style="min-width: 110px;"> <!-- Total Points -->
+                                </colgroup>
+                                
+                                <thead class="bg-slate-700">
+                                    <tr>
+                                        <th class="text-left py-3 px-4 md:px-6 font-semibold uppercase tracking-wider text-sm">Rank</th>
+                                        <th class="text-left py-3 px-4 md:px-6 font-semibold uppercase tracking-wider text-sm">Username</th>
+                                        <th class="text-right py-3 px-4 md:px-6 font-semibold uppercase tracking-wider text-sm">
+                                            <div>Smols Created</div>
+                                            <div class="text-xs font-normal text-slate-400">(5 pts each)</div>
+                                        </th>
+                                        <th class="text-right py-3 px-4 md:px-6 font-semibold uppercase tracking-wider text-sm">
+                                            <div>Total Views</div>
+                                            <div class="text-xs font-normal text-slate-400">(1 pt each)</div>
+                                        </th>
+                                        <th class="text-right py-3 px-4 md:px-6 font-semibold uppercase tracking-wider text-sm">
+                                            <div>Total Plays</div>
+                                            <div class="text-xs font-normal text-slate-400">(2 pts each)</div>
+                                        </th>
+                                        <th class="text-right py-3 px-4 md:px-6 font-bold uppercase tracking-wider text-sm text-amber-400">Total</th>
+                                    </tr>
+                                </thead>
+                            </table>
+                            
+                            <!-- Top shadow attached to sticky wrapper -->
+                            <div 
+                                class="absolute left-0 right-0 h-10 bg-gradient-to-b from-slate-900 to-transparent pointer-events-none transition-opacity duration-300"
+                                class:opacity-100={showTopShadow}
+                                class:opacity-0={!showTopShadow}
+                            ></div>
+                        </div>
+                        
+                        <!-- Table body (separate table for proper alignment) -->
+                        <table class="w-full bg-slate-800 border-slate-700 -mt-[1px]">
+                            <!-- Same column widths as header -->
                             <colgroup>
-                                <col class="w-24"> <!-- Rank -->
-                                <col class="w-auto"> <!-- Username -->
-                                <col class="w-48"> <!-- Smols Created -->
-                                <col class="w-48"> <!-- Total Views -->
-                                <col class="w-48"> <!-- Total Plays -->
+                                <col style="min-width: 100px;"> <!-- Rank -->
+                                <col style="min-width: 200px;"> <!-- Username -->
+                                <col style="min-width: 190px;"> <!-- Smols Created -->
+                                <col style="min-width: 170px;"> <!-- Total Views -->
+                                <col style="min-width: 170px;"> <!-- Total Plays -->
+                                <col style="min-width: 110px;"> <!-- Total Points -->
                             </colgroup>
                             
-                            <thead class="bg-slate-700">
-                                <tr>
-                                    <th class="text-left py-3 px-4 md:px-6 font-semibold uppercase tracking-wider text-sm">Rank</th>
-                                    <th class="text-left py-3 px-4 md:px-6 font-semibold uppercase tracking-wider text-sm">Username</th>
-                                    <th class="text-right py-3 px-4 md:px-6 font-semibold uppercase tracking-wider text-sm">Smols Created</th>
-                                    <th class="text-right py-3 px-4 md:px-6 font-semibold uppercase tracking-wider text-sm">Total Views</th>
-                                    <th class="text-right py-3 px-4 md:px-6 font-semibold uppercase tracking-wider text-sm">Total Plays</th>
-                                </tr>
-                            </thead>
+                            <tbody class="divide-y divide-slate-600">
+                                {#each $leaderboardData as entry, index (entry.address)}
+                                    <tr class="hover:bg-slate-750 transition-colors duration-150">
+                                        <td class="py-3 px-4 md:px-6 text-slate-300 whitespace-nowrap">{index + 1}</td>
+                                        <td class="py-3 px-4 md:px-6 font-medium whitespace-nowrap">{entry.username}</td>
+                                        <td class="py-3 px-4 md:px-6 text-right text-slate-300 whitespace-nowrap">{entry.songCount.toLocaleString()}</td>
+                                        <td class="py-3 px-4 md:px-6 text-right text-slate-300 whitespace-nowrap">{entry.totalViews.toLocaleString()}</td>
+                                        <td class="py-3 px-4 md:px-6 text-right text-slate-300 whitespace-nowrap">{entry.totalPlays.toLocaleString()}</td>
+                                        <td class="py-3 px-4 md:px-6 text-right font-bold text-amber-400 whitespace-nowrap">{entry.totalPoints.toLocaleString()}</td>
+                                    </tr>
+                                {/each}
+                            </tbody>
                         </table>
-                        
-                        <!-- Top shadow attached to sticky wrapper -->
-                        <div 
-                            class="absolute left-0 right-0 h-10 bg-gradient-to-b from-slate-900 to-transparent pointer-events-none transition-opacity duration-300"
-                            class:opacity-100={showTopShadow}
-                            class:opacity-0={!showTopShadow}
-                        ></div>
                     </div>
-                    
-                    <!-- Table body (separate table for proper alignment) -->
-                    <table class="min-w-full bg-slate-800 border-slate-700 -mt-[1px]">
-                        <!-- Same column widths as header -->
-                        <colgroup>
-                            <col class="w-24"> <!-- Rank -->
-                            <col class="w-auto"> <!-- Username -->
-                            <col class="w-48"> <!-- Smols Created -->
-                            <col class="w-48"> <!-- Total Views -->
-                            <col class="w-48"> <!-- Total Plays -->
-                        </colgroup>
-                        
-                        <tbody class="divide-y divide-slate-600">
-                            {#each $leaderboardData as entry, index (entry.address)}
-                                <tr class="hover:bg-slate-750 transition-colors duration-150">
-                                    <td class="py-3 px-4 md:px-6 text-slate-300">{index + 1}</td>
-                                    <td class="py-3 px-4 md:px-6 font-medium">{entry.username}</td>
-                                    <td class="py-3 px-4 md:px-6 text-right text-slate-300">{entry.songCount.toLocaleString()}</td>
-                                    <td class="py-3 px-4 md:px-6 text-right text-slate-300">{entry.totalViews.toLocaleString()}</td>
-                                    <td class="py-3 px-4 md:px-6 text-right font-semibold text-lime-400">{entry.totalPlays.toLocaleString()}</td>
-                                </tr>
-                            {/each}
-                        </tbody>
-                    </table>
                 </div>
             </div>
         {/if}
