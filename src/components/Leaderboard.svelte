@@ -196,32 +196,3 @@
         {/if}
     </div>
 </div>
-
-<style>
-    /* Tailwind CSS is primarily used. Add specific overrides or non-Tailwind styles here if necessary. */
-    
-    /* Custom scrollbar styles */
-    .overflow-y-auto::-webkit-scrollbar {
-        width: 8px;
-    }
-    
-    .overflow-y-auto::-webkit-scrollbar-track {
-        background: rgb(30 41 59); /* slate-800 */
-        border-radius: 4px;
-    }
-    
-    .overflow-y-auto::-webkit-scrollbar-thumb {
-        background: rgb(71 85 105); /* slate-600 */
-        border-radius: 4px;
-    }
-    
-    .overflow-y-auto::-webkit-scrollbar-thumb:hover {
-        background: rgb(100 116 139); /* slate-500 */
-    }
-    
-    /* Firefox scrollbar */
-    .overflow-y-auto {
-        scrollbar-width: thin;
-        scrollbar-color: rgb(71 85 105) rgb(30 41 59);
-    }
-</style>
