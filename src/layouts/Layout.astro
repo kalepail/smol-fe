@@ -35,14 +35,14 @@ if (token) {
 		<meta charset="utf-8">
 		<meta name="robots" content="index, follow" />
 		<meta name="viewport" content="width=device-width, initial-scale=1">
-		<link rel="apple-touch-icon" href={image_url ? image_url : "/favicon.png"} />
-		<link rel="icon" type="image/png" href={image_url ? image_url : "/favicon.png"} />
+		<link rel="apple-touch-icon" href={image_url ? image_url : "https://smol.xyz/favicon.png"} />
+		<link rel="icon" type="image/png" href={image_url ? image_url : "https://smol.xyz/favicon.png"} />
 		<meta name="generator" content={Astro.generator} />
 		<meta name="mobile-web-app-capable" content="yes">
 		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 		<meta name="apple-mobile-web-app-title" content={title}>
 		<meta name="theme-color" content="#9ae600">
-		<link rel="manifest" href="/manifest.json">
+		<link rel="manifest" href="https://smol.xyz/manifest.json">
 
 		<title>{title}</title>
 		<meta name="description" content={description}>
@@ -53,7 +53,7 @@ if (token) {
 		<meta property="og:description" content={description} />
 		<meta property="og:type" content="music.song" />
 		<meta property="og:url" content={Astro.url} />
-		<meta property="og:image" content={image_url ? `${image_url}?scale=8` : "/meta.png"} />
+		<meta property="og:image" content={image_url ? `${image_url}?scale=8` : "https://smol.xyz/meta.png"} />
 		<meta property="og:image:width" content="512">
 		<meta property="og:image:height" content="512">
 		<meta property="og:image:type" content="image/png">
@@ -74,7 +74,7 @@ if (token) {
 		<meta name="twitter:site" content="@smolxyz">
 		<meta name="twitter:title" content={title} />
 		<meta name="twitter:description" content={description} />
-		<meta name="twitter:image" content={image_url ? `${image_url}?scale=16` : "/meta.png"} />
+		<meta name="twitter:image" content={image_url ? `${image_url}?scale=16` : "https://smol.xyz/meta.png"} />
 		<meta name="twitter:url" content={Astro.url} />
 		<!-- <meta name="twitter:player" content="//embed//"> -->
 		<!-- <meta name="twitter:player:stream" content={song_url}>
