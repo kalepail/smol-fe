@@ -41,7 +41,7 @@ if (token) {
 		<meta name="mobile-web-app-capable" content="yes">
 		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 		<meta name="apple-mobile-web-app-title" content={title}>
-		<meta name="theme-color" content="#020618">
+		<meta name="theme-color" content="#9ae600">
 		<link rel="manifest" href="/manifest.json">
 
 		<title>{title}</title>
@@ -77,9 +77,9 @@ if (token) {
 		<meta name="twitter:image" content={image_url ? `${image_url}?scale=16` : "/meta.png"} />
 		<meta name="twitter:url" content={Astro.url} />
 		<!-- <meta name="twitter:player" content="//embed//"> -->
-		<meta name="twitter:player:stream" content={song_url}>
+		<!-- <meta name="twitter:player:stream" content={song_url}>
 		<meta name="twitter:player:width" content="760">
-		<meta name="twitter:player:height" content="240">
+		<meta name="twitter:player:height" content="240"> -->
 	</head>
 	<body class="bg-slate-950 text-white">
 		<Header {_kid} {_cid} client:load />
