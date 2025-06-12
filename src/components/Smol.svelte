@@ -13,6 +13,8 @@
 
     let d1 = data?.d1;
     let kv_do = data?.kv_do;
+    let liked = data?.liked;
+    let liking = false;
 
     // TODO
     // tweak just the song vs the image
@@ -242,9 +244,9 @@
     async function songLike() {
         if (!d1?.Id) return;
         try {
-            d1.Liking = true;
+            liking = true;
             let xdr_string: string | undefined = undefined;
-            if (d1.Liked) {
+            if (liked) {
                 if (!$contractId || !$keyId) return;
 
                 const contract_id: string | undefined = StrKey.encodeContract(
@@ -300,9 +302,9 @@
                 if (!res.ok) throw await res.text();
             });
 
-            d1.Liked = !d1.Liked;
+            liked = !liked;
         } finally {
-            d1.Liking = false;
+            liking = false;
         }
     }
 
@@ -505,12 +507,12 @@
                             <button
                                 class="p-2 rounded-lg backdrop-blur-xs hover:bg-slate-950/70 transition-colors ml-2"
                                 aria-label="Like"
-                                disabled={d1?.Liking}
+                                disabled={liking}
                                 on:click={songLike}
                             >
-                                {#if d1?.Liking}
+                                {#if liking}
                                     <Loader classNames="w-5 h-5" />
-                                {:else if d1?.Liked}
+                                {:else if liked}
                                     <svg
                                         xmlns="http://www.w3.org/2000/svg"
                                         viewBox="0 0 24 24"
