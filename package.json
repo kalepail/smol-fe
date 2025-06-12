@@ -20,20 +20,20 @@
     "fp-sdk": "link:./ext/fp-sdk"
   },
   "devDependencies": {
-    "@astrojs/cloudflare": "^12.5.3",
-    "@astrojs/svelte": "^7.0.13",
+    "@astrojs/cloudflare": "^12.5.4",
+    "@astrojs/svelte": "^7.1.0",
     "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
-    "@tailwindcss/vite": "^4.1.7",
+    "@tailwindcss/vite": "^4.1.10",
     "@types/js-cookie": "^3.0.6",
-    "@types/node": "^22.15.19",
-    "astro": "^5.7.13",
-    "esbuild-plugins-node-modules-polyfill": "^1.7.0",
-    "sass": "^1.89.0",
-    "svelte": "^5.31.1",
-    "tailwindcss": "^4.1.7",
+    "@types/node": "^24.0.1",
+    "astro": "^5.9.2",
+    "esbuild-plugins-node-modules-polyfill": "^1.7.1",
+    "sass": "^1.89.2",
+    "svelte": "^5.34.1",
+    "tailwindcss": "^4.1.10",
     "typescript": "^5.8.3",
     "vite-plugin-mkcert": "^1.17.8",
     "vite-plugin-node-polyfills": "^0.23.0"
   },
-  "packageManager": "pnpm@10.11.0"
+  "packageManager": "pnpm@10.12.1"
 }
