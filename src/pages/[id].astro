@@ -4,7 +4,11 @@ import Layout from "../layouts/Layout.astro";
 
 const id = Astro.params.id;
 const data = id
-	? await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`)
+	? await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
+			headers: {
+				Cookie: Astro.request.headers.get("cookie") ?? "",
+			},
+		})
 			.then(async (res) => {
 				if (res.ok) return res.json();
 				return null;
@@ -26,9 +30,7 @@ const data = id
 		: data?.kv_do?.songs?.[0]?.audio
 			? `${import.meta.env.PUBLIC_API_URL}/song/${data?.kv_do?.songs?.[0]?.music_id}.mp3`
 			: null}
-	image_url={id
-		? `${import.meta.env.PUBLIC_API_URL}/image/${id}.png`
-		: null}
+	image_url={id ? `${import.meta.env.PUBLIC_API_URL}/image/${id}.png` : null}
 >
 	<Smol client:load id={id} data={data} />
 </Layout>
