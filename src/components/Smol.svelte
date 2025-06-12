@@ -503,7 +503,7 @@
 
                         {#if $contractId}
                             <button
-                                class="p-2 rounded-lg backdrop-blur-xs hover:bg-slate-950/70 transition-colors"
+                                class="p-2 rounded-lg backdrop-blur-xs hover:bg-slate-950/70 transition-colors ml-2"
                                 aria-label="Like"
                                 disabled={d1?.Liking}
                                 on:click={songLike}
