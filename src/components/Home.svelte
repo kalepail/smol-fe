@@ -94,6 +94,14 @@
         selectSong(results[nextIndex]);
     }
 
+    function toggleSongSelection(smol: any) {
+        if ($currentSong?.Id === smol.Id) {
+            togglePlayPause();
+        } else {
+            selectSong(smol);
+        }
+    }
+
     async function songLike(smol: any) {
         try {
             smol.Liking = true;
@@ -227,12 +235,15 @@
                 ></a>
             </div>
 
-            <div class="flex items-center relative p-2 flex-1 overflow-hidden">
+            <div
+                class="flex items-center relative p-2 flex-1 overflow-hidden cursor-pointer"
+                on:click={() => toggleSongSelection(smol)}
+            >
                 <h1 class="relative z-1 leading-4 text-sm text-white">
                     {smol.Title}
                 </h1>
                 <img
-                    class="absolute inset-0 z-0 opacity-80 scale-y-[-1] w-full h-full blur-lg"
+                    class="absolute inset-0 z-0 opacity-80 scale-y-[-1] w-full h-full blur-lg pointer-events-none"
                     src={`${import.meta.env.PUBLIC_API_URL}/image/${smol.Id}.png`}
                     alt={smol.Title}
                     loading="lazy"
@@ -241,13 +252,7 @@
                     <MiniAudioPlayer
                         id={smol.Id}
                         playing_id={$playingId}
-                        songToggle={() => {
-                            if ($currentSong?.Id === smol.Id) {
-                                togglePlayPause();
-                            } else {
-                                selectSong(smol);
-                            }
-                        }}
+                        songToggle={() => toggleSongSelection(smol)}
                         {songNext}
                         progress={$currentSong?.Id === smol.Id
                             ? $audioProgress

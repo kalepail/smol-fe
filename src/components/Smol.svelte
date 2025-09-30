@@ -5,9 +5,11 @@
     import { onDestroy, onMount } from "svelte";
     import Loader from "./Loader.svelte";
     import { contractId } from "../store/contractId";
-    import { Address, hash, StrKey, xdr } from "@stellar/stellar-sdk/minimal";
-    import { Client } from "fp-sdk";
-    import { publicKey, rpc } from "../utils/base";
+    import { Address, Asset, hash, StrKey, xdr } from "@stellar/stellar-sdk/minimal";
+    import { basicNodeSigner } from "@stellar/stellar-sdk/minimal/contract";
+    import { Client as FpClient } from "fp-sdk";
+    import { Client as SmolClient } from "smol-sdk";
+    import { keypair, publicKey, rpc } from "../utils/base";
     import { account } from "../utils/passkey-kit";
     import { keyId } from "../store/keyId";
 
@@ -37,6 +39,12 @@
     let interval: NodeJS.Timeout | null = null;
     let failed: boolean = false;
     let playlist: string | null = null;
+    const MINT_POLL_INTERVAL = 1000 * 6;
+    const MINT_POLL_TIMEOUT = 1000 * 30;
+    let minting = false;
+    let minted = Boolean(d1?.Mint_Token || d1?.Mint_Amm);
+    let mintInterval: NodeJS.Timeout | null = null;
+    let mintTimeout: NodeJS.Timeout | null = null;
 
     function limitPromptLength() {
         const maxLength = is_instrumental ? 380 : 2280;
@@ -75,6 +83,7 @@
             clearInterval(interval);
             interval = null;
         }
+        clearMintPolling();
     });
 
     function playAudio(index: number) {
@@ -93,6 +102,17 @@
         history.replaceState({}, "", url.toString());
         localStorage.removeItem("smol:playlist");
         location.reload();
+    }
+
+    function clearMintPolling() {
+        if (mintInterval) {
+            clearInterval(mintInterval);
+            mintInterval = null;
+        }
+        if (mintTimeout) {
+            clearTimeout(mintTimeout);
+            mintTimeout = null;
+        }
     }
 
     async function makeSongPublic() {
@@ -198,6 +218,101 @@
         // After `interval` so the "Generate" button will disable immediately
         await getGen();
     }
+    async function triggerMint() {
+        if (!id || minting || minted) return;
+
+        if (!$contractId || !$keyId) {
+            alert("Connect your wallet to mint");
+            return;
+        }
+
+        const smolContractId = import.meta.env.PUBLIC_SMOL_CONTRACT_ID
+
+        if (!smolContractId) {
+            console.error("Missing PUBLIC_SMOL_CONTRACT_ID env var");
+            alert("Minting is temporarily unavailable. Please try again later.");
+            return;
+        }
+
+        const salt = Buffer.from(id.padStart(64, "0"), "hex");
+        
+        if (salt.length !== 32) {
+            alert("Invalid smol identifier for minting");
+            return;
+        }
+
+        try {
+            minting = true;
+
+            const smolClient = new SmolClient({
+                contractId: smolContractId,
+                rpcUrl: import.meta.env.PUBLIC_RPC_URL,
+                networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
+            });
+
+            const assetCode = Math.floor(Date.now() / 10).toString();
+            const asset = new Asset(assetCode, 'GBVJZCVQIKK7SL2K6NL4BO6ZYNXAGNVBTAQDDNOIJ5VPP3IXCSE2SMOL'); // TODO don't hardcode this
+
+            let at = await smolClient.coin_it({
+                user: $contractId,
+                asset_bytes: asset.toXDRObject().toXDR(),
+                salt,
+                fee_rule: {
+                    fee_asset: import.meta.env.PUBLIC_KALE_SAC_ID,
+                    recipients: [{
+                        percent: 50n,
+                        recipient: d1?.Address,
+                    }],
+                },
+            });
+
+            const { sequence } = await rpc.getLatestLedger();
+            
+            at = await account.sign(at, {
+                keyId: $keyId,
+                expiration: sequence + 60,
+            });
+
+            const xdrString = at.built?.toXDR();
+            
+            if (!xdrString) {
+                throw new Error("Failed to build signed mint transaction");
+            }
+
+            const response = await fetch(
+                `${import.meta.env.PUBLIC_API_URL}/mint/${id}`,
+                {
+                    method: "POST",
+                    credentials: "include",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        xdr: xdrString,
+                    }),
+                },
+            );
+
+            if (!response.ok) {
+                const message = await response.text();
+                throw new Error(message || "Failed to start mint workflow");
+            }
+
+            clearMintPolling();
+            mintInterval = setInterval(getGen, MINT_POLL_INTERVAL);
+            mintTimeout = setTimeout(() => {
+                minting = false;
+                clearMintPolling();
+            }, MINT_POLL_TIMEOUT);
+
+            await getGen();
+        } catch (error) {
+            console.error(error);
+            alert(error instanceof Error ? error.message : String(error));
+            minting = false;
+            clearMintPolling();
+        }
+    }
     async function getGen() {
         if (!id) return;
 
@@ -270,7 +385,7 @@
                     ),
                 );
 
-                const contract = new Client({
+                const contract = new FpClient({
                     contractId: contract_id,
                     rpcUrl: import.meta.env.PUBLIC_RPC_URL,
                     networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
@@ -311,6 +426,13 @@
     // Reactive statement to apply length limit when is_instrumental changes
     $: if (is_instrumental || !is_instrumental) {
         limitPromptLength();
+    }
+
+    $: minted = Boolean(d1?.Mint_Token || d1?.Mint_Amm);
+
+    $: if (minted) {
+        minting = false;
+        clearMintPolling();
     }
 </script>
 
@@ -480,6 +602,27 @@
                                     {/if}
                                 </button>
                             {/if}
+                        {/if}
+
+                        {#if minted}
+                            <span
+                                class="uppercase text-xs font-mono bg-emerald-400 text-emerald-900 px-2 py-1 rounded-full ml-2"
+                            >
+                                Minted
+                            </span>
+                        {:else}
+                            <button
+                                class="flex items-center uppercase text-xs font-mono ring rounded px-2 py-1 text-emerald-400 bg-emerald-400/10 ring-emerald-400 hover:bg-emerald-400/20 ml-2 disabled:opacity-50"
+                                disabled={minting}
+                                on:click={triggerMint}
+                            >
+                                {#if minting}
+                                    <Loader classNames="text-emerald-400 w-4 h-4 mr-2" />
+                                    Minting...
+                                {:else}
+                                    Mint
+                                {/if}
+                            </button>
                         {/if}
 
                         {#if d1?.Address === $contractId}

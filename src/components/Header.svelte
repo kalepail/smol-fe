@@ -8,7 +8,7 @@
     import { account, server } from "../utils/passkey-kit";
     import { truncate } from "../utils/base";
     import Cookies from "js-cookie";
-    // import { contractBalance, updateContractBalance } from "../store/contractBalance";
+    import { contractBalance, updateContractBalance } from "../store/contractBalance";
 
     keyId.set(_kid);
     contractId.set(_cid);
@@ -32,10 +32,10 @@
         playlist = localStorage.getItem("smol:playlist");
     });
 
-    // contractId.subscribe(async (cid) => {
-    //     if (!cid) return;
-    //     await updateContractBalance(cid);
-    // })
+    contractId.subscribe(async (cid) => {
+        if (!cid) return;
+        await updateContractBalance(cid);
+    })
 
     async function login() {
         const {
@@ -213,7 +213,21 @@
                     href="https://stellar.expert/explorer/public/contract/{$contractId}"
                     target="_blank">{truncate($contractId, 4)}</a
                 >
-                <!-- <span class="bg-green-700 text-yellow-100 px-3 py-1 rounded-full font-mono text-sm">{(Number($contractBalance ?? 0) / 1e7)} KALE</span> -->
+                <span class="text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded-full px-2 py-1 mr-2">
+                    {#if $contractBalance !== null}
+                        {(() => {
+                            const raw = Number($contractBalance) / 1e7;
+                            const [int, dec] = raw.toFixed(7).split(".");
+                            const intWithCommas = int.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                            if (Number(dec) > 0) {
+                                // Remove trailing zeros from decimals
+                                const trimmedDec = dec.replace(/0+$/, "");
+                                return `${intWithCommas}.${trimmedDec} KALE`;
+                            }
+                            return `${intWithCommas} KALE`;
+                        })()}
+                    {/if}
+                </span>
                 <button
                     class="text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1"
                     on:click={logout}>Logout</button

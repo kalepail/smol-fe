@@ -3,7 +3,7 @@
 </script>
 
 <svg
-    class={classNames}
+    class={"text-white" + classNames}
     width="50"
     height="50"
     viewBox="0 0 50 50"
@@ -14,7 +14,7 @@
         cy="25"
         r="20"
         fill="none"
-        stroke="white"
+        stroke="currentColor"
         stroke-width="4"
         stroke-dasharray="31.4 31.4"
         stroke-linecap="round"

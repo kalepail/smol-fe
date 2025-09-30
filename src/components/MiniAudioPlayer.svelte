@@ -39,7 +39,7 @@
     </svg>
 
     <button
-        on:click={songToggle}
+        on:click|stopPropagation={songToggle}
         class="absolute inset-1 flex items-center justify-center text-white"
     >
         {#if playing}
