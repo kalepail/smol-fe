@@ -39,8 +39,12 @@
     </svg>
 
     <button
-        on:click|stopPropagation={songToggle}
+        on:click|stopPropagation={() => {
+            console.log('MiniAudioPlayer clicked', { id, playing_id, playing });
+            songToggle();
+        }}
         class="absolute inset-1 flex items-center justify-center text-white"
+        aria-label={playing ? "Pause" : "Play"}
     >
         {#if playing}
             <svg

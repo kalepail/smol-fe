@@ -9,6 +9,12 @@
     import { truncate } from "../utils/base";
     import Cookies from "js-cookie";
     import { contractBalance, updateContractBalance } from "../store/contractBalance";
+    import {
+        enterMixtapeMode,
+        exitMixtapeMode,
+        mixtapeDraftHasContent,
+        mixtapeMode,
+    } from "../store/mixtape";
 
     keyId.set(_kid);
     contractId.set(_cid);
@@ -133,6 +139,20 @@
         }
     }
 
+    function handleMixtapeClick() {
+        if ($mixtapeMode.active) {
+            if ($mixtapeDraftHasContent) {
+                const confirmed = confirm(
+                    "Exit Mixtape Mode? Your draft will stay saved locally.",
+                );
+                if (!confirmed) return;
+            }
+            exitMixtapeMode();
+        } else {
+            enterMixtapeMode();
+        }
+    }
+
     async function logout() {
         keyId.set(null);
         contractId.set(null);
@@ -178,6 +198,13 @@
                 <a href="/"><strong>SMOL</strong></a>
             </h1>
 
+            <a
+                class="ml-4 hover:underline {!import.meta.env.SSR && location.pathname.includes(
+                    "mixtapes",
+                ) && 'underline'}"
+                href="/mixtapes"
+            >Mixtapes</a>
+
             {#if $contractId}
                 <a
                     class="ml-5 hover:underline {!import.meta.env.SSR && location.pathname.endsWith(
@@ -197,6 +224,20 @@
 
         {#if $contractId}
             <div class="flex items-center">
+                <button
+                    class={`ml-5 mr-3 rounded px-2 py-1 text-sm transition-colors ${
+                        $mixtapeMode.active
+                            ? "bg-lime-400 text-slate-950 hover:bg-lime-300"
+                            : "text-lime-400 ring-1 ring-lime-400/40 hover:bg-lime-400/10"
+                    }`}
+                    on:click={handleMixtapeClick}
+                >
+                    <span class="mr-1">{$mixtapeMode.active ? "Mixtape Mode" : "+ Mixtape"}</span>
+                    {#if !$mixtapeMode.active && $mixtapeDraftHasContent}
+                        <span class="inline-block h-2 w-2 rounded-full bg-lime-300 align-middle"></span>
+                    {/if}
+                </button>
+
                 <a
                     class="hover:underline {!import.meta.env.SSR && location.pathname.endsWith(
                         'create',

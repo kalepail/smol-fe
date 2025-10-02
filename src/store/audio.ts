@@ -84,11 +84,17 @@ export function togglePlayPause() {
     const pId = get(playingId);
     const cSong = get(currentSong);
 
+    console.log('togglePlayPause called', { playingId: pId, currentSongId: cSong?.Id });
+
     if (cSong) { // Only proceed if there's a song selected
         if (pId === cSong.Id) { // If it's currently marked as playing
+            console.log('Pausing - setting playingId to null');
             playingId.set(null); // Mark as paused (BarAudioPlayer will pause the element)
         } else { // If it's selected but marked as paused (pId is null or different)
+            console.log('Playing - setting playingId to', cSong.Id);
             playingId.set(cSong.Id); // Mark as playing (BarAudioPlayer will play the element)
         }
+    } else {
+        console.log('No current song, cannot toggle');
     }
 } 

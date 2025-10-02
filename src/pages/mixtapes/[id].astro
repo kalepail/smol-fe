@@ -1,0 +1,11 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import MixtapeDetailLoader from "../../components/mixtape/MixtapeDetailLoader.svelte";
+
+const { id } = Astro.params;
+---
+
+<Layout title="Smol – Mixtape">
+    <MixtapeDetailLoader mixtapeId={id ?? ""} client:load />
+</Layout>
+

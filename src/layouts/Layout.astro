@@ -1,5 +1,6 @@
 ---
 import Header from '../components/Header.svelte'
+import MixtapeBuilderOverlay from '../components/mixtape/MixtapeBuilderOverlay.svelte'
 import '../styles/global.css'
 
 interface Props {
@@ -83,6 +84,7 @@ if (token) {
 	</head>
 	<body class="bg-slate-950 text-white">
 		<Header {_kid} {_cid} client:load />
+		<MixtapeBuilderOverlay client:load />
 		<slot />
 	</body>
 </html>
