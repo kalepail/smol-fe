@@ -6,6 +6,7 @@
     import Loader from "./Loader.svelte";
     import MintTradeModal from "./MintTradeModal.svelte";
     import { contractId } from "../store/contractId";
+    import { updateContractBalance } from "../store/contractBalance";
     import { Address, Asset, hash, StrKey, xdr } from "@stellar/stellar-sdk/minimal";
     import { basicNodeSigner } from "@stellar/stellar-sdk/minimal/contract";
     import { Client as FpClient } from "fp-sdk";
@@ -314,7 +315,7 @@
                 networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
             });
 
-            const assetCode = Math.floor(Date.now() / 10).toString();
+            const assetCode = id.padStart(64, "0").substring(0, 12); // Math.floor(Date.now() / 10).toString();
             const asset = new Asset(assetCode, 'GBVJZCVQIKK7SL2K6NL4BO6ZYNXAGNVBTAQDDNOIJ5VPP3IXCSE2SMOL'); // TODO don't hardcode this
 
             let at = await smolClient.coin_it({
@@ -504,6 +505,9 @@
     $: if (minted) {
         minting = false;
         clearMintPolling();
+        if ($contractId) {
+            updateContractBalance($contractId);
+        }
     }
 </script>
 
