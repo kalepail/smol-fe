@@ -1,9 +1,10 @@
 <script lang="ts">
     export let classNames: string | undefined = undefined
+    export let textColor: string | undefined = 'text-white'
 </script>
 
 <svg
-    class={"text-white" + classNames}
+    class={classNames + ' ' + textColor}
     width="50"
     height="50"
     viewBox="0 0 50 50"

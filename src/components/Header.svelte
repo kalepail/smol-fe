@@ -213,7 +213,10 @@
                     href="https://stellar.expert/explorer/public/contract/{$contractId}"
                     target="_blank">{truncate($contractId, 4)}</a
                 >
-                <span class="text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded-full px-2 py-1 mr-2">
+                <a
+                    class="text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded-full px-2 py-1 mr-2"
+                    href="/account"
+                >
                     {#if $contractBalance !== null}
                         {(() => {
                             const raw = Number($contractBalance) / 1e7;
@@ -227,7 +230,7 @@
                             return `${intWithCommas} KALE`;
                         })()}
                     {/if}
-                </span>
+                </a>
                 <button
                     class="text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1"
                     on:click={logout}>Logout</button

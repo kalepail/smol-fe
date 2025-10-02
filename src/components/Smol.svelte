@@ -4,13 +4,14 @@
 
     import { onDestroy, onMount } from "svelte";
     import Loader from "./Loader.svelte";
+    import MintTradeModal from "./MintTradeModal.svelte";
     import { contractId } from "../store/contractId";
     import { Address, Asset, hash, StrKey, xdr } from "@stellar/stellar-sdk/minimal";
     import { basicNodeSigner } from "@stellar/stellar-sdk/minimal/contract";
     import { Client as FpClient } from "fp-sdk";
     import { Client as SmolClient } from "smol-sdk";
     import { keypair, publicKey, rpc } from "../utils/base";
-    import { account } from "../utils/passkey-kit";
+    import { account, sac } from "../utils/passkey-kit";
     import { keyId } from "../store/keyId";
 
     let d1 = data?.d1;
@@ -40,16 +41,65 @@
     let failed: boolean = false;
     let playlist: string | null = null;
     const MINT_POLL_INTERVAL = 1000 * 6;
-    const MINT_POLL_TIMEOUT = 1000 * 30;
+    const MINT_POLL_TIMEOUT = 1000 * 60 * 5;
     let minting = false;
     let minted = Boolean(d1?.Mint_Token || d1?.Mint_Amm);
     let mintInterval: NodeJS.Timeout | null = null;
     let mintTimeout: NodeJS.Timeout | null = null;
+    let showTradeModal = false;
+    let tradeSongId: string | null = null;
+    let tradeTitle: string | null = null;
+    let tradeImageUrl: string | null = null;
+    let tradeImageFallback: string | null = null;
+    let tradeMintBalance: bigint = 0n;
+    let mintTokenClient: ReturnType<typeof sac.getSACClient> | null = null;
 
-    function limitPromptLength() {
-        const maxLength = is_instrumental ? 380 : 2280;
-        if (prompt.length > maxLength) {
-            prompt = prompt.substring(0, maxLength);
+    $: tradeSongId = id ?? d1?.Id ?? null;
+    $: tradeTitle =
+        kv_do?.lyrics?.title ??
+        kv_do?.description ??
+        d1?.Title ??
+        null;
+    $: tradeImageUrl = tradeSongId
+        ? `${import.meta.env.PUBLIC_API_URL}/image/${tradeSongId}.png`
+        : null;
+    $: tradeImageFallback = kv_do?.image_base64
+        ? `data:image/png;base64,${kv_do.image_base64}`
+        : null;
+    $: tradeReady = Boolean(tradeSongId && d1?.Mint_Amm && d1?.Mint_Token);
+    $: if (!tradeReady && showTradeModal) {
+        showTradeModal = false;
+    }
+
+    $: if (d1?.Mint_Token && $contractId) {
+        mintTokenClient = sac.getSACClient(d1.Mint_Token);
+        mintTokenClient.balance({ id: $contractId }).then(({ result }) => {
+            tradeMintBalance = result;
+        }).catch(() => {
+            tradeMintBalance = 0n;
+        });
+    } else {
+        tradeMintBalance = 0n;
+    }
+
+    function abbreviateNumber(value: bigint): string {
+        const num = Number(value) / 10000000; // Convert from stroops to tokens
+        if (num < 1000) return num.toString();
+
+        const suffixes = ['', 'K', 'M', 'B', 'T'];
+        let suffixIndex = 0;
+        let divisor = 1;
+
+        while (num >= divisor * 1000 && suffixIndex < suffixes.length - 1) {
+            divisor *= 1000;
+            suffixIndex++;
+        }
+
+        const result = num / divisor;
+        if (result % 1 === 0) {
+            return result.toString() + suffixes[suffixIndex];
+        } else {
+            return result.toFixed(result < 10 ? 2 : 1) + suffixes[suffixIndex];
         }
     }
 
@@ -113,6 +163,20 @@
             clearTimeout(mintTimeout);
             mintTimeout = null;
         }
+    }
+
+    function openTradeModal() {
+        if (!tradeReady) return;
+        showTradeModal = true;
+    }
+
+    function handleTradeModalClose() {
+        showTradeModal = false;
+    }
+
+    function handleTradeModalComplete() {
+        showTradeModal = false;
+        void getGen();
     }
 
     async function makeSongPublic() {
@@ -260,7 +324,7 @@
                 fee_rule: {
                     fee_asset: import.meta.env.PUBLIC_KALE_SAC_ID,
                     recipients: [{
-                        percent: 50n,
+                        percent: 50_00000n, // 50%
                         recipient: d1?.Address,
                     }],
                 },
@@ -426,6 +490,13 @@
     // Reactive statement to apply length limit when is_instrumental changes
     $: if (is_instrumental || !is_instrumental) {
         limitPromptLength();
+    }
+
+    function limitPromptLength() {
+        const maxLength = is_instrumental ? 380 : 2280;
+        if (prompt.length > maxLength) {
+            prompt = prompt.substring(0, maxLength);
+        }
     }
 
     $: minted = Boolean(d1?.Mint_Token || d1?.Mint_Amm);
@@ -610,6 +681,17 @@
                             >
                                 Minted
                             </span>
+                            {#if tradeReady}
+                                <button
+                                    class="flex items-center uppercase text-xs font-mono ring rounded px-2 py-1 text-sky-400 bg-sky-400/10 ring-sky-400 hover:bg-sky-400/20 ml-2"
+                                    on:click={openTradeModal}
+                                >
+                                    <span>Trade</span>
+                                    {#if tradeMintBalance > 0n}
+                                        <span class="ml-2 text-[10px] bg-sky-400/20 text-sky-300 px-1.5 py-0.5 rounded-full font-medium">{abbreviateNumber(tradeMintBalance)}</span>
+                                    {/if}
+                                </button>
+                            {/if}
                         {:else}
                             <button
                                 class="flex items-center uppercase text-xs font-mono ring rounded px-2 py-1 text-emerald-400 bg-emerald-400/10 ring-emerald-400 hover:bg-emerald-400/20 ml-2 disabled:opacity-50"
@@ -617,7 +699,7 @@
                                 on:click={triggerMint}
                             >
                                 {#if minting}
-                                    <Loader classNames="text-emerald-400 w-4 h-4 mr-2" />
+                                    <Loader classNames="w-4 h-4 mr-2" textColor="text-emerald-400" />
                                     Minting...
                                 {:else}
                                     Mint
@@ -792,3 +874,16 @@
         </ul>
     </div>
 </div>
+
+{#if showTradeModal && tradeReady && d1?.Mint_Amm && d1?.Mint_Token && tradeSongId}
+    <MintTradeModal
+        ammId={d1.Mint_Amm}
+        mintTokenId={d1.Mint_Token}
+        songId={tradeSongId!}
+        title={tradeTitle ?? undefined}
+        imageUrl={tradeImageUrl ?? undefined}
+        fallbackImage={tradeImageFallback ?? undefined}
+        on:close={handleTradeModalClose}
+        on:complete={handleTradeModalComplete}
+    />
+{/if}
