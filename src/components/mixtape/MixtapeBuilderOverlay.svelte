@@ -262,7 +262,6 @@
 
             mixtapeDraft.insertTrack(normalized, insertIndex);
             tracksForDnd = get(mixtapeDraft).tracks;
-            showStatus("Smol added to your mixtape.", "success");
         } catch (error) {
             console.warn("Failed to parse dragged data", error);
         }
@@ -273,7 +272,7 @@
 
 {#if $mixtapeMode.active}
     <div class="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-3">
-        <div bind:this={modalEl} class="pointer-events-auto flex w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/20 bg-slate-950/50 backdrop-blur-lg shadow-2xl max-h-[min(85vh,700px)]">
+        <div bind:this={modalEl} class="pointer-events-auto flex w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/20 bg-slate-950/80 backdrop-blur-lg shadow-2xl max-h-[min(85vh,700px)]">
             <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-700 px-5 py-4">
                 <div>
                     <h2 class="text-lg font-semibold text-lime-300">Mixtape Builder</h2>
@@ -287,8 +286,8 @@
 
             <div class="grid flex-1 min-h-0 gap-5 overflow-hidden px-5 py-4 lg:grid-cols-[1.6fr_1fr]">
                 <section
-                    class={`flex flex-col gap-3 rounded-xl min-h-0 ${
-                        isExternalDragActive ? "border border-lime-400/60 bg-lime-500/5" : ""
+                    class={`flex flex-col gap-3 rounded-xl min-h-0 border border-transparent transition-all ${
+                        isExternalDragActive ? "outline-2 outline-lime-400 outline-offset-8" : ""
                     }`}
                     on:dragover={handleExternalDragOver}
                     on:dragleave={handleExternalDragLeave}
@@ -296,23 +295,14 @@
                 >
                     <header class="flex items-center justify-between text-sm text-slate-300">
                         <span>{$mixtapeDraft.tracks.length} Smol{$mixtapeDraft.tracks.length === 1 ? "" : "s"} selected</span>
+                        {#if isExternalDragActive}
+                            <span class="text-xs text-lime-300">Drop to add</span>
+                        {/if}
                     </header>
 
-                    {#if isExternalDragActive}
-                        <div class="rounded border border-dashed border-lime-400/60 bg-lime-500/10 px-3 py-2 text-center text-xs font-medium text-lime-100">
-                            Drop to add this Smol to your mixtape
-                        </div>
-                    {/if}
-
                     <div class="relative flex-1 min-h-0 h-full overflow-y-auto pr-1">
-                        {#if $mixtapeDraft.tracks.length === 0 && (!tracksForDnd.length || (tracksForDnd.length === 1 && tracksForDnd[0].id === SHADOW_PLACEHOLDER_ITEM_ID))}
-                            <div class="pointer-events-none rounded border border-dashed border-slate-600 bg-slate-800/50 p-6 text-center text-sm text-slate-400">
-                                Browse Smols and use the add button to collect them here.
-                            </div>
-                        {/if}
-
                         <ul
-                            class="flex flex-col gap-2 rounded-xl border border-transparent"
+                            class="flex flex-col gap-2 min-h-full"
                             bind:this={tracksListEl}
                             use:dndzone={{
                                 items: tracksForDnd,
@@ -323,15 +313,23 @@
                             on:consider={handleTrackConsider}
                             on:finalize={handleTrackFinalize}
                         >
-                            {#each tracksForDnd as track, index (track.id)}
-                                <MixtapeTrackListItem
-                                    {track}
-                                    {index}
-                                    total={tracksForDnd.length}
-                                    on:move={({ detail }) => handleMove(index, detail.direction)}
-                                    on:remove={() => handleRemove(index)}
-                                />
-                            {/each}
+                            {#if $mixtapeDraft.tracks.length === 0 && (!tracksForDnd.length || (tracksForDnd.length === 1 && tracksForDnd[0].id === SHADOW_PLACEHOLDER_ITEM_ID))}
+                                <div class="pointer-events-none flex items-center justify-center min-h-full py-12">
+                                    <p class="text-sm text-slate-500">
+                                        Browse Smols and drag them here or use the + Add button
+                                    </p>
+                                </div>
+                            {:else}
+                                {#each tracksForDnd as track, index (track.id)}
+                                    <MixtapeTrackListItem
+                                        {track}
+                                        {index}
+                                        total={tracksForDnd.length}
+                                        on:move={({ detail }) => handleMove(index, detail.direction)}
+                                        on:remove={() => handleRemove(index)}
+                                    />
+                                {/each}
+                            {/if}
                         </ul>
                     </div>
                 </section>

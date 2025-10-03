@@ -279,4 +279,4 @@ export function toggleMixtapeMode() {
     modeStore.set({ active: !current.active });
 }
 
-export const mixtapeTrackIds = derived(mixtapeDraft, ($draft) => new Set($draft.tracks.map((track) => track.id)));
+export const mixtapeTrackIds = derived(mixtapeDraft, ($draft) => new Set($draft.tracks.map((track) => track.id)) as Set<string>);

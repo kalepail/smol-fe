@@ -150,9 +150,9 @@
     class="relative grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2 m-2 pb-10"
 >
     {#each results as smol (smol.Id)}
-        <div class={`flex flex-col rounded overflow-hidden border ${
-            draggingId === smol.Id ? "border-lime-400 bg-slate-800" : "border-transparent bg-slate-700"
-        } transition-colors`}>
+        <div class={`flex flex-col rounded overflow-hidden bg-slate-700 transition-all ${
+            draggingId === smol.Id ? "ring-2 ring-lime-400 ring-offset-2 ring-offset-slate-950 scale-105" : ""
+        }`}>
             <div
                 class="group relative"
                 draggable={$mixtapeMode.active}
