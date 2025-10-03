@@ -115,11 +115,22 @@
         tracksForDnd = get(mixtapeDraft).tracks;
     }
 
+    let paddingUpdateScheduled = false;
+
     function updateBodyPadding() {
         if (typeof document === "undefined" || !modalEl) return;
+        if (paddingUpdateScheduled) return;
 
-        const height = modalEl.offsetHeight;
-        document.body.style.paddingBottom = `${height + 16}px`;
+        paddingUpdateScheduled = true;
+        requestAnimationFrame(() => {
+            if (!modalEl) {
+                paddingUpdateScheduled = false;
+                return;
+            }
+            const height = modalEl.offsetHeight;
+            document.body.style.paddingBottom = `${height + 16}px`;
+            paddingUpdateScheduled = false;
+        });
     }
 
     onMount(() => {

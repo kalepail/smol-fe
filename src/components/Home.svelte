@@ -167,7 +167,7 @@
                 />
 
                 {#if $mixtapeMode.active}
-                    {#if $mixtapeTrackIds.includes(smol.Id)}
+                    {#if $mixtapeTrackIds.has(smol.Id)}
                         <span
                             class="absolute left-1.5 top-1.5 rounded-full bg-lime-400 px-2 py-1 text-xs font-semibold text-slate-950"
                         >Added</span>

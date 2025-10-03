@@ -922,9 +922,9 @@
         <p>We couldn't find that mixtape. Double-check the link or publish a new one.</p>
     </div>
 {:else}
-    <div class="mx-auto flex max-w-4xl flex-col gap-8 px-4 py-8">
-        <header class="flex flex-col gap-6 rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-xl md:flex-row">
-            <div class="grid h-48 w-48 grid-cols-2 grid-rows-2 overflow-hidden rounded-2xl bg-slate-800">
+    <div class="mx-auto flex max-w-4xl flex-col gap-4 px-2 py-4 md:gap-8 md:px-4 md:py-8">
+        <header class="flex flex-col gap-4 rounded-2xl border border-slate-700 bg-slate-900/80 p-4 shadow-xl md:flex-row md:gap-6 md:rounded-3xl md:p-6">
+            <div class="grid h-auto w-full grid-cols-2 grid-rows-2 overflow-hidden rounded-2xl bg-slate-800 md:h-48 md:w-48 md:shrink-0">
                 {#each Array.from({ length: 4 }) as _, index}
                     <div class="aspect-square bg-slate-900">
                         {#if coverUrls[index]}
@@ -1009,7 +1009,7 @@
             </div>
         </header>
 
-        <section class="rounded-3xl border border-slate-700 bg-slate-900/80 p-6 shadow-lg">
+        <section class="rounded-2xl border border-slate-700 bg-slate-900/80 p-4 shadow-lg md:rounded-3xl md:p-6">
             <header class="mb-4 flex items-center justify-between">
                 <h2 class="text-xl font-semibold text-white">Tracklist</h2>
                 <span class="text-xs uppercase tracking-wide text-slate-500">{mixtape.trackCount} Smol{mixtape.trackCount === 1 ? "" : "s"}</span>
@@ -1029,13 +1029,13 @@
                         {@const mintStatus = trackMintStatus.get(track.id)}
                         {@const balance = trackBalances.get(track.id) || 0n}
                         <li
-                            class="flex items-center gap-3 rounded-xl border p-4 transition-colors cursor-pointer {isCurrentTrack ? 'border-lime-500 bg-slate-800' : 'border-slate-700 bg-slate-800/80 hover:bg-slate-800/60'}"
+                            class="flex items-stretch gap-3 rounded-xl border p-3 transition-colors cursor-pointer md:items-center md:p-4 {isCurrentTrack ? 'border-lime-500 bg-slate-800' : 'border-slate-700 bg-slate-800/80 hover:bg-slate-800/60'}"
                             on:click={() => handleTrackClick(index)}
                         >
                             <a
                                 href={`/${track.id}`}
                                 target="_blank"
-                                class="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-slate-900 group"
+                                class="relative w-20 shrink-0 overflow-hidden rounded-lg bg-slate-900 group md:h-16 md:w-16"
                                 on:click|stopPropagation
                             >
                                 {#if isLoading}
@@ -1059,50 +1059,94 @@
                                 {/if}
                             </a>
 
-                            <div class="flex flex-1 flex-col min-w-0">
-                                <div class="font-semibold text-white truncate">
-                                    {#if isLoading}
-                                        Loading...
-                                    {:else}
-                                        {trackData?.title ?? "Unknown Track"}
+                            <div class="flex flex-1 flex-col gap-2 min-w-0">
+                                <div class="flex flex-col min-w-0">
+                                    <div class="font-semibold text-white truncate">
+                                        {#if isLoading}
+                                            Loading...
+                                        {:else}
+                                            {trackData?.title ?? "Unknown Track"}
+                                        {/if}
+                                    </div>
+                                    {#if trackData?.creator}
+                                        <span class="text-xs text-slate-400 truncate" title={trackData.creator}>
+                                            {truncateAddress(trackData.creator)}
+                                        </span>
+                                    {/if}
+                                    {#if trackData?.lyrics?.style && trackData.lyrics.style.length > 0}
+                                        <div class="mt-1 flex flex-wrap gap-1">
+                                            {#each trackData.lyrics.style.slice(0, 3) as tag}
+                                                <span class="text-[10px] bg-slate-700/50 text-slate-300 px-2 py-0.5 rounded-full">
+                                                    {tag}
+                                                </span>
+                                            {/each}
+                                            {#if mintStatus?.minted}
+                                                <span class="text-[10px] bg-emerald-400/20 text-emerald-300 px-2 py-0.5 rounded-full font-medium">
+                                                    Minted
+                                                </span>
+                                            {/if}
+                                            {#if mintStatus?.minted && balance > 0n}
+                                                <TokenBalancePill balance={balance} />
+                                            {/if}
+                                        </div>
+                                    {:else if mintStatus?.minted || balance > 0n}
+                                        <div class="mt-1 flex flex-wrap gap-1">
+                                            {#if mintStatus?.minted}
+                                                <span class="text-[10px] bg-emerald-400/20 text-emerald-300 px-2 py-0.5 rounded-full font-medium">
+                                                    Minted
+                                                </span>
+                                            {/if}
+                                            {#if balance > 0n}
+                                                <TokenBalancePill balance={balance} />
+                                            {/if}
+                                        </div>
                                     {/if}
                                 </div>
-                                {#if trackData?.creator}
-                                    <span class="text-xs text-slate-400 truncate" title={trackData.creator}>
-                                        {truncateAddress(trackData.creator)}
-                                    </span>
-                                {/if}
-                                {#if trackData?.lyrics?.style && trackData.lyrics.style.length > 0}
-                                    <div class="mt-1 flex flex-wrap gap-1">
-                                        {#each trackData.lyrics.style.slice(0, 3) as tag}
-                                            <span class="text-[10px] bg-slate-700/50 text-slate-300 px-2 py-0.5 rounded-full">
-                                                {tag}
-                                            </span>
-                                        {/each}
-                                        {#if mintStatus?.minted}
-                                            <span class="text-[10px] bg-emerald-400/20 text-emerald-300 px-2 py-0.5 rounded-full font-medium">
-                                                Minted
-                                            </span>
+
+                                <div class="flex items-center justify-between gap-2 md:hidden">
+                                    <div class="flex items-center gap-2">
+                                        {#if mixtapeTracks[index]?.Song_1}
+                                            <div class="relative z-2" on:click|stopPropagation>
+                                                <MiniAudioPlayer
+                                                    id={track.id}
+                                                    playing_id={$playingId}
+                                                    songToggle={() => handleTrackClick(index)}
+                                                    songNext={playNext}
+                                                    progress={$currentSong?.Id === track.id ? $audioProgress : 0}
+                                                />
+                                            </div>
                                         {/if}
-                                        {#if mintStatus?.minted && balance > 0n}
-                                            <TokenBalancePill balance={balance} />
-                                        {/if}
+
+                                        <div on:click|stopPropagation>
+                                            <LikeButton
+                                                smolId={track.id}
+                                                liked={trackLikedStates.get(track.id) || false}
+                                                classNames="p-1.5 rounded-lg hover:bg-slate-700/50 transition-colors"
+                                                on:likeChanged={(e) => {
+                                                    trackLikedStates.set(e.detail.smolId, e.detail.liked);
+                                                    trackLikedStates = trackLikedStates;
+
+                                                    // Update mixtapeTracks array as well
+                                                    if (mixtapeTracks[index]) {
+                                                        mixtapeTracks[index].Liked = e.detail.liked;
+                                                    }
+
+                                                    // If this is the currently playing song, update currentSong
+                                                    if ($currentSong?.Id === e.detail.smolId) {
+                                                        $currentSong.Liked = e.detail.liked;
+                                                    }
+                                                }}
+                                            />
+                                        </div>
                                     </div>
-                                {:else if mintStatus?.minted || balance > 0n}
-                                    <div class="mt-1 flex flex-wrap gap-1">
-                                        {#if mintStatus?.minted}
-                                            <span class="text-[10px] bg-emerald-400/20 text-emerald-300 px-2 py-0.5 rounded-full font-medium">
-                                                Minted
-                                            </span>
-                                        {/if}
-                                        {#if balance > 0n}
-                                            <TokenBalancePill balance={balance} />
-                                        {/if}
+
+                                    <div class="text-sm text-slate-500 font-mono">
+                                        #{index + 1}
                                     </div>
-                                {/if}
+                                </div>
                             </div>
 
-                            <div class="flex items-center gap-2">
+                            <div class="hidden md:flex items-center gap-2">
                                 {#if mixtapeTracks[index]?.Song_1}
                                     <div class="relative z-2" on:click|stopPropagation>
                                         <MiniAudioPlayer
