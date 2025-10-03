@@ -29,12 +29,16 @@
         if ($keyId) {
             if (!$contractId) {
                 const { contractId: cid } = await account.connectWallet({
+                    rpId: getDomain(window.location.hostname) ?? undefined,
                     keyId: $keyId,
                 });
 
                 contractId.set(cid);
             } else {
-                await account.connectWallet({keyId: $keyId});
+                await account.connectWallet({
+                    rpId: getDomain(window.location.hostname) ?? undefined,
+                    keyId: $keyId
+                });
             }
         }
 
@@ -112,7 +116,13 @@
                 keyIdBase64,
                 contractId: cid,
                 signedTx,
-            } = await account.createWallet("smol.xyz", `SMOL — ${username}`);
+            } = await account.createWallet(
+                "smol.xyz", 
+                `SMOL — ${username}`, 
+                {
+                    rpId: getDomain(window.location.hostname) ?? undefined,
+                }
+            );
 
             const jwt = await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {
                 method: "POST",

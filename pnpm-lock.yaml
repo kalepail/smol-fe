@@ -27,8 +27,8 @@ importers:
         specifier: ^3.0.5
         version: 3.0.5
       passkey-kit:
-        specifier: ^0.11.2
-        version: 0.11.2
+        specifier: ^0.11.3
+        version: 0.11.3
       smol-sdk:
         specifier: link:./ext/smol-sdk
         version: link:ext/smol-sdk
@@ -2358,8 +2358,8 @@ packages:
   passkey-kit-sdk@0.7.2:
     resolution: {integrity: sha512-+JwND3tUfygT1zw+MdAmqO8NpaATJFo9+1spEkwv1tiFX+/DIJjQXyw8M54hrhQIEiIFevLpOXSQXMTV78m2wQ==}
 
-  passkey-kit@0.11.2:
-    resolution: {integrity: sha512-f3lkaD80rk6A+RNvGsZEaOys/swJuqrTfh8DrknnsRgebq2i+VZGh4Z4ZL5525JPWg6M9gXzTNQXkHbbyyDdNg==}
+  passkey-kit@0.11.3:
+    resolution: {integrity: sha512-N5isW4guSwMx/AInXcwF4c0vie5oLx2ZM2ct5yvNyjv7tMentzgt9rmSOPyss73bOzKuGgcRDO6hiLKeja6xpw==}
 
   path-browserify@1.0.1:
     resolution: {integrity: sha512-b7uo2UCUOYZcnF/3ID0lulOJi/bafxa1xPe7ZPsammBSpjSWQkjNxlt635YGS2MiR9GjvuXCtz2emr3jbsz98g==}
@@ -5755,7 +5755,7 @@ snapshots:
     transitivePeerDependencies:
       - debug
 
-  passkey-kit@0.11.2:
+  passkey-kit@0.11.3:
     dependencies:
       '@simplewebauthn/browser': 13.2.0
       '@stellar/stellar-sdk': 14.2.0
