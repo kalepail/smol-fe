@@ -11,7 +11,6 @@
     import { updateContractBalance } from "../store/contractBalance";
     import { Address, Asset, hash, StrKey, xdr } from "@stellar/stellar-sdk/minimal";
     import { basicNodeSigner } from "@stellar/stellar-sdk/minimal/contract";
-    import { Client as FpClient } from "fp-sdk";
     import { Client as SmolClient } from "smol-sdk";
     import { keypair, publicKey, rpc } from "../utils/base";
     import { account, sac } from "../utils/passkey-kit";

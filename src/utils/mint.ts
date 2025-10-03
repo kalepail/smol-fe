@@ -61,7 +61,6 @@ export async function createMintTransaction(options: MintOptions) {
 
     let at = await smolClient.coin_it({
         user: contractId,
-        issuer,
         asset_bytes: asset.toXDRObject().toXDR(),
         salt,
         fee_rule: feeRule,

@@ -701,7 +701,6 @@
 
         let at = await smolClient.coin_them({
             user: $contractId,
-            issuer,
             asset_bytes: assetBytesArray,
             salts: saltsArray,
             fee_rules: feeRulesArray,

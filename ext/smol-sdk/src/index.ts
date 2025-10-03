@@ -90,7 +90,7 @@ export interface Client {
   /**
    * Construct and simulate a coin_them transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    */
-  coin_them: ({ user, issuer, asset_bytes, salts, fee_rules }: { user: string, issuer: string, asset_bytes: Array<Buffer>, salts: Array<Buffer>, fee_rules: Array<Option<FeeRule>> }, options?: {
+  coin_them: ({ user, asset_bytes, salts, fee_rules }: { user: string, asset_bytes: Array<Buffer>, salts: Array<Buffer>, fee_rules: Array<Option<FeeRule>> }, options?: {
     /**
      * The fee to pay for the transaction. Default: BASE_FEE
      */
@@ -110,7 +110,7 @@ export interface Client {
   /**
    * Construct and simulate a coin_it transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    */
-  coin_it: ({ user, issuer, asset_bytes, salt, fee_rule }: { user: string, issuer: string, asset_bytes: Buffer, salt: Buffer, fee_rule: Option<FeeRule> }, options?: {
+  coin_it: ({ user, asset_bytes, salt, fee_rule }: { user: string, asset_bytes: Buffer, salt: Buffer, fee_rule: Option<FeeRule> }, options?: {
     /**
      * The fee to pay for the transaction. Default: BASE_FEE
      */
@@ -153,8 +153,8 @@ export class Client extends ContractClient {
         "AAAAAAAAAAAAAAAGdXBkYXRlAAAAAAADAAAAAAAAAAluZXdfYWRtaW4AAAAAAAPoAAAAEwAAAAAAAAAObmV3X2NvbWV0X3dhc20AAAAAA+gAAAPuAAAAIAAAAAAAAAAObmV3X2Jhc2VfYXNzZXQAAAAAA+gAAAATAAAAAA==",
         "AAAAAAAAAAAAAAAHdXBncmFkZQAAAAABAAAAAAAAAAl3YXNtX2hhc2gAAAAAAAPuAAAAIAAAAAA=",
         "AAAAAAAAAAAAAAAMc3dhcF90aGVtX2luAAAABQAAAAAAAAAEdXNlcgAAABMAAAAAAAAAD2NvbWV0X2FkZHJlc3NlcwAAAAPqAAAAEwAAAAAAAAAKdG9rZW5zX291dAAAAAAD6gAAABMAAAAAAAAAD3Rva2VuX2Ftb3VudF9pbgAAAAALAAAAAAAAAA5mZWVfcmVjaXBpZW50cwAAAAAD6AAAA+oAAAfQAAAADEZlZVJlY2lwaWVudAAAAAA=",
-        "AAAAAAAAAAAAAAAJY29pbl90aGVtAAAAAAAABQAAAAAAAAAEdXNlcgAAABMAAAAAAAAABmlzc3VlcgAAAAAAEwAAAAAAAAALYXNzZXRfYnl0ZXMAAAAD6gAAAA4AAAAAAAAABXNhbHRzAAAAAAAD6gAAA+4AAAAgAAAAAAAAAAlmZWVfcnVsZXMAAAAAAAPqAAAD6AAAB9AAAAAHRmVlUnVsZQAAAAABAAAD6gAAA+0AAAACAAAAEwAAABM=",
-        "AAAAAAAAAAAAAAAHY29pbl9pdAAAAAAFAAAAAAAAAAR1c2VyAAAAEwAAAAAAAAAGaXNzdWVyAAAAAAATAAAAAAAAAAthc3NldF9ieXRlcwAAAAAOAAAAAAAAAARzYWx0AAAD7gAAACAAAAAAAAAACGZlZV9ydWxlAAAD6AAAB9AAAAAHRmVlUnVsZQAAAAABAAAD7QAAAAIAAAATAAAAEw=="]),
+        "AAAAAAAAAAAAAAAJY29pbl90aGVtAAAAAAAABAAAAAAAAAAEdXNlcgAAABMAAAAAAAAAC2Fzc2V0X2J5dGVzAAAAA+oAAAAOAAAAAAAAAAVzYWx0cwAAAAAAA+oAAAPuAAAAIAAAAAAAAAAJZmVlX3J1bGVzAAAAAAAD6gAAA+gAAAfQAAAAB0ZlZVJ1bGUAAAAAAQAAA+oAAAPtAAAAAgAAABMAAAAT",
+        "AAAAAAAAAAAAAAAHY29pbl9pdAAAAAAEAAAAAAAAAAR1c2VyAAAAEwAAAAAAAAALYXNzZXRfYnl0ZXMAAAAADgAAAAAAAAAEc2FsdAAAA+4AAAAgAAAAAAAAAAhmZWVfcnVsZQAAA+gAAAfQAAAAB0ZlZVJ1bGUAAAAAAQAAA+0AAAACAAAAEwAAABM="]),
       options
     )
   }

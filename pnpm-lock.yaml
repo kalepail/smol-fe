@@ -20,9 +20,6 @@ importers:
       cookie:
         specifier: ^1.0.2
         version: 1.0.2
-      fp-sdk:
-        specifier: link:./ext/fp-sdk
-        version: link:ext/fp-sdk
       jimp:
         specifier: ^1.6.0
         version: 1.6.0
@@ -32,9 +29,6 @@ importers:
       passkey-kit:
         specifier: ^0.11.2
         version: 0.11.2
-      smol-sc-sdk:
-        specifier: link:./ext/smol-sc-sdk
-        version: link:ext/smol-sc-sdk
       smol-sdk:
         specifier: link:./ext/smol-sdk
         version: link:ext/smol-sdk
