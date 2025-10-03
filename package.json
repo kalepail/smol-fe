@@ -18,7 +18,8 @@
     "js-cookie": "^3.0.5",
     "passkey-kit": "^0.11.2",
     "smol-sdk": "link:./ext/smol-sdk",
-    "svelte-dnd-action": "^0.9.65"
+    "svelte-dnd-action": "^0.9.65",
+    "tldts": "^7.0.16"
   },
   "devDependencies": {
     "@astrojs/cloudflare": "^12.6.9",

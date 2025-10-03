@@ -15,6 +15,7 @@
         mixtapeDraftHasContent,
         mixtapeMode,
     } from "../store/mixtape";
+    import { getDomain } from "tldts";
 
     keyId.set(_kid);
     contractId.set(_cid);
@@ -44,11 +45,15 @@
     })
 
     async function login() {
+        const domain = getDomain(window.location.hostname);
+
         const {
             rawResponse,
             keyIdBase64,
             contractId: cid,
-        } = await account.connectWallet();
+        } = await account.connectWallet({
+            rpId: domain ?? undefined,
+        });
 
         const jwt = await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {
             method: "POST",
