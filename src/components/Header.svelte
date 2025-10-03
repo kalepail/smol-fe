@@ -16,12 +16,14 @@
         mixtapeMode,
     } from "../store/mixtape";
     import { getDomain } from "tldts";
+    import Loader from "./Loader.svelte";
 
     keyId.set(_kid);
     contractId.set(_cid);
 
     let creating = false;
     let playlist: string | null = null;
+    let loadingBalance = false;
 
     onMount(async () => {
         if ($keyId) {
@@ -40,8 +42,13 @@
     });
 
     contractId.subscribe(async (cid) => {
-        if (!cid) return;
+        if (!cid) {
+            loadingBalance = false;
+            return;
+        }
+        loadingBalance = true;
         await updateContractBalance(cid);
+        loadingBalance = false;
     })
 
     async function login() {
@@ -228,9 +235,9 @@
         </div>
 
         {#if $contractId}
-            <div class="flex items-center">
+            <div class="flex items-center gap-3 my-2">
                 <button
-                    class={`ml-5 mr-3 rounded px-2 py-1 text-sm transition-colors ${
+                    class={`rounded px-2 py-1 text-sm transition-colors ${
                         $mixtapeMode.active
                             ? "bg-lime-400 text-slate-950 hover:bg-lime-300"
                             : "text-lime-400 ring-1 ring-lime-400/40 hover:bg-lime-400/10"
@@ -252,18 +259,20 @@
             </div>
         {/if}
 
-        <div class="flex items-center ml-auto">
+        <div class="flex items-center ml-auto gap-3">
             {#if $contractId}
                 <a
-                    class="mx-5 font-mono text-sm underline"
+                    class="font-mono text-sm underline ml-5"
                     href="https://stellar.expert/explorer/public/contract/{$contractId}"
                     target="_blank">{truncate($contractId, 4)}</a
                 >
                 <a
-                    class="text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded-full px-2 py-1 mr-2"
+                    class="text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded-full px-2 py-1 flex items-center justify-center min-w-[80px]"
                     href="/account"
                 >
-                    {#if $contractBalance !== null}
+                    {#if loadingBalance}
+                        <Loader classNames="w-4 h-4" textColor="text-lime-500" />
+                    {:else if $contractBalance !== null}
                         {(() => {
                             const raw = Number($contractBalance) / 1e7;
                             const [int, dec] = raw.toFixed(7).split(".");
@@ -295,14 +304,14 @@
         </div>
     </div>
 
-    <div class="flex items-center flex-wrap max-w-[1024px] mx-auto">
-        {#if playlist}
+    {#if playlist}
+        <div class="flex items-center justify-center md:justify-start flex-wrap max-w-[1024px] mx-auto py-2">
             <a
                 class="text-sm hover:underline {!import.meta.env.SSR && location.pathname.endsWith(
                     playlist,
                 ) && 'underline'}"
                 href={`/playlist/${playlist}`}>{playlist}</a
             >
-        {/if}
-    </div>
+        </div>
+    {/if}
 </header>
