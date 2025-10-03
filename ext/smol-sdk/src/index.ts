@@ -68,9 +68,49 @@ export interface Client {
   }) => Promise<AssembledTransaction<null>>
 
   /**
+   * Construct and simulate a swap_them_in transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   */
+  swap_them_in: ({ user, comet_addresses, tokens_out, token_amount_in, fee_recipients }: { user: string, comet_addresses: Array<string>, tokens_out: Array<string>, token_amount_in: i128, fee_recipients: Option<Array<FeeRecipient>> }, options?: {
+    /**
+     * The fee to pay for the transaction. Default: BASE_FEE
+     */
+    fee?: number;
+
+    /**
+     * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
+     */
+    timeoutInSeconds?: number;
+
+    /**
+     * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
+     */
+    simulate?: boolean;
+  }) => Promise<AssembledTransaction<null>>
+
+  /**
+   * Construct and simulate a coin_them transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
+   */
+  coin_them: ({ user, issuer, asset_bytes, salts, fee_rules }: { user: string, issuer: string, asset_bytes: Array<Buffer>, salts: Array<Buffer>, fee_rules: Array<Option<FeeRule>> }, options?: {
+    /**
+     * The fee to pay for the transaction. Default: BASE_FEE
+     */
+    fee?: number;
+
+    /**
+     * The maximum amount of time to wait for the transaction to complete. Default: DEFAULT_TIMEOUT
+     */
+    timeoutInSeconds?: number;
+
+    /**
+     * Whether to automatically simulate the transaction when constructing the AssembledTransaction. Default: true
+     */
+    simulate?: boolean;
+  }) => Promise<AssembledTransaction<Array<readonly [string, string]>>>
+
+  /**
    * Construct and simulate a coin_it transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    */
-  coin_it: ({ user, asset_bytes, salt, fee_rule }: { user: string, asset_bytes: Buffer, salt: Buffer, fee_rule: Option<FeeRule> }, options?: {
+  coin_it: ({ user, issuer, asset_bytes, salt, fee_rule }: { user: string, issuer: string, asset_bytes: Buffer, salt: Buffer, fee_rule: Option<FeeRule> }, options?: {
     /**
      * The fee to pay for the transaction. Default: BASE_FEE
      */
@@ -112,13 +152,17 @@ export class Client extends ContractClient {
         "AAAAAAAAAAAAAAANX19jb25zdHJ1Y3RvcgAAAAAAAAMAAAAAAAAABWFkbWluAAAAAAAAEwAAAAAAAAAKY29tZXRfd2FzbQAAAAAD7gAAACAAAAAAAAAACmJhc2VfYXNzZXQAAAAAABMAAAAA",
         "AAAAAAAAAAAAAAAGdXBkYXRlAAAAAAADAAAAAAAAAAluZXdfYWRtaW4AAAAAAAPoAAAAEwAAAAAAAAAObmV3X2NvbWV0X3dhc20AAAAAA+gAAAPuAAAAIAAAAAAAAAAObmV3X2Jhc2VfYXNzZXQAAAAAA+gAAAATAAAAAA==",
         "AAAAAAAAAAAAAAAHdXBncmFkZQAAAAABAAAAAAAAAAl3YXNtX2hhc2gAAAAAAAPuAAAAIAAAAAA=",
-        "AAAAAAAAAAAAAAAHY29pbl9pdAAAAAAEAAAAAAAAAAR1c2VyAAAAEwAAAAAAAAALYXNzZXRfYnl0ZXMAAAAADgAAAAAAAAAEc2FsdAAAA+4AAAAgAAAAAAAAAAhmZWVfcnVsZQAAA+gAAAfQAAAAB0ZlZVJ1bGUAAAAAAQAAA+0AAAACAAAAEwAAABM="]),
+        "AAAAAAAAAAAAAAAMc3dhcF90aGVtX2luAAAABQAAAAAAAAAEdXNlcgAAABMAAAAAAAAAD2NvbWV0X2FkZHJlc3NlcwAAAAPqAAAAEwAAAAAAAAAKdG9rZW5zX291dAAAAAAD6gAAABMAAAAAAAAAD3Rva2VuX2Ftb3VudF9pbgAAAAALAAAAAAAAAA5mZWVfcmVjaXBpZW50cwAAAAAD6AAAA+oAAAfQAAAADEZlZVJlY2lwaWVudAAAAAA=",
+        "AAAAAAAAAAAAAAAJY29pbl90aGVtAAAAAAAABQAAAAAAAAAEdXNlcgAAABMAAAAAAAAABmlzc3VlcgAAAAAAEwAAAAAAAAALYXNzZXRfYnl0ZXMAAAAD6gAAAA4AAAAAAAAABXNhbHRzAAAAAAAD6gAAA+4AAAAgAAAAAAAAAAlmZWVfcnVsZXMAAAAAAAPqAAAD6AAAB9AAAAAHRmVlUnVsZQAAAAABAAAD6gAAA+0AAAACAAAAEwAAABM=",
+        "AAAAAAAAAAAAAAAHY29pbl9pdAAAAAAFAAAAAAAAAAR1c2VyAAAAEwAAAAAAAAAGaXNzdWVyAAAAAAATAAAAAAAAAAthc3NldF9ieXRlcwAAAAAOAAAAAAAAAARzYWx0AAAD7gAAACAAAAAAAAAACGZlZV9ydWxlAAAD6AAAB9AAAAAHRmVlUnVsZQAAAAABAAAD7QAAAAIAAAATAAAAEw=="]),
       options
     )
   }
   public readonly fromJSON = {
     update: this.txFromJSON<null>,
     upgrade: this.txFromJSON<null>,
+    swap_them_in: this.txFromJSON<null>,
+    coin_them: this.txFromJSON<Array<readonly [string, string]>>,
     coin_it: this.txFromJSON<readonly [string, string]>
   }
 }

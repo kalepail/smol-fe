@@ -2,12 +2,20 @@
     import { onMount, onDestroy } from "svelte";
     import type { MixtapeDetail, SmolTrackData } from "../../utils/api/mixtapes";
     import { getSmolTrackData } from "../../utils/api/mixtapes";
+    import type { MixtapeTrack } from "../../store/mixtape";
     import Loader from "../Loader.svelte";
     import BarAudioPlayer from "../BarAudioPlayer.svelte";
     import MiniAudioPlayer from "../MiniAudioPlayer.svelte";
     import LikeButton from "../LikeButton.svelte";
+    import TokenBalancePill from "../TokenBalancePill.svelte";
+    import PurchaseModal from "./PurchaseModal.svelte";
     import { playingId, currentSong, selectSong, togglePlayPause, audioProgress } from "../../store/audio";
     import { contractId } from "../../store/contractId";
+    import { keyId } from "../../store/keyId";
+    import { sac } from "../../utils/passkey-kit";
+    import { getTokenBalance } from "../../utils/balance";
+    import { createMintTransaction, submitMintTransaction, MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from "../../utils/mint";
+    import { Client as SmolClient } from "smol-sdk";
 
     export let mixtape: MixtapeDetail | null = null;
 
@@ -20,8 +28,46 @@
     let likes: string[] = []; // Array of liked song IDs
     let likesLoaded = false; // Track if likes have been loaded
 
+    // Mint tracking
+    let trackMintStatus = new Map<string, { minted: boolean; minting: boolean; mintToken: string | null; mintAmm: string | null }>();
+    let trackBalances = new Map<string, bigint>();
+    let mintingTracks = new Set<string>();
+    let mintTimeouts = new Map<string, NodeJS.Timeout>();
+    let mintIntervals = new Map<string, NodeJS.Timeout>();
+
+    // Purchase modal state
+    let showPurchaseModal = false;
+    let isPurchasing = false;
+    let purchaseCurrentStep = "";
+    let purchaseCompletedSteps = new Set<string>();
+
     // Reactive: Check if any audio is currently playing
     $: isAnyPlaying = $playingId !== null && $currentSong !== null;
+
+    // Reactive: Check if fully owned
+    $: fullyOwned = mixtape ? mixtape.tracks.every(track => {
+        const status = trackMintStatus.get(track.id);
+        const balance = trackBalances.get(track.id) || 0n;
+        return status?.minted && balance > 0n;
+    }) : false;
+
+    // Reactive: Build purchase modal data
+    $: tracksToMint = mixtape ? mixtape.tracks.filter(track => {
+        const status = trackMintStatus.get(track.id);
+        return !status?.minted;
+    }).map(track => ({
+        id: track.id,
+        title: trackDataMap.get(track.id)?.title || "Unknown Track"
+    })) : [];
+
+    $: tracksToPurchase = mixtape ? mixtape.tracks.filter(track => {
+        const status = trackMintStatus.get(track.id);
+        const balance = trackBalances.get(track.id) || 0n;
+        return status?.minted && balance === 0n;
+    }).map(track => ({
+        id: track.id,
+        title: trackDataMap.get(track.id)?.title || "Unknown Track"
+    })) : [];
 
     // Reactively update liked states when likes are loaded or change
     $: if (likesLoaded && likes.length >= 0) {
@@ -123,6 +169,21 @@
 
                         // Initialize liked state
                         trackLikedStates.set(track.id, isLiked);
+
+                        // Track mint status
+                        const mintStatus = {
+                            minted: Boolean(d1?.Mint_Token && d1?.Mint_Amm),
+                            minting: false,
+                            mintToken: d1?.Mint_Token || null,
+                            mintAmm: d1?.Mint_Amm || null,
+                        };
+                        trackMintStatus.set(track.id, mintStatus);
+                        trackMintStatus = trackMintStatus;
+
+                        // If minted and user is connected, fetch balance
+                        if (mintStatus.minted && mintStatus.mintToken && $contractId) {
+                            await updateTrackBalance(track.id, mintStatus.mintToken);
+                        }
                     } else {
                         trackDataMap.set(track.id, null);
                     }
@@ -152,7 +213,19 @@
 
         return () => {
             window.removeEventListener("keydown", handleKeyboard);
+
+            // Clean up all mint polling
+            for (const trackId of mintIntervals.keys()) {
+                clearMintPolling(trackId);
+            }
         };
+    });
+
+    onDestroy(() => {
+        // Clean up all mint polling on destroy
+        for (const trackId of mintIntervals.keys()) {
+            clearMintPolling(trackId);
+        }
     });
 
     $: coverUrls = mixtape
@@ -274,9 +347,513 @@
         }
     }
 
-    function handlePurchase() {
-        if (!mixtape) return;
-        alert("Purchasing mixtapes is coming soon. Stay tuned!");
+    function handlePurchaseClick() {
+        if (!$contractId || !$keyId) {
+            alert("Connect your wallet to purchase this mixtape");
+            return;
+        }
+
+        showPurchaseModal = true;
+    }
+
+    async function handlePurchaseConfirm() {
+        if (!mixtape || !$contractId || !$keyId) return;
+
+        const smolContractId = import.meta.env.PUBLIC_SMOL_CONTRACT_ID;
+        if (!smolContractId) {
+            console.error("Missing PUBLIC_SMOL_CONTRACT_ID env var");
+            alert("Purchasing is temporarily unavailable. Please try again later.");
+            return;
+        }
+
+        isPurchasing = true;
+        purchaseCurrentStep = "";
+        purchaseCompletedSteps = new Set();
+
+        try {
+            // Step 1: Mint all unminted tracks
+            if (tracksToMint.length > 0) {
+                purchaseCurrentStep = "mint";
+                await mintAllTracksWithProgress();
+
+                // Wait for all tracks to be minted with timeout
+                const startTime = Date.now();
+                const timeout = MINT_POLL_TIMEOUT;
+
+                while (Date.now() - startTime < timeout) {
+                    const allMinted = mixtape.tracks.every(track => {
+                        const status = trackMintStatus.get(track.id);
+                        return status?.minted;
+                    });
+
+                    if (allMinted) {
+                        break;
+                    }
+
+                    await new Promise(resolve => setTimeout(resolve, MINT_POLL_INTERVAL));
+                }
+
+                // Check if all tracks are now minted
+                const unmintedTracks = mixtape.tracks.filter(track => {
+                    const status = trackMintStatus.get(track.id);
+                    return !status?.minted;
+                });
+
+                if (unmintedTracks.length > 0) {
+                    throw new Error(`Some tracks are still minting. Please wait and try again.`);
+                }
+
+                purchaseCompletedSteps.add("mint");
+                purchaseCompletedSteps = purchaseCompletedSteps;
+            }
+
+            // After minting completes, refresh balances for all minted tracks
+            console.log("Refreshing balances after minting...");
+            const balanceUpdatePromises = mixtape.tracks.map(async (track) => {
+                const status = trackMintStatus.get(track.id);
+                if (status?.minted && status.mintToken) {
+                    await updateTrackBalance(track.id, status.mintToken);
+                }
+            });
+            await Promise.all(balanceUpdatePromises);
+            console.log("Balances refreshed");
+
+            // Build the tokens array for swap_them_in - only include tokens we don't own
+            const tokensOut: string[] = [];
+
+            for (const track of mixtape.tracks) {
+                const status = trackMintStatus.get(track.id);
+                const balance = trackBalances.get(track.id) || 0n;
+
+                // Only include tokens we don't already own
+                if (status?.mintToken && balance === 0n) {
+                    tokensOut.push(status.mintToken);
+                }
+            }
+
+            // Step 2: Purchase remaining tracks
+            if (tokensOut.length > 0) {
+                purchaseCurrentStep = "purchase";
+                await purchaseTracksInBatches(tokensOut, smolContractId);
+                purchaseCompletedSteps.add("purchase");
+                purchaseCompletedSteps = purchaseCompletedSteps;
+            }
+
+            // Refresh balances after successful purchase
+            await refreshAllBalances();
+
+            // Final step
+            purchaseCurrentStep = "complete";
+            purchaseCompletedSteps.add("complete");
+            purchaseCompletedSteps = purchaseCompletedSteps;
+
+            setTimeout(() => {
+                showPurchaseModal = false;
+                isPurchasing = false;
+                purchaseCurrentStep = "";
+                purchaseCompletedSteps = new Set();
+            }, 2000);
+
+        } catch (error) {
+            console.error("Purchase error:", error);
+            alert(error instanceof Error ? error.message : String(error));
+            isPurchasing = false;
+        }
+    }
+
+    async function mintAllTracksWithProgress() {
+        // Don't pre-mark as complete - let pollTrackMintStatus handle it
+        await mintAllTracks();
+    }
+
+    async function purchaseTracksInBatches(tokensOut: string[], smolContractId: string) {
+        if (!mixtape || !$contractId || !$keyId) return;
+
+        const BATCH_SIZE = 9;
+
+        // Build arrays of tokens and their corresponding comet addresses
+        const tokenData: Array<{ token: string; comet: string; trackId: string }> = [];
+
+        for (const track of mixtape.tracks) {
+            const status = trackMintStatus.get(track.id);
+            if (status?.mintToken && status?.mintAmm && tokensOut.includes(status.mintToken)) {
+                tokenData.push({
+                    token: status.mintToken,
+                    comet: status.mintAmm,
+                    trackId: track.id
+                });
+            }
+        }
+
+        const chunks: Array<typeof tokenData> = [];
+        for (let i = 0; i < tokenData.length; i += BATCH_SIZE) {
+            chunks.push(tokenData.slice(i, i + BATCH_SIZE));
+        }
+
+        console.log(`Processing ${tokenData.length} purchases in ${chunks.length} batch(es) of up to ${BATCH_SIZE}`);
+
+        // Process each chunk sequentially
+        for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+            const chunk = chunks[chunkIndex];
+            console.log(`Processing purchase batch ${chunkIndex + 1}/${chunks.length} with ${chunk.length} token(s)`);
+
+            try {
+                const tokensOutChunk = chunk.map(d => d.token);
+                const cometAddressesChunk = chunk.map(d => d.comet);
+
+                await purchaseBatch(tokensOutChunk, cometAddressesChunk, smolContractId);
+
+                // Mark substeps as complete
+                for (const data of chunk) {
+                    purchaseCompletedSteps.add(`purchase-${data.trackId}`);
+                }
+                purchaseCompletedSteps = purchaseCompletedSteps;
+
+            } catch (error) {
+                console.error(`Error processing purchase batch ${chunkIndex + 1}:`, error);
+                throw error;
+            }
+        }
+    }
+
+    async function purchaseBatch(tokensOut: string[], cometAddresses: string[], smolContractId: string) {
+        if (!$contractId || !$keyId) return;
+
+        const costPerToken = 33_0000000n; // 33 KALE per token
+
+        // Create the swap_them_in transaction
+        const smolClient = new SmolClient({
+            contractId: smolContractId,
+            rpcUrl: import.meta.env.PUBLIC_RPC_URL,
+            networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
+        });
+
+        const tx = await smolClient.swap_them_in({
+            user: $contractId,
+            comet_addresses: cometAddresses,
+            tokens_out: tokensOut,
+            token_amount_in: costPerToken, // Per token, not cumulative
+            fee_recipients: undefined,
+        });
+
+        const { rpc } = await import("../../utils/base");
+        const { account, server } = await import("../../utils/passkey-kit");
+
+        const { sequence } = await rpc.getLatestLedger();
+        await account.sign(tx, {
+            keyId: $keyId,
+            expiration: sequence + 60,
+        });
+
+        // Log the XDR for inspection
+        const xdrString = tx.built?.toXDR();
+        console.log("Purchase Batch Transaction XDR:", xdrString);
+        console.log("Tokens in batch:", tokensOut);
+
+        // Submit transaction via passkey server
+        await server.send(tx);
+    }
+
+    async function mintAllTracks() {
+        if (!mixtape || !$contractId || !$keyId) return;
+
+        const smolContractId = import.meta.env.PUBLIC_SMOL_CONTRACT_ID;
+        if (!smolContractId) {
+            console.error("Missing PUBLIC_SMOL_CONTRACT_ID env var");
+            return;
+        }
+
+        // Find all tracks that need minting
+        const tracksToMint = mixtape.tracks.filter(track => {
+            const status = trackMintStatus.get(track.id);
+            return !status?.minted && !status?.minting;
+        });
+
+        if (tracksToMint.length === 0) return;
+
+        // Get track data for all tracks to mint
+        const tracksWithData: Array<{ track: typeof mixtape.tracks[0], trackData: any }> = [];
+        for (const track of tracksToMint) {
+            const trackData = mixtapeTracks.find(t => t?.Id === track.id);
+            if (!trackData?.Address) {
+                console.warn(`No creator address for track ${track.id}`);
+                continue;
+            }
+            tracksWithData.push({ track, trackData });
+        }
+
+        if (tracksWithData.length === 0) return;
+
+        // Mark all tracks as minting upfront
+        for (const { track } of tracksWithData) {
+            mintingTracks.add(track.id);
+            const status = trackMintStatus.get(track.id) || { minted: false, minting: true, mintToken: null, mintAmm: null };
+            status.minting = true;
+            trackMintStatus.set(track.id, status);
+        }
+        mintingTracks = mintingTracks;
+        trackMintStatus = trackMintStatus;
+
+        // Process in chunks of 5
+        const CHUNK_SIZE = 5;
+        const chunks: Array<Array<{ track: typeof mixtape.tracks[0], trackData: any }>> = [];
+
+        for (let i = 0; i < tracksWithData.length; i += CHUNK_SIZE) {
+            chunks.push(tracksWithData.slice(i, i + CHUNK_SIZE));
+        }
+
+        console.log(`Processing ${tracksWithData.length} mints in ${chunks.length} batch(es) of up to ${CHUNK_SIZE}`);
+
+        // Process each chunk sequentially
+        for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+            const chunk = chunks[chunkIndex];
+            console.log(`Processing batch ${chunkIndex + 1}/${chunks.length} with ${chunk.length} track(s)`);
+
+            try {
+                await mintBatch(chunk, smolContractId);
+            } catch (error) {
+                console.error(`Error processing batch ${chunkIndex + 1}:`, error);
+
+                // Mark tracks in failed batch as not minting
+                for (const { track } of chunk) {
+                    const status = trackMintStatus.get(track.id);
+                    if (status) {
+                        status.minting = false;
+                        trackMintStatus.set(track.id, status);
+                    }
+                    mintingTracks.delete(track.id);
+                }
+                trackMintStatus = trackMintStatus;
+                mintingTracks = mintingTracks;
+
+                // Continue to next batch instead of stopping
+                alert(`Batch ${chunkIndex + 1} failed: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        }
+    }
+
+    async function mintBatch(
+        tracksWithData: Array<{ track: MixtapeTrack, trackData: any }>,
+        smolContractId: string
+    ) {
+        if (!$contractId || !$keyId) return;
+
+        // Import dependencies
+        const { Asset } = await import("@stellar/stellar-sdk/minimal");
+        const { rpc } = await import("../../utils/base");
+        const { account } = await import("../../utils/passkey-kit");
+
+        // Prepare arrays for coin_them
+        const assetBytesArray: Buffer[] = [];
+        const saltsArray: Buffer[] = [];
+        const feeRulesArray: Array<{ fee_asset: string; recipients: Array<{ percent: bigint; recipient: string }> } | undefined> = [];
+        const issuer = 'GBVJZCVQIKK7SL2K6NL4BO6ZYNXAGNVBTAQDDNOIJ5VPP3IXCSE2SMOL';
+        const kaleSacId = import.meta.env.PUBLIC_KALE_SAC_ID;
+
+        for (const { track, trackData } of tracksWithData) {
+            const salt = Buffer.from(track.id.padStart(64, "0"), "hex");
+            if (salt.length !== 32) {
+                throw new Error(`Invalid smol identifier for minting: ${track.id}`);
+            }
+
+            const assetCode = track.id.padStart(64, "0").substring(0, 12);
+            const asset = new Asset(assetCode, issuer);
+
+            assetBytesArray.push(Buffer.from(asset.toXDRObject().toXDR()));
+            saltsArray.push(salt);
+
+            // Build fee_rule for this track
+            const creatorAddress = trackData.Address;
+
+            if (creatorAddress === $contractId) {
+                // Same address - give 50% to the single recipient
+                feeRulesArray.push({
+                    fee_asset: kaleSacId,
+                    recipients: [{
+                        percent: 50_00000n, // 50% in stroop format (6 decimals)
+                        recipient: creatorAddress,
+                    }],
+                });
+            } else {
+                // Different addresses - split 25% each
+                feeRulesArray.push({
+                    fee_asset: kaleSacId,
+                    recipients: [
+                        {
+                            percent: 25_00000n, // 25% to creator
+                            recipient: creatorAddress,
+                        },
+                        {
+                            percent: 25_00000n, // 25% to minter (user)
+                            recipient: $contractId,
+                        },
+                    ],
+                });
+            }
+        }
+
+        // Create SmolClient and call coin_them
+        const smolClient = new SmolClient({
+            contractId: smolContractId,
+            rpcUrl: import.meta.env.PUBLIC_RPC_URL,
+            networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
+        });
+
+        let at = await smolClient.coin_them({
+            user: $contractId,
+            issuer,
+            asset_bytes: assetBytesArray,
+            salts: saltsArray,
+            fee_rules: feeRulesArray,
+        });
+
+        // Sign the transaction
+        const { sequence } = await rpc.getLatestLedger();
+        at = await account.sign(at, {
+            keyId: $keyId,
+            expiration: sequence + 60,
+        });
+
+        const xdrString = at.built?.toXDR();
+
+        if (!xdrString) {
+            throw new Error("Failed to build signed coin_them transaction");
+        }
+
+        // Log the XDR for inspection
+        console.log("Batch Mint Transaction XDR:", xdrString);
+        console.log("Tracks in batch:", tracksWithData.map(({ track }) => track.id));
+
+        // Submit to backend
+        const response = await fetch(
+            `${import.meta.env.PUBLIC_API_URL}/mint`,
+            {
+                method: "POST",
+                credentials: "include",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    xdr: xdrString,
+                    ids: tracksWithData.map(({ track }) => track.id)
+                }),
+            },
+        );
+
+        if (!response.ok) {
+            const message = await response.text();
+            throw new Error(message || "Failed to start batch mint workflow");
+        }
+
+        // Start polling for all tracks in this batch
+        for (const { track } of tracksWithData) {
+            const interval = setInterval(() => pollTrackMintStatus(track.id), MINT_POLL_INTERVAL);
+            mintIntervals.set(track.id, interval);
+
+            const timeout = setTimeout(() => {
+                clearMintPolling(track.id);
+                const status = trackMintStatus.get(track.id);
+                if (status) {
+                    status.minting = false;
+                    trackMintStatus.set(track.id, status);
+                    trackMintStatus = trackMintStatus;
+                }
+                mintingTracks.delete(track.id);
+                mintingTracks = mintingTracks;
+            }, MINT_POLL_TIMEOUT);
+            mintTimeouts.set(track.id, timeout);
+
+            // Do initial poll
+            await pollTrackMintStatus(track.id);
+        }
+    }
+
+    async function pollTrackMintStatus(trackId: string) {
+        try {
+            const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/${trackId}`, {
+                credentials: "include",
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const d1 = data?.d1;
+
+                if (d1?.Mint_Token && d1?.Mint_Amm) {
+                    const status = trackMintStatus.get(trackId) || { minted: false, minting: false, mintToken: null, mintAmm: null };
+                    status.minted = true;
+                    status.minting = false;
+                    status.mintToken = d1.Mint_Token;
+                    status.mintAmm = d1.Mint_Amm;
+                    trackMintStatus.set(trackId, status);
+                    trackMintStatus = trackMintStatus;
+
+                    clearMintPolling(trackId);
+                    mintingTracks.delete(trackId);
+                    mintingTracks = mintingTracks;
+
+                    // Mark substep as complete if we're in purchase flow
+                    if (isPurchasing) {
+                        purchaseCompletedSteps.add(`mint-${trackId}`);
+                        purchaseCompletedSteps = purchaseCompletedSteps;
+                    }
+
+                    // Update balance for this track
+                    await updateTrackBalance(trackId, d1.Mint_Token);
+
+                    // Update the track data as well
+                    const index = mixtapeTracks.findIndex(t => t?.Id === trackId);
+                    if (index !== -1 && mixtapeTracks[index]) {
+                        mixtapeTracks[index].Mint_Token = d1.Mint_Token;
+                        mixtapeTracks[index].Mint_Amm = d1.Mint_Amm;
+                    }
+                }
+            }
+        } catch (error) {
+            console.error(`Error polling mint status for ${trackId}:`, error);
+        }
+    }
+
+    async function updateTrackBalance(trackId: string, mintToken: string) {
+        if (!$contractId) return;
+
+        try {
+            const mintTokenClient = sac.getSACClient(mintToken);
+            const balance = await getTokenBalance(mintTokenClient, $contractId);
+            trackBalances.set(trackId, balance);
+            trackBalances = trackBalances;
+        } catch (error) {
+            console.error(`Error fetching balance for ${trackId}:`, error);
+            trackBalances.set(trackId, 0n);
+            trackBalances = trackBalances;
+        }
+    }
+
+    async function refreshAllBalances() {
+        if (!mixtape || !$contractId) return;
+
+        console.log("Refreshing all balances...");
+        const balanceUpdatePromises = mixtape.tracks.map(async (track) => {
+            const status = trackMintStatus.get(track.id);
+            if (status?.minted && status.mintToken) {
+                await updateTrackBalance(track.id, status.mintToken);
+            }
+        });
+        await Promise.all(balanceUpdatePromises);
+        console.log("All balances refreshed");
+    }
+
+    function clearMintPolling(trackId: string) {
+        const interval = mintIntervals.get(trackId);
+        if (interval) {
+            clearInterval(interval);
+            mintIntervals.delete(trackId);
+        }
+
+        const timeout = mintTimeouts.get(trackId);
+        if (timeout) {
+            clearTimeout(timeout);
+            mintTimeouts.delete(trackId);
+        }
     }
 
 
@@ -403,10 +980,32 @@
                             Play All
                         </button>
                     {/if}
-                    <button
-                        class="rounded border border-slate-600 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800"
-                        on:click={handlePurchase}
-                    >Buy Mixtape</button>
+                    {#if fullyOwned && $contractId}
+                        <span class="relative flex items-center justify-center gap-2 rounded px-6 py-2 text-sm font-medium bg-gradient-to-r from-slate-400 to-slate-600">
+                            Fully Owned
+                            <img
+                                src="/owned-badge.png"
+                                alt="Fully Owned Badge"
+                                class="absolute -top-4 -right-7 w-12 h-12 transform rotate-12 z-10"
+                            />
+                        </span>
+                    {:else}
+                        <button
+                            class="flex items-center justify-center gap-2 rounded border border-slate-600 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                            on:click={handlePurchaseClick}
+                            disabled={isPurchasing}
+                        >
+                            {#if isPurchasing}
+                                <Loader classNames="w-4 h-4" />
+                                Processing...
+                            {:else}
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4">
+                                    <path d="M1 1.75A.75.75 0 011.75 1h1.628a1.75 1.75 0 011.734 1.51L5.18 3a65.25 65.25 0 0113.36 1.412.75.75 0 01.58.875 48.645 48.645 0 01-1.618 6.2.75.75 0 01-.712.513H6a2.503 2.503 0 00-2.292 1.5H17.25a.75.75 0 010 1.5H2.76a.75.75 0 01-.748-.807 4.002 4.002 0 012.716-3.486L3.626 2.716a.25.25 0 00-.248-.216H1.75A.75.75 0 011 1.75zM6 17.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15.5 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
+                                </svg>
+                                Buy Mixtape
+                            {/if}
+                        </button>
+                    {/if}
                 </div>
             </div>
         </header>
@@ -428,6 +1027,8 @@
                         {@const isLoading = loadingTracks.has(track.id)}
                         {@const isCurrentTrack = $currentSong?.Id === track.id}
                         {@const isCurrentlyPlaying = isCurrentTrack && $playingId === track.id}
+                        {@const mintStatus = trackMintStatus.get(track.id)}
+                        {@const balance = trackBalances.get(track.id) || 0n}
                         <li
                             class="flex items-center gap-3 rounded-xl border p-4 transition-colors cursor-pointer {isCurrentTrack ? 'border-lime-500 bg-slate-800' : 'border-slate-700 bg-slate-800/80 hover:bg-slate-800/60'}"
                             on:click={() => handleTrackClick(index)}
@@ -479,6 +1080,25 @@
                                                 {tag}
                                             </span>
                                         {/each}
+                                        {#if mintStatus?.minted}
+                                            <span class="text-[10px] bg-emerald-400/20 text-emerald-300 px-2 py-0.5 rounded-full font-medium">
+                                                Minted
+                                            </span>
+                                        {/if}
+                                        {#if mintStatus?.minted && balance > 0n}
+                                            <TokenBalancePill balance={balance} />
+                                        {/if}
+                                    </div>
+                                {:else if mintStatus?.minted || balance > 0n}
+                                    <div class="mt-1 flex flex-wrap gap-1">
+                                        {#if mintStatus?.minted}
+                                            <span class="text-[10px] bg-emerald-400/20 text-emerald-300 px-2 py-0.5 rounded-full font-medium">
+                                                Minted
+                                            </span>
+                                        {/if}
+                                        {#if balance > 0n}
+                                            <TokenBalancePill balance={balance} />
+                                        {/if}
                                     </div>
                                 {/if}
                             </div>
@@ -534,4 +1154,17 @@
     classNames="fixed z-30 p-2 bottom-2 lg:w-full left-4 right-4 lg:max-w-1/2 lg:min-w-[300px] lg:left-1/2 lg:-translate-x-1/2 rounded-md bg-slate-950/50 backdrop-blur-lg border border-white/20 shadow-lg"
     songNext={playNext}
 />
+
+<PurchaseModal
+    isOpen={showPurchaseModal}
+    {tracksToMint}
+    {tracksToPurchase}
+    isProcessing={isPurchasing}
+    currentStep={purchaseCurrentStep}
+    completedSteps={purchaseCompletedSteps}
+    on:close={() => showPurchaseModal = false}
+    on:confirm={handlePurchaseConfirm}
+/>
+
+
 

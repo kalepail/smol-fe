@@ -6,6 +6,7 @@
     import Loader from "./Loader.svelte";
     import LikeButton from "./LikeButton.svelte";
     import MintTradeModal from "./MintTradeModal.svelte";
+    import TokenBalancePill from "./TokenBalancePill.svelte";
     import { contractId } from "../store/contractId";
     import { updateContractBalance } from "../store/contractBalance";
     import { Address, Asset, hash, StrKey, xdr } from "@stellar/stellar-sdk/minimal";
@@ -15,6 +16,8 @@
     import { keypair, publicKey, rpc } from "../utils/base";
     import { account, sac } from "../utils/passkey-kit";
     import { keyId } from "../store/keyId";
+    import { abbreviateNumber, getTokenBalance } from "../utils/balance";
+    import { createMintTransaction, submitMintTransaction, MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from "../utils/mint";
 
     let d1 = data?.d1;
     let kv_do = data?.kv_do;
@@ -41,8 +44,6 @@
     let interval: NodeJS.Timeout | null = null;
     let failed: boolean = false;
     let playlist: string | null = null;
-    const MINT_POLL_INTERVAL = 1000 * 6;
-    const MINT_POLL_TIMEOUT = 1000 * 60 * 5;
     let minting = false;
     let minted = Boolean(d1?.Mint_Token || d1?.Mint_Amm);
     let mintInterval: NodeJS.Timeout | null = null;
@@ -74,34 +75,11 @@
 
     $: if (d1?.Mint_Token && $contractId) {
         mintTokenClient = sac.getSACClient(d1.Mint_Token);
-        mintTokenClient.balance({ id: $contractId }).then(({ result }) => {
-            tradeMintBalance = result;
-        }).catch(() => {
-            tradeMintBalance = 0n;
+        getTokenBalance(mintTokenClient, $contractId).then(balance => {
+            tradeMintBalance = balance;
         });
     } else {
         tradeMintBalance = 0n;
-    }
-
-    function abbreviateNumber(value: bigint): string {
-        const num = Number(value) / 10000000; // Convert from stroops to tokens
-        if (num < 1000) return num.toString();
-
-        const suffixes = ['', 'K', 'M', 'B', 'T'];
-        let suffixIndex = 0;
-        let divisor = 1;
-
-        while (num >= divisor * 1000 && suffixIndex < suffixes.length - 1) {
-            divisor *= 1000;
-            suffixIndex++;
-        }
-
-        const result = num / divisor;
-        if (result % 1 === 0) {
-            return result.toString() + suffixes[suffixIndex];
-        } else {
-            return result.toFixed(result < 10 ? 2 : 1) + suffixes[suffixIndex];
-        }
     }
 
     onMount(async () => {
@@ -299,69 +277,21 @@
             return;
         }
 
-        const salt = Buffer.from(id.padStart(64, "0"), "hex");
-        
-        if (salt.length !== 32) {
-            alert("Invalid smol identifier for minting");
-            return;
-        }
-
         try {
             minting = true;
 
-            const smolClient = new SmolClient({
-                contractId: smolContractId,
+            const xdrString = await createMintTransaction({
+                id,
+                contractId: $contractId,
+                keyId: $keyId,
+                smolContractId,
                 rpcUrl: import.meta.env.PUBLIC_RPC_URL,
                 networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
+                creatorAddress: d1?.Address,
+                kaleSacId: import.meta.env.PUBLIC_KALE_SAC_ID,
             });
 
-            const assetCode = id.padStart(64, "0").substring(0, 12); // Math.floor(Date.now() / 10).toString();
-            const asset = new Asset(assetCode, 'GBVJZCVQIKK7SL2K6NL4BO6ZYNXAGNVBTAQDDNOIJ5VPP3IXCSE2SMOL'); // TODO don't hardcode this
-
-            let at = await smolClient.coin_it({
-                user: $contractId,
-                asset_bytes: asset.toXDRObject().toXDR(),
-                salt,
-                fee_rule: {
-                    fee_asset: import.meta.env.PUBLIC_KALE_SAC_ID,
-                    recipients: [{
-                        percent: 50_00000n, // 50%
-                        recipient: d1?.Address,
-                    }],
-                },
-            });
-
-            const { sequence } = await rpc.getLatestLedger();
-            
-            at = await account.sign(at, {
-                keyId: $keyId,
-                expiration: sequence + 60,
-            });
-
-            const xdrString = at.built?.toXDR();
-            
-            if (!xdrString) {
-                throw new Error("Failed to build signed mint transaction");
-            }
-
-            const response = await fetch(
-                `${import.meta.env.PUBLIC_API_URL}/mint/${id}`,
-                {
-                    method: "POST",
-                    credentials: "include",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        xdr: xdrString,
-                    }),
-                },
-            );
-
-            if (!response.ok) {
-                const message = await response.text();
-                throw new Error(message || "Failed to start mint workflow");
-            }
+            await submitMintTransaction(id, xdrString, import.meta.env.PUBLIC_API_URL);
 
             clearMintPolling();
             mintInterval = setInterval(getGen, MINT_POLL_INTERVAL);
@@ -625,9 +555,7 @@
                                     on:click={openTradeModal}
                                 >
                                     <span>Trade</span>
-                                    {#if tradeMintBalance > 0n}
-                                        <span class="ml-2 text-[10px] bg-sky-400/20 text-sky-300 px-1.5 py-0.5 rounded-full font-medium">{abbreviateNumber(tradeMintBalance)}</span>
-                                    {/if}
+                                    <TokenBalancePill balance={tradeMintBalance} classNames="ml-2" />
                                 </button>
                             {/if}
                         {:else}
