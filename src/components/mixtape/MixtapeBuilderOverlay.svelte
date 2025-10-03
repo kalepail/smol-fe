@@ -230,7 +230,7 @@
             const snapshot = mixtapeDraft.getSnapshot();
             const alreadyAdded = snapshot.tracks.some((track) => track.id === parsed.track?.id);
             if (alreadyAdded) {
-                showStatus("That Smol is already in your mixtape.", "info");
+                tracksForDnd = get(mixtapeDraft).tracks;
                 return;
             }
 
@@ -243,7 +243,6 @@
 
             if (snapshot.tracks.length === 0 || !tracksListEl) {
                 mixtapeDraft.addTrack(normalized);
-                showStatus("Smol added to your mixtape.", "success");
                 tracksForDnd = get(mixtapeDraft).tracks;
                 return;
             }
@@ -286,17 +285,17 @@
 
             <div class="grid flex-1 min-h-0 gap-5 overflow-hidden px-5 py-4 lg:grid-cols-[1.6fr_1fr]">
                 <section
-                    class={`flex flex-col gap-3 rounded-xl min-h-0 border border-transparent transition-all ${
-                        isExternalDragActive ? "outline-2 outline-lime-400 outline-offset-8" : ""
+                    class={`flex flex-col gap-3 rounded-xl min-h-0 outline-1 outline-slate-700 outline-offset-8 transition-all ${
+                        isExternalDragActive ? "outline-2 outline-lime-400! outline-offset-8" : ""
                     }`}
                     on:dragover={handleExternalDragOver}
                     on:dragleave={handleExternalDragLeave}
                     on:drop={handleExternalDrop}
                 >
-                    <header class="flex items-center justify-between text-sm text-slate-300">
-                        <span>{$mixtapeDraft.tracks.length} Smol{$mixtapeDraft.tracks.length === 1 ? "" : "s"} selected</span>
+                    <header class="mt-1 flex items-center justify-between text-sm text-slate-300">
+                        <span class="ml-2">{$mixtapeDraft.tracks.length} Smol{$mixtapeDraft.tracks.length === 1 ? "" : "s"} selected</span>
                         {#if isExternalDragActive}
-                            <span class="text-xs text-lime-300">Drop to add</span>
+                            <span class="text-xs text-lime-300 mr-2">Drop to add</span>
                         {/if}
                     </header>
 
