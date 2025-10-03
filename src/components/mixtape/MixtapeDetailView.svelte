@@ -16,6 +16,7 @@
     import { getTokenBalance } from "../../utils/balance";
     import { createMintTransaction, submitMintTransaction, MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from "../../utils/mint";
     import { Client as SmolClient } from "smol-sdk";
+    import { getDomain } from "tldts";
 
     export let mixtape: MixtapeDetail | null = null;
 
@@ -541,6 +542,7 @@
 
         const { sequence } = await rpc.getLatestLedger();
         await account.sign(tx, {
+            rpId: getDomain(window.location.hostname) ?? undefined,
             keyId: $keyId,
             expiration: sequence + 60,
         });
@@ -709,6 +711,7 @@
         // Sign the transaction
         const { sequence } = await rpc.getLatestLedger();
         at = await account.sign(at, {
+            rpId: getDomain(window.location.hostname) ?? undefined,
             keyId: $keyId,
             expiration: sequence + 60,
         });

@@ -6,6 +6,7 @@
     import { contractId } from "../store/contractId";
     import { keyId } from "../store/keyId";
     import { contractBalance, updateContractBalance } from "../store/contractBalance";
+    import { getDomain } from "tldts";
 
     let to = "";
     let amount = "";
@@ -122,6 +123,7 @@
 
             const { sequence } = await rpc.getLatestLedger();
             tx = await account.sign(tx, {
+                rpId: getDomain(window.location.hostname) ?? undefined,
                 keyId: currentKeyId,
                 expiration: sequence + 60,
             });

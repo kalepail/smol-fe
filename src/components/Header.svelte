@@ -52,14 +52,12 @@
     })
 
     async function login() {
-        const domain = getDomain(window.location.hostname);
-
         const {
             rawResponse,
             keyIdBase64,
             contractId: cid,
         } = await account.connectWallet({
-            rpId: domain ?? undefined,
+            rpId: getDomain(window.location.hostname) ?? undefined,
         });
 
         const jwt = await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {

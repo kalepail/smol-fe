@@ -8,6 +8,7 @@
     import { kale, sac, account, server } from "../utils/passkey-kit";
     import { Client as CometClient } from "comet-sdk";
     import { rpc } from "../utils/base";
+    import { getDomain } from "tldts";
 
     const MAX_PRICE = 170141183460469231731687303715884105727n;
     const BUY_CAP_NUMERATOR = 3333334n;
@@ -389,6 +390,7 @@
 
             const { sequence } = await rpc.getLatestLedger();
             await account.sign(tx, {
+                rpId: getDomain(window.location.hostname) ?? undefined,
                 keyId: currentKeyId,
                 expiration: sequence + 60,
             });
