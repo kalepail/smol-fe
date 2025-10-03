@@ -24,14 +24,7 @@ const MODE_STORAGE_KEY = "smol:mixtape-mode";
 const isBrowser = typeof window !== "undefined";
 
 function createDraftId(): string {
-    if (typeof globalThis !== "undefined" && "crypto" in globalThis) {
-        const cryptoObj = (globalThis as typeof globalThis & { crypto?: Crypto }).crypto;
-        if (cryptoObj && "randomUUID" in cryptoObj) {
-            return cryptoObj.randomUUID();
-        }
-    }
-
-    return `draft-${Date.now()}`;
+    return `draft-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
 function emptyDraft(overrides: Partial<MixtapeDraft> = {}): MixtapeDraft {
