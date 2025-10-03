@@ -18,6 +18,35 @@
 
     let likes: any[] = [];
     let draggingId: string | null = null;
+    let visibleCards = new Set<string>();
+
+    // Intersection Observer action to track visible cards
+    function observeVisibility(node: HTMLElement, smolId: string) {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        visibleCards.add(smolId);
+                    } else {
+                        visibleCards.delete(smolId);
+                    }
+                    visibleCards = visibleCards; // Trigger reactivity
+                });
+            },
+            {
+                rootMargin: '200px', // Load slightly before visible
+                threshold: 0.01
+            }
+        );
+
+        observer.observe(node);
+
+        return {
+            destroy() {
+                observer.disconnect();
+            }
+        };
+    }
 
     contractId.subscribe(async (cid) => {
         if (cid) {
@@ -150,12 +179,15 @@
     class="relative grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2 m-2 pb-10"
 >
     {#each results as smol (smol.Id)}
-        <div class={`flex flex-col rounded overflow-hidden bg-slate-700 transition-all ${
-            draggingId === smol.Id ? "ring-2 ring-lime-400 ring-offset-2 ring-offset-slate-950 scale-105" : ""
-        }`}>
+        <div
+            class={`flex flex-col rounded overflow-hidden bg-slate-700 transition-all ${
+                draggingId === smol.Id ? "ring-2 ring-lime-400 ring-offset-2 ring-offset-slate-950 scale-105" : ""
+            }`}
+            use:observeVisibility={smol.Id}
+        >
             <div
                 class="group relative"
-                draggable={$mixtapeMode.active}
+                draggable={$mixtapeMode.active && visibleCards.has(smol.Id)}
                 on:dragstart={(event) => handleDragStart(event, smol)}
                 on:dragend={handleDragEnd}
             >
@@ -166,7 +198,7 @@
                     loading="lazy"
                 />
 
-                {#if $mixtapeMode.active}
+                {#if $mixtapeMode.active && visibleCards.has(smol.Id)}
                     {#if $mixtapeTrackIds.has(smol.Id)}
                         <span
                             class="absolute left-1.5 top-1.5 rounded-full bg-lime-400 px-2 py-1 text-xs font-semibold text-slate-950"
