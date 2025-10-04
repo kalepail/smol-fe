@@ -1,7 +1,6 @@
 <script lang="ts">
     import MiniAudioPlayer from "./MiniAudioPlayer.svelte";
     import BarAudioPlayer from "./BarAudioPlayer.svelte";
-    import { onMount } from "svelte";
     import Loader from "./Loader.svelte";
     import { Address, hash, StrKey, xdr } from "@stellar/stellar-sdk/minimal";
     import { contractId } from "../store/contractId";
@@ -16,28 +15,27 @@
         togglePlayPause,
     } from "../store/audio";
 
-    export let results: any;
-    export let playlist: string | null;
+    let { results = $bindable(), playlist = null }: any = $props();
 
-    let likes: any[] = [];
+    let likes = $state<any[]>([]);
 
-    contractId.subscribe(async (cid) => {
-        if (cid) {
-            likes = await fetch(`${import.meta.env.PUBLIC_API_URL}/likes`, {
+    $effect(() => {
+        if ($contractId) {
+            fetch(`${import.meta.env.PUBLIC_API_URL}/likes`, {
                 credentials: "include",
             }).then(async (res) => {
-                if (res.ok) return res.json();
-                return [];
-            });
-
-            results = results.map((smol: any) => {
-                smol.Liked = likes.some((id: string) => id === smol.Id);
-                return smol;
+                if (res.ok) {
+                    likes = await res.json();
+                    results = results.map((smol: any) => ({
+                        ...smol,
+                        Liked: likes.some((id: string) => id === smol.Id)
+                    }));
+                }
             });
         }
     });
 
-    onMount(async () => {
+    $effect(() => {
         if ("mediaSession" in navigator) {
             navigator.mediaSession.setActionHandler("previoustrack", () => {
                 const currentIndex = results.findIndex(
@@ -60,22 +58,24 @@
         }
     });
 
-    $: if ("mediaSession" in navigator && $currentSong) {
-        navigator.mediaSession.metadata = new MediaMetadata({
-            title: $currentSong.Title,
-            artist: "Smol",
-            album: "Smol",
-            artwork: [
-                {
-                    src: `${import.meta.env.PUBLIC_API_URL}/image/${$currentSong.Id}.png?scale=8`,
-                    sizes: "512x512",
-                    type: "image/png",
-                },
-            ],
-        });
-    } else if ("mediaSession" in navigator && !$currentSong) {
-        navigator.mediaSession.metadata = null;
-    }
+    $effect(() => {
+        if ("mediaSession" in navigator && $currentSong) {
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: $currentSong.Title,
+                artist: "Smol",
+                album: "Smol",
+                artwork: [
+                    {
+                        src: `${import.meta.env.PUBLIC_API_URL}/image/${$currentSong.Id}.png?scale=8`,
+                        sizes: "512x512",
+                        type: "image/png",
+                    },
+                ],
+            });
+        } else if ("mediaSession" in navigator && !$currentSong) {
+            navigator.mediaSession.metadata = null;
+        }
+    });
 
     function songNext() {
         if (results.length === 0) return;
@@ -94,9 +94,16 @@
     }
 
     async function songLike(smol: any) {
+        const index = results.findIndex((s: any) => s.Id === smol.Id);
+        if (index === -1) return;
+
         try {
-            smol.Liking = true;
-            
+            results[index] = { ...results[index], Liking: true };
+
+            if ($currentSong?.Id === smol.Id) {
+                currentSong.set(results[index]);
+            }
+
             await fetch(`${import.meta.env.PUBLIC_API_URL}/likes/${smol.Id}`, {
                 method: "PUT",
                 credentials: "include",
@@ -104,9 +111,17 @@
                 if (!res.ok) throw await res.text();
             });
 
-            smol.Liked = !smol.Liked;
+            results[index] = { ...results[index], Liked: !results[index].Liked };
+
+            if ($currentSong?.Id === smol.Id) {
+                currentSong.set(results[index]);
+            }
         } finally {
-            smol.Liking = false;
+            results[index] = { ...results[index], Liking: false };
+
+            if ($currentSong?.Id === smol.Id) {
+                currentSong.set(results[index]);
+            }
         }
     }
 </script>

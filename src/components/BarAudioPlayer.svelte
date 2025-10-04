@@ -3,24 +3,22 @@
     import MiniAudioPlayer from "./MiniAudioPlayer.svelte";
     import Loader from "./Loader.svelte";
     import { contractId } from "../store/contractId";
-    import { 
-        playingId, 
-        audioProgress, 
-        audioElement, 
-        currentSong, 
-        setAudioSourceAndLoad, 
-        playAudioInElement, 
-        pauseAudioInElement, 
+    import {
+        playingId,
+        audioProgress,
+        audioElement,
+        currentSong,
+        setAudioSourceAndLoad,
+        playAudioInElement,
+        pauseAudioInElement,
         resetAudioElement,
         updateProgressInStore,
         togglePlayPause
     } from "../store/audio";
 
-    export let classNames: string;
-    export let songNext: () => void;
-    export let onLike: (smol: any) => Promise<void>;
+    let { classNames, songNext, onLike }: any = $props();
 
-    $: {
+    $effect(() => {
         const song = $currentSong;
         const pId = $playingId;
         const audio = $audioElement;
@@ -41,7 +39,7 @@
                 resetAudioElement();
             }
         }
-    }
+    });
 
     function handleTimeUpdate(event: Event) {
         const audio = event.target as HTMLAudioElement;
