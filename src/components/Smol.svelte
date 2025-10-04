@@ -5,11 +5,6 @@
     import { onDestroy, onMount } from "svelte";
     import Loader from "./Loader.svelte";
     import { contractId } from "../store/contractId";
-    import { Address, hash, StrKey, xdr } from "@stellar/stellar-sdk/minimal";
-    import { Client } from "fp-sdk";
-    import { publicKey, rpc } from "../utils/base";
-    import { account } from "../utils/passkey-kit";
-    import { keyId } from "../store/keyId";
 
     let d1 = data?.d1;
     let kv_do = data?.kv_do;
@@ -245,59 +240,10 @@
         if (!d1?.Id) return;
         try {
             liking = true;
-            let xdr_string: string | undefined = undefined;
-            if (liked) {
-                if (!$contractId || !$keyId) return;
 
-                const contract_id: string | undefined = StrKey.encodeContract(
-                    hash(
-                        xdr.HashIdPreimage.envelopeTypeContractId(
-                            new xdr.HashIdPreimageContractId({
-                                networkId: hash(
-                                    Buffer.from(
-                                        import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
-                                    ),
-                                ),
-                                contractIdPreimage:
-                                    xdr.ContractIdPreimage.contractIdPreimageFromAddress(
-                                        new xdr.ContractIdPreimageFromAddress({
-                                            address: Address.fromString(publicKey).toScAddress(),
-                                            salt: Buffer.from(d1.Id, "hex"),
-                                        }),
-                                    ),
-                            }),
-                        ).toXDR(),
-                    ),
-                );
-
-                const contract = new Client({
-                    contractId: contract_id,
-                    rpcUrl: import.meta.env.PUBLIC_RPC_URL,
-                    networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
-                });
-
-                let at = await contract.burn({
-                    from: $contractId,
-                    amount: 1n,
-                });
-
-                const { sequence } = await rpc.getLatestLedger();
-                at = await account.sign(at, {
-                    keyId: $keyId,
-                    expiration: sequence + 60,
-                });
-                xdr_string = at.built?.toXDR();
-            }
-
-            await fetch(`${import.meta.env.PUBLIC_API_URL}/like/${d1.Id}`, {
+            await fetch(`${import.meta.env.PUBLIC_API_URL}/likes/${d1.Id}`, {
                 method: "PUT",
                 credentials: "include",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    xdr: xdr_string,
-                }),
             }).then(async (res) => {
                 if (!res.ok) throw await res.text();
             });

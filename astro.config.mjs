@@ -12,6 +12,9 @@ export default defineConfig({
   output: 'server',
   integrations: [svelte()],
   adapter: cloudflare(),
+  server: {
+    host: 'app.smol.xyz'
+  },
   vite: {
     // optimizeDeps: {
     //   esbuildOptions: {
