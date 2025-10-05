@@ -1,11 +1,15 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
     import { SHADOW_PLACEHOLDER_ITEM_ID } from "svelte-dnd-action";
-    import type { MixtapeTrack } from "../../store/mixtape";
+    import type { MixtapeTrack } from "../../types/domain";
 
-    export let track: MixtapeTrack;
-    export let index: number;
-    export let total: number;
+    interface Props {
+        track: MixtapeTrack;
+        index: number;
+        total: number;
+    }
+
+    let { track, index, total }: Props = $props();
 
     const dispatch = createEventDispatcher<{
         move: { direction: "up" | "down" };

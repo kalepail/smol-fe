@@ -1,28 +1,31 @@
 <script lang="ts">
     import { onMount, onDestroy } from "svelte";
-    import type { MixtapeDetail, SmolTrackData } from "../../utils/api/mixtapes";
-    import { getSmolTrackData } from "../../utils/api/mixtapes";
-    import type { MixtapeTrack } from "../../store/mixtape";
+    import type { MixtapeDetail, SmolTrackData } from "../../services/api/mixtapes";
+    import { getSmolTrackData } from "../../services/api/mixtapes";
+    import type { MixtapeTrack } from "../../types/domain";
     import Loader from "../Loader.svelte";
     import BarAudioPlayer from "../BarAudioPlayer.svelte";
     import MiniAudioPlayer from "../MiniAudioPlayer.svelte";
     import LikeButton from "../LikeButton.svelte";
     import TokenBalancePill from "../TokenBalancePill.svelte";
     import PurchaseModal from "./PurchaseModal.svelte";
-    import { playingId, currentSong, selectSong, togglePlayPause, audioProgress } from "../../store/audio";
-    import { contractId } from "../../store/contractId";
-    import { keyId } from "../../store/keyId";
+    import { audioState, selectSong, togglePlayPause } from "../../stores/audio.svelte";
+    import { userState } from "../../stores/user.svelte";
     import { sac } from "../../utils/passkey-kit";
     import { getTokenBalance } from "../../utils/balance";
     import { createMintTransaction, submitMintTransaction, MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from "../../utils/mint";
     import { Client as SmolClient } from "smol-sdk";
     import { getDomain } from "tldts";
 
-    export let mixtape: MixtapeDetail | null = null;
+    interface Props {
+        mixtape: MixtapeDetail | null;
+    }
+
+    let { mixtape = null }: Props = $props();
 
     let trackDataMap = new Map<string, SmolTrackData | null>();
     let loadingTracks = new Set<string>();
-    let mixtapeTracks: any[] = []; // Full track data for playback
+    let mixtapeTracks: Smol[] = []; // Full track data for playback
     let trackLikedStates = new Map<string, boolean>(); // Track liked states
     let currentTrackIndex = -1;
     let isPlayingAll = false;
@@ -42,48 +45,50 @@
     let purchaseCurrentStep = "";
     let purchaseCompletedSteps = new Set<string>();
 
-    // Reactive: Check if any audio is currently playing
-    $: isAnyPlaying = $playingId !== null && $currentSong !== null;
+    // Check if any audio is currently playing
+    const isAnyPlaying = $derived(audioState.playingId !== null && audioState.currentSong !== null);
 
-    // Reactive: Check if fully owned
-    $: fullyOwned = mixtape ? mixtape.tracks.every(track => {
+    // Check if fully owned
+    const fullyOwned = $derived(mixtape ? mixtape.tracks.every(track => {
         const status = trackMintStatus.get(track.id);
         const balance = trackBalances.get(track.id) || 0n;
         return status?.minted && balance > 0n;
-    }) : false;
+    }) : false);
 
-    // Reactive: Build purchase modal data
-    $: tracksToMint = mixtape ? mixtape.tracks.filter(track => {
+    // Build purchase modal data
+    const tracksToMint = $derived(mixtape ? mixtape.tracks.filter(track => {
         const status = trackMintStatus.get(track.id);
         return !status?.minted;
     }).map(track => ({
         id: track.id,
         title: trackDataMap.get(track.id)?.title || "Unknown Track"
-    })) : [];
+    })) : []);
 
-    $: tracksToPurchase = mixtape ? mixtape.tracks.filter(track => {
+    const tracksToPurchase = $derived(mixtape ? mixtape.tracks.filter(track => {
         const status = trackMintStatus.get(track.id);
         const balance = trackBalances.get(track.id) || 0n;
         return status?.minted && balance === 0n;
     }).map(track => ({
         id: track.id,
         title: trackDataMap.get(track.id)?.title || "Unknown Track"
-    })) : [];
+    })) : []);
 
     // Reactively update liked states when likes are loaded or change
-    $: if (likesLoaded && likes.length >= 0) {
-        // Update liked states for all loaded tracks
-        mixtapeTracks.forEach((track, index) => {
-            if (track?.Id) {
-                const isLiked = likes.includes(track.Id);
-                if (track.Liked !== isLiked) {
-                    track.Liked = isLiked;
-                    trackLikedStates.set(track.Id, isLiked);
+    $effect(() => {
+        if (likesLoaded && likes.length >= 0) {
+            // Update liked states for all loaded tracks
+            mixtapeTracks.forEach((track, index) => {
+                if (track?.Id) {
+                    const isLiked = likes.includes(track.Id);
+                    if (track.Liked !== isLiked) {
+                        track.Liked = isLiked;
+                        trackLikedStates.set(track.Id, isLiked);
+                    }
                 }
-            }
-        });
-        trackLikedStates = trackLikedStates;
-    }
+            });
+            trackLikedStates = trackLikedStates;
+        }
+    });
 
     onMount(() => {
         if (!mixtape) return;
@@ -113,7 +118,7 @@
         // Handle async operations without awaiting
         (async () => {
             // Fetch likes FIRST and wait for it to complete if user is connected
-            if ($contractId && !likesLoaded) {
+            if (userState.contractId && !likesLoaded) {
                 likes = await fetch(`${import.meta.env.PUBLIC_API_URL}/likes`, {
                     credentials: "include",
                 }).then(async (res) => {
@@ -182,7 +187,7 @@
                         trackMintStatus = trackMintStatus;
 
                         // If minted and user is connected, fetch balance
-                        if (mintStatus.minted && mintStatus.mintToken && $contractId) {
+                        if (mintStatus.minted && mintStatus.mintToken && userState.contractId) {
                             await updateTrackBalance(track.id, mintStatus.mintToken);
                         }
                     } else {
@@ -229,14 +234,14 @@
         }
     });
 
-    $: coverUrls = mixtape
+    const coverUrls = $derived(mixtape
         ? Array.from({ length: 4 }, (_, i) => {
               const trackData = mixtape.tracks[i]
                   ? trackDataMap.get(mixtape.tracks[i].id)
                   : null;
               return trackData?.coverUrl ?? null;
           })
-        : [];
+        : []);
 
     function handlePlayAll() {
         if (!mixtape || mixtape.tracks.length === 0) return;
@@ -265,7 +270,7 @@
         if (!track || !track.Song_1) return;
 
         // If clicking the currently selected track, toggle play/pause
-        if ($currentSong?.Id === track.Id) {
+        if (audioState.currentSong?.Id === track.Id) {
             togglePlayPause();
         } else {
             // Otherwise, select and play the new track
@@ -349,7 +354,7 @@
     }
 
     function handlePurchaseClick() {
-        if (!$contractId || !$keyId) {
+        if (!userState.contractId || !userState.keyId) {
             alert("Connect your wallet to purchase this mixtape");
             return;
         }
@@ -358,7 +363,7 @@
     }
 
     async function handlePurchaseConfirm() {
-        if (!mixtape || !$contractId || !$keyId) return;
+        if (!mixtape || !userState.contractId || !userState.keyId) return;
 
         const smolContractId = import.meta.env.PUBLIC_SMOL_CONTRACT_ID;
         if (!smolContractId) {
@@ -468,7 +473,7 @@
     }
 
     async function purchaseTracksInBatches(tokensOut: string[], smolContractId: string) {
-        if (!mixtape || !$contractId || !$keyId) return;
+        if (!mixtape || !userState.contractId || !userState.keyId) return;
 
         const BATCH_SIZE = 9;
 
@@ -518,7 +523,7 @@
     }
 
     async function purchaseBatch(tokensOut: string[], cometAddresses: string[], smolContractId: string) {
-        if (!$contractId || !$keyId) return;
+        if (!userState.contractId || !userState.keyId) return;
 
         const costPerToken = 33_0000000n; // 33 KALE per token
 
@@ -530,7 +535,7 @@
         });
 
         const tx = await smolClient.swap_them_in({
-            user: $contractId,
+            user: userState.contractId,
             comet_addresses: cometAddresses,
             tokens_out: tokensOut,
             token_amount_in: costPerToken, // Per token, not cumulative
@@ -543,7 +548,7 @@
         const { sequence } = await rpc.getLatestLedger();
         await account.sign(tx, {
             rpId: getDomain(window.location.hostname) ?? undefined,
-            keyId: $keyId,
+            keyId: userState.keyId,
             expiration: sequence + 60,
         });
 
@@ -557,7 +562,7 @@
     }
 
     async function mintAllTracks() {
-        if (!mixtape || !$contractId || !$keyId) return;
+        if (!mixtape || !userState.contractId || !userState.keyId) return;
 
         const smolContractId = import.meta.env.PUBLIC_SMOL_CONTRACT_ID;
         if (!smolContractId) {
@@ -638,7 +643,7 @@
         tracksWithData: Array<{ track: MixtapeTrack, trackData: any }>,
         smolContractId: string
     ) {
-        if (!$contractId || !$keyId) return;
+        if (!userState.contractId || !userState.keyId) return;
 
         // Import dependencies
         const { Asset } = await import("@stellar/stellar-sdk/minimal");
@@ -667,7 +672,7 @@
             // Build fee_rule for this track
             const creatorAddress = trackData.Address;
 
-            if (creatorAddress === $contractId) {
+            if (creatorAddress === userState.contractId) {
                 // Same address - give 50% to the single recipient
                 feeRulesArray.push({
                     fee_asset: kaleSacId,
@@ -687,7 +692,7 @@
                         },
                         {
                             percent: 25_00000n, // 25% to minter (user)
-                            recipient: $contractId,
+                            recipient: userState.contractId,
                         },
                     ],
                 });
@@ -702,7 +707,7 @@
         });
 
         let at = await smolClient.coin_them({
-            user: $contractId,
+            user: userState.contractId,
             asset_bytes: assetBytesArray,
             salts: saltsArray,
             fee_rules: feeRulesArray,
@@ -712,7 +717,7 @@
         const { sequence } = await rpc.getLatestLedger();
         at = await account.sign(at, {
             rpId: getDomain(window.location.hostname) ?? undefined,
-            keyId: $keyId,
+            keyId: userState.keyId,
             expiration: sequence + 60,
         });
 
@@ -816,11 +821,11 @@
     }
 
     async function updateTrackBalance(trackId: string, mintToken: string) {
-        if (!$contractId) return;
+        if (!userState.contractId) return;
 
         try {
             const mintTokenClient = sac.getSACClient(mintToken);
-            const balance = await getTokenBalance(mintTokenClient, $contractId);
+            const balance = await getTokenBalance(mintTokenClient, userState.contractId);
             trackBalances.set(trackId, balance);
             trackBalances = trackBalances;
         } catch (error) {
@@ -831,7 +836,7 @@
     }
 
     async function refreshAllBalances() {
-        if (!mixtape || !$contractId) return;
+        if (!mixtape || !userState.contractId) return;
 
         console.log("Refreshing all balances...");
         const balanceUpdatePromises = mixtape.tracks.map(async (track) => {
@@ -860,58 +865,66 @@
 
 
     // Monitor current playing song and update track index
-    $: if ($currentSong && mixtape) {
-        const index = mixtapeTracks.findIndex(t => t?.Id === $currentSong.Id);
-        if (index !== -1 && index !== currentTrackIndex) {
-            currentTrackIndex = index;
-        }
+    $effect(() => {
+        if (audioState.currentSong && mixtape) {
+            const index = mixtapeTracks.findIndex(t => t?.Id === audioState.currentSong.Id);
+            if (index !== -1 && index !== currentTrackIndex) {
+                currentTrackIndex = index;
+            }
 
-        // Sync liked state from currentSong to trackLikedStates
-        if ($currentSong.Id && $currentSong.Liked !== undefined) {
-            const currentLikedState = trackLikedStates.get($currentSong.Id);
-            if (currentLikedState !== $currentSong.Liked) {
-                trackLikedStates.set($currentSong.Id, $currentSong.Liked);
-                trackLikedStates = trackLikedStates;
+            // Sync liked state from currentSong to trackLikedStates
+            if (audioState.currentSong.Id && audioState.currentSong.Liked !== undefined) {
+                const currentLikedState = trackLikedStates.get(audioState.currentSong.Id);
+                if (currentLikedState !== audioState.currentSong.Liked) {
+                    trackLikedStates.set(audioState.currentSong.Id, audioState.currentSong.Liked);
+                    trackLikedStates = trackLikedStates;
+                }
+            }
+
+            // Update media session metadata
+            if ("mediaSession" in navigator) {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: audioState.currentSong.Title || "Unknown Track",
+                    artist: mixtape.title || "Mixtape",
+                    album: mixtape.title || "Smol Mixtape",
+                    artwork: [
+                        {
+                            src: `${import.meta.env.PUBLIC_API_URL}/image/${audioState.currentSong.Id}.png?scale=8`,
+                            sizes: "512x512",
+                            type: "image/png",
+                        },
+                    ],
+                });
             }
         }
-
-        // Update media session metadata
-        if ("mediaSession" in navigator) {
-            navigator.mediaSession.metadata = new MediaMetadata({
-                title: $currentSong.Title || "Unknown Track",
-                artist: mixtape.title || "Mixtape",
-                album: mixtape.title || "Smol Mixtape",
-                artwork: [
-                    {
-                        src: `${import.meta.env.PUBLIC_API_URL}/image/${$currentSong.Id}.png?scale=8`,
-                        sizes: "512x512",
-                        type: "image/png",
-                    },
-                ],
-            });
-        }
-    }
+    });
 
     // Detect when playback stops completely
-    $: if (!$playingId && !$currentSong) {
-        isPlayingAll = false;
-        currentTrackIndex = -1;
+    $effect(() => {
+        if (!audioState.playingId && !audioState.currentSong) {
+            isPlayingAll = false;
+            currentTrackIndex = -1;
 
-        // Clear media session metadata
-        if ("mediaSession" in navigator) {
-            navigator.mediaSession.metadata = null;
+            // Clear media session metadata
+            if ("mediaSession" in navigator) {
+                navigator.mediaSession.metadata = null;
+            }
         }
-    }
+    });
 
     // Auto-disable Play All mode when user pauses (playingId becomes null but currentSong exists)
-    $: if (!$playingId && $currentSong && isPlayingAll) {
-        isPlayingAll = false;
-    }
+    $effect(() => {
+        if (!audioState.playingId && audioState.currentSong && isPlayingAll) {
+            isPlayingAll = false;
+        }
+    });
 
     // Re-enable Play All mode when user resumes playing
-    $: if ($playingId && $currentSong && !isPlayingAll && currentTrackIndex >= 0) {
-        isPlayingAll = true;
-    }
+    $effect(() => {
+        if (audioState.playingId && audioState.currentSong && !isPlayingAll && currentTrackIndex >= 0) {
+            isPlayingAll = true;
+        }
+    });
 
     function truncateAddress(address: string | null): string {
         if (!address) return "";
@@ -982,7 +995,7 @@
                             Play All
                         </button>
                     {/if}
-                    {#if fullyOwned && $contractId}
+                    {#if fullyOwned && userState.contractId}
                         <span class="relative flex items-center justify-center gap-2 rounded px-6 py-2 text-sm font-medium bg-gradient-to-r from-slate-400 to-slate-600">
                             Fully Owned
                             <img
@@ -1027,8 +1040,8 @@
                     {#each mixtape.tracks as track, index (track.id)}
                         {@const trackData = trackDataMap.get(track.id)}
                         {@const isLoading = loadingTracks.has(track.id)}
-                        {@const isCurrentTrack = $currentSong?.Id === track.id}
-                        {@const isCurrentlyPlaying = isCurrentTrack && $playingId === track.id}
+                        {@const isCurrentTrack = audioState.currentSong?.Id === track.id}
+                        {@const isCurrentlyPlaying = isCurrentTrack && audioState.playingId === track.id}
                         {@const mintStatus = trackMintStatus.get(track.id)}
                         {@const balance = trackBalances.get(track.id) || 0n}
                         <li
@@ -1112,10 +1125,10 @@
                                             <div class="relative z-2" on:click|stopPropagation>
                                                 <MiniAudioPlayer
                                                     id={track.id}
-                                                    playing_id={$playingId}
+                                                    playing_id={audioState.playingId}
                                                     songToggle={() => handleTrackClick(index)}
                                                     songNext={playNext}
-                                                    progress={$currentSong?.Id === track.id ? $audioProgress : 0}
+                                                    progress={audioState.currentSong?.Id === track.id ? audioState.progress : 0}
                                                 />
                                             </div>
                                         {/if}
@@ -1135,8 +1148,8 @@
                                                     }
 
                                                     // If this is the currently playing song, update currentSong
-                                                    if ($currentSong?.Id === e.detail.smolId) {
-                                                        $currentSong.Liked = e.detail.liked;
+                                                    if (audioState.currentSong?.Id === e.detail.smolId) {
+                                                        audioState.currentSong.Liked = e.detail.liked;
                                                     }
                                                 }}
                                             />
@@ -1154,10 +1167,10 @@
                                     <div class="relative z-2" on:click|stopPropagation>
                                         <MiniAudioPlayer
                                             id={track.id}
-                                            playing_id={$playingId}
+                                            playing_id={audioState.playingId}
                                             songToggle={() => handleTrackClick(index)}
                                             songNext={playNext}
-                                            progress={$currentSong?.Id === track.id ? $audioProgress : 0}
+                                            progress={audioState.currentSong?.Id === track.id ? audioState.progress : 0}
                                         />
                                     </div>
                                 {/if}
@@ -1177,8 +1190,8 @@
                                             }
 
                                             // If this is the currently playing song, update currentSong
-                                            if ($currentSong?.Id === e.detail.smolId) {
-                                                $currentSong.Liked = e.detail.liked;
+                                            if (audioState.currentSong?.Id === e.detail.smolId) {
+                                                audioState.currentSong.Liked = e.detail.liked;
                                             }
                                         }}
                                     />

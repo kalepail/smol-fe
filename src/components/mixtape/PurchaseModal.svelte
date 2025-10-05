@@ -4,24 +4,35 @@
 
     const dispatch = createEventDispatcher();
 
-    export let isOpen: boolean = false;
-    export let tracksToMint: Array<{ id: string; title: string }> = [];
-    export let tracksToPurchase: Array<{ id: string; title: string }> = [];
-    export let isProcessing: boolean = false;
-    export let currentStep: string = "";
-    export let completedSteps: Set<string> = new Set();
+    interface Props {
+        isOpen?: boolean;
+        tracksToMint?: Array<{ id: string; title: string }>;
+        tracksToPurchase?: Array<{ id: string; title: string }>;
+        isProcessing?: boolean;
+        currentStep?: string;
+        completedSteps?: Set<string>;
+    }
 
-    $: totalMintCost = tracksToMint.length * 100; // 100 KALE per mint
-    $: totalPurchaseCost = tracksToPurchase.length * 33; // 33 KALE per token
-    $: totalCost = totalMintCost + totalPurchaseCost;
-    $: mintBatches = Math.ceil(tracksToMint.length / 5);
-    $: swapBatches = Math.ceil(tracksToPurchase.length / 25);
-    $: totalSignatures = mintBatches + swapBatches;
-    $: estimatedSeconds = totalSignatures * 10; // 10 seconds per transaction
-    $: estimatedMinutes = Math.floor(estimatedSeconds / 60);
-    $: remainingSeconds = estimatedSeconds % 60;
+    let {
+        isOpen = false,
+        tracksToMint = [],
+        tracksToPurchase = [],
+        isProcessing = false,
+        currentStep = "",
+        completedSteps = new Set()
+    }: Props = $props();
 
-    $: steps = [
+    const totalMintCost = $derived(tracksToMint.length * 100); // 100 KALE per mint
+    const totalPurchaseCost = $derived(tracksToPurchase.length * 33); // 33 KALE per token
+    const totalCost = $derived(totalMintCost + totalPurchaseCost);
+    const mintBatches = $derived(Math.ceil(tracksToMint.length / 5));
+    const swapBatches = $derived(Math.ceil(tracksToPurchase.length / 25));
+    const totalSignatures = $derived(mintBatches + swapBatches);
+    const estimatedSeconds = $derived(totalSignatures * 10); // 10 seconds per transaction
+    const estimatedMinutes = $derived(Math.floor(estimatedSeconds / 60));
+    const remainingSeconds = $derived(estimatedSeconds % 60);
+
+    const steps = $derived([
         ...(tracksToMint.length > 0 ? [
             {
                 id: "mint",
@@ -49,7 +60,7 @@
             label: "Mixtape fully owned!",
             detail: "",
         }
-    ];
+    ]);
 
     function handleClose() {
         if (!isProcessing) {

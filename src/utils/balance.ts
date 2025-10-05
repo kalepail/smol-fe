@@ -1,3 +1,5 @@
+import type { sac } from './passkey-kit';
+
 export function abbreviateNumber(value: bigint): string {
     const num = Number(value) / 10000000; // Convert from stroops to tokens
     if (num < 1000) return num.toString();
@@ -20,7 +22,7 @@ export function abbreviateNumber(value: bigint): string {
 }
 
 export async function getTokenBalance(
-    mintTokenClient: any,
+    mintTokenClient: ReturnType<typeof sac.getSACClient>,
     contractId: string
 ): Promise<bigint> {
     try {

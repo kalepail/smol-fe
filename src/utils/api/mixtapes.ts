@@ -1,4 +1,4 @@
-import type { MixtapeDraft } from "../../store/mixtape";
+import type { MixtapeDraft } from "../../types/domain";
 
 export type MixtapeSummary = {
     id: string;

@@ -1,10 +1,8 @@
 <script lang="ts">
     import { createEventDispatcher, onMount } from "svelte";
-    import { get } from "svelte/store";
     import Loader from "./Loader.svelte";
-    import { contractId } from "../store/contractId";
-    import { keyId } from "../store/keyId";
-    import { updateContractBalance } from "../store/contractBalance";
+    import { userState } from "../stores/user.svelte";
+    import { updateContractBalance } from "../stores/balance.svelte";
     import { kale, sac, account, server } from "../utils/passkey-kit";
     import { Client as CometClient } from "comet-sdk";
     import { rpc } from "../utils/base";
@@ -15,12 +13,16 @@
     const BUY_CAP_DENOMINATOR = 10000000n;
     const DISPLAY_TOKEN_NAME = "SMOL";
 
-    export let ammId: string;
-    export let mintTokenId: string;
-    export let songId: string;
-    export let title: string | undefined;
-    export let imageUrl: string | undefined;
-    export let fallbackImage: string | undefined;
+    interface Props {
+        ammId: string;
+        mintTokenId: string;
+        songId: string;
+        title?: string;
+        imageUrl?: string;
+        fallbackImage?: string;
+    }
+
+    let { ammId, mintTokenId, songId, title, imageUrl, fallbackImage }: Props = $props();
 
     const dispatch = createEventDispatcher();
 
@@ -55,8 +57,8 @@
 
     let simulationNonce = 0;
 
-    let currentContractId: string | null = get(contractId);
-    let currentKeyId: string | null = get(keyId);
+    let currentContractId: string | null = userState.contractId;
+    let currentKeyId: string | null = userState.keyId;
 
     function handleKeydown(event: KeyboardEvent) {
         if (event.key === "Escape") {
@@ -65,14 +67,12 @@
         }
     }
 
-    onMount(() => {
-        const unsubContract = contractId.subscribe((value) => {
-            currentContractId = value;
-        });
-        const unsubKey = keyId.subscribe((value) => {
-            currentKeyId = value;
-        });
+    $effect(() => {
+        currentContractId = userState.contractId;
+        currentKeyId = userState.keyId;
+    });
 
+    onMount(() => {
         window.addEventListener("keydown", handleKeydown);
         void initialize();
 
@@ -82,8 +82,6 @@
                 simulationTimer = null;
             }
             window.removeEventListener("keydown", handleKeydown);
-            unsubContract();
-            unsubKey();
         };
     });
 
@@ -316,7 +314,7 @@
         }
     }
 
-    $: {
+    $effect(() => {
         if (previousMode !== mode) {
             previousMode = mode;
             inputAmount = "";
@@ -328,7 +326,7 @@
                 simulationTimer = null;
             }
         }
-    }
+    });
 
     function onAmountInput(event: Event) {
         const target = event.currentTarget as HTMLInputElement;
@@ -426,22 +424,22 @@
         event.stopPropagation();
     };
 
-    $: sellDisabled = maxSellAmount <= 0n;
-    $: actionLabel = submitting
+    const sellDisabled = $derived(maxSellAmount <= 0n);
+    const actionLabel = $derived(submitting
         ? mode === "buy" ? "Buying..." : "Selling..."
-        : mode === "buy" ? `Buy ${DISPLAY_TOKEN_NAME}` : `Sell ${DISPLAY_TOKEN_NAME}`;
-    $: maxBuyDisplay = formatAmount(maxBuyAmount, kaleDecimals);
-    $: maxSellDisplay = formatAmount(maxSellAmount, mintDecimals);
-    $: ammBuyCapDisplay = formatAmount(ammBuyCap, kaleDecimals);
-    $: userKaleDisplay = formatAmount(userKaleBalance, kaleDecimals);
-    $: userMintDisplay = formatAmount(userMintBalance, mintDecimals);
-    $: ammKaleDisplay = formatAmount(ammKaleBalance, kaleDecimals);
-    $: simulatedDisplay = simulatedAmountOut
+        : mode === "buy" ? `Buy ${DISPLAY_TOKEN_NAME}` : `Sell ${DISPLAY_TOKEN_NAME}`);
+    const maxBuyDisplay = $derived(formatAmount(maxBuyAmount, kaleDecimals));
+    const maxSellDisplay = $derived(formatAmount(maxSellAmount, mintDecimals));
+    const ammBuyCapDisplay = $derived(formatAmount(ammBuyCap, kaleDecimals));
+    const userKaleDisplay = $derived(formatAmount(userKaleBalance, kaleDecimals));
+    const userMintDisplay = $derived(formatAmount(userMintBalance, mintDecimals));
+    const ammKaleDisplay = $derived(formatAmount(ammKaleBalance, kaleDecimals));
+    const simulatedDisplay = $derived(simulatedAmountOut
         ? formatAmount(
               simulatedAmountOut,
               lastSimulatedMode === "buy" ? mintDecimals : kaleDecimals,
           )
-        : "–";
+        : "–");
 </script>
 
 <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" on:click={close}>

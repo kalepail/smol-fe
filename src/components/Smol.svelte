@@ -1,20 +1,25 @@
 <script lang="ts">
-    export let id: string | null;
-    export let data: any;
+    import type { SmolDetailResponse } from '../types/domain';
+
+    interface Props {
+        id: string | null;
+        data: SmolDetailResponse | null;
+    }
+
+    let { id, data }: Props = $props();
 
     import { onDestroy, onMount } from "svelte";
     import Loader from "./Loader.svelte";
     import LikeButton from "./LikeButton.svelte";
     import MintTradeModal from "./MintTradeModal.svelte";
     import TokenBalancePill from "./TokenBalancePill.svelte";
-    import { contractId } from "../store/contractId";
-    import { updateContractBalance } from "../store/contractBalance";
+    import { userState } from "../stores/user.svelte";
+    import { updateContractBalance } from "../stores/balance.svelte";
     import { Address, Asset, hash, StrKey, xdr } from "@stellar/stellar-sdk/minimal";
     import { basicNodeSigner } from "@stellar/stellar-sdk/minimal/contract";
     import { Client as SmolClient } from "smol-sdk";
     import { keypair, publicKey, rpc } from "../utils/base";
     import { account, sac } from "../utils/passkey-kit";
-    import { keyId } from "../store/keyId";
     import { abbreviateNumber, getTokenBalance } from "../utils/balance";
     import { createMintTransaction, submitMintTransaction, MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from "../utils/mint";
 
@@ -44,42 +49,43 @@
     let failed: boolean = false;
     let playlist: string | null = null;
     let minting = false;
-    let minted = Boolean(d1?.Mint_Token || d1?.Mint_Amm);
     let mintInterval: NodeJS.Timeout | null = null;
     let mintTimeout: NodeJS.Timeout | null = null;
     let showTradeModal = false;
-    let tradeSongId: string | null = null;
-    let tradeTitle: string | null = null;
-    let tradeImageUrl: string | null = null;
-    let tradeImageFallback: string | null = null;
-    let tradeMintBalance: bigint = 0n;
-    let mintTokenClient: ReturnType<typeof sac.getSACClient> | null = null;
+    let tradeMintBalance = $state<bigint>(0n);
+    let mintTokenClient = $state<ReturnType<typeof sac.getSACClient> | null>(null);
 
-    $: tradeSongId = id ?? d1?.Id ?? null;
-    $: tradeTitle =
+    const tradeSongId = $derived(id ?? d1?.Id ?? null);
+    const tradeTitle = $derived(
         kv_do?.lyrics?.title ??
         kv_do?.description ??
         d1?.Title ??
-        null;
-    $: tradeImageUrl = tradeSongId
+        null
+    );
+    const tradeImageUrl = $derived(tradeSongId
         ? `${import.meta.env.PUBLIC_API_URL}/image/${tradeSongId}.png`
-        : null;
-    $: tradeImageFallback = kv_do?.image_base64
+        : null);
+    const tradeImageFallback = $derived(kv_do?.image_base64
         ? `data:image/png;base64,${kv_do.image_base64}`
-        : null;
-    $: tradeReady = Boolean(tradeSongId && d1?.Mint_Amm && d1?.Mint_Token);
-    $: if (!tradeReady && showTradeModal) {
-        showTradeModal = false;
-    }
+        : null);
+    const tradeReady = $derived(Boolean(tradeSongId && d1?.Mint_Amm && d1?.Mint_Token));
 
-    $: if (d1?.Mint_Token && $contractId) {
-        mintTokenClient = sac.getSACClient(d1.Mint_Token);
-        getTokenBalance(mintTokenClient, $contractId).then(balance => {
-            tradeMintBalance = balance;
-        });
-    } else {
-        tradeMintBalance = 0n;
-    }
+    $effect(() => {
+        if (!tradeReady && showTradeModal) {
+            showTradeModal = false;
+        }
+    });
+
+    $effect(() => {
+        if (d1?.Mint_Token && userState.contractId) {
+            mintTokenClient = sac.getSACClient(d1.Mint_Token);
+            getTokenBalance(mintTokenClient, userState.contractId).then(balance => {
+                tradeMintBalance = balance;
+            });
+        } else {
+            tradeMintBalance = 0n;
+        }
+    });
 
     onMount(async () => {
         switch (data?.wf?.status) {
@@ -205,7 +211,7 @@
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                address: $contractId,
+                address: userState.contractId,
                 prompt,
                 public: is_public,
                 instrumental: is_instrumental,
@@ -243,7 +249,7 @@
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                address: $contractId,
+                address: userState.contractId,
             }),
         }).then(async (res) => {
             if (res.ok) return res.text();
@@ -263,7 +269,7 @@
     async function triggerMint() {
         if (!id || minting || minted) return;
 
-        if (!$contractId || !$keyId) {
+        if (!userState.contractId || !userState.keyId) {
             alert("Connect your wallet to mint");
             return;
         }
@@ -281,8 +287,8 @@
 
             const xdrString = await createMintTransaction({
                 id,
-                contractId: $contractId,
-                keyId: $keyId,
+                contractId: userState.contractId,
+                keyId: userState.keyId,
                 smolContractId,
                 rpcUrl: import.meta.env.PUBLIC_RPC_URL,
                 networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
@@ -351,11 +357,6 @@
     }
 
 
-    // Reactive statement to apply length limit when is_instrumental changes
-    $: if (is_instrumental || !is_instrumental) {
-        limitPromptLength();
-    }
-
     function limitPromptLength() {
         const maxLength = is_instrumental ? 380 : 2280;
         if (prompt.length > maxLength) {
@@ -363,15 +364,22 @@
         }
     }
 
-    $: minted = Boolean(d1?.Mint_Token || d1?.Mint_Amm);
+    // Apply length limit when is_instrumental changes
+    $effect(() => {
+        limitPromptLength();
+    });
 
-    $: if (minted) {
-        minting = false;
-        clearMintPolling();
-        if ($contractId) {
-            updateContractBalance($contractId);
+    const minted = $derived(Boolean(d1?.Mint_Token || d1?.Mint_Amm));
+
+    $effect(() => {
+        if (minted) {
+            minting = false;
+            clearMintPolling();
+            if (userState.contractId) {
+                updateContractBalance(userState.contractId);
+            }
         }
-    }
+    });
 </script>
 
 <!-- TODO add loading icons -->
@@ -379,7 +387,7 @@
 {#if !id}
     <div class="px-2 py-10 bg-slate-900">
         <div class="flex flex-col items-center max-w-[1024px] mx-auto">
-            {#if !$contractId}
+            {#if !userState.contractId}
                 <h1
                     class="bg-rose-950 border border-rose-400 rounded px-2 py-1"
                 >
@@ -525,7 +533,7 @@
                                 >safe</span
                             >
 
-                            {#if d1?.Address === $contractId}
+                            {#if d1?.Address === userState.contractId}
                                 <button
                                     class="uppercase text-xs font-mono ring rounded px-2 py-1
                                 {d1?.Public
@@ -572,7 +580,7 @@
                             </button>
                         {/if}
 
-                        {#if d1?.Address === $contractId}
+                        {#if d1?.Address === userState.contractId}
                             <button
                                 class="uppercase text-xs font-mono ring rounded px-2 py-1 text-rose-500 bg-rose-500/20 ring-rose-500 hover:bg-rose-500/30 ml-2"
                                 aria-label="Delete"
@@ -668,7 +676,7 @@
                                     controls
                                 ></audio>
 
-                                {#if d1?.Address === $contractId}
+                                {#if d1?.Address === userState.contractId}
                                     <input
                                         class="scale-150 m-2"
                                         type="radio"

@@ -1,8 +1,12 @@
 <script lang="ts">
     import { abbreviateNumber } from "../utils/balance";
 
-    export let balance: bigint = 0n;
-    export let classNames: string = "";
+    interface Props {
+        balance?: bigint;
+        classNames?: string;
+    }
+
+    let { balance = 0n, classNames = "" }: Props = $props();
 </script>
 
 {#if balance > 0n}

@@ -1,6 +1,10 @@
 <script lang="ts">
-    export let classNames: string | undefined = undefined
-    export let textColor: string | undefined = 'text-white'
+    interface Props {
+        classNames?: string;
+        textColor?: string;
+    }
+
+    let { classNames = undefined, textColor = 'text-white' }: Props = $props();
 </script>
 
 <svg

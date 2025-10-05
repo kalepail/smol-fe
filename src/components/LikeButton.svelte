@@ -1,13 +1,22 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
     import Loader from "./Loader.svelte";
-    import { contractId } from "../store/contractId";
+    import { userState } from "../stores/user.svelte";
     import { toggleLike } from "../utils/like";
 
-    export let smolId: string;
-    export let liked: boolean = false;
-    export let classNames: string = "p-2 rounded-lg backdrop-blur-xs hover:bg-slate-950/70 transition-colors";
-    export let iconSize: string = "size-5";
+    interface Props {
+        smolId: string;
+        liked?: boolean;
+        classNames?: string;
+        iconSize?: string;
+    }
+
+    let {
+        smolId,
+        liked = false,
+        classNames = "p-2 rounded-lg backdrop-blur-xs hover:bg-slate-950/70 transition-colors",
+        iconSize = "size-5"
+    }: Props = $props();
 
     const dispatch = createEventDispatcher<{
         likeChanged: { smolId: string; liked: boolean };
@@ -16,7 +25,7 @@
     let liking = false;
 
     async function handleLike() {
-        if (!$contractId || liking) return;
+        if (!userState.contractId || liking) return;
 
         try {
             liking = true;
@@ -32,7 +41,7 @@
     }
 </script>
 
-{#if $contractId}
+{#if userState.contractId}
     <button
         class={classNames}
         aria-label={liked ? "Unlike" : "Like"}

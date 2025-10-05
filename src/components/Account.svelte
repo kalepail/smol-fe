@@ -1,11 +1,9 @@
 <script lang="ts">
-    import { onMount, onDestroy } from "svelte";
-    import { get } from "svelte/store";
+    import { onMount } from "svelte";
     import { account, kale, server } from "../utils/passkey-kit";
     import { rpc, truncate } from "../utils/base";
-    import { contractId } from "../store/contractId";
-    import { keyId } from "../store/keyId";
-    import { contractBalance, updateContractBalance } from "../store/contractBalance";
+    import { userState } from "../stores/user.svelte";
+    import { balanceState, updateContractBalance } from "../stores/balance.svelte";
     import { getDomain } from "tldts";
 
     let to = "";
@@ -16,22 +14,6 @@
     let kaleDecimals = 7;
     let decimalsFactor = 10n ** 7n;
 
-    let currentContractId: string | null = null;
-    let currentKeyId: string | null = null;
-
-    const balanceStore = contractBalance;
-
-    const unsubContract = contractId.subscribe((value) => {
-        currentContractId = value;
-    });
-    const unsubKey = keyId.subscribe((value) => {
-        currentKeyId = value;
-    });
-
-    onDestroy(() => {
-        unsubContract();
-        unsubKey();
-    });
 
     onMount(async () => {
         try {
@@ -44,8 +26,8 @@
             decimalsFactor = 10n ** 7n;
         }
 
-        if (currentContractId) {
-            await updateContractBalance(currentContractId);
+        if (userState.contractId) {
+            await updateContractBalance(userState.contractId);
         }
     });
 
@@ -85,7 +67,7 @@
         error = null;
         success = null;
 
-        if (!currentContractId || !currentKeyId) {
+        if (!userState.contractId || !userState.keyId) {
             error = "Connect your wallet before sending KALE.";
             return;
         }
@@ -96,7 +78,7 @@
             return;
         }
 
-        if (destination === currentContractId) {
+        if (destination === userState.contractId) {
             error = "You already control this address.";
             return;
         }
@@ -107,7 +89,7 @@
             return;
         }
 
-        const currentBalance = get(balanceStore);
+        const currentBalance = balanceState.balance;
         if (typeof currentBalance === "bigint" && amountInUnits > currentBalance) {
             error = "Amount exceeds available balance.";
             return;
@@ -116,7 +98,7 @@
         submitting = true;
         try {
             let tx = await kale.transfer({
-                from: currentContractId,
+                from: userState.contractId,
                 to: destination,
                 amount: amountInUnits,
             });
@@ -124,13 +106,13 @@
             const { sequence } = await rpc.getLatestLedger();
             tx = await account.sign(tx, {
                 rpId: getDomain(window.location.hostname) ?? undefined,
-                keyId: currentKeyId,
+                keyId: userState.keyId,
                 expiration: sequence + 60,
             });
 
             await server.send(tx);
 
-            await updateContractBalance(currentContractId);
+            await updateContractBalance(userState.contractId);
 
             const displayAmount = formatKaleBalance(amountInUnits);
             success = `Sent ${displayAmount} KALE to ${truncate(destination, 4)}`;
@@ -148,7 +130,7 @@
 <div class="max-w-[480px] mx-auto px-4 py-10">
     <h2 class="text-2xl font-semibold text-lime-400 mb-4">Account</h2>
 
-    {#if !currentContractId}
+    {#if !userState.contractId}
         <p class="rounded bg-slate-800/80 border border-slate-700 p-4 text-sm text-slate-200">
             Connect your wallet from the header to manage your KALE.
         </p>
@@ -156,10 +138,10 @@
         <div class="space-y-6">
             <div class="rounded bg-slate-800/80 border border-slate-700 p-4">
                 <p class="text-sm text-slate-300">Connected address</p>
-                <p class="font-mono break-all text-slate-100">{currentContractId}</p>
-                {#if typeof $balanceStore === "bigint"}
+                <p class="font-mono break-all text-slate-100">{userState.contractId}</p>
+                {#if typeof balanceState.balance === "bigint"}
                     <p class="mt-2 text-sm text-lime-300">
-                        Balance: {formatKaleBalance($balanceStore)} KALE
+                        Balance: {formatKaleBalance(balanceState.balance)} KALE
                     </p>
                 {/if}
             </div>

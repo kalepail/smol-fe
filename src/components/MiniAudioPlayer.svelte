@@ -1,16 +1,20 @@
 <script lang="ts">
-    export let id;
-    export let playing_id;
-    export let songToggle;
-    export let songNext: Function;
-    export let progress = 0;
+    interface Props {
+        id: string;
+        playing_id: string | null;
+        songToggle: () => void;
+        songNext: Function;
+        progress?: number;
+    }
+
+    let { id, playing_id, songToggle, songNext, progress = 0 }: Props = $props();
 
     const radius = 24;
     const circumference = 2 * Math.PI * radius;
 
-    $: playing = playing_id === id;
-    $: nothing_playing = playing_id === null;
-    $: dash_offset = circumference - (progress / 100) * circumference;
+    const playing = $derived(playing_id === id);
+    const nothing_playing = $derived(playing_id === null);
+    const dash_offset = $derived(circumference - (progress / 100) * circumference);
 </script>
 
 <div class="relative w-9 h-9">

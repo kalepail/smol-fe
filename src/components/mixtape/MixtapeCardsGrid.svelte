@@ -1,7 +1,11 @@
 <script lang="ts">
-    import type { MixtapeSummary } from "../../utils/api/mixtapes";
+    import type { MixtapeSummary } from "../../services/api/mixtapes";
 
-    export let mixtapes: MixtapeSummary[] = [];
+    interface Props {
+        mixtapes?: MixtapeSummary[];
+    }
+
+    let { mixtapes = [] }: Props = $props();
 
     function handlePlayAll(mixtapeId: string) {
         // Navigate to mixtape detail page with autoplay parameter
