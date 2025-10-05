@@ -15,5 +15,5 @@ const results = await fetch(`${import.meta.env.PUBLIC_API_URL}/liked`, {
 <Layout
 	title="Smol – Liked"
 >
-	<Home {results} client:load />
+	<Home {results} client:visible={{rootMargin: "200px"}} />
 </Layout>

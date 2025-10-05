@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import Loader from "../Loader.svelte";
+    import Loader from "../ui/Loader.svelte";
     import MixtapeCardsGrid from "./MixtapeCardsGrid.svelte";
     import { listMixtapes, type MixtapeSummary } from "../../services/api/mixtapes";
 

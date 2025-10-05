@@ -2,6 +2,7 @@ import type { Smol } from '../types/domain';
 
 /**
  * Audio state management using Svelte 5 runes
+ * Pure state only - no DOM manipulation or side effects
  */
 
 // Core reactive state
@@ -17,7 +18,9 @@ export const audioState = $state<{
   progress: 0,
 });
 
-// Derived state function
+/**
+ * Derived state function: Check if audio is currently playing
+ */
 export function isPlaying(): boolean {
   return (
     audioState.playingId !== null &&
@@ -27,75 +30,25 @@ export function isPlaying(): boolean {
 }
 
 /**
- * Set the audio element reference (called from component)
+ * Set the audio element reference (called from component on mount)
  */
 export function setAudioElement(element: HTMLAudioElement | null) {
   audioState.audioElement = element;
 }
 
 /**
- * Set audio source and load it
+ * Update progress (called from component's event handlers)
  */
-export function setAudioSourceAndLoad(url: string) {
-  if (audioState.audioElement) {
-    audioState.audioElement.src = url;
-    audioState.audioElement.load();
-  }
-}
-
-/**
- * Play audio in the element
- */
-export function playAudioInElement() {
-  if (audioState.audioElement && audioState.audioElement.src) {
-    const playPromise = audioState.audioElement.play();
-    if (playPromise !== undefined) {
-      playPromise.catch((error) => {
-        console.error('Error playing audio:', error);
-        audioState.playingId = null;
-      });
-    }
-  }
-}
-
-/**
- * Pause audio in the element
- */
-export function pauseAudioInElement() {
-  if (audioState.audioElement) {
-    audioState.audioElement.pause();
-  }
-}
-
-/**
- * Reset audio element to initial state
- */
-export function resetAudioElement() {
-  if (audioState.audioElement) {
-    audioState.audioElement.pause();
-    audioState.audioElement.src = '';
-    audioState.audioElement.currentTime = 0;
-    audioState.progress = 0;
-  }
-}
-
-/**
- * Update progress in store
- */
-export function updateProgressInStore(currentTime: number, duration: number) {
-  if (audioState.audioElement?.src) {
-    if (duration > 0) {
-      audioState.progress = (currentTime / duration) * 100;
-    } else {
-      audioState.progress = 0;
-    }
+export function updateProgress(currentTime: number, duration: number) {
+  if (duration > 0) {
+    audioState.progress = (currentTime / duration) * 100;
   } else {
     audioState.progress = 0;
   }
 }
 
 /**
- * Select a song, making it the current song and marking it to play
+ * Select a song and mark it to play
  */
 export function selectSong(songData: Smol | null) {
   if (songData) {
@@ -108,46 +61,27 @@ export function selectSong(songData: Smol | null) {
 }
 
 /**
- * Toggle play/pause state of the currently selected song
+ * Toggle play/pause state
  */
 export function togglePlayPause() {
   const { playingId, currentSong } = audioState;
 
-  console.log('togglePlayPause called', {
-    playingId,
-    currentSongId: currentSong?.Id
-  });
-
   if (currentSong) {
     if (playingId === currentSong.Id) {
-      console.log('Pausing - setting playingId to null');
+      // Pause
       audioState.playingId = null;
     } else {
-      console.log('Playing - setting playingId to', currentSong.Id);
+      // Play
       audioState.playingId = currentSong.Id;
     }
-  } else {
-    console.log('No current song, cannot toggle');
   }
 }
 
 /**
- * Get current progress value (for components that need read-only access)
+ * Reset audio state to initial values
  */
-export function getAudioProgress(): number {
-  return audioState.progress;
-}
-
-/**
- * Get current playing ID (for components that need read-only access)
- */
-export function getPlayingId(): string | null {
-  return audioState.playingId;
-}
-
-/**
- * Get current song (for components that need read-only access)
- */
-export function getCurrentSong(): Smol | null {
-  return audioState.currentSong;
+export function resetAudioState() {
+  audioState.playingId = null;
+  audioState.currentSong = null;
+  audioState.progress = 0;
 }

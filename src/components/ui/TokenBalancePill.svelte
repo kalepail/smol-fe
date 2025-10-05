@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { abbreviateNumber } from "../utils/balance";
+    import { abbreviateNumber } from "../../utils/balance";
 
     interface Props {
         balance?: bigint;

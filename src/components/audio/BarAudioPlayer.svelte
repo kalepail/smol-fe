@@ -1,17 +1,13 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
   import MiniAudioPlayer from './MiniAudioPlayer.svelte';
-  import LikeButton from './LikeButton.svelte';
+  import LikeButton from '../ui/LikeButton.svelte';
   import {
     audioState,
     setAudioElement,
-    setAudioSourceAndLoad,
-    playAudioInElement,
-    pauseAudioInElement,
-    resetAudioElement,
-    updateProgressInStore,
+    updateProgress,
     togglePlayPause,
-  } from '../stores/audio.svelte';
+  } from '../../stores/audio.svelte';
 
   interface Props {
     classNames: string;
@@ -20,32 +16,62 @@
 
   let { classNames, songNext }: Props = $props();
 
+  /**
+   * Effect: Sync audio source with current song
+   * When the current song changes, update the audio element's src
+   */
   $effect(() => {
     const song = audioState.currentSong;
-    const pId = audioState.playingId;
     const audio = audioState.audioElement;
 
-    if (audio) {
-      if (song && song.Id && song.Song_1) {
-        const songUrl = `${import.meta.env.PUBLIC_API_URL}/song/${song.Song_1}.mp3`;
-        if (audio.src !== songUrl) {
-          setAudioSourceAndLoad(songUrl);
-        }
+    if (!audio) return;
 
-        if (pId === song.Id) {
-          playAudioInElement();
-        } else {
-          pauseAudioInElement();
-        }
-      } else {
-        resetAudioElement();
+    if (song && song.Id && song.Song_1) {
+      const songUrl = `${import.meta.env.PUBLIC_API_URL}/song/${song.Song_1}.mp3`;
+
+      // Only update src if it's different to avoid reloading
+      if (audio.src !== songUrl) {
+        audio.src = songUrl;
+        audio.load();
       }
+    } else {
+      // No song selected, clear audio
+      audio.pause();
+      audio.src = '';
+      audio.currentTime = 0;
+    }
+  });
+
+  /**
+   * Effect: Sync playback state with playing ID
+   * When playingId changes, play or pause the audio accordingly
+   */
+  $effect(() => {
+    const playingId = audioState.playingId;
+    const currentSong = audioState.currentSong;
+    const audio = audioState.audioElement;
+
+    if (!audio || !audio.src) return;
+
+    if (currentSong && playingId === currentSong.Id) {
+      // Should be playing
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((error) => {
+          console.error('Error playing audio:', error);
+          // Reset playing state on error
+          audioState.playingId = null;
+        });
+      }
+    } else {
+      // Should be paused
+      audio.pause();
     }
   });
 
   function handleTimeUpdate(event: Event) {
     const audio = event.target as HTMLAudioElement;
-    updateProgressInStore(audio.currentTime, audio.duration);
+    updateProgress(audio.currentTime, audio.duration);
   }
 
   function handleEnded() {

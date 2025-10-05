@@ -1,6 +1,6 @@
 <script lang="ts">
     import { createEventDispatcher, onMount } from "svelte";
-    import Loader from "./Loader.svelte";
+    import Loader from "./ui/Loader.svelte";
     import { userState } from "../stores/user.svelte";
     import { updateContractBalance } from "../stores/balance.svelte";
     import { kale, sac, account, server } from "../utils/passkey-kit";

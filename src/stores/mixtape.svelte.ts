@@ -1,4 +1,5 @@
 import type { MixtapeDraft, MixtapeTrack, MixtapeModeState } from '../types/domain';
+import * as storage from '../services/localStorage';
 
 /**
  * Mixtape state management using Svelte 5 runes
@@ -6,7 +7,6 @@ import type { MixtapeDraft, MixtapeTrack, MixtapeModeState } from '../types/doma
 
 const STORAGE_KEY = 'smol:mixtape-draft';
 const MODE_STORAGE_KEY = 'smol:mixtape-mode';
-const isBrowser = typeof window !== 'undefined';
 
 function createDraftId(): string {
   return `draft-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -24,48 +24,34 @@ function emptyDraft(overrides: Partial<MixtapeDraft> = {}): MixtapeDraft {
 }
 
 function loadDraftFromStorage(): MixtapeDraft {
-  if (!isBrowser) return emptyDraft();
+  const parsed = storage.getItem<Partial<MixtapeDraft>>(STORAGE_KEY);
 
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return emptyDraft();
-
-    const parsed = JSON.parse(raw) as Partial<MixtapeDraft>;
-    if (!parsed || typeof parsed !== 'object') {
-      return emptyDraft();
-    }
-
-    const tracks: MixtapeTrack[] = Array.isArray(parsed.tracks)
-      ? parsed.tracks
-          .filter((track) => track && typeof track === 'object' && typeof track.id === 'string')
-          .map((track) => ({
-            id: track.id,
-            title: typeof track.title === 'string' ? track.title : 'Untitled Smol',
-            coverUrl: typeof track.coverUrl === 'string' ? track.coverUrl : null,
-            creator: typeof track.creator === 'string' ? track.creator : null,
-          }))
-      : [];
-
-    return {
-      draftId: typeof parsed.draftId === 'string' ? parsed.draftId : createDraftId(),
-      title: typeof parsed.title === 'string' ? parsed.title : '',
-      description: typeof parsed.description === 'string' ? parsed.description : '',
-      tracks,
-      updatedAt: typeof parsed.updatedAt === 'string' ? parsed.updatedAt : new Date().toISOString(),
-    };
-  } catch (error) {
-    console.warn('Failed to read mixtape draft from storage', error);
+  if (!parsed || typeof parsed !== 'object') {
     return emptyDraft();
   }
+
+  const tracks: MixtapeTrack[] = Array.isArray(parsed.tracks)
+    ? parsed.tracks
+        .filter((track) => track && typeof track === 'object' && typeof track.id === 'string')
+        .map((track) => ({
+          id: track.id,
+          title: typeof track.title === 'string' ? track.title : 'Untitled Smol',
+          coverUrl: typeof track.coverUrl === 'string' ? track.coverUrl : null,
+          creator: typeof track.creator === 'string' ? track.creator : null,
+        }))
+    : [];
+
+  return {
+    draftId: typeof parsed.draftId === 'string' ? parsed.draftId : createDraftId(),
+    title: typeof parsed.title === 'string' ? parsed.title : '',
+    description: typeof parsed.description === 'string' ? parsed.description : '',
+    tracks,
+    updatedAt: typeof parsed.updatedAt === 'string' ? parsed.updatedAt : new Date().toISOString(),
+  };
 }
 
 function persistDraft(draft: MixtapeDraft) {
-  if (!isBrowser) return;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
-  } catch (error) {
-    console.warn('Failed to persist mixtape draft', error);
-  }
+  storage.setItem(STORAGE_KEY, draft);
 }
 
 function touchDraft(draft: MixtapeDraft): MixtapeDraft {
@@ -96,31 +82,19 @@ function dedupeTracks(tracks: MixtapeTrack[]): MixtapeTrack[] {
 }
 
 function loadModeState(): MixtapeModeState {
-  if (!isBrowser) return { active: false };
+  const parsed = storage.getItem<Partial<MixtapeModeState>>(MODE_STORAGE_KEY);
 
-  try {
-    const raw = window.localStorage.getItem(MODE_STORAGE_KEY);
-    if (!raw) return { active: false };
-
-    const parsed = JSON.parse(raw) as Partial<MixtapeModeState> | null;
-    if (!parsed || typeof parsed !== 'object') return { active: false };
-
-    return {
-      active: Boolean(parsed.active),
-    };
-  } catch (error) {
-    console.warn('Failed to read mixtape mode from storage', error);
+  if (!parsed || typeof parsed !== 'object') {
     return { active: false };
   }
+
+  return {
+    active: Boolean(parsed.active),
+  };
 }
 
 function persistModeState(state: MixtapeModeState) {
-  if (!isBrowser) return;
-  try {
-    window.localStorage.setItem(MODE_STORAGE_KEY, JSON.stringify(state));
-  } catch (error) {
-    console.warn('Failed to persist mixtape mode', error);
-  }
+  storage.setItem(MODE_STORAGE_KEY, state);
 }
 
 // Core reactive state
@@ -238,9 +212,7 @@ export function clearDraft() {
   mixtapeDraftState.tracks = newDraft.tracks;
   mixtapeDraftState.updatedAt = newDraft.updatedAt;
 
-  if (isBrowser) {
-    window.localStorage.removeItem(STORAGE_KEY);
-  }
+  storage.removeItem(STORAGE_KEY);
 }
 
 export function loadDraft(draft: MixtapeDraft) {

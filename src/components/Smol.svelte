@@ -9,10 +9,10 @@
     let { id, data }: Props = $props();
 
     import { onDestroy, onMount } from "svelte";
-    import Loader from "./Loader.svelte";
-    import LikeButton from "./LikeButton.svelte";
+    import Loader from "./ui/Loader.svelte";
+    import LikeButton from "./ui/LikeButton.svelte";
     import MintTradeModal from "./MintTradeModal.svelte";
-    import TokenBalancePill from "./TokenBalancePill.svelte";
+    import TokenBalancePill from "./ui/TokenBalancePill.svelte";
     import { userState } from "../stores/user.svelte";
     import { updateContractBalance } from "../stores/balance.svelte";
     import { Address, Asset, hash, StrKey, xdr } from "@stellar/stellar-sdk/minimal";

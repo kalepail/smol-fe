@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import type { Smol, MixtapeTrack } from '../../types/domain';
   import SmolCard from './SmolCard.svelte';
-  import BarAudioPlayer from '../BarAudioPlayer.svelte';
+  import BarAudioPlayer from '../audio/BarAudioPlayer.svelte';
   import { audioState, selectSong } from '../../stores/audio.svelte';
   import { mixtapeDraftState, mixtapeModeState, addTrack } from '../../stores/mixtape.svelte';
   import { userState } from '../../stores/user.svelte';

@@ -3,11 +3,11 @@
     import type { MixtapeDetail, SmolTrackData } from "../../services/api/mixtapes";
     import { getSmolTrackData } from "../../services/api/mixtapes";
     import type { MixtapeTrack } from "../../types/domain";
-    import Loader from "../Loader.svelte";
-    import BarAudioPlayer from "../BarAudioPlayer.svelte";
-    import MiniAudioPlayer from "../MiniAudioPlayer.svelte";
-    import LikeButton from "../LikeButton.svelte";
-    import TokenBalancePill from "../TokenBalancePill.svelte";
+    import Loader from "../ui/Loader.svelte";
+    import BarAudioPlayer from "../audio/BarAudioPlayer.svelte";
+    import MiniAudioPlayer from "../audio/MiniAudioPlayer.svelte";
+    import LikeButton from "../ui/LikeButton.svelte";
+    import TokenBalancePill from "../ui/TokenBalancePill.svelte";
     import PurchaseModal from "./PurchaseModal.svelte";
     import { audioState, selectSong, togglePlayPause } from "../../stores/audio.svelte";
     import { userState } from "../../stores/user.svelte";

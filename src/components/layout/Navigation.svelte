@@ -1,7 +1,22 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { userState } from '../../stores/user.svelte';
 
   const isAuthenticated = $derived(userState.contractId !== null);
+
+  let currentPath = $state(typeof window !== 'undefined' ? location.pathname : '');
+
+  onMount(() => {
+    const updatePath = () => {
+      currentPath = location.pathname;
+    };
+
+    document.addEventListener('astro:page-load', updatePath);
+
+    return () => {
+      document.removeEventListener('astro:page-load', updatePath);
+    };
+  });
 </script>
 
 <div class="flex items-center mr-auto">
@@ -10,18 +25,18 @@
   </h1>
 
   <a
-    class="ml-4 hover:underline {!import.meta.env.SSR && location.pathname.includes('mixtapes') && 'underline'}"
+    class="ml-4 hover:underline {currentPath === '/mixtapes' || currentPath.startsWith('/mixtapes/') ? 'underline' : ''}"
     href="/mixtapes"
   >Mixtapes</a>
 
   {#if isAuthenticated}
     <a
-      class="ml-5 hover:underline {!import.meta.env.SSR && location.pathname.endsWith('created') && 'underline'}"
+      class="ml-5 hover:underline {currentPath === '/created' ? 'underline' : ''}"
       href="/created">Created</a
     >
 
     <a
-      class="mx-5 hover:underline {!import.meta.env.SSR && location.pathname.endsWith('liked') && 'underline'}"
+      class="mx-5 hover:underline {currentPath === '/liked' ? 'underline' : ''}"
       href="/liked">Liked</a
     >
   {/if}

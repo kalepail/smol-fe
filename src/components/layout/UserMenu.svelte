@@ -12,21 +12,44 @@
   } from '../../stores/mixtape.svelte';
   import { account, server } from '../../utils/passkey-kit';
   import { truncate } from '../../utils/base';
-  import Loader from '../Loader.svelte';
+  import Loader from '../ui/Loader.svelte';
 
   interface Props {
     initialKeyId: string | null;
     initialContractId: string | null;
+    initialBalance: string | null;
   }
 
-  let { initialKeyId, initialContractId }: Props = $props();
+  let { initialKeyId, initialContractId, initialBalance }: Props = $props();
+
+  // Initialize user state synchronously from server-rendered props
+  // This prevents flash of unauthenticated state
+  if (initialKeyId && initialContractId && !userState.keyId && !userState.contractId) {
+    userState.contractId = initialContractId;
+    userState.keyId = initialKeyId;
+  }
+
+  // Initialize balance state synchronously from server-rendered props
+  // This prevents flash of loading state
+  if (initialBalance && balanceState.balance === null) {
+    balanceState.balance = BigInt(initialBalance);
+  }
 
   let creating = $state(false);
+  let currentPath = $state(typeof window !== 'undefined' ? location.pathname : '');
+  let initialized = $state(false);
 
   onMount(async () => {
-    setUserAuth(initialContractId, initialKeyId);
+    const updatePath = () => {
+      currentPath = location.pathname;
+    };
 
-    if (userState.keyId) {
+    document.addEventListener('astro:page-load', updatePath);
+
+    // Connect wallet if we have keyId but haven't initialized yet
+    if (userState.keyId && !initialized) {
+      initialized = true;
+
       if (!userState.contractId) {
         const { contractId: cid } = await account.connectWallet({
           rpId: getDomain(window.location.hostname) ?? undefined,
@@ -40,12 +63,19 @@
         });
       }
     }
+
+    return () => {
+      document.removeEventListener('astro:page-load', updatePath);
+    };
   });
 
   $effect(() => {
     const cid = userState.contractId;
     if (cid) {
-      updateContractBalance(cid);
+      // Only fetch balance if we don't already have it (e.g., from server-side render)
+      if (balanceState.balance === null && !balanceState.loading) {
+        updateContractBalance(cid);
+      }
     } else {
       resetBalance();
     }
@@ -201,7 +231,7 @@
       </button>
 
       <a
-        class="hover:underline {!import.meta.env.SSR && location.pathname.endsWith('create') && 'underline'}"
+        class="hover:underline {currentPath === '/create' ? 'underline' : ''}"
         href="/create">+ Create</a
       >
     </div>

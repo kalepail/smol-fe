@@ -13,6 +13,6 @@ const results = await fetch(`${import.meta.env.PUBLIC_API_URL}/playlist/${Astro.
 <Layout
 	title=`Smol – ${Astro.params.playlist}`
 >
-	<Leaderboard smols={results.smols} users={results.users} client:load />
-	<Home results={results.smols} playlist={Astro.params.playlist} client:load />
+	<Leaderboard smols={results.smols} users={results.users} client:visible={{rootMargin: "200px"}} />
+	<Home results={results.smols} playlist={Astro.params.playlist} client:visible={{rootMargin: "200px"}} />
 </Layout>

@@ -1,6 +1,6 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
-    import Loader from "../Loader.svelte";
+    import Loader from "../ui/Loader.svelte";
 
     const dispatch = createEventDispatcher();
 

@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Smol, MixtapeTrack } from '../../types/domain';
-  import LikeButton from '../LikeButton.svelte';
-  import MiniAudioPlayer from '../MiniAudioPlayer.svelte';
+  import LikeButton from '../ui/LikeButton.svelte';
+  import MiniAudioPlayer from '../audio/MiniAudioPlayer.svelte';
   import { audioState, selectSong, togglePlayPause } from '../../stores/audio.svelte';
   import { mixtapeModeState, mixtapeTrackIds } from '../../stores/mixtape.svelte';
 
