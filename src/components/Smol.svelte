@@ -54,6 +54,8 @@
     let showTradeModal = $state(false);
     let tradeMintBalance = $state<bigint>(0n);
     let mintTokenClient = $state<ReturnType<typeof sac.getSACClient> | null>(null);
+    let lastMintToken = $state<string | null>(null);
+    let lastContractId = $state<string | null>(null);
 
     const tradeSongId = $derived(id ?? d1?.Id ?? null);
     const tradeTitle = $derived(
@@ -80,21 +82,26 @@
         const mintToken = d1?.Mint_Token;
         const contractId = userState.contractId;
 
-        if (mintToken && contractId) {
-            const client = sac.getSACClient(mintToken);
+        if (mintToken && contractId && (mintToken !== lastMintToken || contractId !== lastContractId)) {
             untrack(() => {
-                mintTokenClient = client;
-            });
+                lastMintToken = mintToken;
+                lastContractId = contractId;
 
-            getTokenBalance(client, contractId).then(balance => {
-                untrack(() => {
-                    tradeMintBalance = balance;
+                const client = sac.getSACClient(mintToken);
+                mintTokenClient = client;
+
+                getTokenBalance(client, contractId).then(balance => {
+                    untrack(() => {
+                        tradeMintBalance = balance;
+                    });
                 });
             });
-        } else {
+        } else if (!mintToken || !contractId) {
             untrack(() => {
                 mintTokenClient = null;
                 tradeMintBalance = 0n;
+                lastMintToken = null;
+                lastContractId = null;
             });
         }
     });
@@ -627,7 +634,7 @@
                     {/if}
 
                     {#if interval}
-                        <Loader classNames="size-7" />
+                        <Loader classNames="size-7 ml-2" />
                     {/if}
                 </div>
             </li>

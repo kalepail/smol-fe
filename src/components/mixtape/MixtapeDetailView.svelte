@@ -851,46 +851,51 @@
         if (audioState.currentSong && mixtape) {
             const currentSong = audioState.currentSong;
             const index = mixtapeTracks.findIndex(t => t?.Id === currentSong.Id);
-            if (index !== -1 && index !== currentTrackIndex) {
-                currentTrackIndex = index;
-            }
 
-            // Sync liked state from currentSong to trackLikedStates
-            if (currentSong.Id && currentSong.Liked !== undefined) {
-                const currentLikedState = trackLikedStates.get(currentSong.Id);
-                if (currentLikedState !== currentSong.Liked) {
-                    trackLikedStates.set(currentSong.Id, currentSong.Liked);
+            untrack(() => {
+                if (index !== -1 && index !== currentTrackIndex) {
+                    currentTrackIndex = index;
                 }
-            }
 
-            // Update media session metadata
-            if ("mediaSession" in navigator) {
-                navigator.mediaSession.metadata = new MediaMetadata({
-                    title: audioState.currentSong.Title || "Unknown Track",
-                    artist: mixtape.title || "Mixtape",
-                    album: mixtape.title || "Smol Mixtape",
-                    artwork: [
-                        {
-                            src: `${import.meta.env.PUBLIC_API_URL}/image/${audioState.currentSong.Id}.png?scale=8`,
-                            sizes: "512x512",
-                            type: "image/png",
-                        },
-                    ],
-                });
-            }
+                // Sync liked state from currentSong to trackLikedStates
+                if (currentSong.Id && currentSong.Liked !== undefined) {
+                    const currentLikedState = trackLikedStates.get(currentSong.Id);
+                    if (currentLikedState !== currentSong.Liked) {
+                        trackLikedStates.set(currentSong.Id, currentSong.Liked);
+                    }
+                }
+
+                // Update media session metadata
+                if ("mediaSession" in navigator) {
+                    navigator.mediaSession.metadata = new MediaMetadata({
+                        title: currentSong.Title || "Unknown Track",
+                        artist: mixtape.title || "Mixtape",
+                        album: mixtape.title || "Smol Mixtape",
+                        artwork: [
+                            {
+                                src: `${import.meta.env.PUBLIC_API_URL}/image/${currentSong.Id}.png?scale=8`,
+                                sizes: "512x512",
+                                type: "image/png",
+                            },
+                        ],
+                    });
+                }
+            });
         }
     });
 
     // Detect when playback stops completely
     $effect(() => {
         if (!audioState.playingId && !audioState.currentSong) {
-            isPlayingAll = false;
-            currentTrackIndex = -1;
+            untrack(() => {
+                isPlayingAll = false;
+                currentTrackIndex = -1;
 
-            // Clear media session metadata
-            if ("mediaSession" in navigator) {
-                navigator.mediaSession.metadata = null;
-            }
+                // Clear media session metadata
+                if ("mediaSession" in navigator) {
+                    navigator.mediaSession.metadata = null;
+                }
+            });
         }
     });
 

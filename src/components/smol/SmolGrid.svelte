@@ -30,6 +30,7 @@
   let hasMore = $state(initialHasMore);
   let loadingMore = $state(false);
   let likes = $state<string[]>([]);
+  let likesLoaded = $state(false);
   let scrollTrigger = $state<HTMLDivElement | null>(null);
 
   function observeVisibility(node: HTMLElement, smolId: string) {
@@ -60,15 +61,23 @@
 
   $effect(() => {
     const contractId = userState.contractId;
-    if (contractId) {
-      fetchLikedSmols().then((likedIds) => {
-        untrack(() => {
-          likes = likedIds;
-          results = results.map((smol) => ({
-            ...smol,
-            Liked: likedIds.some((id) => id === smol.Id),
-          }));
+    if (contractId && !likesLoaded) {
+      untrack(() => {
+        likesLoaded = true;
+        fetchLikedSmols().then((likedIds) => {
+          untrack(() => {
+            likes = likedIds;
+            results = results.map((smol) => ({
+              ...smol,
+              Liked: likedIds.some((id) => id === smol.Id),
+            }));
+          });
         });
+      });
+    } else if (!contractId && likesLoaded) {
+      untrack(() => {
+        likesLoaded = false;
+        likes = [];
       });
     }
   });
