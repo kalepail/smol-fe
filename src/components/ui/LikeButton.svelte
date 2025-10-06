@@ -23,9 +23,11 @@
     }>();
 
     let liking = $state(false);
+    // Use $state to allow optimistic UI updates (temporary override)
+    // The $effect below ensures we stay in sync with the prop
     let localLiked = $state(liked);
 
-    // Sync localLiked when prop changes
+    // Sync with prop changes while allowing temporary optimistic overrides
     $effect(() => {
         localLiked = liked;
     });

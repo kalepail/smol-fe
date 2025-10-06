@@ -53,7 +53,7 @@
   }
 
   function handleDiscard() {
-    if (!mixtapeDraftHasContent) {
+    if (!mixtapeDraftHasContent.current) {
       clearDraft();
       exitMixtapeMode();
       return;
@@ -202,6 +202,9 @@
     }
   });
 
+  // Sync tracksForDnd with store when not dragging
+  // During drag, tracksForDnd maintains its own state for drag preview
+  // This is a valid $effect use case - not simple derivation
   $effect(() => {
     if (!isDraggingTracks) {
       tracksForDnd = mixtapeDraftState.tracks;

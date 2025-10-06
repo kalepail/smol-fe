@@ -25,9 +25,11 @@ const initialModeState = loadModeStateFromStorage();
 export const mixtapeDraftState = $state<MixtapeDraft>(initialDraft);
 export const mixtapeModeState = $state<MixtapeModeState>(initialModeState);
 
-// Computed properties for backward compatibility
+// Computed properties using object getters
+// Per Svelte 5 rules: Cannot export $derived directly from modules
+// Use getter pattern instead - access these directly (not .value)
 export const mixtapeDraftHasContent = {
-  get value() {
+  get current() {
     return Boolean(
       mixtapeDraftState.title ||
       mixtapeDraftState.description ||
@@ -37,7 +39,7 @@ export const mixtapeDraftHasContent = {
 };
 
 export const mixtapeTrackIds = {
-  get value() {
+  get current() {
     return new Set(mixtapeDraftState.tracks.map((track) => track.id));
   }
 };

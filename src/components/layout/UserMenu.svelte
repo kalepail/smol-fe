@@ -111,7 +111,7 @@
 
   function handleMixtapeClick() {
     if (mixtapeModeState.active) {
-      if (mixtapeDraftHasContent.value) {
+      if (mixtapeDraftHasContent.current) {
         const confirmed = confirm('Exit Mixtape Mode? Your draft will stay saved locally.');
         if (!confirmed) return;
       }
@@ -128,7 +128,7 @@
   <div class="flex items-center gap-3">
     <MixtapeModeToggle
       active={mixtapeModeState.active}
-      hasDraft={mixtapeDraftHasContent.value}
+      hasDraft={mixtapeDraftHasContent.current}
       onClick={handleMixtapeClick}
     />
 

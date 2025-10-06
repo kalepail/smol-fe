@@ -61,6 +61,7 @@
     }
   });
 
+  // Initialize best_song from d1?.Song_1, but preserve manual overrides
   $effect(() => {
     if (d1?.Song_1 && !best_song) {
       best_song = d1.Song_1;

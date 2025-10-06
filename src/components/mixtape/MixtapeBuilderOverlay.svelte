@@ -11,7 +11,7 @@
   }
 
   function handleClose() {
-    if (mixtapeDraftHasContent.value) {
+    if (mixtapeDraftHasContent.current) {
       const confirmed = confirm('Exit Mixtape Mode? Your draft will stay saved locally.');
       if (!confirmed) return;
     }

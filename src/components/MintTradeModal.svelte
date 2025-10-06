@@ -60,8 +60,9 @@
   let ammBuyCap = $state<bigint>(0n);
   let maxSellAmount = $state<bigint>(0n);
 
-  let currentContractId = $state<string | null>(userState.contractId);
-  let currentKeyId = $state<string | null>(userState.keyId);
+  // Derive current user state directly instead of copying to local state
+  let currentContractId = $derived(userState.contractId);
+  let currentKeyId = $derived(userState.keyId);
 
   const simulationHook = useTradeSimulation();
   const executionHook = useTradeExecution();
@@ -72,15 +73,6 @@
       close();
     }
   }
-
-  $effect(() => {
-    const contractId = userState.contractId;
-    const keyId = userState.keyId;
-    untrack(() => {
-      currentContractId = contractId;
-      currentKeyId = keyId;
-    });
-  });
 
   onMount(() => {
     window.addEventListener('keydown', handleKeydown);

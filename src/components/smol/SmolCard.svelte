@@ -33,7 +33,7 @@
     }
   }
 
-  const isInMixtape = $derived(mixtapeTrackIds.value.has(smol.Id));
+  const isInMixtape = $derived(mixtapeTrackIds.current.has(smol.Id));
 </script>
 
 <div
