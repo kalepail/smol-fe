@@ -2,7 +2,7 @@
     import { onMount, onDestroy } from "svelte";
     import type { MixtapeDetail, SmolTrackData } from "../../services/api/mixtapes";
     import { getSmolTrackData } from "../../services/api/mixtapes";
-    import type { MixtapeTrack } from "../../types/domain";
+    import type { MixtapeTrack, Smol } from "../../types/domain";
     import Loader from "../ui/Loader.svelte";
     import BarAudioPlayer from "../audio/BarAudioPlayer.svelte";
     import MiniAudioPlayer from "../audio/MiniAudioPlayer.svelte";
@@ -23,27 +23,27 @@
 
     let { mixtape = null }: Props = $props();
 
-    let trackDataMap = new Map<string, SmolTrackData | null>();
-    let loadingTracks = new Set<string>();
-    let mixtapeTracks: Smol[] = []; // Full track data for playback
-    let trackLikedStates = new Map<string, boolean>(); // Track liked states
-    let currentTrackIndex = -1;
-    let isPlayingAll = false;
-    let likes: string[] = []; // Array of liked song IDs
-    let likesLoaded = false; // Track if likes have been loaded
+    let trackDataMap = $state(new Map<string, SmolTrackData | null>());
+    let loadingTracks = $state(new Set<string>());
+    let mixtapeTracks = $state<Smol[]>([]); // Full track data for playback
+    let trackLikedStates = $state(new Map<string, boolean>()); // Track liked states
+    let currentTrackIndex = $state(-1);
+    let isPlayingAll = $state(false);
+    let likes = $state<string[]>([]); // Array of liked song IDs
+    let likesLoaded = $state(false); // Track if likes have been loaded
 
     // Mint tracking
-    let trackMintStatus = new Map<string, { minted: boolean; minting: boolean; mintToken: string | null; mintAmm: string | null }>();
-    let trackBalances = new Map<string, bigint>();
-    let mintingTracks = new Set<string>();
-    let mintTimeouts = new Map<string, NodeJS.Timeout>();
-    let mintIntervals = new Map<string, NodeJS.Timeout>();
+    let trackMintStatus = $state(new Map<string, { minted: boolean; minting: boolean; mintToken: string | null; mintAmm: string | null }>());
+    let trackBalances = $state(new Map<string, bigint>());
+    let mintingTracks = $state(new Set<string>());
+    let mintTimeouts = $state(new Map<string, NodeJS.Timeout>());
+    let mintIntervals = $state(new Map<string, NodeJS.Timeout>());
 
     // Purchase modal state
-    let showPurchaseModal = false;
-    let isPurchasing = false;
-    let purchaseCurrentStep = "";
-    let purchaseCompletedSteps = new Set<string>();
+    let showPurchaseModal = $state(false);
+    let isPurchasing = $state(false);
+    let purchaseCurrentStep = $state("");
+    let purchaseCompletedSteps = $state(new Set<string>());
 
     // Check if any audio is currently playing
     const isAnyPlaying = $derived(audioState.playingId !== null && audioState.currentSong !== null);
@@ -86,7 +86,6 @@
                     }
                 }
             });
-            trackLikedStates = trackLikedStates;
         }
     });
 
@@ -135,7 +134,6 @@
             // Load track data dynamically - this now runs AFTER likes are loaded
             const loadPromises = mixtape.tracks.map(async (track, index) => {
                 loadingTracks.add(track.id);
-                loadingTracks = loadingTracks; // Trigger reactivity
 
                 try {
                     const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/${track.id}`, {
@@ -184,7 +182,6 @@
                             mintAmm: d1?.Mint_Amm || null,
                         };
                         trackMintStatus.set(track.id, mintStatus);
-                        trackMintStatus = trackMintStatus;
 
                         // If minted and user is connected, fetch balance
                         if (mintStatus.minted && mintStatus.mintToken && userState.contractId) {
@@ -196,9 +193,7 @@
                 } catch (error) {
                     trackDataMap.set(track.id, null);
                 } finally {
-                    trackDataMap = trackDataMap; // Trigger reactivity
                     loadingTracks.delete(track.id);
-                    loadingTracks = loadingTracks; // Trigger reactivity
                 }
             });
 
@@ -410,7 +405,6 @@
                 }
 
                 purchaseCompletedSteps.add("mint");
-                purchaseCompletedSteps = purchaseCompletedSteps;
             }
 
             // After minting completes, refresh balances for all minted tracks
@@ -442,7 +436,6 @@
                 purchaseCurrentStep = "purchase";
                 await purchaseTracksInBatches(tokensOut, smolContractId);
                 purchaseCompletedSteps.add("purchase");
-                purchaseCompletedSteps = purchaseCompletedSteps;
             }
 
             // Refresh balances after successful purchase
@@ -451,7 +444,6 @@
             // Final step
             purchaseCurrentStep = "complete";
             purchaseCompletedSteps.add("complete");
-            purchaseCompletedSteps = purchaseCompletedSteps;
 
             setTimeout(() => {
                 showPurchaseModal = false;
@@ -513,7 +505,6 @@
                 for (const data of chunk) {
                     purchaseCompletedSteps.add(`purchase-${data.trackId}`);
                 }
-                purchaseCompletedSteps = purchaseCompletedSteps;
 
             } catch (error) {
                 console.error(`Error processing purchase batch ${chunkIndex + 1}:`, error);
@@ -530,8 +521,8 @@
         // Create the swap_them_in transaction
         const smolClient = new SmolClient({
             contractId: smolContractId,
-            rpcUrl: import.meta.env.PUBLIC_RPC_URL,
-            networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
+            rpcUrl: import.meta.env.PUBLIC_RPC_URL!,
+            networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE!,
         });
 
         const tx = await smolClient.swap_them_in({
@@ -579,7 +570,7 @@
         if (tracksToMint.length === 0) return;
 
         // Get track data for all tracks to mint
-        const tracksWithData: Array<{ track: typeof mixtape.tracks[0], trackData: any }> = [];
+        const tracksWithData: Array<{ track: MixtapeTrack; trackData: Smol }> = [];
         for (const track of tracksToMint) {
             const trackData = mixtapeTracks.find(t => t?.Id === track.id);
             if (!trackData?.Address) {
@@ -598,12 +589,10 @@
             status.minting = true;
             trackMintStatus.set(track.id, status);
         }
-        mintingTracks = mintingTracks;
-        trackMintStatus = trackMintStatus;
 
         // Process in chunks of 5
         const CHUNK_SIZE = 5;
-        const chunks: Array<Array<{ track: typeof mixtape.tracks[0], trackData: any }>> = [];
+        const chunks: Array<Array<{ track: MixtapeTrack; trackData: Smol }>> = [];
 
         for (let i = 0; i < tracksWithData.length; i += CHUNK_SIZE) {
             chunks.push(tracksWithData.slice(i, i + CHUNK_SIZE));
@@ -630,8 +619,6 @@
                     }
                     mintingTracks.delete(track.id);
                 }
-                trackMintStatus = trackMintStatus;
-                mintingTracks = mintingTracks;
 
                 // Continue to next batch instead of stopping
                 alert(`Batch ${chunkIndex + 1} failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -640,7 +627,7 @@
     }
 
     async function mintBatch(
-        tracksWithData: Array<{ track: MixtapeTrack, trackData: any }>,
+        tracksWithData: Array<{ track: MixtapeTrack; trackData: Smol }>,
         smolContractId: string
     ) {
         if (!userState.contractId || !userState.keyId) return;
@@ -670,7 +657,7 @@
             saltsArray.push(salt);
 
             // Build fee_rule for this track
-            const creatorAddress = trackData.Address;
+            const creatorAddress = trackData.Address!; // Already filtered out tracks without Address
 
             if (creatorAddress === userState.contractId) {
                 // Same address - give 50% to the single recipient
@@ -692,7 +679,7 @@
                         },
                         {
                             percent: 25_00000n, // 25% to minter (user)
-                            recipient: userState.contractId,
+                            recipient: userState.contractId!,
                         },
                     ],
                 });
@@ -702,8 +689,8 @@
         // Create SmolClient and call coin_them
         const smolClient = new SmolClient({
             contractId: smolContractId,
-            rpcUrl: import.meta.env.PUBLIC_RPC_URL,
-            networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
+            rpcUrl: import.meta.env.PUBLIC_RPC_URL!,
+            networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE!,
         });
 
         let at = await smolClient.coin_them({
@@ -763,10 +750,8 @@
                 if (status) {
                     status.minting = false;
                     trackMintStatus.set(track.id, status);
-                    trackMintStatus = trackMintStatus;
                 }
                 mintingTracks.delete(track.id);
-                mintingTracks = mintingTracks;
             }, MINT_POLL_TIMEOUT);
             mintTimeouts.set(track.id, timeout);
 
@@ -792,16 +777,13 @@
                     status.mintToken = d1.Mint_Token;
                     status.mintAmm = d1.Mint_Amm;
                     trackMintStatus.set(trackId, status);
-                    trackMintStatus = trackMintStatus;
 
                     clearMintPolling(trackId);
                     mintingTracks.delete(trackId);
-                    mintingTracks = mintingTracks;
 
                     // Mark substep as complete if we're in purchase flow
                     if (isPurchasing) {
                         purchaseCompletedSteps.add(`mint-${trackId}`);
-                        purchaseCompletedSteps = purchaseCompletedSteps;
                     }
 
                     // Update balance for this track
@@ -827,11 +809,9 @@
             const mintTokenClient = sac.getSACClient(mintToken);
             const balance = await getTokenBalance(mintTokenClient, userState.contractId);
             trackBalances.set(trackId, balance);
-            trackBalances = trackBalances;
         } catch (error) {
             console.error(`Error fetching balance for ${trackId}:`, error);
             trackBalances.set(trackId, 0n);
-            trackBalances = trackBalances;
         }
     }
 
@@ -867,17 +847,17 @@
     // Monitor current playing song and update track index
     $effect(() => {
         if (audioState.currentSong && mixtape) {
-            const index = mixtapeTracks.findIndex(t => t?.Id === audioState.currentSong.Id);
+            const currentSong = audioState.currentSong;
+            const index = mixtapeTracks.findIndex(t => t?.Id === currentSong.Id);
             if (index !== -1 && index !== currentTrackIndex) {
                 currentTrackIndex = index;
             }
 
             // Sync liked state from currentSong to trackLikedStates
-            if (audioState.currentSong.Id && audioState.currentSong.Liked !== undefined) {
-                const currentLikedState = trackLikedStates.get(audioState.currentSong.Id);
-                if (currentLikedState !== audioState.currentSong.Liked) {
-                    trackLikedStates.set(audioState.currentSong.Id, audioState.currentSong.Liked);
-                    trackLikedStates = trackLikedStates;
+            if (currentSong.Id && currentSong.Liked !== undefined) {
+                const currentLikedState = trackLikedStates.get(currentSong.Id);
+                if (currentLikedState !== currentSong.Liked) {
+                    trackLikedStates.set(currentSong.Id, currentSong.Liked);
                 }
             }
 
@@ -948,7 +928,7 @@
                                 src={`${coverUrls[index]}${coverUrls[index]?.includes("?") ? "" : "?scale=4"}`}
                                 alt={mixtape.title}
                                 class="h-full w-full object-cover pixelated"
-                                on:error={(e) => {
+                                onerror={(e) => {
                                     // @ts-ignore
                                     e.currentTarget.style.display = 'none';
                                 }}
@@ -976,7 +956,7 @@
                     {#if isPlayingAll && isAnyPlaying}
                         <button
                             class="flex items-center justify-center gap-2 rounded bg-rose-500 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-600"
-                            on:click={stopPlayAll}
+                            onclick={stopPlayAll}
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
                                 <rect width="6" height="12" x="2" y="2" rx="1"/>
@@ -987,7 +967,7 @@
                     {:else}
                         <button
                             class="flex items-center justify-center gap-2 rounded bg-lime-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-lime-300"
-                            on:click={handlePlayAll}
+                            onclick={handlePlayAll}
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
                                 <path d="M3 3.732a1.5 1.5 0 0 1 2.305-1.265l6.706 4.267a1.5 1.5 0 0 1 0 2.531l-6.706 4.268A1.5 1.5 0 0 1 3 12.267V3.732Z"/>
@@ -1007,7 +987,7 @@
                     {:else}
                         <button
                             class="flex items-center justify-center gap-2 rounded border border-slate-600 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                            on:click={handlePurchaseClick}
+                            onclick={handlePurchaseClick}
                             disabled={isPurchasing}
                         >
                             {#if isPurchasing}
@@ -1046,13 +1026,13 @@
                         {@const balance = trackBalances.get(track.id) || 0n}
                         <li
                             class="flex items-stretch gap-3 rounded-xl border p-3 transition-colors cursor-pointer md:items-center md:p-4 {isCurrentTrack ? 'border-lime-500 bg-slate-800' : 'border-slate-700 bg-slate-800/80 hover:bg-slate-800/60'}"
-                            on:click={() => handleTrackClick(index)}
+                            onclick={() => handleTrackClick(index)}
                         >
                             <a
                                 href={`/${track.id}`}
                                 target="_blank"
                                 class="relative w-20 shrink-0 overflow-hidden rounded-lg bg-slate-900 group md:h-16 md:w-16"
-                                on:click|stopPropagation
+                                onclick={(e) => e.stopPropagation()}
                             >
                                 {#if isLoading}
                                     <div class="flex h-full w-full items-center justify-center">
@@ -1063,7 +1043,7 @@
                                         src={`${trackData.coverUrl}${trackData.coverUrl.includes("?") ? "" : "?scale=4"}`}
                                         alt={trackData.title ?? "Track"}
                                         class="h-full w-full object-cover pixelated transition-transform group-hover:scale-110"
-                                        on:error={(e) => {
+                                        onerror={(e) => {
                                             // @ts-ignore
                                             e.currentTarget.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect fill="%23334155" width="64" height="64"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="%2394a3b8" font-family="monospace" font-size="12">SMOL</text></svg>';
                                         }}
@@ -1122,7 +1102,7 @@
                                 <div class="flex items-center justify-between gap-2 md:hidden">
                                     <div class="flex items-center gap-2">
                                         {#if mixtapeTracks[index]?.Song_1}
-                                            <div class="relative z-2" on:click|stopPropagation>
+                                            <div class="relative z-2" onclick={(e) => e.stopPropagation()}>
                                                 <MiniAudioPlayer
                                                     id={track.id}
                                                     playing_id={audioState.playingId}
@@ -1133,14 +1113,13 @@
                                             </div>
                                         {/if}
 
-                                        <div on:click|stopPropagation>
+                                        <div onclick={(e) => e.stopPropagation()}>
                                             <LikeButton
                                                 smolId={track.id}
                                                 liked={trackLikedStates.get(track.id) || false}
                                                 classNames="p-1.5 rounded-lg hover:bg-slate-700/50 transition-colors"
                                                 on:likeChanged={(e) => {
                                                     trackLikedStates.set(e.detail.smolId, e.detail.liked);
-                                                    trackLikedStates = trackLikedStates;
 
                                                     // Update mixtapeTracks array as well
                                                     if (mixtapeTracks[index]) {
@@ -1164,7 +1143,7 @@
 
                             <div class="hidden md:flex items-center gap-2">
                                 {#if mixtapeTracks[index]?.Song_1}
-                                    <div class="relative z-2" on:click|stopPropagation>
+                                    <div class="relative z-2" onclick={(e) => e.stopPropagation()}>
                                         <MiniAudioPlayer
                                             id={track.id}
                                             playing_id={audioState.playingId}
@@ -1175,14 +1154,13 @@
                                     </div>
                                 {/if}
 
-                                <div on:click|stopPropagation>
+                                <div onclick={(e) => e.stopPropagation()}>
                                     <LikeButton
                                         smolId={track.id}
                                         liked={trackLikedStates.get(track.id) || false}
                                         classNames="p-1.5 rounded-lg hover:bg-slate-700/50 transition-colors"
                                         on:likeChanged={(e) => {
                                             trackLikedStates.set(e.detail.smolId, e.detail.liked);
-                                            trackLikedStates = trackLikedStates;
 
                                             // Update mixtapeTracks array as well
                                             if (mixtapeTracks[index]) {

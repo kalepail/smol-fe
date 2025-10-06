@@ -36,7 +36,7 @@
     >
 
     <a
-      class="mx-5 hover:underline {currentPath === '/liked' ? 'underline' : ''}"
+      class="ml-5 hover:underline {currentPath === '/liked' ? 'underline' : ''}"
       href="/liked">Liked</a
     >
   {/if}

@@ -136,7 +136,7 @@
                     <!-- Scrollable container -->
                     <div
                         bind:this={scrollContainer}
-                        on:scroll={handleScroll}
+                        onscroll={handleScroll}
                         class="overflow-y-auto overflow-x-hidden max-h-[450px] relative min-w-[800px]"
                         style="scrollbar-gutter: stable;"
                     >

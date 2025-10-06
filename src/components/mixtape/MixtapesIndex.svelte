@@ -4,8 +4,8 @@
     import MixtapeCardsGrid from "./MixtapeCardsGrid.svelte";
     import { listMixtapes, type MixtapeSummary } from "../../services/api/mixtapes";
 
-    let mixtapes: MixtapeSummary[] = [];
-    let loading = true;
+    let mixtapes = $state<MixtapeSummary[]>([]);
+    let loading = $state(true);
 
     onMount(async () => {
         loading = true;

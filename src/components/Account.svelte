@@ -6,13 +6,13 @@
     import { balanceState, updateContractBalance } from "../stores/balance.svelte";
     import { getDomain } from "tldts";
 
-    let to = "";
-    let amount = "";
-    let submitting = false;
-    let error: string | null = null;
-    let success: string | null = null;
-    let kaleDecimals = 7;
-    let decimalsFactor = 10n ** 7n;
+    let to = $state("");
+    let amount = $state("");
+    let submitting = $state(false);
+    let error = $state<string | null>(null);
+    let success = $state<string | null>(null);
+    let kaleDecimals = $state(7);
+    let decimalsFactor = $state(10n ** 7n);
 
 
     onMount(async () => {
@@ -146,7 +146,7 @@
                 {/if}
             </div>
 
-            <form class="rounded bg-slate-800/80 border border-slate-700 p-4 space-y-4" on:submit|preventDefault={sendKale}>
+            <form class="rounded bg-slate-800/80 border border-slate-700 p-4 space-y-4" onsubmit={(e) => { e.preventDefault(); sendKale(); }}>
                 <div>
                     <label class="block text-sm text-slate-300 mb-1" for="account-to">Send to</label>
                     <input

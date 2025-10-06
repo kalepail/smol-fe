@@ -125,8 +125,14 @@
   ontimeupdate={handleTimeUpdate}
   onended={handleEnded}
   onloadeddata={() => {
-    if (audioState.currentSong && audioState.playingId === audioState.currentSong.Id) {
-      playAudioInElement();
+    if (audioState.currentSong && audioState.playingId === audioState.currentSong.Id && audioState.audioElement) {
+      const playPromise = audioState.audioElement.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((error) => {
+          console.error('Error playing audio on load:', error);
+          audioState.playingId = null;
+        });
+      }
     }
   }}
 ></audio>

@@ -301,7 +301,7 @@
   <div class="grid flex-1 min-h-0 gap-5 overflow-hidden px-5 py-4 lg:grid-cols-[1.6fr_1fr]">
     <MixtapeTrackList
       tracks={tracksForDnd}
-      {isDraggingTracks}
+      isDragging={isDraggingTracks}
       {isExternalDragActive}
       onConsider={handleTrackConsider}
       onFinalize={handleTrackFinalize}

@@ -11,12 +11,26 @@
   interface Props {
     results: Smol[];
     playlist: string | null;
+    initialCursor?: string | null;
+    hasMore?: boolean;
+    endpoint?: string;
   }
 
-  let { results = $bindable(), playlist }: Props = $props();
+  let {
+    results = $bindable(),
+    playlist,
+    initialCursor = null,
+    hasMore: initialHasMore = false,
+    endpoint = ''
+  }: Props = $props();
 
   let draggingId = $state<string | null>(null);
   let visibleCards = $state(new Set<string>());
+  let cursor = $state(initialCursor);
+  let hasMore = $state(initialHasMore);
+  let loadingMore = $state(false);
+  let likes = $state<string[]>([]);
+  let scrollTrigger = $state<HTMLDivElement | null>(null);
 
   function observeVisibility(node: HTMLElement, smolId: string) {
     const observer = new IntersectionObserver(
@@ -27,7 +41,6 @@
           } else {
             visibleCards.delete(smolId);
           }
-          visibleCards = new Set(visibleCards);
         });
       },
       {
@@ -48,10 +61,11 @@
   $effect(() => {
     const contractId = userState.contractId;
     if (contractId) {
-      fetchLikedSmols().then((likes) => {
+      fetchLikedSmols().then((likedIds) => {
+        likes = likedIds;
         results = results.map((smol) => ({
           ...smol,
-          Liked: likes.some((id) => id === smol.Id),
+          Liked: likedIds.some((id) => id === smol.Id),
         }));
       });
     }
@@ -76,6 +90,29 @@
     if (playlist) {
       localStorage.setItem('smol:playlist', playlist);
     }
+
+    // Infinite scroll observer
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && hasMore && !loadingMore) {
+            loadMore();
+          }
+        });
+      },
+      {
+        rootMargin: '400px',
+        threshold: 0,
+      }
+    );
+
+    if (scrollTrigger) {
+      observer.observe(scrollTrigger);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
   });
 
   $effect(() => {
@@ -152,6 +189,44 @@
       foundSmol.Liked = liked;
     }
   }
+
+  async function loadMore() {
+    if (loadingMore || !hasMore || !cursor) return;
+
+    loadingMore = true;
+
+    try {
+      const baseUrl = endpoint
+        ? `${import.meta.env.PUBLIC_API_URL}/${endpoint}`
+        : import.meta.env.PUBLIC_API_URL;
+      const url = new URL(baseUrl, window.location.origin);
+      url.searchParams.set('limit', '100');
+      url.searchParams.set('cursor', cursor);
+
+      const response = await fetch(url, {
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const newSmols = data.smols || [];
+
+        // Map likes to new smols
+        const smolsWithLikes = newSmols.map((smol: Smol) => ({
+          ...smol,
+          Liked: likes.some((id) => id === smol.Id)
+        }));
+
+        results = [...results, ...smolsWithLikes];
+        cursor = data.pagination?.nextCursor || null;
+        hasMore = data.pagination?.hasMore || false;
+      }
+    } catch (error) {
+      console.error('Failed to load more smols:', error);
+    } finally {
+      loadingMore = false;
+    }
+  }
 </script>
 
 <div
@@ -171,6 +246,14 @@
     </div>
   {/each}
 </div>
+
+{#if hasMore || loadingMore}
+  <div bind:this={scrollTrigger} class="flex justify-center mb-20 py-8">
+    {#if loadingMore}
+      <div class="text-lime-500">Loading...</div>
+    {/if}
+  </div>
+{/if}
 
 <BarAudioPlayer
   classNames="fixed z-30 p-2 bottom-2 lg:w-full left-4 right-4 lg:max-w-1/2 lg:min-w-[300px] lg:left-1/2 lg:-translate-x-1/2 rounded-md bg-slate-950/50 backdrop-blur-lg border border-white/20 shadow-lg"

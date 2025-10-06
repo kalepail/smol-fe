@@ -11,6 +11,9 @@ export interface Smol {
   author?: string;
   Song_1?: string;
   Liked?: boolean;
+  Address?: string;
+  Mint_Token?: string;
+  Mint_Amm?: string;
 }
 
 export interface MixtapeTrack {
@@ -84,14 +87,16 @@ export interface SmolDetailResponse {
       style?: string[];
       lyrics?: string;
     };
-    songs?: Array<{
-      music_id: string;
-      audio?: string;
-      status: number;
-    }>;
+    songs?: SongData[];
   };
   wf?: {
     status: 'queued' | 'running' | 'paused' | 'errored' | 'terminated' | 'complete' | 'waiting' | 'waitingForPause' | 'unknown';
   };
   liked?: boolean;
+}
+
+export interface SongData {
+  music_id: string;
+  audio?: string;
+  status: number;
 }

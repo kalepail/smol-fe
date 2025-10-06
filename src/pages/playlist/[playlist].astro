@@ -3,16 +3,21 @@ import Home from "../../components/Home.svelte";
 import Leaderboard from "../../components/Leaderboard.svelte";
 import Layout from "../../layouts/Layout.astro";
 
-const results = await fetch(`${import.meta.env.PUBLIC_API_URL}/playlist/${Astro.params.playlist}`)
+const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/playlist/${Astro.params.playlist}?limit=100`)
 .then((res) => {
 	if (res.ok) return res.json();
-	return [];
+	return { smols: [], users: [], pagination: { nextCursor: null, hasMore: false } };
 });
+
+const results = response.smols || [];
+const users = response.users || [];
+const initialCursor = response.pagination?.nextCursor || null;
+const hasMore = response.pagination?.hasMore || false;
 ---
 
 <Layout
 	title=`Smol – ${Astro.params.playlist}`
 >
-	<Leaderboard smols={results.smols} users={results.users} client:visible={{rootMargin: "200px"}} />
-	<Home results={results.smols} playlist={Astro.params.playlist} client:visible={{rootMargin: "200px"}} />
+	<Leaderboard smols={results} {users} client:visible={{rootMargin: "200px"}} />
+	<Home {results} {initialCursor} {hasMore} playlist={Astro.params.playlist} endpoint={`playlist/${Astro.params.playlist}`} client:visible={{rootMargin: "200px"}} />
 </Layout>

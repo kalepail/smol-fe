@@ -5,9 +5,18 @@
   interface Props {
     results: Smol[];
     playlist?: string | null;
+    initialCursor?: string | null;
+    hasMore?: boolean;
+    endpoint?: string;
   }
 
-  let { results, playlist = null }: Props = $props();
+  let {
+    results,
+    playlist = null,
+    initialCursor = null,
+    hasMore = false,
+    endpoint = ''
+  }: Props = $props();
 </script>
 
-<SmolGrid {results} {playlist} />
+<SmolGrid {results} {playlist} {initialCursor} {hasMore} {endpoint} />

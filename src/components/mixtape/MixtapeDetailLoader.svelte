@@ -10,8 +10,8 @@
 
     let { mixtapeId }: Props = $props();
 
-    let mixtape: MixtapeDetail | null = null;
-    let loading = true;
+    let mixtape = $state<MixtapeDetail | null>(null);
+    let loading = $state(true);
 
     onMount(async () => {
         loading = true;

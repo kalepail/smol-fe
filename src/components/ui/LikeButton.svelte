@@ -22,15 +22,21 @@
         likeChanged: { smolId: string; liked: boolean };
     }>();
 
-    let liking = false;
+    let liking = $state(false);
+    let localLiked = $state(liked);
+
+    // Sync localLiked when prop changes
+    $effect(() => {
+        localLiked = liked;
+    });
 
     async function handleLike() {
         if (!userState.contractId || liking) return;
 
         try {
             liking = true;
-            const newLikedState = await toggleLike(smolId, liked);
-            liked = newLikedState;
+            const newLikedState = await toggleLike(smolId, localLiked);
+            localLiked = newLikedState;
             dispatch("likeChanged", { smolId, liked: newLikedState });
         } catch (error) {
             console.error("Failed to toggle like:", error);
@@ -44,13 +50,13 @@
 {#if userState.contractId}
     <button
         class={classNames}
-        aria-label={liked ? "Unlike" : "Like"}
+        aria-label={localLiked ? "Unlike" : "Like"}
         disabled={liking}
-        on:click={handleLike}
+        onclick={handleLike}
     >
         {#if liking}
             <Loader classNames={iconSize} />
-        {:else if liked}
+        {:else if localLiked}
             <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"

@@ -23,9 +23,9 @@
     import { abbreviateNumber, getTokenBalance } from "../utils/balance";
     import { createMintTransaction, submitMintTransaction, MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from "../utils/mint";
 
-    let d1 = data?.d1;
-    let kv_do = data?.kv_do;
-    let liked = data?.liked;
+    let d1 = $state<SmolDetailResponse['d1']>(data?.d1);
+    let kv_do = $state<SmolDetailResponse['kv_do']>(data?.kv_do);
+    let liked = $state(data?.liked);
 
     // TODO
     // tweak just the song vs the image
@@ -40,18 +40,18 @@
     // toggle private vs public
     // only show action buttons like public/private and delete if we're the song author
 
-    let prompt: string = "";
-    let is_public: boolean = true;
-    let is_instrumental: boolean = false;
-    let best_song: string = d1?.Song_1;
-    let audioElements: HTMLAudioElement[] = [];
-    let interval: NodeJS.Timeout | null = null;
-    let failed: boolean = false;
-    let playlist: string | null = null;
-    let minting = false;
-    let mintInterval: NodeJS.Timeout | null = null;
-    let mintTimeout: NodeJS.Timeout | null = null;
-    let showTradeModal = false;
+    let prompt = $state("");
+    let is_public = $state(true);
+    let is_instrumental = $state(false);
+    let best_song = $derived(d1?.Song_1);
+    let audioElements = $state<HTMLAudioElement[]>([]);
+    let interval = $state<NodeJS.Timeout | null>(null);
+    let failed = $state(false);
+    let playlist = $state<string | null>(null);
+    let minting = $state(false);
+    let mintInterval = $state<NodeJS.Timeout | null>(null);
+    let mintTimeout = $state<NodeJS.Timeout | null>(null);
+    let showTradeModal = $state(false);
     let tradeMintBalance = $state<bigint>(0n);
     let mintTokenClient = $state<ReturnType<typeof sac.getSACClient> | null>(null);
 
@@ -169,7 +169,9 @@
             credentials: "include",
         });
 
-        d1.Public = d1.Public === 1 ? 0 : 1;
+        if (d1) {
+            d1.Public = d1.Public === 1 ? 0 : 1;
+        }
     }
 
     async function deleteSong() {
@@ -195,8 +197,8 @@
         if (!prompt) return;
 
         id = null;
-        d1 = null;
-        kv_do = null;
+        d1 = undefined;
+        kv_do = undefined;
         failed = false;
 
         if (interval) {
@@ -234,8 +236,8 @@
         await getGen();
     }
     async function retryGen() {
-        d1 = null;
-        kv_do = null;
+        d1 = undefined;
+        kv_do = undefined;
 
         if (interval) {
             clearInterval(interval);
@@ -290,13 +292,13 @@
                 contractId: userState.contractId,
                 keyId: userState.keyId,
                 smolContractId,
-                rpcUrl: import.meta.env.PUBLIC_RPC_URL,
-                networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
-                creatorAddress: d1?.Address,
-                kaleSacId: import.meta.env.PUBLIC_KALE_SAC_ID,
+                rpcUrl: import.meta.env.PUBLIC_RPC_URL as string,
+                networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE as string,
+                creatorAddress: d1?.Address || '',
+                kaleSacId: import.meta.env.PUBLIC_KALE_SAC_ID as string,
             });
 
-            await submitMintTransaction(id, xdrString, import.meta.env.PUBLIC_API_URL);
+            await submitMintTransaction(id, xdrString, import.meta.env.PUBLIC_API_URL!);
 
             clearMintPolling();
             mintInterval = setInterval(getGen, MINT_POLL_INTERVAL);
@@ -396,14 +398,14 @@
             {:else}
                 <form
                     class="flex flex-col items-start max-w-[512px] w-full"
-                    on:submit|preventDefault={postGen}
+                    onsubmit={(e) => { e.preventDefault(); postGen(); }}
                 >
                     <textarea
                         class="p-2 mb-3 w-full bg-slate-800 text-white outline-3 outline-offset-3 outline-slate-800 rounded focus:outline-slate-700"
                         placeholder="Write an epic prompt for an even epic'er gen"
                         rows="4"
                         bind:value={prompt}
-                        on:input={limitPromptLength}
+                        oninput={limitPromptLength}
                     ></textarea>
                     <small class="text-xs text-slate-400 self-end mb-2">
                         {prompt.length} / {is_instrumental ? 380 : 2280}
@@ -444,7 +446,7 @@
                                 >
                                     {playlist}
                                     <div
-                                        on:click|stopPropagation|preventDefault={removePlaylist}
+                                        onclick={(e) => { e.stopPropagation(); e.preventDefault(); removePlaylist(); }}
                                         class="ml-1.5 -mr-0.5 p-0.5 rounded-full hover:bg-black/20 text-black"
                                         aria-label="Remove playlist"
                                     >
@@ -481,7 +483,7 @@
                 <li>
                     <button
                         class="text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1 disabled:opacity-50"
-                        on:click={retryGen}
+                        onclick={retryGen}
                         disabled={!!id && !!interval}
                     >
                         ⚡︎ Retry
@@ -491,7 +493,7 @@
                             >
                                 {playlist}
                                 <div
-                                    on:click|stopPropagation|preventDefault={removePlaylist}
+                                    onclick={(e) => { e.stopPropagation(); e.preventDefault(); removePlaylist(); }}
                                     class="ml-1.5 -mr-0.5 p-0.5 rounded-full hover:bg-black/20 text-black"
                                     aria-label="Remove playlist"
                                 >
@@ -539,7 +541,7 @@
                                 {d1?.Public
                                         ? 'text-amber-500 bg-amber-500/20 ring-amber-500 hover:bg-amber-500/30'
                                         : 'text-blue-500 bg-blue-500/20 ring-blue-500 hover:bg-blue-500/30'}"
-                                    on:click={makeSongPublic}
+                                    onclick={makeSongPublic}
                                 >
                                     {#if d1?.Public}
                                         Unpublish
@@ -559,7 +561,7 @@
                             {#if tradeReady}
                                 <button
                                     class="flex items-center uppercase text-xs font-mono ring rounded px-2 py-1 text-sky-400 bg-sky-400/10 ring-sky-400 hover:bg-sky-400/20 ml-2"
-                                    on:click={openTradeModal}
+                                    onclick={openTradeModal}
                                 >
                                     <span>Trade</span>
                                     <TokenBalancePill balance={tradeMintBalance} classNames="ml-2" />
@@ -569,7 +571,7 @@
                             <button
                                 class="flex items-center uppercase text-xs font-mono ring rounded px-2 py-1 text-emerald-400 bg-emerald-400/10 ring-emerald-400 hover:bg-emerald-400/20 ml-2 disabled:opacity-50"
                                 disabled={minting}
-                                on:click={triggerMint}
+                                onclick={triggerMint}
                             >
                                 {#if minting}
                                     <Loader classNames="w-4 h-4 mr-2" textColor="text-emerald-400" />
@@ -584,7 +586,7 @@
                             <button
                                 class="uppercase text-xs font-mono ring rounded px-2 py-1 text-rose-500 bg-rose-500/20 ring-rose-500 hover:bg-rose-500/30 ml-2"
                                 aria-label="Delete"
-                                on:click={deleteSong}
+                                onclick={deleteSong}
                             >
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
@@ -605,7 +607,8 @@
                             <div class="ml-2">
                                 <LikeButton
                                     smolId={d1.Id}
-                                    bind:liked={liked}
+                                    liked={liked}
+                                    on:likeChanged={(e) => liked = e.detail.liked}
                                 />
                             </div>
                         {/if}
@@ -631,7 +634,7 @@
                     <img
                         class="aspect-square object-contain pixelated w-[256px]"
                         src={`${import.meta.env.PUBLIC_API_URL}/image/${id}.png`}
-                        on:error={(e) => {
+                        onerror={(e) => {
                             // @ts-ignore
                             e.currentTarget.src = `data:image/png;base64,${kv_do.image_base64}`;
                         }}
@@ -648,7 +651,7 @@
             <li>
                 <h1 class="flex items-center mb-2">
                     Songs:
-                    {#if interval && kv_do?.songs?.some((song: any) => song.audio)}
+                    {#if interval && kv_do?.songs?.some((song) => song.audio)}
                         <Loader classNames="size-7 ml-2" />
                         <small class="ml-2 text-xs text-slate-400 font-normal">streaming...</small>
                     {/if}
@@ -664,11 +667,11 @@
                                 <audio
                                     class="mr-2"
                                     bind:this={audioElements[index]}
-                                    on:play={() => playAudio(index)}
+                                    onplay={() => playAudio(index)}
                                     src={song.status < 4
                                         ? song.audio
                                         : `${import.meta.env.PUBLIC_API_URL}/song/${song.music_id}.mp3`}
-                                    on:error={(e) => {
+                                    onerror={(e) => {
                                         // @ts-ignore
                                         e.currentTarget.src = song.audio;
                                     }}
@@ -682,7 +685,7 @@
                                         type="radio"
                                         value={song.music_id}
                                         bind:group={best_song}
-                                        on:change={() =>
+                                        onchange={() =>
                                             selectBestSong(song.music_id)}
                                     />
                                 {/if}
@@ -708,7 +711,7 @@
                         >Title: <strong>{kv_do && kv_do?.lyrics?.title}</strong
                         ></code
                     >
-<code>Tags: <em>{kv_do && kv_do?.lyrics?.style.join(", ")}</em></code>
+<code>Tags: <em>{kv_do && kv_do?.lyrics?.style?.join(", ")}</em></code>
 
 {#if !kv_do?.payload?.instrumental && !is_instrumental && !d1?.Instrumental}<code
                             >{kv_do && kv_do?.lyrics?.lyrics}</code

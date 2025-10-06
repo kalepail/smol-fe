@@ -57,8 +57,8 @@
         flipDurationMs,
         dropTargetClasses: ['mixtape-drop-active'],
       }}
-      on:consider={onConsider}
-      on:finalize={onFinalize}
+      onconsider={onConsider}
+      onfinalize={onFinalize}
     >
       {#if tracks.length === 0 || (tracks.length === 1 && tracks[0].id === SHADOW_PLACEHOLDER_ITEM_ID)}
         <div class="pointer-events-none flex items-center justify-center min-h-full py-12">

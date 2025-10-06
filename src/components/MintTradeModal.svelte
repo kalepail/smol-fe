@@ -26,39 +26,39 @@
 
     const dispatch = createEventDispatcher();
 
-    let loading = true;
-    let loadError: string | null = null;
+    let loading = $state(true);
+    let loadError = $state<string | null>(null);
 
-    let mode: "buy" | "sell" = "buy";
-    let previousMode: "buy" | "sell" = mode;
-    let inputAmount = "";
-    let submitting = false;
+    let mode = $state<"buy" | "sell">("buy");
+    let previousMode = $state<"buy" | "sell">("buy");
+    let inputAmount = $state("");
+    let submitting = $state(false);
 
-    let simulationTimer: ReturnType<typeof setTimeout> | null = null;
-    let simulationLoading = false;
-    let simulationError: string | null = null;
-    let simulatedAmountOut: bigint | null = null;
-    let lastSimulatedMode: "buy" | "sell" = mode;
+    let simulationTimer = $state<ReturnType<typeof setTimeout> | null>(null);
+    let simulationLoading = $state(false);
+    let simulationError = $state<string | null>(null);
+    let simulatedAmountOut = $state<bigint | null>(null);
+    let lastSimulatedMode = $state<"buy" | "sell">("buy");
 
-    let cometClient: CometClient | null = null;
-    let mintTokenClient: ReturnType<typeof sac.getSACClient> | null = null;
+    let cometClient = $state<CometClient | null>(null);
+    let mintTokenClient = $state<ReturnType<typeof sac.getSACClient> | null>(null);
 
-    let kaleDecimals = 7;
-    let mintDecimals = 7;
-    let kaleSymbol = "KALE";
+    let kaleDecimals = $state(7);
+    let mintDecimals = $state(7);
+    let kaleSymbol = $state("KALE");
 
-    let ammKaleBalance: bigint = 0n;
-    let userKaleBalance: bigint = 0n;
-    let userMintBalance: bigint = 0n;
+    let ammKaleBalance = $state<bigint>(0n);
+    let userKaleBalance = $state<bigint>(0n);
+    let userMintBalance = $state<bigint>(0n);
 
-    let maxBuyAmount: bigint = 0n;
-    let ammBuyCap: bigint = 0n;
-    let maxSellAmount: bigint = 0n;
+    let maxBuyAmount = $state<bigint>(0n);
+    let ammBuyCap = $state<bigint>(0n);
+    let maxSellAmount = $state<bigint>(0n);
 
-    let simulationNonce = 0;
+    let simulationNonce = $state(0);
 
-    let currentContractId: string | null = userState.contractId;
-    let currentKeyId: string | null = userState.keyId;
+    let currentContractId = $state<string | null>(userState.contractId);
+    let currentKeyId = $state<string | null>(userState.keyId);
 
     function handleKeydown(event: KeyboardEvent) {
         if (event.key === "Escape") {
@@ -97,8 +97,8 @@
 
             cometClient = new CometClient({
                 contractId: ammId,
-                rpcUrl: import.meta.env.PUBLIC_RPC_URL,
-                networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
+                rpcUrl: import.meta.env.PUBLIC_RPC_URL!,
+                networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE!,
             });
 
             mintTokenClient = sac.getSACClient(mintTokenId);
@@ -442,10 +442,10 @@
         : "–");
 </script>
 
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" on:click={close}>
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onclick={close}>
     <div
         class="w-full max-w-lg rounded-lg bg-slate-900 p-6 text-slate-100 shadow-xl"
-        on:click|stopPropagation={modalClick}
+        onclick={(e) => { e.stopPropagation(); modalClick(e); }}
     >
         <div class="mb-4 flex items-start">
             {#if imageUrl}
@@ -453,7 +453,7 @@
                     src={imageUrl}
                     alt={title ?? DISPLAY_TOKEN_NAME}
                     class="h-12 w-12 flex-shrink-0 rounded object-cover"
-                    on:error={handleImageError}
+                    onerror={handleImageError}
                 />
             {/if}
             <div class="ml-3 mr-auto">
@@ -464,7 +464,7 @@
             </div>
             <button
                 class="rounded bg-slate-800 px-2 py-1 text-sm hover:bg-slate-700"
-                on:click={close}
+                onclick={close}
                 aria-label="Close trade dialog"
             >
                 ×
@@ -487,7 +487,7 @@
                             ? "bg-lime-500 text-slate-900"
                             : "bg-slate-800 text-slate-200 hover:bg-slate-700"
                     }`}
-                    on:click={() => (mode = "buy")}
+                    onclick={() => (mode = "buy")}
                     disabled={mode === "buy"}
                 >
                     Buy
@@ -498,7 +498,7 @@
                             ? "bg-rose-400 text-slate-900"
                             : "bg-slate-800 text-slate-200 hover:bg-slate-700"
                     } ${sellDisabled ? "opacity-50" : ""}`}
-                    on:click={() => (mode = "sell")}
+                    onclick={() => (mode = "sell")}
                     disabled={sellDisabled}
                 >
                     Sell
@@ -522,7 +522,7 @@
                             ? `0.0 ${kaleSymbol}`
                             : `0.0 ${DISPLAY_TOKEN_NAME}`}
                         value={inputAmount}
-                        on:input={onAmountInput}
+                        oninput={onAmountInput}
                         autocomplete="off"
                     />
                 </label>
@@ -580,7 +580,7 @@
 
                 <button
                     class="w-full rounded bg-lime-500 px-4 py-2 text-base font-semibold text-slate-900 hover:bg-lime-400 disabled:opacity-60"
-                    on:click={executeSwap}
+                    onclick={executeSwap}
                     disabled={
                         submitting ||
                         !currentContractId ||

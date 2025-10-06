@@ -39,7 +39,7 @@
   let currentPath = $state(typeof window !== 'undefined' ? location.pathname : '');
   let initialized = $state(false);
 
-  onMount(async () => {
+  onMount(() => {
     const updatePath = () => {
       currentPath = location.pathname;
     };
@@ -50,18 +50,24 @@
     if (userState.keyId && !initialized) {
       initialized = true;
 
-      if (!userState.contractId) {
-        const { contractId: cid } = await account.connectWallet({
-          rpId: getDomain(window.location.hostname) ?? undefined,
-          keyId: userState.keyId,
-        });
-        userState.contractId = cid;
-      } else {
-        await account.connectWallet({
-          rpId: getDomain(window.location.hostname) ?? undefined,
-          keyId: userState.keyId,
-        });
-      }
+      (async () => {
+        const rpId = getDomain(window.location.hostname);
+        const rpIdValue = rpId ?? undefined;
+        const keyId = userState.keyId ?? undefined;
+
+        if (!userState.contractId) {
+          const { contractId: cid } = await account.connectWallet({
+            rpId: rpIdValue,
+            keyId,
+          });
+          userState.contractId = cid;
+        } else {
+          await account.connectWallet({
+            rpId: rpIdValue,
+            keyId,
+          });
+        }
+      })();
     }
 
     return () => {
@@ -82,12 +88,13 @@
   });
 
   async function login() {
+    const rpId = getDomain(window.location.hostname);
     const {
       rawResponse,
       keyIdBase64,
       contractId: cid,
     } = await account.connectWallet({
-      rpId: getDomain(window.location.hostname) ?? undefined,
+      rpId: rpId !== null ? rpId : undefined,
     });
 
     const jwt = await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {
@@ -127,13 +134,14 @@
         throw new Error('Username is required');
       }
 
+      const rpId = getDomain(window.location.hostname);
       const {
         rawResponse,
         keyIdBase64,
         contractId: cid,
         signedTx,
       } = await account.createWallet('smol.xyz', `SMOL — ${username}`, {
-        rpId: getDomain(window.location.hostname) ?? undefined,
+        rpId: rpId !== null ? rpId : undefined,
       });
 
       const jwt = await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {
@@ -213,31 +221,33 @@
   const isAuthenticated = $derived(userState.contractId !== null);
 </script>
 
-<div class="flex items-center ml-auto gap-3">
-  {#if isAuthenticated}
-    <div class="flex items-center gap-3 my-2">
-      <button
-        class={`rounded px-2 py-1 text-sm transition-colors ${
-          mixtapeModeState.active
-            ? 'bg-lime-400 text-slate-950 hover:bg-lime-300'
-            : 'text-lime-400 ring-1 ring-lime-400/40 hover:bg-lime-400/10'
-        }`}
-        onclick={handleMixtapeClick}
-      >
-        <span class="mr-1">{mixtapeModeState.active ? 'Mixtape Mode' : '+ Mixtape'}</span>
-        {#if !mixtapeModeState.active && mixtapeDraftHasContent.value}
-          <span class="inline-block h-2 w-2 rounded-full bg-lime-300 align-middle"></span>
-        {/if}
-      </button>
-
-      <a
-        class="hover:underline {currentPath === '/create' ? 'underline' : ''}"
-        href="/create">+ Create</a
-      >
-    </div>
+{#if isAuthenticated}
+  <div class="flex items-center gap-3">
+    <button
+      class={`rounded px-2 py-1 text-sm transition-colors ${
+        mixtapeModeState.active
+          ? 'bg-lime-400 text-slate-950 hover:bg-lime-300'
+          : 'text-lime-400 ring-1 ring-lime-400/40 hover:bg-lime-400/10'
+      }`}
+      onclick={handleMixtapeClick}
+    >
+      <span class="mr-1">{mixtapeModeState.active ? 'Mixtape Mode' : '+ Mixtape'}</span>
+      {#if !mixtapeModeState.active && mixtapeDraftHasContent.value}
+        <span class="inline-block h-2 w-2 rounded-full bg-lime-300 align-middle"></span>
+      {/if}
+    </button>
 
     <a
-      class="font-mono text-sm underline ml-5"
+      class="hover:underline {currentPath === '/create' ? 'underline' : ''}"
+      href="/create">+ Create</a
+    >
+  </div>
+{/if}
+
+<div class="flex items-center gap-3 ml-auto">
+  {#if isAuthenticated}
+    <a
+      class="font-mono text-sm underline"
       href="https://stellar.expert/explorer/public/contract/{userState.contractId}"
       target="_blank">{truncate(userState.contractId!, 4)}</a
     >

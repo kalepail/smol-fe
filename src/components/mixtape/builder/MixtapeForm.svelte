@@ -44,7 +44,7 @@
       placeholder="Say something about the vibe, inspiration, or story."
       value={draft.description}
       oninput={(event) => onDescriptionChange(event.currentTarget.value)}
-    />
+    ></textarea>
   </label>
 
   <div class="flex flex-col gap-2">

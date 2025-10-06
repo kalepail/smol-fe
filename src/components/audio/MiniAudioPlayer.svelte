@@ -43,7 +43,8 @@
     </svg>
 
     <button
-        on:click|stopPropagation={() => {
+        onclick={(e) => {
+            e.stopPropagation();
             console.log('MiniAudioPlayer clicked', { id, playing_id, playing });
             songToggle();
         }}

@@ -3,12 +3,13 @@
  */
 
 import type { Smol, PublishedMixtape, MixtapeDraft } from './domain';
+import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/browser';
 
 export interface LoginRequest {
   type: 'connect' | 'create';
   keyId: string;
   contractId: string;
-  response: any; // AuthenticationResponseJSON from passkey-kit
+  response: AuthenticationResponseJSON | RegistrationResponseJSON;
   username?: string;
 }
 
