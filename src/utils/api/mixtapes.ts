@@ -1,4 +1,4 @@
-import type { MixtapeDraft } from "../../store/mixtape";
+import type { MixtapeDraft, SmolDetailResponse, SongData } from "../../types/domain";
 
 export type MixtapeSummary = {
     id: string;
@@ -22,7 +22,7 @@ type ApiMixtape = {
     Created_At: string;
 };
 
-const API_URL = import.meta.env.PUBLIC_API_URL;
+const API_URL = import.meta.env.PUBLIC_API_URL!;
 
 export async function publishMixtape(draft: MixtapeDraft): Promise<MixtapeDetail> {
     const response = await fetch(`${API_URL}/mixtapes`, {
@@ -156,24 +156,24 @@ export async function getSmolTrackData(smolId: string): Promise<SmolTrackData> {
         };
     }
 
-    const data = await response.json();
+    const data: SmolDetailResponse = await response.json();
     const d1 = data?.d1;
     const kv_do = data?.kv_do;
 
     const bestSong = d1?.Song_1;
-    const songs = kv_do?.songs || [];
-    const bestSongData = songs.find((s: any) => s.music_id === bestSong);
+    const songs: SongData[] = kv_do?.songs || [];
+    const bestSongData = songs.find((s) => s.music_id === bestSong);
 
     return {
         id: smolId,
         title: kv_do?.lyrics?.title ?? kv_do?.description ?? d1?.Title ?? null,
         creator: d1?.Address ?? null,
-        coverUrl: `${API_URL}/image/${smolId}.png`,
-        audioUrl: bestSongData?.status < 4
-            ? bestSongData?.audio
+        coverUrl: `${API_URL}/image/${smolId}.png` as string,
+        audioUrl: (bestSongData && bestSongData.status < 4
+            ? bestSongData.audio
             : bestSongData?.music_id
                 ? `${API_URL}/song/${bestSongData.music_id}.mp3`
-                : null,
+                : null) ?? null,
         lyrics: kv_do?.lyrics ? {
             title: kv_do.lyrics.title,
             style: kv_do.lyrics.style,

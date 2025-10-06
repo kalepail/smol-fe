@@ -1,27 +1,38 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
-    import Loader from "../Loader.svelte";
+    import Loader from "../ui/Loader.svelte";
 
     const dispatch = createEventDispatcher();
 
-    export let isOpen: boolean = false;
-    export let tracksToMint: Array<{ id: string; title: string }> = [];
-    export let tracksToPurchase: Array<{ id: string; title: string }> = [];
-    export let isProcessing: boolean = false;
-    export let currentStep: string = "";
-    export let completedSteps: Set<string> = new Set();
+    interface Props {
+        isOpen?: boolean;
+        tracksToMint?: Array<{ id: string; title: string }>;
+        tracksToPurchase?: Array<{ id: string; title: string }>;
+        isProcessing?: boolean;
+        currentStep?: string;
+        completedSteps?: Set<string>;
+    }
 
-    $: totalMintCost = tracksToMint.length * 100; // 100 KALE per mint
-    $: totalPurchaseCost = tracksToPurchase.length * 33; // 33 KALE per token
-    $: totalCost = totalMintCost + totalPurchaseCost;
-    $: mintBatches = Math.ceil(tracksToMint.length / 5);
-    $: swapBatches = Math.ceil(tracksToPurchase.length / 25);
-    $: totalSignatures = mintBatches + swapBatches;
-    $: estimatedSeconds = totalSignatures * 10; // 10 seconds per transaction
-    $: estimatedMinutes = Math.floor(estimatedSeconds / 60);
-    $: remainingSeconds = estimatedSeconds % 60;
+    let {
+        isOpen = false,
+        tracksToMint = [],
+        tracksToPurchase = [],
+        isProcessing = false,
+        currentStep = "",
+        completedSteps = new Set()
+    }: Props = $props();
 
-    $: steps = [
+    const totalMintCost = $derived(tracksToMint.length * 100); // 100 KALE per mint
+    const totalPurchaseCost = $derived(tracksToPurchase.length * 33); // 33 KALE per token
+    const totalCost = $derived(totalMintCost + totalPurchaseCost);
+    const mintBatches = $derived(Math.ceil(tracksToMint.length / 5));
+    const swapBatches = $derived(Math.ceil(tracksToPurchase.length / 25));
+    const totalSignatures = $derived(mintBatches + swapBatches);
+    const estimatedSeconds = $derived(totalSignatures * 10); // 10 seconds per transaction
+    const estimatedMinutes = $derived(Math.floor(estimatedSeconds / 60));
+    const remainingSeconds = $derived(estimatedSeconds % 60);
+
+    const steps = $derived([
         ...(tracksToMint.length > 0 ? [
             {
                 id: "mint",
@@ -49,7 +60,7 @@
             label: "Mixtape fully owned!",
             detail: "",
         }
-    ];
+    ]);
 
     function handleClose() {
         if (!isProcessing) {
@@ -63,8 +74,8 @@
 </script>
 
 {#if isOpen}
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" on:click={handleClose}>
-        <div class="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl" on:click|stopPropagation>
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onclick={handleClose}>
+        <div class="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl" onclick={(e) => e.stopPropagation()}>
             <!-- Header -->
             <div class="sticky top-0 z-10 flex items-center justify-between border-b border-slate-700 bg-slate-900 p-6">
                 <div>
@@ -80,7 +91,7 @@
                 {#if !isProcessing}
                     <button
                         class="text-slate-400 hover:text-white transition-colors"
-                        on:click={handleClose}
+                        onclick={handleClose}
                         aria-label="Close"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-6 h-6">
@@ -211,13 +222,13 @@
                     {#if !isProcessing}
                         <button
                             class="flex-1 rounded-lg border border-slate-600 px-4 py-2.5 text-sm font-semibold text-slate-200 hover:bg-slate-800 transition-colors"
-                            on:click={handleClose}
+                            onclick={handleClose}
                         >
                             Cancel
                         </button>
                         <button
                             class="flex-1 rounded-lg bg-lime-400 px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-lime-300 transition-colors flex items-center justify-center gap-2"
-                            on:click={handleConfirm}
+                            onclick={handleConfirm}
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
                                 <path d="M1 1.75A.75.75 0 011.75 1h1.628a1.75 1.75 0 011.734 1.51L5.18 3a65.25 65.25 0 0113.36 1.412.75.75 0 01.58.875 48.645 48.645 0 01-1.618 6.2.75.75 0 01-.712.513H6a2.503 2.503 0 00-2.292 1.5H17.25a.75.75 0 010 1.5H2.76a.75.75 0 01-.748-.807 4.002 4.002 0 012.716-3.486L3.626 2.716a.25.25 0 00-.248-.216H1.75A.75.75 0 011 1.75zM6 17.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15.5 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
@@ -232,7 +243,7 @@
                 {:else}
                     <button
                         class="flex-1 rounded-lg bg-slate-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-600 transition-colors"
-                        on:click={handleClose}
+                        onclick={handleClose}
                     >
                         Close
                     </button>

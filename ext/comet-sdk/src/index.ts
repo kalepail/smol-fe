@@ -2,14 +2,14 @@ import { Buffer } from "buffer";
 import {
   AssembledTransaction,
   Client as ContractClient,
-  ClientOptions as ContractClientOptions,
-  MethodOptions,
   Spec as ContractSpec,
 } from '@stellar/stellar-sdk/minimal/contract';
 import type {
   u32,
   i128,
   Option,
+  ClientOptions as ContractClientOptions,
+  MethodOptions,
 } from '@stellar/stellar-sdk/minimal/contract';
 
 if (typeof window !== 'undefined') {

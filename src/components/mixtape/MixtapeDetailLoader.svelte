@@ -1,13 +1,17 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import Loader from "../Loader.svelte";
+    import Loader from "../ui/Loader.svelte";
     import MixtapeDetailView from "./MixtapeDetailView.svelte";
-    import { getMixtapeDetail, type MixtapeDetail } from "../../utils/api/mixtapes";
+    import { getMixtapeDetail, type MixtapeDetail } from "../../services/api/mixtapes";
 
-    export let mixtapeId: string;
+    interface Props {
+        mixtapeId: string;
+    }
 
-    let mixtape: MixtapeDetail | null = null;
-    let loading = true;
+    let { mixtapeId }: Props = $props();
+
+    let mixtape = $state<MixtapeDetail | null>(null);
+    let loading = $state(true);
 
     onMount(async () => {
         loading = true;

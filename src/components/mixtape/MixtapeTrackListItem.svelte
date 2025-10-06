@@ -1,11 +1,15 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
     import { SHADOW_PLACEHOLDER_ITEM_ID } from "svelte-dnd-action";
-    import type { MixtapeTrack } from "../../store/mixtape";
+    import type { MixtapeTrack } from "../../types/domain";
 
-    export let track: MixtapeTrack;
-    export let index: number;
-    export let total: number;
+    interface Props {
+        track: MixtapeTrack;
+        index: number;
+        total: number;
+    }
+
+    let { track, index, total }: Props = $props();
 
     const dispatch = createEventDispatcher<{
         move: { direction: "up" | "down" };
@@ -61,21 +65,21 @@
     <div class="flex items-center gap-2">
         <button
             class="px-2 py-1 bg-slate-700 rounded hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed"
-            on:click={moveUp}
+            onclick={moveUp}
             disabled={index === 0 || isPlaceholder}
             aria-label="Move track up"
         >↑</button>
 
         <button
             class="px-2 py-1 bg-slate-700 rounded hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed"
-            on:click={moveDown}
+            onclick={moveDown}
             disabled={index === total - 1 || isPlaceholder}
             aria-label="Move track down"
         >↓</button>
 
         <button
             class="px-2 py-1 bg-red-600/70 rounded hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed"
-            on:click={remove}
+            onclick={remove}
             disabled={isPlaceholder}
             aria-label="Remove track"
         >✕</button>

@@ -1,7 +1,11 @@
 <script lang="ts">
-    import type { MixtapeSummary } from "../../utils/api/mixtapes";
+    import type { MixtapeSummary } from "../../services/api/mixtapes";
 
-    export let mixtapes: MixtapeSummary[] = [];
+    interface Props {
+        mixtapes?: MixtapeSummary[];
+    }
+
+    let { mixtapes = [] }: Props = $props();
 
     function handlePlayAll(mixtapeId: string) {
         // Navigate to mixtape detail page with autoplay parameter
@@ -21,7 +25,7 @@
                                 alt={mixtape.title}
                                 class="h-full w-full object-cover pixelated"
                                 loading="lazy"
-                                on:error={(e) => {
+                                onerror={(e) => {
                                     // @ts-ignore
                                     e.currentTarget.style.display = 'none';
                                 }}
@@ -46,7 +50,7 @@
             <div class="mt-auto flex flex-col gap-2 pt-4">
                 <button
                     class="rounded bg-lime-400 px-3 py-2 text-sm font-semibold text-slate-950 hover:bg-lime-300"
-                    on:click={() => handlePlayAll(mixtape.id)}
+                    onclick={() => handlePlayAll(mixtape.id)}
                 >Play All</button>
 
                 <a

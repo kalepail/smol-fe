@@ -1,10 +1,8 @@
 <script lang="ts">
-    import { createEventDispatcher, onMount } from "svelte";
-    import { get } from "svelte/store";
-    import Loader from "./Loader.svelte";
-    import { contractId } from "../store/contractId";
-    import { keyId } from "../store/keyId";
-    import { updateContractBalance } from "../store/contractBalance";
+    import { createEventDispatcher, onMount, untrack } from "svelte";
+    import Loader from "./ui/Loader.svelte";
+    import { userState } from "../stores/user.svelte";
+    import { updateContractBalance } from "../stores/balance.svelte";
     import { kale, sac, account, server } from "../utils/passkey-kit";
     import { Client as CometClient } from "comet-sdk";
     import { rpc } from "../utils/base";
@@ -15,48 +13,52 @@
     const BUY_CAP_DENOMINATOR = 10000000n;
     const DISPLAY_TOKEN_NAME = "SMOL";
 
-    export let ammId: string;
-    export let mintTokenId: string;
-    export let songId: string;
-    export let title: string | undefined;
-    export let imageUrl: string | undefined;
-    export let fallbackImage: string | undefined;
+    interface Props {
+        ammId: string;
+        mintTokenId: string;
+        songId: string;
+        title?: string;
+        imageUrl?: string;
+        fallbackImage?: string;
+    }
+
+    let { ammId, mintTokenId, songId, title, imageUrl, fallbackImage }: Props = $props();
 
     const dispatch = createEventDispatcher();
 
-    let loading = true;
-    let loadError: string | null = null;
+    let loading = $state(true);
+    let loadError = $state<string | null>(null);
 
-    let mode: "buy" | "sell" = "buy";
-    let previousMode: "buy" | "sell" = mode;
-    let inputAmount = "";
-    let submitting = false;
+    let mode = $state<"buy" | "sell">("buy");
+    let previousMode = $state<"buy" | "sell">("buy");
+    let inputAmount = $state("");
+    let submitting = $state(false);
 
-    let simulationTimer: ReturnType<typeof setTimeout> | null = null;
-    let simulationLoading = false;
-    let simulationError: string | null = null;
-    let simulatedAmountOut: bigint | null = null;
-    let lastSimulatedMode: "buy" | "sell" = mode;
+    let simulationTimer = $state<ReturnType<typeof setTimeout> | null>(null);
+    let simulationLoading = $state(false);
+    let simulationError = $state<string | null>(null);
+    let simulatedAmountOut = $state<bigint | null>(null);
+    let lastSimulatedMode = $state<"buy" | "sell">("buy");
 
-    let cometClient: CometClient | null = null;
-    let mintTokenClient: ReturnType<typeof sac.getSACClient> | null = null;
+    let cometClient = $state<CometClient | null>(null);
+    let mintTokenClient = $state<ReturnType<typeof sac.getSACClient> | null>(null);
 
-    let kaleDecimals = 7;
-    let mintDecimals = 7;
-    let kaleSymbol = "KALE";
+    let kaleDecimals = $state(7);
+    let mintDecimals = $state(7);
+    let kaleSymbol = $state("KALE");
 
-    let ammKaleBalance: bigint = 0n;
-    let userKaleBalance: bigint = 0n;
-    let userMintBalance: bigint = 0n;
+    let ammKaleBalance = $state<bigint>(0n);
+    let userKaleBalance = $state<bigint>(0n);
+    let userMintBalance = $state<bigint>(0n);
 
-    let maxBuyAmount: bigint = 0n;
-    let ammBuyCap: bigint = 0n;
-    let maxSellAmount: bigint = 0n;
+    let maxBuyAmount = $state<bigint>(0n);
+    let ammBuyCap = $state<bigint>(0n);
+    let maxSellAmount = $state<bigint>(0n);
 
-    let simulationNonce = 0;
+    let simulationNonce = $state(0);
 
-    let currentContractId: string | null = get(contractId);
-    let currentKeyId: string | null = get(keyId);
+    let currentContractId = $state<string | null>(userState.contractId);
+    let currentKeyId = $state<string | null>(userState.keyId);
 
     function handleKeydown(event: KeyboardEvent) {
         if (event.key === "Escape") {
@@ -65,14 +67,16 @@
         }
     }
 
-    onMount(() => {
-        const unsubContract = contractId.subscribe((value) => {
-            currentContractId = value;
+    $effect(() => {
+        const contractId = userState.contractId;
+        const keyId = userState.keyId;
+        untrack(() => {
+            currentContractId = contractId;
+            currentKeyId = keyId;
         });
-        const unsubKey = keyId.subscribe((value) => {
-            currentKeyId = value;
-        });
+    });
 
+    onMount(() => {
         window.addEventListener("keydown", handleKeydown);
         void initialize();
 
@@ -82,8 +86,6 @@
                 simulationTimer = null;
             }
             window.removeEventListener("keydown", handleKeydown);
-            unsubContract();
-            unsubKey();
         };
     });
 
@@ -99,8 +101,8 @@
 
             cometClient = new CometClient({
                 contractId: ammId,
-                rpcUrl: import.meta.env.PUBLIC_RPC_URL,
-                networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
+                rpcUrl: import.meta.env.PUBLIC_RPC_URL!,
+                networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE!,
             });
 
             mintTokenClient = sac.getSACClient(mintTokenId);
@@ -316,19 +318,21 @@
         }
     }
 
-    $: {
+    $effect(() => {
         if (previousMode !== mode) {
-            previousMode = mode;
-            inputAmount = "";
-            simulationError = null;
-            simulatedAmountOut = null;
-            lastSimulatedMode = mode;
-            if (simulationTimer) {
-                clearTimeout(simulationTimer);
-                simulationTimer = null;
-            }
+            untrack(() => {
+                previousMode = mode;
+                inputAmount = "";
+                simulationError = null;
+                simulatedAmountOut = null;
+                lastSimulatedMode = mode;
+                if (simulationTimer) {
+                    clearTimeout(simulationTimer);
+                    simulationTimer = null;
+                }
+            });
         }
-    }
+    });
 
     function onAmountInput(event: Event) {
         const target = event.currentTarget as HTMLInputElement;
@@ -426,28 +430,28 @@
         event.stopPropagation();
     };
 
-    $: sellDisabled = maxSellAmount <= 0n;
-    $: actionLabel = submitting
+    const sellDisabled = $derived(maxSellAmount <= 0n);
+    const actionLabel = $derived(submitting
         ? mode === "buy" ? "Buying..." : "Selling..."
-        : mode === "buy" ? `Buy ${DISPLAY_TOKEN_NAME}` : `Sell ${DISPLAY_TOKEN_NAME}`;
-    $: maxBuyDisplay = formatAmount(maxBuyAmount, kaleDecimals);
-    $: maxSellDisplay = formatAmount(maxSellAmount, mintDecimals);
-    $: ammBuyCapDisplay = formatAmount(ammBuyCap, kaleDecimals);
-    $: userKaleDisplay = formatAmount(userKaleBalance, kaleDecimals);
-    $: userMintDisplay = formatAmount(userMintBalance, mintDecimals);
-    $: ammKaleDisplay = formatAmount(ammKaleBalance, kaleDecimals);
-    $: simulatedDisplay = simulatedAmountOut
+        : mode === "buy" ? `Buy ${DISPLAY_TOKEN_NAME}` : `Sell ${DISPLAY_TOKEN_NAME}`);
+    const maxBuyDisplay = $derived(formatAmount(maxBuyAmount, kaleDecimals));
+    const maxSellDisplay = $derived(formatAmount(maxSellAmount, mintDecimals));
+    const ammBuyCapDisplay = $derived(formatAmount(ammBuyCap, kaleDecimals));
+    const userKaleDisplay = $derived(formatAmount(userKaleBalance, kaleDecimals));
+    const userMintDisplay = $derived(formatAmount(userMintBalance, mintDecimals));
+    const ammKaleDisplay = $derived(formatAmount(ammKaleBalance, kaleDecimals));
+    const simulatedDisplay = $derived(simulatedAmountOut
         ? formatAmount(
               simulatedAmountOut,
               lastSimulatedMode === "buy" ? mintDecimals : kaleDecimals,
           )
-        : "–";
+        : "–");
 </script>
 
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" on:click={close}>
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onclick={close}>
     <div
         class="w-full max-w-lg rounded-lg bg-slate-900 p-6 text-slate-100 shadow-xl"
-        on:click|stopPropagation={modalClick}
+        onclick={(e) => { e.stopPropagation(); modalClick(e); }}
     >
         <div class="mb-4 flex items-start">
             {#if imageUrl}
@@ -455,7 +459,7 @@
                     src={imageUrl}
                     alt={title ?? DISPLAY_TOKEN_NAME}
                     class="h-12 w-12 flex-shrink-0 rounded object-cover"
-                    on:error={handleImageError}
+                    onerror={handleImageError}
                 />
             {/if}
             <div class="ml-3 mr-auto">
@@ -466,7 +470,7 @@
             </div>
             <button
                 class="rounded bg-slate-800 px-2 py-1 text-sm hover:bg-slate-700"
-                on:click={close}
+                onclick={close}
                 aria-label="Close trade dialog"
             >
                 ×
@@ -489,7 +493,7 @@
                             ? "bg-lime-500 text-slate-900"
                             : "bg-slate-800 text-slate-200 hover:bg-slate-700"
                     }`}
-                    on:click={() => (mode = "buy")}
+                    onclick={() => (mode = "buy")}
                     disabled={mode === "buy"}
                 >
                     Buy
@@ -500,7 +504,7 @@
                             ? "bg-rose-400 text-slate-900"
                             : "bg-slate-800 text-slate-200 hover:bg-slate-700"
                     } ${sellDisabled ? "opacity-50" : ""}`}
-                    on:click={() => (mode = "sell")}
+                    onclick={() => (mode = "sell")}
                     disabled={sellDisabled}
                 >
                     Sell
@@ -524,7 +528,7 @@
                             ? `0.0 ${kaleSymbol}`
                             : `0.0 ${DISPLAY_TOKEN_NAME}`}
                         value={inputAmount}
-                        on:input={onAmountInput}
+                        oninput={onAmountInput}
                         autocomplete="off"
                     />
                 </label>
@@ -582,7 +586,7 @@
 
                 <button
                     class="w-full rounded bg-lime-500 px-4 py-2 text-base font-semibold text-slate-900 hover:bg-lime-400 disabled:opacity-60"
-                    on:click={executeSwap}
+                    onclick={executeSwap}
                     disabled={
                         submitting ||
                         !currentContractId ||
