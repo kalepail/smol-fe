@@ -14,6 +14,14 @@ export interface Smol {
   Address?: string;
   Mint_Token?: string;
   Mint_Amm?: string;
+  lyrics?: {
+    title?: string;
+    style?: string[];
+    lyrics?: string;
+  };
+  // Client-side only fields for UI state
+  balance?: bigint;
+  minting?: boolean;
 }
 
 export interface MixtapeTrack {
