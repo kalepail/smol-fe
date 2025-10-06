@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import type { Smol, MixtapeTrack } from '../../types/domain';
   import SmolCard from './SmolCard.svelte';
   import BarAudioPlayer from '../audio/BarAudioPlayer.svelte';
@@ -62,11 +62,13 @@
     const contractId = userState.contractId;
     if (contractId) {
       fetchLikedSmols().then((likedIds) => {
-        likes = likedIds;
-        results = results.map((smol) => ({
-          ...smol,
-          Liked: likedIds.some((id) => id === smol.Id),
-        }));
+        untrack(() => {
+          likes = likedIds;
+          results = results.map((smol) => ({
+            ...smol,
+            Liked: likedIds.some((id) => id === smol.Id),
+          }));
+        });
       });
     }
   });

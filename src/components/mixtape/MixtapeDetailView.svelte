@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, onDestroy } from "svelte";
+    import { onMount, onDestroy, untrack } from "svelte";
     import type { MixtapeDetail, SmolTrackData } from "../../services/api/mixtapes";
     import { getSmolTrackData } from "../../services/api/mixtapes";
     import type { MixtapeTrack, Smol } from "../../types/domain";
@@ -77,14 +77,16 @@
     $effect(() => {
         if (likesLoaded && likes.length >= 0) {
             // Update liked states for all loaded tracks
-            mixtapeTracks.forEach((track, index) => {
-                if (track?.Id) {
-                    const isLiked = likes.includes(track.Id);
-                    if (track.Liked !== isLiked) {
-                        track.Liked = isLiked;
-                        trackLikedStates.set(track.Id, isLiked);
+            untrack(() => {
+                mixtapeTracks.forEach((track, index) => {
+                    if (track?.Id) {
+                        const isLiked = likes.includes(track.Id);
+                        if (track.Liked !== isLiked) {
+                            track.Liked = isLiked;
+                            trackLikedStates.set(track.Id, isLiked);
+                        }
                     }
-                }
+                });
             });
         }
     });

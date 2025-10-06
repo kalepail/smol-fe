@@ -8,7 +8,7 @@
 
     let { id, data }: Props = $props();
 
-    import { onDestroy, onMount } from "svelte";
+    import { onDestroy, onMount, untrack } from "svelte";
     import Loader from "./ui/Loader.svelte";
     import LikeButton from "./ui/LikeButton.svelte";
     import MintTradeModal from "./MintTradeModal.svelte";
@@ -77,13 +77,25 @@
     });
 
     $effect(() => {
-        if (d1?.Mint_Token && userState.contractId) {
-            mintTokenClient = sac.getSACClient(d1.Mint_Token);
-            getTokenBalance(mintTokenClient, userState.contractId).then(balance => {
-                tradeMintBalance = balance;
+        const mintToken = d1?.Mint_Token;
+        const contractId = userState.contractId;
+
+        if (mintToken && contractId) {
+            const client = sac.getSACClient(mintToken);
+            untrack(() => {
+                mintTokenClient = client;
+            });
+
+            getTokenBalance(client, contractId).then(balance => {
+                untrack(() => {
+                    tradeMintBalance = balance;
+                });
             });
         } else {
-            tradeMintBalance = 0n;
+            untrack(() => {
+                mintTokenClient = null;
+                tradeMintBalance = 0n;
+            });
         }
     });
 

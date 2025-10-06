@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import Cookies from 'js-cookie';
   import { getDomain } from 'tldts';
   import { userState, setUserAuth, clearUserAuth } from '../../stores/user.svelte';
@@ -79,11 +79,16 @@
     const cid = userState.contractId;
     if (cid) {
       // Only fetch balance if we don't already have it (e.g., from server-side render)
-      if (balanceState.balance === null && !balanceState.loading) {
-        updateContractBalance(cid);
-      }
+      // Use untrack to prevent balance state changes from triggering this effect
+      untrack(() => {
+        if (balanceState.balance === null && !balanceState.loading) {
+          updateContractBalance(cid);
+        }
+      });
     } else {
-      resetBalance();
+      untrack(() => {
+        resetBalance();
+      });
     }
   });
 

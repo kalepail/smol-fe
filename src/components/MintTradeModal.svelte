@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { createEventDispatcher, onMount } from "svelte";
+    import { createEventDispatcher, onMount, untrack } from "svelte";
     import Loader from "./ui/Loader.svelte";
     import { userState } from "../stores/user.svelte";
     import { updateContractBalance } from "../stores/balance.svelte";
@@ -68,8 +68,12 @@
     }
 
     $effect(() => {
-        currentContractId = userState.contractId;
-        currentKeyId = userState.keyId;
+        const contractId = userState.contractId;
+        const keyId = userState.keyId;
+        untrack(() => {
+            currentContractId = contractId;
+            currentKeyId = keyId;
+        });
     });
 
     onMount(() => {
@@ -316,15 +320,17 @@
 
     $effect(() => {
         if (previousMode !== mode) {
-            previousMode = mode;
-            inputAmount = "";
-            simulationError = null;
-            simulatedAmountOut = null;
-            lastSimulatedMode = mode;
-            if (simulationTimer) {
-                clearTimeout(simulationTimer);
-                simulationTimer = null;
-            }
+            untrack(() => {
+                previousMode = mode;
+                inputAmount = "";
+                simulationError = null;
+                simulatedAmountOut = null;
+                lastSimulatedMode = mode;
+                if (simulationTimer) {
+                    clearTimeout(simulationTimer);
+                    simulationTimer = null;
+                }
+            });
         }
     });
 
