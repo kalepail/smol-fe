@@ -2,18 +2,22 @@
 import Home from "../components/Home.svelte";
 import Layout from "../layouts/Layout.astro";
 
-const results = await fetch(`${import.meta.env.PUBLIC_API_URL}/liked`, {
+const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/liked?limit=100`, {
     headers: {
         Cookie: Astro.request.headers.get('cookie') ?? '',
     }
 }).then((res) => {
 	if (res.ok) return res.json();
-	return [];
+	return { smols: [], pagination: { nextCursor: null, hasMore: false } };
 });
+
+const results = response.smols || [];
+const initialCursor = response.pagination?.nextCursor || null;
+const hasMore = response.pagination?.hasMore || false;
 ---
 
 <Layout
 	title="Smol – Liked"
 >
-	<Home {results} client:load />
+	<Home {results} {initialCursor} {hasMore} endpoint="liked" client:load />
 </Layout>
