@@ -149,11 +149,14 @@
         });
     }
 
-    function removePlaylist() {
+    function removePlaylist(event: Event) {
+        event.preventDefault();
+        event.stopPropagation();
         const url = new URL(window.location.href);
         url.searchParams.delete("playlist");
         history.replaceState({}, "", url.toString());
         localStorage.removeItem("smol:playlist");
+        playlist = null;
         location.reload();
     }
 
@@ -453,19 +456,15 @@
                             </label>
                         </div>
 
-                        <button
-                            type="submit"
-                            class="flex items-center ml-auto text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1 disabled:opacity-50"
-                            disabled={(!!id && !!interval) || !prompt}
-                        >
-                            ⚡︎ Generate
+                        <div class="flex items-center gap-2 ml-auto">
                             {#if playlist}
                                 <span
-                                    class="flex items-center text-xs font-mono bg-lime-500 text-black px-2 py-1 rounded-full ml-1"
+                                    class="flex items-center text-xs font-mono bg-lime-500 text-black px-2 py-1 rounded-full"
                                 >
                                     {playlist}
-                                    <div
-                                        onclick={(e) => { e.stopPropagation(); e.preventDefault(); removePlaylist(); }}
+                                    <button
+                                        type="button"
+                                        onclick={removePlaylist}
                                         class="ml-1.5 -mr-0.5 p-0.5 rounded-full hover:bg-black/20 text-black"
                                         aria-label="Remove playlist"
                                     >
@@ -479,10 +478,17 @@
                                                 d="M2.22 2.22a.75.75 0 0 1 1.06 0L8 6.94l4.72-4.72a.75.75 0 0 1 1.06 1.06L9.06 8l4.72 4.72a.75.75 0 1 1-1.06 1.06L8 9.06l-4.72 4.72a.75.75 0 0 1-1.06-1.06L6.94 8 2.22 3.28a.75.75 0 0 1 0-1.06Z"
                                             />
                                         </svg>
-                                    </div>
+                                    </button>
                                 </span>
                             {/if}
-                        </button>
+                            <button
+                                type="submit"
+                                class="flex items-center text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1 disabled:opacity-50"
+                                disabled={(!!id && !!interval) || !prompt}
+                            >
+                                ⚡︎ Generate
+                            </button>
+                        </div>
                     </div>
 
                     <aside class="text-xs self-start">
@@ -500,19 +506,22 @@
         <ul class="max-w-[512px] w-full [&>li]:mb-5 [&>li>h1]:font-bold">
             {#if failed}
                 <li>
-                    <button
-                        class="text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1 disabled:opacity-50"
-                        onclick={retryGen}
-                        disabled={!!id && !!interval}
-                    >
-                        ⚡︎ Retry
+                    <div class="flex items-center gap-2">
+                        <button
+                            class="text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1 disabled:opacity-50"
+                            onclick={retryGen}
+                            disabled={!!id && !!interval}
+                        >
+                            ⚡︎ Retry
+                        </button>
                         {#if playlist}
                             <span
-                                class="flex items-center text-xs font-mono bg-lime-500 text-black px-2 py-1 rounded-full ml-1"
+                                class="flex items-center text-xs font-mono bg-lime-500 text-black px-2 py-1 rounded-full"
                             >
                                 {playlist}
-                                <div
-                                    onclick={(e) => { e.stopPropagation(); e.preventDefault(); removePlaylist(); }}
+                                <button
+                                    type="button"
+                                    onclick={removePlaylist}
                                     class="ml-1.5 -mr-0.5 p-0.5 rounded-full hover:bg-black/20 text-black"
                                     aria-label="Remove playlist"
                                 >
@@ -526,10 +535,10 @@
                                             d="M2.22 2.22a.75.75 0 0 1 1.06 0L8 6.94l4.72-4.72a.75.75 0 0 1 1.06 1.06L9.06 8l4.72 4.72a.75.75 0 1 1-1.06 1.06L8 9.06l-4.72 4.72a.75.75 0 0 1-1.06-1.06L6.94 8 2.22 3.28a.75.75 0 0 1 0-1.06Z"
                                         />
                                     </svg>
-                                </div>
+                                </button>
                             </span>
                         {/if}
-                    </button>
+                    </div>
                 </li>
             {/if}
 
