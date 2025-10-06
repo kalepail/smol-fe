@@ -13,7 +13,7 @@
     let success = $state<string | null>(null);
     let kaleDecimals = $state(7);
     let decimalsFactor = $state(10n ** 7n);
-
+    let showKaleInfo = $state(false);
 
     onMount(async () => {
         try {
@@ -136,6 +136,97 @@
         </p>
     {:else}
         <div class="space-y-6">
+            <!-- KALE Info Section -->
+            <div class="rounded bg-slate-800/80 border border-slate-700 overflow-hidden">
+                <button
+                    class="w-full p-4 text-left flex items-center justify-between hover:bg-slate-700/50 transition-colors"
+                    onclick={() => showKaleInfo = !showKaleInfo}
+                    type="button"
+                >
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg">🥬</span>
+                        <span class="font-semibold text-lime-400">What is KALE?</span>
+                    </div>
+                    <svg
+                        class="w-5 h-5 text-slate-400 transition-transform {showKaleInfo ? 'rotate-180' : ''}"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+
+                {#if showKaleInfo}
+                    <div class="px-4 pt-4 pb-6 space-y-5 text-sm text-slate-300">
+                        <div>
+                            <p class="text-slate-100 font-semibold mb-2">The Currency of SMOL</p>
+                            <p class="leading-relaxed">KALE is a collaborative farming token on Stellar where you earn rewards by staking, mining hashes, and harvesting - not winner-takes-all, but based on your contribution.</p>
+                        </div>
+
+                        <div>
+                            <p class="text-slate-100 font-semibold mb-3">Why SMOL Uses KALE</p>
+                            <ul class="space-y-3">
+                                <li class="flex gap-2">
+                                    <span class="text-lime-400 mt-1">•</span>
+                                    <div>
+                                        <strong class="text-lime-300">Minting new smols:</strong> 100 KALE per track - turn your AI-generated songs into tradeable NFTs and earn 25-50% of future trading fees
+                                    </div>
+                                </li>
+                                <li class="flex gap-2">
+                                    <span class="text-lime-400 mt-1">•</span>
+                                    <div>
+                                        <strong class="text-lime-300">Buying existing smols:</strong> ~33 KALE per token via the built-in AMM (prices fluctuate)
+                                    </div>
+                                </li>
+                                <li class="flex gap-2">
+                                    <span class="text-lime-400 mt-1">•</span>
+                                    <div>
+                                        <strong class="text-lime-300">Building mixtapes:</strong> You need to own the smols (tracks) to add them to your mixtapes
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div>
+                            <p class="text-slate-100 font-semibold mb-3">How to Get KALE</p>
+                            <ol class="space-y-3">
+                                <li class="flex gap-3">
+                                    <span class="text-lime-400 font-semibold">1.</span>
+                                    <div>
+                                        <strong>Farm it</strong> at <a href="https://kalefarm.xyz" target="_blank" rel="noopener noreferrer" class="text-lime-400 hover:underline">kalefarm.xyz</a>
+                                        <p class="text-xs text-slate-400 mt-1">Plant → Work → Harvest | 2,500 KALE per block, 5% decay every 30 days</p>
+                                    </div>
+                                </li>
+                                <li class="flex gap-3">
+                                    <span class="text-lime-400 font-semibold">2.</span>
+                                    <div>
+                                        <strong>Trade for it</strong> on <a href="https://stellarx.com/markets/KALE:GBDVX4VELCDSQ54KQJYTNHXAHFLBCA77ZY2USQBM4CSHTTV7DME7KALE/native" target="_blank" rel="noopener noreferrer" class="text-lime-400 hover:underline">StellarX</a>
+                                        <p class="text-xs text-slate-400 mt-1">KALE/XLM trading pair</p>
+                                    </div>
+                                </li>
+                                <li class="flex gap-3">
+                                    <span class="text-lime-400 font-semibold">3.</span>
+                                    <div>
+                                        <strong>Transfer</strong> from another Stellar wallet to your SMOL address
+                                        <p class="text-xs text-slate-400 mt-1">Try <a href="https://lobstr.co" target="_blank" rel="noopener noreferrer" class="text-lime-400 hover:underline">Lobstr</a> - a great mobile wallet for Stellar</p>
+                                    </div>
+                                </li>
+                            </ol>
+                        </div>
+
+                        <div class="pt-3 border-t border-slate-700">
+                            <p class="text-slate-100 font-semibold mb-2">The Lore</p>
+                            <p class="text-xs text-slate-400 leading-relaxed">
+                                KALE has a sci-fi story set on planet Demeter - scientists using Kale-Corium to end universal hunger while fighting off the villain Zebulon.
+                                Read more at <a href="https://kalepail.com/kale" target="_blank" rel="noopener noreferrer" class="text-lime-400 hover:underline">kalepail.com/kale</a>
+                                and <a href="https://kalefarm.xyz/about/" target="_blank" rel="noopener noreferrer" class="text-lime-400 hover:underline">kalefarm.xyz/about</a>.
+                            </p>
+                        </div>
+                    </div>
+                {/if}
+            </div>
+
             <div class="rounded bg-slate-800/80 border border-slate-700 p-4">
                 <p class="text-sm text-slate-300">Connected address</p>
                 <p class="font-mono break-all text-slate-100">{userState.contractId}</p>

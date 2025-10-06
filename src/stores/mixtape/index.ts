@@ -1,6 +1,5 @@
 /**
- * Mixtape store - modular implementation
- * Re-exports from the modular structure for backward compatibility
+ * Modular mixtape store - re-exports for backward compatibility
  */
 export {
   mixtapeDraftState,
@@ -24,4 +23,4 @@ export {
   toggleMixtapeMode,
   mixtapeDraft,
   mixtapeMode,
-} from './mixtape/index';
+} from './state.svelte';

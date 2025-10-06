@@ -1,0 +1,763 @@
+<script lang="ts">
+    import type { SmolDetailResponse } from '../types/domain';
+
+    interface Props {
+        id: string | null;
+        data: SmolDetailResponse | null;
+    }
+
+    let { id, data }: Props = $props();
+
+    import { onDestroy, onMount, untrack } from "svelte";
+    import Loader from "./ui/Loader.svelte";
+    import LikeButton from "./ui/LikeButton.svelte";
+    import MintTradeModal from "./MintTradeModal.svelte";
+    import TokenBalancePill from "./ui/TokenBalancePill.svelte";
+    import { userState } from "../stores/user.svelte";
+    import { updateContractBalance } from "../stores/balance.svelte";
+    import { Address, Asset, hash, StrKey, xdr } from "@stellar/stellar-sdk/minimal";
+    import { basicNodeSigner } from "@stellar/stellar-sdk/minimal/contract";
+    import { Client as SmolClient } from "smol-sdk";
+    import { keypair, publicKey, rpc } from "../utils/base";
+    import { account, sac } from "../utils/passkey-kit";
+    import { abbreviateNumber, getTokenBalance } from "../utils/balance";
+    import { createMintTransaction, submitMintTransaction, MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from "../utils/mint";
+
+    let d1 = $state<SmolDetailResponse['d1']>(data?.d1);
+    let kv_do = $state<SmolDetailResponse['kv_do']>(data?.kv_do);
+    let liked = $state(data?.liked);
+
+    // TODO
+    // tweak just the song vs the image
+    // make a song private or public
+    // collect songs
+    // remix songs
+    // create playlists
+    // private gens
+    // instrumentals
+    // toggle track_1 vs track_2
+    // toggle public vs private
+    // toggle private vs public
+    // only show action buttons like public/private and delete if we're the song author
+
+    let prompt = $state("");
+    let is_public = $state(true);
+    let is_instrumental = $state(false);
+    let best_song = $derived(d1?.Song_1);
+    let audioElements = $state<HTMLAudioElement[]>([]);
+    let interval = $state<NodeJS.Timeout | null>(null);
+    let failed = $state(false);
+    let playlist = $state<string | null>(null);
+    let minting = $state(false);
+    let mintInterval = $state<NodeJS.Timeout | null>(null);
+    let mintTimeout = $state<NodeJS.Timeout | null>(null);
+    let showTradeModal = $state(false);
+    let tradeMintBalance = $state<bigint>(0n);
+    let mintTokenClient = $state<ReturnType<typeof sac.getSACClient> | null>(null);
+    let lastMintToken = $state<string | null>(null);
+    let lastContractId = $state<string | null>(null);
+
+    const tradeSongId = $derived(id ?? d1?.Id ?? null);
+    const tradeTitle = $derived(
+        kv_do?.lyrics?.title ??
+        kv_do?.description ??
+        d1?.Title ??
+        null
+    );
+    const tradeImageUrl = $derived(tradeSongId
+        ? `${import.meta.env.PUBLIC_API_URL}/image/${tradeSongId}.png`
+        : null);
+    const tradeImageFallback = $derived(kv_do?.image_base64
+        ? `data:image/png;base64,${kv_do.image_base64}`
+        : null);
+    const tradeReady = $derived(Boolean(tradeSongId && d1?.Mint_Amm && d1?.Mint_Token));
+
+    $effect(() => {
+        if (!tradeReady && showTradeModal) {
+            showTradeModal = false;
+        }
+    });
+
+    $effect(() => {
+        const mintToken = d1?.Mint_Token;
+        const contractId = userState.contractId;
+
+        if (mintToken && contractId && (mintToken !== lastMintToken || contractId !== lastContractId)) {
+            untrack(() => {
+                lastMintToken = mintToken;
+                lastContractId = contractId;
+
+                const client = sac.getSACClient(mintToken);
+                mintTokenClient = client;
+
+                getTokenBalance(client, contractId).then(balance => {
+                    untrack(() => {
+                        tradeMintBalance = balance;
+                    });
+                });
+            });
+        } else if (!mintToken || !contractId) {
+            untrack(() => {
+                mintTokenClient = null;
+                tradeMintBalance = 0n;
+                lastMintToken = null;
+                lastContractId = null;
+            });
+        }
+    });
+
+    onMount(async () => {
+        switch (data?.wf?.status) {
+            case "queued":
+            case "running":
+            case "paused":
+            case "waiting":
+            case "waitingForPause":
+                interval = setInterval(getGen, 1000 * 6);
+                break;
+            case "errored":
+            case "terminated":
+            case "unknown":
+                failed = true;
+                break;
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        playlist =
+            urlParams.get("playlist") || localStorage.getItem("smol:playlist");
+
+        if (playlist) {
+            localStorage.setItem("smol:playlist", playlist);
+        }
+    });
+
+    onDestroy(() => {
+        if (interval) {
+            clearInterval(interval);
+            interval = null;
+        }
+        clearMintPolling();
+    });
+
+    function playAudio(index: number) {
+        audioElements.forEach((audio, i) => {
+            if (i !== index) {
+                audio.pause();
+            } else {
+                audio.play();
+            }
+        });
+    }
+
+    function removePlaylist(event: Event) {
+        event.preventDefault();
+        event.stopPropagation();
+        const url = new URL(window.location.href);
+        url.searchParams.delete("playlist");
+        history.replaceState({}, "", url.toString());
+        localStorage.removeItem("smol:playlist");
+        playlist = null;
+        location.reload();
+    }
+
+    function clearMintPolling() {
+        if (mintInterval) {
+            clearInterval(mintInterval);
+            mintInterval = null;
+        }
+        if (mintTimeout) {
+            clearTimeout(mintTimeout);
+            mintTimeout = null;
+        }
+    }
+
+    function openTradeModal() {
+        if (!tradeReady) return;
+        showTradeModal = true;
+    }
+
+    function handleTradeModalClose() {
+        showTradeModal = false;
+    }
+
+    function handleTradeModalComplete() {
+        showTradeModal = false;
+        void getGen();
+    }
+
+    async function makeSongPublic() {
+        await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
+            method: "PUT",
+            credentials: "include",
+        });
+
+        if (d1) {
+            d1.Public = d1.Public === 1 ? 0 : 1;
+        }
+    }
+
+    async function deleteSong() {
+        if (!confirm("Are you sure you want to delete this song?")) return;
+
+        await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
+            method: "DELETE",
+            credentials: "include",
+        });
+
+        history.replaceState({}, "", "/");
+        location.reload();
+    }
+
+    async function selectBestSong(song_id: string) {
+        await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}/${song_id}`, {
+            method: "PUT",
+            credentials: "include",
+        });
+    }
+
+    async function postGen() {
+        if (!prompt) return;
+
+        id = null;
+        d1 = undefined;
+        kv_do = undefined;
+        failed = false;
+
+        if (interval) {
+            clearInterval(interval);
+            interval = null;
+        }
+
+        id = await fetch(import.meta.env.PUBLIC_API_URL, {
+            method: "POST",
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                address: userState.contractId,
+                prompt,
+                public: is_public,
+                instrumental: is_instrumental,
+                playlist,
+            }),
+        }).then(async (res) => {
+            if (res.ok) return res.text();
+            else throw await res.text();
+        });
+
+        prompt = "";
+
+        if (id) {
+            history.pushState({}, "", `/${id}`);
+        }
+
+        interval = setInterval(getGen, 1000 * 6);
+
+        // After `interval` so the "Generate" button will disable immediately
+        await getGen();
+    }
+    async function retryGen() {
+        d1 = undefined;
+        kv_do = undefined;
+
+        if (interval) {
+            clearInterval(interval);
+            interval = null;
+        }
+
+        id = await fetch(`${import.meta.env.PUBLIC_API_URL}/retry/${id}`, {
+            method: "POST",
+            credentials: "include",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                address: userState.contractId,
+            }),
+        }).then(async (res) => {
+            if (res.ok) return res.text();
+            else throw await res.text();
+        });
+
+        if (id) {
+            history.pushState({}, "", `/${id}`);
+        }
+
+        failed = false;
+        interval = setInterval(getGen, 1000 * 6);
+
+        // After `interval` so the "Generate" button will disable immediately
+        await getGen();
+    }
+    async function triggerMint() {
+        if (!id || minting || minted) return;
+
+        if (!userState.contractId || !userState.keyId) {
+            alert("Connect your wallet to mint");
+            return;
+        }
+
+        const smolContractId = import.meta.env.PUBLIC_SMOL_CONTRACT_ID
+
+        if (!smolContractId) {
+            console.error("Missing PUBLIC_SMOL_CONTRACT_ID env var");
+            alert("Minting is temporarily unavailable. Please try again later.");
+            return;
+        }
+
+        try {
+            minting = true;
+
+            const xdrString = await createMintTransaction({
+                id,
+                contractId: userState.contractId,
+                keyId: userState.keyId,
+                smolContractId,
+                rpcUrl: import.meta.env.PUBLIC_RPC_URL as string,
+                networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE as string,
+                creatorAddress: d1?.Address || '',
+                kaleSacId: import.meta.env.PUBLIC_KALE_SAC_ID as string,
+            });
+
+            await submitMintTransaction(id, xdrString, import.meta.env.PUBLIC_API_URL!);
+
+            clearMintPolling();
+            mintInterval = setInterval(getGen, MINT_POLL_INTERVAL);
+            mintTimeout = setTimeout(() => {
+                minting = false;
+                clearMintPolling();
+            }, MINT_POLL_TIMEOUT);
+
+            await getGen();
+        } catch (error) {
+            console.error(error);
+            alert(error instanceof Error ? error.message : String(error));
+            minting = false;
+            clearMintPolling();
+        }
+    }
+    async function getGen() {
+        if (!id) return;
+
+        return fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`)
+            .then(async (res) => {
+                if (res.ok) return res.json();
+                else throw await res.text();
+            })
+            .then((res) => {
+                d1 = res?.d1;
+                kv_do = res?.kv_do;
+                best_song = d1?.Song_1;
+
+                // status: "queued" // means that instance is waiting to be started (see concurrency limits)
+                // | "running" | "paused" | "errored" | "terminated" // user terminated the instance while it was running
+                // | "complete" | "waiting" // instance is hibernating and waiting for sleep or event to finish
+                // | "waitingForPause" // instance is finishing the current work to pause
+                // | "unknown";
+
+                switch (res?.wf?.status) {
+                    case "errored":
+                    case "terminated":
+                    case "complete":
+                    case "unknown":
+                        if (interval) {
+                            clearInterval(interval);
+                            interval = null;
+                        }
+                        if (res.wf.status !== "complete") {
+                            failed = true;
+                        }
+                        break;
+                }
+
+                if (interval && d1) {
+                    clearInterval(interval);
+                    interval = null;
+                }
+
+                return res;
+            });
+    }
+
+
+    function limitPromptLength() {
+        const maxLength = is_instrumental ? 380 : 2280;
+        if (prompt.length > maxLength) {
+            prompt = prompt.substring(0, maxLength);
+        }
+    }
+
+    // Apply length limit when is_instrumental changes
+    $effect(() => {
+        limitPromptLength();
+    });
+
+    const minted = $derived(Boolean(d1?.Mint_Token || d1?.Mint_Amm));
+
+    $effect(() => {
+        if (minted) {
+            minting = false;
+            clearMintPolling();
+            if (userState.contractId) {
+                updateContractBalance(userState.contractId);
+            }
+        }
+    });
+</script>
+
+<!-- TODO add loading icons -->
+
+{#if !id}
+    <div class="px-2 py-10 bg-slate-900">
+        <div class="flex flex-col items-center max-w-[1024px] mx-auto">
+            {#if !userState.contractId}
+                <h1
+                    class="bg-rose-950 border border-rose-400 rounded px-2 py-1"
+                >
+                    Login or Create New Account
+                </h1>
+            {:else}
+                <form
+                    class="flex flex-col items-start max-w-[512px] w-full"
+                    onsubmit={(e) => { e.preventDefault(); postGen(); }}
+                >
+                    <textarea
+                        class="p-2 mb-3 w-full bg-slate-800 text-white outline-3 outline-offset-3 outline-slate-800 rounded focus:outline-slate-700"
+                        placeholder="Write an epic prompt for an even epic'er gen"
+                        rows="4"
+                        bind:value={prompt}
+                        oninput={limitPromptLength}
+                    ></textarea>
+                    <small class="text-xs text-slate-400 self-end mb-2">
+                        {prompt.length} / {is_instrumental ? 380 : 2280}
+                    </small>
+
+                    <div class="flex w-full mb-5">
+                        <div>
+                            <label class="flex items-center" for="public">
+                                <span class="text-xs mr-2">Public</span>
+                                <input
+                                    type="checkbox"
+                                    name="public"
+                                    id="public"
+                                    bind:checked={is_public}
+                                />
+                            </label>
+
+                            <label class="flex items-center" for="instrumental">
+                                <span class="text-xs mr-2">Instrumental</span>
+                                <input
+                                    type="checkbox"
+                                    name="instrumental"
+                                    id="instrumental"
+                                    bind:checked={is_instrumental}
+                                />
+                            </label>
+                        </div>
+
+                        <div class="flex items-center gap-2 ml-auto">
+                            {#if playlist}
+                                <span
+                                    class="flex items-center text-xs font-mono bg-lime-500 text-black px-2 py-1 rounded-full"
+                                >
+                                    {playlist}
+                                    <button
+                                        type="button"
+                                        onclick={removePlaylist}
+                                        class="ml-1.5 -mr-0.5 p-0.5 rounded-full hover:bg-black/20 text-black"
+                                        aria-label="Remove playlist"
+                                    >
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            viewBox="0 0 16 16"
+                                            fill="currentColor"
+                                            class="size-3"
+                                        >
+                                            <path
+                                                d="M2.22 2.22a.75.75 0 0 1 1.06 0L8 6.94l4.72-4.72a.75.75 0 0 1 1.06 1.06L9.06 8l4.72 4.72a.75.75 0 1 1-1.06 1.06L8 9.06l-4.72 4.72a.75.75 0 0 1-1.06-1.06L6.94 8 2.22 3.28a.75.75 0 0 1 0-1.06Z"
+                                            />
+                                        </svg>
+                                    </button>
+                                </span>
+                            {/if}
+                            <button
+                                type="submit"
+                                class="flex items-center text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1 disabled:opacity-50"
+                                disabled={(!!id && !!interval) || !prompt}
+                            >
+                                ⚡︎ Generate
+                            </button>
+                        </div>
+                    </div>
+
+                    <aside class="text-xs self-start">
+                        * Will take roughly 6 minutes to fully generate.
+                        <br /> &nbsp;&nbsp; Even longer during times of heavy load.
+                    </aside>
+                </form>
+            {/if}
+        </div>
+    </div>
+{/if}
+
+<div class="px-2 py-10">
+    <div class="flex flex-col items-center max-w-[1024px] mx-auto">
+        <ul class="max-w-[512px] w-full [&>li]:mb-5 [&>li>h1]:font-bold">
+            {#if failed}
+                <li>
+                    <div class="flex items-center gap-2">
+                        <button
+                            class="text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1 disabled:opacity-50"
+                            onclick={retryGen}
+                            disabled={!!id && !!interval}
+                        >
+                            ⚡︎ Retry
+                        </button>
+                        {#if playlist}
+                            <span
+                                class="flex items-center text-xs font-mono bg-lime-500 text-black px-2 py-1 rounded-full"
+                            >
+                                {playlist}
+                                <button
+                                    type="button"
+                                    onclick={removePlaylist}
+                                    class="ml-1.5 -mr-0.5 p-0.5 rounded-full hover:bg-black/20 text-black"
+                                    aria-label="Remove playlist"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        viewBox="0 0 16 16"
+                                        fill="currentColor"
+                                        class="size-3"
+                                    >
+                                        <path
+                                            d="M2.22 2.22a.75.75 0 0 1 1.06 0L8 6.94l4.72-4.72a.75.75 0 0 1 1.06 1.06L9.06 8l4.72 4.72a.75.75 0 1 1-1.06 1.06L8 9.06l-4.72 4.72a.75.75 0 0 1-1.06-1.06L6.94 8 2.22 3.28a.75.75 0 0 1 0-1.06Z"
+                                        />
+                                    </svg>
+                                </button>
+                            </span>
+                        {/if}
+                    </div>
+                </li>
+            {/if}
+
+            <li>
+                <h1>Id:</h1>
+                <pre class="whitespace-pre-wrap break-all"><code class="text-xs"
+                        >{id}</code
+                    ></pre>
+
+                <div class="flex items-center">
+                    {#if kv_do && kv_do?.nsfw}
+                        {#if kv_do.nsfw?.safe === false}
+                            <span
+                                class="bg-rose-400 text-rose-900 uppercase text-xs font-mono px-2 py-1 rounded-full mr-2"
+                            >
+                                unsafe —
+                                {kv_do.nsfw?.categories.join(", ")}
+                            </span>
+                        {:else}
+                            <span
+                                class="bg-lime-400 text-lime-900 uppercase text-xs font-mono px-2 py-1 rounded-full mr-2"
+                                >safe</span
+                            >
+
+                            {#if d1?.Address === userState.contractId}
+                                <button
+                                    class="uppercase text-xs font-mono ring rounded px-2 py-1
+                                {d1?.Public
+                                        ? 'text-amber-500 bg-amber-500/20 ring-amber-500 hover:bg-amber-500/30'
+                                        : 'text-blue-500 bg-blue-500/20 ring-blue-500 hover:bg-blue-500/30'}"
+                                    onclick={makeSongPublic}
+                                >
+                                    {#if d1?.Public}
+                                        Unpublish
+                                    {:else}
+                                        Publish
+                                    {/if}
+                                </button>
+                            {/if}
+                        {/if}
+
+                        {#if minted}
+                            <span
+                                class="uppercase text-xs font-mono bg-emerald-400 text-emerald-900 px-2 py-1 rounded-full ml-2"
+                            >
+                                Minted
+                            </span>
+                            {#if tradeReady}
+                                <button
+                                    class="flex items-center uppercase text-xs font-mono ring rounded px-2 py-1 text-sky-400 bg-sky-400/10 ring-sky-400 hover:bg-sky-400/20 ml-2"
+                                    onclick={openTradeModal}
+                                >
+                                    <span>Trade</span>
+                                    <TokenBalancePill balance={tradeMintBalance} classNames="ml-2" />
+                                </button>
+                            {/if}
+                        {:else}
+                            <button
+                                class="flex items-center uppercase text-xs font-mono ring rounded px-2 py-1 text-emerald-400 bg-emerald-400/10 ring-emerald-400 hover:bg-emerald-400/20 ml-2 disabled:opacity-50"
+                                disabled={minting}
+                                onclick={triggerMint}
+                            >
+                                {#if minting}
+                                    <Loader classNames="w-4 h-4 mr-2" textColor="text-emerald-400" />
+                                    Minting...
+                                {:else}
+                                    Mint
+                                {/if}
+                            </button>
+                        {/if}
+
+                        {#if d1?.Address === userState.contractId}
+                            <button
+                                class="uppercase text-xs font-mono ring rounded px-2 py-1 text-rose-500 bg-rose-500/20 ring-rose-500 hover:bg-rose-500/30 ml-2"
+                                aria-label="Delete"
+                                onclick={deleteSong}
+                            >
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 16 16"
+                                    fill="currentColor"
+                                    class="size-4"
+                                >
+                                    <path
+                                        fill-rule="evenodd"
+                                        d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z"
+                                        clip-rule="evenodd"
+                                    />
+                                </svg>
+                            </button>
+                        {/if}
+
+                        {#if d1?.Id}
+                            <div class="ml-2">
+                                <LikeButton
+                                    smolId={d1.Id}
+                                    liked={liked}
+                                    on:likeChanged={(e) => liked = e.detail.liked}
+                                />
+                            </div>
+                        {/if}
+                    {/if}
+
+                    {#if interval}
+                        <Loader classNames="size-7 ml-2" />
+                    {/if}
+                </div>
+            </li>
+
+            <li>
+                <h1>Prompt:</h1>
+                <p>{kv_do && kv_do?.payload?.prompt}</p>
+            </li>
+
+            <!-- [1] is reply tweet id -->
+
+            <li>
+                <h1 class="mb-2">Image:</h1>
+
+                {#if kv_do && kv_do?.image_base64}
+                    <img
+                        class="aspect-square object-contain pixelated w-[256px]"
+                        src={`${import.meta.env.PUBLIC_API_URL}/image/${id}.png`}
+                        onerror={(e) => {
+                            // @ts-ignore
+                            e.currentTarget.src = `data:image/png;base64,${kv_do.image_base64}`;
+                        }}
+                        alt={kv_do?.lyrics?.title}
+                    />
+                {/if}
+            </li>
+
+            <li>
+                <h1>Description:</h1>
+                <p>{kv_do && kv_do?.description}</p>
+            </li>
+
+            <li>
+                <h1 class="flex items-center mb-2">
+                    Songs:
+                    {#if interval && kv_do?.songs?.some((song) => song.audio)}
+                        <Loader classNames="size-7 ml-2" />
+                        <small class="ml-2 text-xs text-slate-400 font-normal">streaming...</small>
+                    {/if}
+                </h1>
+
+                <!-- [5] is nsfw tags -->
+                <!-- [6] is the song ids -->
+
+                {#if kv_do && kv_do?.songs?.length}
+                    {#each kv_do && kv_do.songs as song, index (song.music_id)}
+                        <div class="flex items-center mb-2">
+                            {#if song.audio}
+                                <audio
+                                    class="mr-2"
+                                    bind:this={audioElements[index]}
+                                    onplay={() => playAudio(index)}
+                                    src={song.status < 4
+                                        ? song.audio
+                                        : `${import.meta.env.PUBLIC_API_URL}/song/${song.music_id}.mp3`}
+                                    onerror={(e) => {
+                                        // @ts-ignore
+                                        e.currentTarget.src = song.audio;
+                                    }}
+                                    preload="none"
+                                    controls
+                                ></audio>
+
+                                {#if d1?.Address === userState.contractId}
+                                    <input
+                                        class="scale-150 m-2"
+                                        type="radio"
+                                        value={song.music_id}
+                                        bind:group={best_song}
+                                        onchange={() =>
+                                            selectBestSong(song.music_id)}
+                                    />
+                                {/if}
+
+                                {#if song.music_id === best_song}
+                                    <span class="text-2xl ml-1">👈</span>
+                                    <span class="ml-2 mt-1">better</span>
+                                {/if}
+                            {:else}
+                                <Loader />
+                            {/if}
+                        </div>
+                    {/each}
+                {:else if interval}
+                    <Loader />
+                {/if}
+            </li>
+
+            <li>
+                <h1>Lyrics:</h1>
+                <pre
+                    class="whitespace-pre-wrap break-words [&>code]:text-xs"><code
+                        >Title: <strong>{kv_do && kv_do?.lyrics?.title}</strong
+                        ></code
+                    >
+<code>Tags: <em>{kv_do && kv_do?.lyrics?.style?.join(", ")}</em></code>
+
+{#if !kv_do?.payload?.instrumental && !is_instrumental && !d1?.Instrumental}<code
+                            >{kv_do && kv_do?.lyrics?.lyrics}</code
+                        >{/if}</pre>
+            </li>
+        </ul>
+    </div>
+</div>
+
+{#if showTradeModal && tradeReady && d1?.Mint_Amm && d1?.Mint_Token && tradeSongId}
+    <MintTradeModal
+        ammId={d1.Mint_Amm}
+        mintTokenId={d1.Mint_Token}
+        songId={tradeSongId!}
+        title={tradeTitle ?? undefined}
+        imageUrl={tradeImageUrl ?? undefined}
+        fallbackImage={tradeImageFallback ?? undefined}
+        on:close={handleTradeModalClose}
+        on:complete={handleTradeModalComplete}
+    />
+{/if}
