@@ -21,17 +21,6 @@
 
   let { initialKeyId, initialContractId, initialBalance }: Props = $props();
 
-  // Initialize state immediately (before render) to prevent flash
-  if (initialKeyId && initialContractId && !userState.keyId && !userState.contractId) {
-    userState.contractId = initialContractId;
-    userState.keyId = initialKeyId;
-  }
-
-  // Always sync server balance to prevent stale persisted state
-  if (initialBalance !== null) {
-    balanceState.balance = BigInt(initialBalance);
-  }
-
   const authHook = useAuthentication();
 
   let creating = $state(false);
@@ -66,6 +55,16 @@
     return () => {
       document.removeEventListener('astro:page-load', updatePath);
     };
+  });
+
+  // Sync server props to state on every change (handles navigation updates)
+  $effect(() => {
+    userState.contractId = initialContractId;
+    userState.keyId = initialKeyId;
+
+    if (initialBalance !== null) {
+      balanceState.balance = BigInt(initialBalance);
+    }
   });
 
   $effect(() => {
