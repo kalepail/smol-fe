@@ -8,6 +8,7 @@
   import { updateContractBalance } from '../stores/balance.svelte';
   import { useSmolGeneration } from '../hooks/useSmolGeneration';
   import { useSmolMinting } from '../hooks/useSmolMinting';
+  import { audioState } from '../stores/audio.svelte';
 
   interface Props {
     id?: string | null;
@@ -165,6 +166,14 @@
   });
 
   function playAudio(index: number) {
+    // Pause and clear global audio player if it's playing
+    if (audioState.audioElement && !audioState.audioElement.paused) {
+      audioState.audioElement.pause();
+    }
+    audioState.playingId = null;
+    audioState.currentSong = null;
+
+    // Pause all local audio elements except the one being played
     audioElements.forEach((audio, i) => {
       if (i !== index) {
         audio.pause();
@@ -173,6 +182,21 @@
       }
     });
   }
+
+  // Effect: Pause local audio elements when global player starts playing
+  $effect(() => {
+    const globalPlayingId = audioState.playingId;
+    const globalAudio = audioState.audioElement;
+
+    if (globalPlayingId && globalAudio && !globalAudio.paused) {
+      // Global player is playing, pause all local audio elements
+      audioElements.forEach((audio) => {
+        if (!audio.paused) {
+          audio.pause();
+        }
+      });
+    }
+  });
 
   function removePlaylist() {
     const url = new URL(window.location.href);
