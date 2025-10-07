@@ -257,6 +257,7 @@
     } catch (error) {
       console.error(error);
       alert(error instanceof Error ? error.message : String(error));
+      mintingHook.clearMintPolling();
       minting = false;
     }
   }

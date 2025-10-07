@@ -1,6 +1,5 @@
-import { untrack } from 'svelte';
-import { Client as SmolClient } from 'smol-sdk';
 import { Asset } from '@stellar/stellar-sdk/minimal';
+import { Client as SmolClient } from 'smol-sdk';
 import { getDomain } from 'tldts';
 import type { MixtapeTrack, Smol } from '../types/domain';
 import { rpc } from '../utils/base';
@@ -154,7 +153,6 @@ export function useMixtapeMinting() {
       fee_rules: feeRulesArray,
     });
 
-    // Sign the transaction
     const { sequence } = await rpc.getLatestLedger();
     at = await account.sign(at, {
       rpId: getDomain(window.location.hostname) ?? undefined,
@@ -282,6 +280,8 @@ export function useMixtapeMinting() {
       } catch (error) {
         console.error(`Error processing batch ${chunkIndex + 1}:`, error);
         onBatchError(chunkIndex, error as Error);
+        // Stop processing remaining batches
+        throw error;
       }
     }
   }

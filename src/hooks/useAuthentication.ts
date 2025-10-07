@@ -1,7 +1,7 @@
 import Cookies from 'js-cookie';
 import { getDomain } from 'tldts';
 import { account, server } from '../utils/passkey-kit';
-import { setUserAuth, clearUserAuth } from '../stores/user.svelte';
+import { setUserAuth, clearUserAuth, userState } from '../stores/user.svelte';
 
 interface ConnectResult {
   rawResponse: unknown;
@@ -41,6 +41,8 @@ export function useAuthentication() {
     });
 
     setUserAuth(cid, keyIdBase64);
+    // Mark wallet as connected since connectWallet was just called
+    userState.walletConnected = true;
 
     Cookies.set('smol_token', jwt, {
       path: '/',
@@ -82,6 +84,8 @@ export function useAuthentication() {
     await server.send(signedTx);
 
     setUserAuth(cid, keyIdBase64);
+    // Mark wallet as connected since createWallet was just called (which internally connects)
+    userState.walletConnected = true;
 
     Cookies.set('smol_token', jwt, {
       path: '/',
@@ -121,29 +125,9 @@ export function useAuthentication() {
     location.reload();
   }
 
-  async function connectWalletOnMount(keyId: string | undefined, contractId: string | null) {
-    const rpId = getDomain(window.location.hostname);
-    const rpIdValue = rpId ?? undefined;
-
-    if (!contractId) {
-      const { contractId: cid } = await account.connectWallet({
-        rpId: rpIdValue,
-        keyId,
-      });
-      return cid;
-    } else {
-      await account.connectWallet({
-        rpId: rpIdValue,
-        keyId,
-      });
-      return null;
-    }
-  }
-
   return {
     login,
     signUp,
     logout,
-    connectWalletOnMount,
   };
 }

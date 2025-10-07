@@ -16,7 +16,7 @@
 <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
     {#each mixtapes as mixtape (mixtape.id)}
         <article class="flex flex-col rounded-2xl border border-slate-700 bg-slate-900/80 p-4 shadow-lg">
-            <a href={`/mixtapes/${mixtape.id}`} class="grid grid-cols-2 grid-rows-2 gap-1 rounded-xl overflow-hidden bg-slate-800 hover:ring-2 hover:ring-lime-500 transition-all">
+            <a href={`/mixtapes/${mixtape.id}`} class="grid grid-cols-2 grid-rows-2 gap-1 rounded-xl overflow-hidden hover:ring-2 hover:ring-lime-500 transition-all">
                 {#each Array.from({ length: 4 }) as _, index}
                     <div class="aspect-square bg-slate-900">
                         {#if mixtape.coverUrls[index]}

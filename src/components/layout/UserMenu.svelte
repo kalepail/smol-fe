@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { userState } from '../../stores/user.svelte';
+  import { userState, ensureWalletConnected } from '../../stores/user.svelte';
   import { balanceState, updateContractBalance, resetBalance } from '../../stores/balance.svelte';
   import {
     mixtapeModeState,
@@ -34,22 +34,12 @@
 
     document.addEventListener('astro:page-load', updatePath);
 
-    // Connect wallet if we have keyId but haven't initialized yet
-    if (userState.keyId && !initialized) {
+    // Ensure wallet is connected if user is authenticated
+    if (userState.keyId && userState.contractId && !initialized) {
       initialized = true;
-
-      (async () => {
-        const keyId = userState.keyId ?? undefined;
-
-        if (!userState.contractId) {
-          const cid = await authHook.connectWalletOnMount(keyId, userState.contractId);
-          if (cid) {
-            userState.contractId = cid;
-          }
-        } else {
-          await authHook.connectWalletOnMount(keyId, userState.contractId);
-        }
-      })();
+      ensureWalletConnected().catch((error) => {
+        console.error('[UserMenu] Failed to connect wallet:', error);
+      });
     }
 
     return () => {
@@ -64,6 +54,13 @@
 
     if (initialBalance !== null) {
       balanceState.balance = BigInt(initialBalance);
+    }
+
+    // Ensure wallet is connected after syncing auth state
+    if (initialContractId && initialKeyId) {
+      ensureWalletConnected().catch((error) => {
+        console.error('[UserMenu] Failed to connect wallet on sync:', error);
+      });
     }
   });
 

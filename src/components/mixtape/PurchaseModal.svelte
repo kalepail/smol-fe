@@ -142,12 +142,21 @@
                         </div>
                     </div>
 
+                    {#if !isProcessing && totalSignatures > 1}
+                        <div class="rounded-lg border border-slate-600/50 bg-slate-800/30 p-3">
+                            <p class="text-xs text-slate-400">
+                                💡 You'll sign transactions in batches. If you cancel, you can retry without re-opening this modal.
+                            </p>
+                        </div>
+                    {/if}
+
                     <!-- Steps -->
                     <div class="space-y-3">
                         {#each steps as step, stepIndex}
                             {@const isCompleted = completedSteps.has(step.id)}
                             {@const isCurrent = currentStep === step.id}
                             {@const isLast = stepIndex === steps.length - 1}
+                            {@const isNext = !isCompleted && !isCurrent && isProcessing && stepIndex > 0}
 
                             <div class="rounded-xl border transition-colors {isCurrent ? 'border-lime-400 bg-lime-400/10' : isCompleted ? 'border-emerald-400 bg-emerald-400/5' : 'border-slate-700 bg-slate-800/50'}">
                                 <div class="p-4">
@@ -162,13 +171,13 @@
                                             {:else if isCurrent}
                                                 <Loader classNames="w-6 h-6" />
                                             {:else}
-                                                <div class="flex h-6 w-6 items-center justify-center rounded-full border-2 {isLast ? 'border-lime-400' : 'border-slate-600'} bg-slate-900">
-                                                    <span class="text-xs font-semibold {isLast ? 'text-lime-400' : 'text-slate-400'}">{stepIndex + 1}</span>
+                                                <div class="flex h-6 w-6 items-center justify-center rounded-full border-2 border-slate-600 bg-slate-900">
+                                                    <span class="text-xs font-semibold text-slate-400">{stepIndex + 1}</span>
                                                 </div>
                                             {/if}
                                         </div>
                                         <div class="flex-1 min-w-0">
-                                            <p class="font-semibold {isCurrent ? 'text-lime-400' : isCompleted ? 'text-emerald-400' : 'text-white'}">{step.label}</p>
+                                            <p class="font-semibold {isCurrent ? 'text-lime-400' : isCompleted ? 'text-emerald-400' : isNext ? 'text-slate-300' : 'text-white'}">{step.label}</p>
                                             {#if step.detail}
                                                 <p class="text-sm text-slate-400 mt-0.5">{step.detail}</p>
                                             {/if}
@@ -208,7 +217,7 @@
                                 </svg>
                                 <div class="flex-1">
                                     <p class="text-sm font-medium text-blue-400">Processing...</p>
-                                    <p class="text-xs text-slate-400 mt-1">Please sign transactions as prompted and keep this window open.</p>
+                                    <p class="text-xs text-slate-400 mt-1">You'll be asked to sign {totalSignatures} transaction{totalSignatures === 1 ? '' : 's'}. Keep this window open.</p>
                                 </div>
                             </div>
                         </div>

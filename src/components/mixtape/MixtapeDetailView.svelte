@@ -324,8 +324,10 @@
           mixtape,
           handleMintStatusUpdate,
           (chunkIndex, error) => {
-            // Mark failed tracks as not minting
-            alert(`Batch ${chunkIndex + 1} failed: ${error.message}`);
+            // Don't alert for user cancellations
+            if (error.name !== 'NotAllowedError') {
+              alert(`Batch ${chunkIndex + 1} failed: ${error.message}`);
+            }
           }
         );
 
@@ -408,6 +410,9 @@
       purchaseCurrentStep = 'complete';
       purchaseCompletedSteps.add('complete');
 
+      // Clean up polling - minting is complete
+      mintingHook.clearAllMintPolling();
+
       setTimeout(() => {
         showPurchaseModal = false;
         isPurchasing = false;
@@ -416,8 +421,43 @@
       }, 2000);
     } catch (error) {
       console.error('Purchase error:', error);
-      alert(error instanceof Error ? error.message : String(error));
-      isPurchasing = false;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorName = error instanceof Error ? error.name : '';
+
+      // Check if user cancelled the transaction
+      const isCancellation =
+        errorName === 'NotAllowedError' ||
+        errorMessage.toLowerCase().includes('abort') ||
+        errorMessage.toLowerCase().includes('cancel') ||
+        errorMessage.toLowerCase().includes('not allowed');
+
+      if (isCancellation) {
+        // User cancelled - reset to initial state but keep modal open so they can retry
+        mintingHook.clearAllMintPolling();
+        isPurchasing = false;
+        purchaseCurrentStep = '';
+        purchaseCompletedSteps = new Set();
+
+        // Reset minting state for tracks
+        mixtapeTracks = mixtapeTracks.map(track => {
+          if (track) {
+            return { ...track, minting: false };
+          }
+          return track;
+        });
+      } else {
+        // Real error - show alert and close modal
+        alert(`Purchase failed: ${errorMessage}`);
+
+        // Clean up polling intervals/timeouts
+        mintingHook.clearAllMintPolling();
+
+        // Reset modal state and close
+        showPurchaseModal = false;
+        isPurchasing = false;
+        purchaseCurrentStep = '';
+        purchaseCompletedSteps = new Set();
+      }
     }
   }
 
@@ -530,6 +570,9 @@
   isProcessing={isPurchasing}
   currentStep={purchaseCurrentStep}
   completedSteps={purchaseCompletedSteps}
-  on:close={() => (showPurchaseModal = false)}
+  on:close={() => {
+    mintingHook.clearAllMintPolling();
+    showPurchaseModal = false;
+  }}
   on:confirm={handlePurchaseConfirm}
 />
