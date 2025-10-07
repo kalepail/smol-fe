@@ -28,7 +28,7 @@
   }: Props = $props();
 
   let draggingId = $state<string | null>(null);
-  let visibleCards = $state(new Set<string>());
+  let visibleCards = $state<Record<string, boolean>>({});
   let cursor = $state(initialCursor);
   let hasMore = $state(initialHasMore);
   let loadingMore = $state(false);
@@ -41,8 +41,12 @@
   const mediaHook = useGridMediaSession();
 
   const observeVisibility = visibilityHook.createVisibilityObserver(
-    (id) => visibleCards.add(id),
-    (id) => visibleCards.delete(id)
+    (id) => {
+      visibleCards[id] = true;
+    },
+    (id) => {
+      visibleCards[id] = false;
+    }
   );
 
   $effect(() => {
@@ -197,7 +201,7 @@
     <div use:observeVisibility={smol.Id}>
       <SmolCard
         {smol}
-        isVisible={visibleCards.has(smol.Id)}
+        isVisible={!!visibleCards[smol.Id]}
         onLikeChanged={(liked) => handleLikeChanged(smol, liked)}
         onAddToMixtape={() => addToMixtape(smol)}
         onDragStart={(e) => handleDragStart(e, smol)}
