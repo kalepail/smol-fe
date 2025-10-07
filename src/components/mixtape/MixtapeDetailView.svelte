@@ -377,6 +377,8 @@
         }
       }
 
+      console.log('Tracks to purchase:', tokensOut.length);
+
       // Step 2: Purchase remaining tracks
       if (tokensOut.length > 0) {
         purchaseCurrentStep = 'purchase';

@@ -230,7 +230,7 @@ export function useMixtapeMinting() {
 
     // Find all tracks that need minting
     const tracksToMintData = mixtapeTracks.filter((track) => {
-      return track && !track.Mint_Token && !track.minting;
+      return track && !track.Mint_Token;
     });
 
     if (tracksToMintData.length === 0) return;
