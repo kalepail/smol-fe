@@ -27,6 +27,8 @@
     let cursor = $state(initialCursor);
     let hasMore = $state(initialHasMore);
     let loadingMore = $state(false);
+    let observer: IntersectionObserver | null = null;
+    let sentinel: HTMLDivElement | null = null;
 
     $effect(() => {
         if ($contractId) {
@@ -65,6 +67,28 @@
         if (playlist) {
             localStorage.setItem("smol:playlist", playlist);
         }
+    });
+
+    $effect(() => {
+        // Set up intersection observer for infinite scroll
+        if (hasMore && sentinel) {
+            observer = new IntersectionObserver(
+                (entries) => {
+                    if (entries[0].isIntersecting && !loadingMore) {
+                        loadMore();
+                    }
+                },
+                { rootMargin: '100px' }
+            );
+            observer.observe(sentinel);
+        }
+
+        return () => {
+            if (observer) {
+                observer.disconnect();
+                observer = null;
+            }
+        };
     });
 
     $effect(() => {
@@ -267,21 +291,13 @@
 </div>
 
 {#if hasMore}
-    <div class="flex justify-center mb-20">
-        <button
-            class="text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-4 py-2 disabled:opacity-50"
-            on:click={loadMore}
-            disabled={loadingMore}
-        >
-            {#if loadingMore}
-                <div class="flex items-center gap-2">
-                    <Loader classNames="w-5 h-5" />
-                    <span>Loading...</span>
-                </div>
-            {:else}
-                Load More
-            {/if}
-        </button>
+    <div bind:this={sentinel} class="flex justify-center mb-20">
+        {#if loadingMore}
+            <div class="flex items-center gap-2 text-lime-500">
+                <Loader classNames="w-5 h-5" />
+                <span>Loading...</span>
+            </div>
+        {/if}
     </div>
 {/if}
 
