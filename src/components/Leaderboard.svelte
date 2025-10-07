@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { onMount } from 'svelte';
+
     // Interface for individual song data expected via props
     interface SmolData {
         Id: string;
@@ -24,11 +26,45 @@
     }
 
     interface Props {
-        smols?: SmolData[];
-        users?: UserData[];
+        playlist: string;
     }
 
-    let { smols = [], users = [] }: Props = $props();
+    let { playlist }: Props = $props();
+
+    let smols = $state<SmolData[]>([]);
+    let users = $state<UserData[]>([]);
+    let loading = $state(true);
+    let error = $state<string | null>(null);
+
+    async function fetchLeaderboard(playlistName: string) {
+        loading = true;
+        error = null;
+
+        try {
+            const response = await fetch(
+                `${import.meta.env.PUBLIC_API_URL}/playlist/${playlistName}?limit=100`
+            );
+
+            if (!response.ok) {
+                throw new Error('Failed to load leaderboard');
+            }
+
+            const data = await response.json();
+            smols = data.smols || [];
+            users = data.users || [];
+        } catch (err) {
+            error = err instanceof Error ? err.message : 'Failed to load';
+            console.error('Failed to fetch leaderboard:', err);
+        } finally {
+            loading = false;
+        }
+    }
+
+    onMount(() => {
+        if (playlist) {
+            fetchLeaderboard(playlist);
+        }
+    });
 
     // Scroll state for shadows
     let scrollContainer = $state<HTMLDivElement | undefined>();
@@ -120,7 +156,11 @@
 
 <div class="px-2 py-10 bg-slate-900 overflow-hidden text-white">
     <div class="max-w-[1024px] overflow-hidden mx-auto">
-        {#if !leaderboardData || leaderboardData.length === 0}
+        {#if loading}
+            <p class="text-center text-lime-500 py-8">Loading...</p>
+        {:else if error}
+            <p class="text-center text-red-500 py-8">{error}</p>
+        {:else if !leaderboardData || leaderboardData.length === 0}
             <p class="text-center text-slate-400 py-8">No leaderboard data available yet.</p>
         {:else}
             <div class="relative overflow-hidden shadow-lg rounded-lg">

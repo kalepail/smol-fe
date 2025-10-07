@@ -1,9 +1,8 @@
 <script lang="ts">
-  import { onMount, untrack } from 'svelte';
+  import { onMount, onDestroy, untrack } from 'svelte';
   import type { Smol, MixtapeTrack } from '../../types/domain';
   import SmolCard from './SmolCard.svelte';
-  import BarAudioPlayer from '../audio/BarAudioPlayer.svelte';
-  import { audioState, selectSong } from '../../stores/audio.svelte';
+  import { audioState, selectSong, registerSongNextCallback } from '../../stores/audio.svelte';
   import { mixtapeDraftState, mixtapeModeState, addTrack } from '../../stores/mixtape.svelte';
   import { userState } from '../../stores/user.svelte';
   import { fetchLikedSmols } from '../../services/api/smols';
@@ -12,28 +11,24 @@
   import { useGridMediaSession } from '../../hooks/useGridMediaSession';
 
   interface Props {
-    results: Smol[];
-    playlist: string | null;
-    initialCursor?: string | null;
-    hasMore?: boolean;
+    playlist?: string | null;
     endpoint?: string;
   }
 
   let {
-    results = $bindable(),
-    playlist,
-    initialCursor = null,
-    hasMore: initialHasMore = false,
+    playlist = null,
     endpoint = ''
   }: Props = $props();
 
+  let results = $state<Smol[]>([]);
+  let cursor = $state<string | null>(null);
+  let hasMore = $state(false);
+  let loading = $state(true);
+  let error = $state<string | null>(null);
+  let likes = $state<string[]>([]);
   let draggingId = $state<string | null>(null);
   let visibleCards = $state<Record<string, boolean>>({});
-  let cursor = $state(initialCursor);
-  let hasMore = $state(initialHasMore);
   let loadingMore = $state(false);
-  let likes = $state<string[]>([]);
-  let likesLoaded = $state(false);
   let scrollTrigger = $state<HTMLDivElement | null>(null);
 
   const visibilityHook = useVisibilityTracking();
@@ -49,30 +44,54 @@
     }
   );
 
-  $effect(() => {
-    const contractId = userState.contractId;
-    if (contractId && !likesLoaded) {
-      untrack(() => {
-        likesLoaded = true;
-        fetchLikedSmols().then((likedIds) => {
-          untrack(() => {
-            likes = likedIds;
-            results = results.map((smol) => ({
-              ...smol,
-              Liked: likedIds.some((id) => id === smol.Id),
-            }));
-          });
-        });
-      });
-    } else if (!contractId && likesLoaded) {
-      untrack(() => {
-        likesLoaded = false;
-        likes = [];
-      });
+  async function fetchInitialData() {
+    loading = true;
+    error = null;
+
+    try {
+      // Fetch smols
+      const baseUrl = endpoint
+        ? `${import.meta.env.PUBLIC_API_URL}/${endpoint}`
+        : import.meta.env.PUBLIC_API_URL;
+      const url = new URL(baseUrl, window.location.origin);
+      url.searchParams.set('limit', '100');
+
+      const response = await fetch(url, { credentials: 'include' });
+
+      if (!response.ok) {
+        throw new Error('Failed to load smols');
+      }
+
+      const data = await response.json();
+      results = data.smols || [];
+      cursor = data.pagination?.nextCursor || null;
+      hasMore = data.pagination?.hasMore || false;
+
+      // Fetch likes if user is authenticated
+      if (userState.contractId) {
+        const likedIds = await fetchLikedSmols();
+        likes = likedIds;
+
+        // Apply liked state to results
+        results = results.map((smol) => ({
+          ...smol,
+          Liked: likedIds.some((id) => id === smol.Id),
+        }));
+      }
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to load';
+      console.error('Failed to fetch initial data:', err);
+    } finally {
+      loading = false;
     }
-  });
+  }
 
   onMount(() => {
+    fetchInitialData();
+
+    // Register the songNext callback for this page
+    registerSongNextCallback(songNext);
+
     const cleanupMedia = mediaHook.setupMediaSessionHandlers(
       () => {
         const previous = mediaHook.findPreviousSong(results, audioState.currentSong?.Id);
@@ -87,19 +106,29 @@
       localStorage.setItem('smol:playlist', playlist);
     }
 
-    // Infinite scroll observer
+    return () => {
+      cleanupMedia();
+    };
+  });
+
+  onDestroy(() => {
+    // Unregister the callback when this component is destroyed
+    registerSongNextCallback(null);
+  });
+
+  // Infinite scroll observer - set up when scrollTrigger is available
+  $effect(() => {
+    if (!scrollTrigger) return;
+
     const scrollObserver = scrollHook.createScrollObserver(() => {
       if (hasMore && !loadingMore) {
         loadMore();
       }
     });
 
-    if (scrollTrigger) {
-      scrollObserver.observe(scrollTrigger);
-    }
+    scrollObserver.observe(scrollTrigger);
 
     return () => {
-      cleanupMedia();
       scrollObserver.disconnect();
     };
   });
@@ -194,23 +223,33 @@
   }
 </script>
 
-<div
-  class="relative grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2 m-2 pb-10"
->
-  {#each results as smol (smol.Id)}
-    <div use:observeVisibility={smol.Id}>
-      <SmolCard
-        {smol}
-        isVisible={!!visibleCards[smol.Id]}
-        onLikeChanged={(liked) => handleLikeChanged(smol, liked)}
-        onAddToMixtape={() => addToMixtape(smol)}
-        onDragStart={(e) => handleDragStart(e, smol)}
-        onDragEnd={handleDragEnd}
-        isDragging={draggingId === smol.Id}
-      />
-    </div>
-  {/each}
-</div>
+{#if loading}
+  <div class="flex justify-center items-center py-20">
+    <div class="text-lime-500">Loading...</div>
+  </div>
+{:else if error}
+  <div class="flex justify-center items-center py-20">
+    <div class="text-red-500">{error}</div>
+  </div>
+{:else}
+  <div
+    class="relative grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2 m-2 pb-10"
+  >
+    {#each results as smol (smol.Id)}
+      <div use:observeVisibility={smol.Id}>
+        <SmolCard
+          {smol}
+          isVisible={!!visibleCards[smol.Id]}
+          onLikeChanged={(liked) => handleLikeChanged(smol, liked)}
+          onAddToMixtape={() => addToMixtape(smol)}
+          onDragStart={(e) => handleDragStart(e, smol)}
+          onDragEnd={handleDragEnd}
+          isDragging={draggingId === smol.Id}
+        />
+      </div>
+    {/each}
+  </div>
+{/if}
 
 {#if hasMore || loadingMore}
   <div bind:this={scrollTrigger} class="flex justify-center mb-20 py-8">
@@ -219,8 +258,3 @@
     {/if}
   </div>
 {/if}
-
-<BarAudioPlayer
-  classNames="fixed z-30 p-2 bottom-2 lg:w-full left-4 right-4 lg:max-w-1/2 lg:min-w-[300px] lg:left-1/2 lg:-translate-x-1/2 rounded-md bg-slate-950/50 backdrop-blur-lg border border-white/20 shadow-lg"
-  {songNext}
-/>

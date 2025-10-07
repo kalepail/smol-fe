@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { onMount, untrack } from 'svelte';
-  import { userState, ensureWalletConnected } from '../../stores/user.svelte';
-  import { balanceState, updateContractBalance, resetBalance } from '../../stores/balance.svelte';
+  import { onMount } from 'svelte';
+  import { userState, hydrateUserState, ensureWalletConnected } from '../../stores/user.svelte';
+  import { balanceState, hydrateBalance, updateContractBalance, resetBalance } from '../../stores/balance.svelte';
   import {
     mixtapeModeState,
     mixtapeDraftHasContent,
@@ -25,7 +25,10 @@
 
   let creating = $state(false);
   let currentPath = $state(typeof window !== 'undefined' ? location.pathname : '');
-  let initialized = $state(false);
+
+  // Hydrate stores from server data ONCE on component creation (synchronous)
+  hydrateUserState(initialContractId, initialKeyId);
+  hydrateBalance(initialBalance);
 
   onMount(() => {
     const updatePath = () => {
@@ -34,9 +37,8 @@
 
     document.addEventListener('astro:page-load', updatePath);
 
-    // Ensure wallet is connected if user is authenticated
-    if (userState.keyId && userState.contractId && !initialized) {
-      initialized = true;
+    // Connect wallet after initial hydration if authenticated
+    if (userState.contractId && userState.keyId) {
       ensureWalletConnected().catch((error) => {
         console.error('[UserMenu] Failed to connect wallet:', error);
       });
@@ -47,37 +49,25 @@
     };
   });
 
-  // Sync server props to state on every change (handles navigation updates)
+  // Handle prop updates during navigation (only if values actually changed)
   $effect(() => {
-    userState.contractId = initialContractId;
-    userState.keyId = initialKeyId;
+    const authChanged =
+      userState.contractId !== initialContractId || userState.keyId !== initialKeyId;
 
-    if (initialBalance !== null) {
+    if (authChanged) {
+      userState.contractId = initialContractId;
+      userState.keyId = initialKeyId;
+
+      if (initialContractId && initialKeyId) {
+        ensureWalletConnected().catch((error) => {
+          console.error('[UserMenu] Failed to connect wallet:', error);
+        });
+      }
+    }
+
+    // Update balance if it changed (but don't trigger loading state)
+    if (initialBalance !== null && balanceState.balance !== BigInt(initialBalance)) {
       balanceState.balance = BigInt(initialBalance);
-    }
-
-    // Ensure wallet is connected after syncing auth state
-    if (initialContractId && initialKeyId) {
-      ensureWalletConnected().catch((error) => {
-        console.error('[UserMenu] Failed to connect wallet on sync:', error);
-      });
-    }
-  });
-
-  $effect(() => {
-    const cid = userState.contractId;
-    if (cid) {
-      // Only fetch balance if we don't already have it (e.g., from server-side render)
-      // Use untrack to prevent balance state changes from triggering this effect
-      untrack(() => {
-        if (balanceState.balance === null && !balanceState.loading) {
-          updateContractBalance(cid);
-        }
-      });
-    } else {
-      untrack(() => {
-        resetBalance();
-      });
     }
   });
 

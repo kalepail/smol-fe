@@ -7,9 +7,11 @@ import { kale } from '../utils/passkey-kit';
 export const balanceState = $state<{
   balance: bigint | null;
   loading: boolean;
+  hydrated: boolean; // Track if we've been initialized from server
 }>({
   balance: null,
   loading: false,
+  hydrated: false,
 });
 
 /**
@@ -48,4 +50,14 @@ export function isBalanceLoading(): boolean {
 export function resetBalance(): void {
   balanceState.balance = null;
   balanceState.loading = false;
+}
+
+/**
+ * Initialize balance from server props (call once during hydration)
+ */
+export function hydrateBalance(balance: string | null) {
+  if (!balanceState.hydrated && balance !== null) {
+    balanceState.balance = BigInt(balance);
+    balanceState.hydrated = true;
+  }
 }

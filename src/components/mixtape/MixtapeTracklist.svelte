@@ -50,12 +50,12 @@
     </p>
   {:else}
     <ul class="flex flex-col gap-3">
-      {#each mixtape.tracks as track, index (track.id)}
+      {#each mixtape.tracks as track, index (track.Id)}
         {@const smolTrack = mixtapeTracks[index]}
-        {@const isLoading = loadingTracks.has(track.id)}
-        {@const isCurrentTrack = audioState.currentSong?.Id === track.id}
+        {@const isLoading = loadingTracks.has(track.Id)}
+        {@const isCurrentTrack = audioState.currentSong?.Id === track.Id}
         {@const isCurrentlyPlaying =
-          isCurrentTrack && audioState.playingId === track.id}
+          isCurrentTrack && audioState.playingId === track.Id}
         {@const isMinted = Boolean(
           smolTrack?.Mint_Token && smolTrack?.Mint_Amm
         )}
@@ -67,7 +67,7 @@
           onclick={() => onTrackClick(index)}
         >
           <a
-            href={`/${track.id}`}
+            href={`/${track.Id}`}
             target="_blank"
             class="relative w-20 shrink-0 overflow-hidden rounded-lg bg-slate-900 group md:h-16 md:w-16"
             onclick={(e) => e.stopPropagation()}
@@ -154,11 +154,11 @@
                 {#if mixtapeTracks[index]?.Song_1}
                   <div class="relative z-2" onclick={(e) => e.stopPropagation()}>
                     <MiniAudioPlayer
-                      id={track.id}
+                      id={track.Id}
                       playing_id={audioState.playingId}
                       songToggle={() => onTrackClick(index)}
                       songNext={onPlayNext}
-                      progress={audioState.currentSong?.Id === track.id
+                      progress={audioState.currentSong?.Id === track.Id
                         ? audioState.progress
                         : 0}
                     />
@@ -167,7 +167,7 @@
 
                 <div onclick={(e) => e.stopPropagation()}>
                   <LikeButton
-                    smolId={track.id}
+                    smolId={track.Id}
                     liked={smolTrack?.Liked || false}
                     classNames="p-1.5 rounded-lg hover:bg-slate-700/50 transition-colors"
                     on:likeChanged={(e) => onLikeChanged(index, e.detail.liked)}
@@ -185,11 +185,11 @@
             {#if mixtapeTracks[index]?.Song_1}
               <div class="relative z-2" onclick={(e) => e.stopPropagation()}>
                 <MiniAudioPlayer
-                  id={track.id}
+                  id={track.Id}
                   playing_id={audioState.playingId}
                   songToggle={() => onTrackClick(index)}
                   songNext={onPlayNext}
-                  progress={audioState.currentSong?.Id === track.id
+                  progress={audioState.currentSong?.Id === track.Id
                     ? audioState.progress
                     : 0}
                 />
@@ -198,7 +198,7 @@
 
             <div onclick={(e) => e.stopPropagation()}>
               <LikeButton
-                smolId={track.id}
+                smolId={track.Id}
                 liked={smolTrack?.Liked || false}
                 classNames="p-1.5 rounded-lg hover:bg-slate-700/50 transition-colors"
                 on:likeChanged={(e) => onLikeChanged(index, e.detail.liked)}

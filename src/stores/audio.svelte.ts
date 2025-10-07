@@ -11,11 +11,13 @@ export const audioState = $state<{
   currentSong: Smol | null;
   audioElement: HTMLAudioElement | null;
   progress: number;
+  songNextCallback: (() => void) | null;
 }>({
   playingId: null,
   currentSong: null,
   audioElement: null,
   progress: 0,
+  songNextCallback: null,
 });
 
 /**
@@ -84,4 +86,21 @@ export function resetAudioState() {
   audioState.playingId = null;
   audioState.currentSong = null;
   audioState.progress = 0;
+}
+
+/**
+ * Register a callback for playing the next song
+ * This allows pages to control what happens when a song ends
+ */
+export function registerSongNextCallback(callback: (() => void) | null) {
+  audioState.songNextCallback = callback;
+}
+
+/**
+ * Call the registered next song callback if it exists
+ */
+export function playNextSong() {
+  if (audioState.songNextCallback) {
+    audioState.songNextCallback();
+  }
 }

@@ -9,8 +9,19 @@ export interface MixtapeSummary {
   updatedAt: string;
 }
 
+export interface MixtapeSmolData {
+  Id: string;
+  Title: string;
+  Address: string;
+  Mint_Token?: string;
+  Mint_Amm?: string;
+  Song_1?: string;
+  Tags?: string[];
+}
+
 export interface MixtapeDetail extends MixtapeSummary {
-  tracks: MixtapeDraft['tracks'];
+  tracks: MixtapeSmolData[];
+  creator: string;
 }
 
 interface ApiMixtape {
@@ -39,7 +50,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL!;
 /**
  * Publish a new mixtape
  */
-export async function publishMixtape(draft: MixtapeDraft): Promise<MixtapeDetail> {
+export async function publishMixtape(draft: MixtapeDraft): Promise<{ id: string }> {
   const response = await fetch(`${API_URL}/mixtapes`, {
     method: 'POST',
     headers: {
@@ -58,16 +69,7 @@ export async function publishMixtape(draft: MixtapeDraft): Promise<MixtapeDetail
   }
 
   const data: { id: string } = await response.json();
-
-  return {
-    id: data.id,
-    title: draft.title || 'Untitled Mixtape',
-    description: draft.description,
-    trackCount: draft.tracks.length,
-    coverUrls: draft.tracks.slice(0, 4).map((track) => track.coverUrl ?? null),
-    updatedAt: new Date().toISOString(),
-    tracks: draft.tracks,
-  };
+  return data;
 }
 
 /**
@@ -115,6 +117,15 @@ export async function listMixtapes(): Promise<MixtapeSummary[]> {
   return mixtapes;
 }
 
+interface ApiMixtapeDetail {
+  Id: string;
+  Title: string;
+  Desc: string;
+  Address: string;
+  Created_At: string;
+  Smols: MixtapeSmolData[];
+}
+
 /**
  * Get mixtape detail by ID
  */
@@ -130,21 +141,31 @@ export async function getMixtapeDetail(id: string): Promise<MixtapeDetail | null
     throw new Error(`Failed to fetch mixtape detail: ${response.statusText}`);
   }
 
-  const data: ApiMixtape = await response.json();
+  const data: ApiMixtapeDetail = await response.json();
+
+  // Generate cover URLs from the first 4 tracks
+  const coverUrls: (string | null)[] = [];
+  for (let i = 0; i < Math.min(4, data.Smols.length); i++) {
+    const smol = data.Smols[i];
+    if (smol?.Id) {
+      coverUrls.push(`${API_URL}/image/${smol.Id}.png`);
+    } else {
+      coverUrls.push(null);
+    }
+  }
+  while (coverUrls.length < 4) {
+    coverUrls.push(null);
+  }
 
   return {
     id: data.Id,
     title: data.Title,
     description: data.Desc,
     trackCount: data.Smols.length,
-    coverUrls: [null, null, null, null],
+    coverUrls,
     updatedAt: data.Created_At,
-    tracks: data.Smols.map((smolId) => ({
-      id: smolId,
-      title: 'Loading...',
-      coverUrl: null,
-      creator: null,
-    })),
+    creator: data.Address,
+    tracks: data.Smols,
   };
 }
 

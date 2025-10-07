@@ -10,16 +10,18 @@
   import { useSmolMinting } from '../hooks/useSmolMinting';
 
   interface Props {
-    id: string | null;
-    data: SmolDetailResponse | null;
+    id?: string | null;
   }
 
-  let { id = $bindable(), data }: Props = $props();
+  let { id = $bindable() }: Props = $props();
 
   // State
-  let d1 = $state<SmolDetailResponse['d1']>(data?.d1);
-  let kv_do = $state<SmolDetailResponse['kv_do']>(data?.kv_do);
-  let liked = $state(data?.liked);
+  let data = $state<SmolDetailResponse | null>(null);
+  let loading = $state(false);
+  let error = $state<string | null>(null);
+  let d1 = $state<SmolDetailResponse['d1']>(undefined);
+  let kv_do = $state<SmolDetailResponse['kv_do']>(undefined);
+  let liked = $state<boolean | undefined>(undefined);
   let prompt = $state('');
   let is_public = $state(true);
   let is_instrumental = $state(false);
@@ -31,6 +33,7 @@
   let minting = $state(false);
   let showTradeModal = $state(false);
   let tradeMintBalance = $state<bigint>(0n);
+  let shouldRefreshBalance = $state(false);
 
   // Hooks
   const generationHook = useSmolGeneration();
@@ -78,6 +81,7 @@
     }
   });
 
+  // Fetch mint balance when available
   $effect(() => {
     const mintToken = d1?.Mint_Token;
     const contractId = userState.contractId;
@@ -91,8 +95,40 @@
           });
         });
       });
-    } else {
+    } else if (!mintToken) {
       tradeMintBalance = 0n;
+    }
+  });
+
+  // Fetch smol data when id changes
+  async function fetchSmolData(smolId: string) {
+    loading = true;
+    error = null;
+
+    try {
+      const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/${smolId}`, {
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to load smol');
+      }
+
+      data = await response.json();
+      d1 = data.d1;
+      kv_do = data.kv_do;
+      liked = data.liked;
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to load';
+      console.error('Failed to fetch smol data:', err);
+    } finally {
+      loading = false;
+    }
+  }
+
+  $effect(() => {
+    if (id) {
+      fetchSmolData(id);
     }
   });
 
@@ -299,11 +335,20 @@
 
   function handleTradeModalComplete() {
     showTradeModal = false;
+    shouldRefreshBalance = true;
     void getGen();
   }
 </script>
 
-{#if !id}
+{#if loading}
+  <div class="flex justify-center items-center py-20">
+    <div class="text-lime-500">Loading...</div>
+  </div>
+{:else if error}
+  <div class="flex justify-center items-center py-20">
+    <div class="text-red-500">{error}</div>
+  </div>
+{:else if !id}
   {#if !userState.contractId}
     <div class="px-2 py-10 bg-slate-900">
       <div class="flex flex-col items-center max-w-[1024px] mx-auto">

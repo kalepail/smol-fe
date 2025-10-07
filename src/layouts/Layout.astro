@@ -2,6 +2,7 @@
 import { ClientRouter } from 'astro:transitions';
 import Header from '../components/Header.svelte'
 import MixtapeBuilderOverlay from '../components/mixtape/MixtapeBuilderOverlay.svelte'
+import BarAudioPlayer from '../components/audio/BarAudioPlayer.svelte'
 import { kale } from '../utils/passkey-kit';
 import '../styles/global.css'
 
@@ -98,6 +99,11 @@ if (token) {
 	<body class="bg-slate-950 text-white">
 		<Header {_kid} {_cid} _balance={_balance} client:load transition:persist="header" />
 		<MixtapeBuilderOverlay client:idle transition:persist="mixtape-overlay" />
+		<BarAudioPlayer
+			classNames="fixed z-30 p-2 bottom-2 lg:w-full left-4 right-4 lg:max-w-1/2 lg:min-w-[300px] lg:left-1/2 lg:-translate-x-1/2 rounded-md bg-slate-950/50 backdrop-blur-lg border border-white/20 shadow-lg"
+			client:load
+			transition:persist="audio-player"
+		/>
 		<slot />
 	</body>
 </html>

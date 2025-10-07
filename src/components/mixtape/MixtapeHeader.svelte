@@ -53,7 +53,7 @@
           <div
             class="flex h-full w-full items-center justify-center text-xs text-slate-500"
           >
-            {#if mixtape.tracks[index] && loadingTracks.has(mixtape.tracks[index].id)}
+            {#if mixtape.tracks[index] && loadingTracks.has(mixtape.tracks[index].Id)}
               <Loader classNames="w-6 h-6" />
             {:else}
               SMOL

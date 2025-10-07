@@ -7,14 +7,14 @@
     setAudioElement,
     updateProgress,
     togglePlayPause,
+    playNextSong,
   } from '../../stores/audio.svelte';
 
   interface Props {
     classNames: string;
-    songNext: () => void;
   }
 
-  let { classNames, songNext }: Props = $props();
+  let { classNames }: Props = $props();
 
   /**
    * Effect: Sync audio source with current song
@@ -75,7 +75,7 @@
   }
 
   function handleEnded() {
-    songNext();
+    playNextSong();
   }
 
   function handleLikeChanged(liked: boolean) {
@@ -110,7 +110,7 @@
             id={audioState.currentSong.Id}
             playing_id={audioState.playingId}
             songToggle={togglePlayPause}
-            {songNext}
+            songNext={playNextSong}
             progress={audioState.progress}
           />
         {/if}

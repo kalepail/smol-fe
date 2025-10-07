@@ -1,19 +1,8 @@
 ---
 import Home from "../components/Home.svelte";
 import Layout from "../layouts/Layout.astro";
-
-const response = await fetch(`${import.meta.env.PUBLIC_API_URL}?limit=100`).then((res) => {
-	if (res.ok) return res.json();
-	return { smols: [], pagination: { nextCursor: null, hasMore: false } };
-});
-
-const results = response.smols || [];
-const initialCursor = response.pagination?.nextCursor || null;
-const hasMore = response.pagination?.hasMore || false;
 ---
 
-<Layout
-	title="Smol"
->
-	<Home {results} {initialCursor} {hasMore} endpoint="" client:visible={{rootMargin: "200px"}} />
+<Layout title="Smol">
+	<Home endpoint="" client:only="svelte" />
 </Layout>

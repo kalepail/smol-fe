@@ -1,7 +1,8 @@
 import { Asset } from '@stellar/stellar-sdk/minimal';
 import { Client as SmolClient } from 'smol-sdk';
 import { getDomain } from 'tldts';
-import type { MixtapeTrack, Smol } from '../types/domain';
+import type { Smol } from '../types/domain';
+import type { MixtapeSmolData } from '../services/api/mixtapes';
 import { rpc } from '../utils/base';
 import { account } from '../utils/passkey-kit';
 import { MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from '../utils/mint';
@@ -12,7 +13,7 @@ interface MintingState {
 }
 
 interface MintBatchParams {
-  tracksWithData: Array<{ track: MixtapeTrack; trackData: Smol }>;
+  tracksWithData: Array<{ track: MixtapeSmolData; trackData: Smol }>;
   smolContractId: string;
   userContractId: string;
   userKeyId: string;
@@ -96,12 +97,12 @@ export function useMixtapeMinting() {
     const issuer = 'GBVJZCVQIKK7SL2K6NL4BO6ZYNXAGNVBTAQDDNOIJ5VPP3IXCSE2SMOL';
 
     for (const { track, trackData } of tracksWithData) {
-      const salt = Buffer.from(track.id.padStart(64, '0'), 'hex');
+      const salt = Buffer.from(track.Id.padStart(64, '0'), 'hex');
       if (salt.length !== 32) {
-        throw new Error(`Invalid smol identifier for minting: ${track.id}`);
+        throw new Error(`Invalid smol identifier for minting: ${track.Id}`);
       }
 
-      const assetCode = track.id.padStart(64, '0').substring(0, 12);
+      const assetCode = track.Id.padStart(64, '0').substring(0, 12);
       const asset = new Asset(assetCode, issuer);
 
       assetBytesArray.push(Buffer.from(asset.toXDRObject().toXDR()));
@@ -169,7 +170,7 @@ export function useMixtapeMinting() {
     console.log('Batch Mint Transaction XDR:', xdrString);
     console.log(
       'Tracks in batch:',
-      tracksWithData.map(({ track }) => track.id)
+      tracksWithData.map(({ track }) => track.Id)
     );
 
     // Submit to backend
@@ -181,7 +182,7 @@ export function useMixtapeMinting() {
       },
       body: JSON.stringify({
         xdr: xdrString,
-        ids: tracksWithData.map(({ track }) => track.id),
+        ids: tracksWithData.map(({ track }) => track.Id),
       }),
     });
 
@@ -193,24 +194,24 @@ export function useMixtapeMinting() {
     // Start polling for all tracks in this batch
     for (const { track } of tracksWithData) {
       const interval = setInterval(
-        () => pollTrackMintStatus(track.id, onMinted),
+        () => pollTrackMintStatus(track.Id, onMinted),
         MINT_POLL_INTERVAL
       );
-      mintingState.mintIntervals.set(track.id, interval);
+      mintingState.mintIntervals.set(track.Id, interval);
 
       const timeout = setTimeout(() => {
-        clearMintPolling(track.id);
+        clearMintPolling(track.Id);
       }, MINT_POLL_TIMEOUT);
-      mintingState.mintTimeouts.set(track.id, timeout);
+      mintingState.mintTimeouts.set(track.Id, timeout);
 
       // Do initial poll
-      await pollTrackMintStatus(track.id, onMinted);
+      await pollTrackMintStatus(track.Id, onMinted);
     }
   }
 
   async function mintAllTracks(
     params: MintAllTracksParams,
-    mixtape: { tracks: MixtapeTrack[] },
+    mixtape: { tracks: MixtapeSmolData[] },
     onMinted: (trackId: string, mintToken: string, mintAmm: string) => void,
     onBatchError: (chunkIndex: number, error: Error) => void
   ): Promise<void> {
@@ -234,9 +235,9 @@ export function useMixtapeMinting() {
     if (tracksToMintData.length === 0) return;
 
     // Get track data for all tracks to mint
-    const tracksWithData: Array<{ track: MixtapeTrack; trackData: Smol }> = [];
+    const tracksWithData: Array<{ track: MixtapeSmolData; trackData: Smol }> = [];
     for (const trackData of tracksToMintData) {
-      const track = mixtape.tracks.find((t) => t.id === trackData.Id);
+      const track = mixtape.tracks.find((t) => t.Id === trackData.Id);
       if (!track) continue;
       if (!trackData?.Address) {
         console.warn(`No creator address for track ${trackData.Id}`);
@@ -249,7 +250,7 @@ export function useMixtapeMinting() {
 
     // Process in chunks of 5
     const CHUNK_SIZE = 5;
-    const chunks: Array<Array<{ track: MixtapeTrack; trackData: Smol }>> = [];
+    const chunks: Array<Array<{ track: MixtapeSmolData; trackData: Smol }>> = [];
 
     for (let i = 0; i < tracksWithData.length; i += CHUNK_SIZE) {
       chunks.push(tracksWithData.slice(i, i + CHUNK_SIZE));
