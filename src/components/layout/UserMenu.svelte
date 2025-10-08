@@ -8,7 +8,7 @@
     exitMixtapeMode,
   } from '../../stores/mixtape.svelte';
   import { useAuthentication } from '../../hooks/useAuthentication';
-  import { useCurrentPath, currentPathState } from '../../hooks/useCurrentPath.svelte.ts';
+  import { useCurrentPath } from '../../hooks/useCurrentPath.svelte';
   import AuthButtons from './AuthButtons.svelte';
   import UserBalance from './UserBalance.svelte';
   import MixtapeModeToggle from './MixtapeModeToggle.svelte';
@@ -21,7 +21,8 @@
   let { initialKeyId, initialContractId }: Props = $props();
 
   const authHook = useAuthentication();
-  useCurrentPath();
+  const currentPath = useCurrentPath();
+  const path = $derived(currentPath.path);
 
   let creating = $state(false);
 
@@ -109,7 +110,7 @@
     />
 
     <a
-      class="hover:underline {currentPathState.path === '/create' ? 'underline' : ''}"
+      class="hover:underline {path === '/create' ? 'underline' : ''}"
       href="/create">+ Create</a
     >
   </div>

@@ -1,9 +1,10 @@
 <script lang="ts">
   import { userState } from '../../stores/user.svelte';
-  import { useCurrentPath, currentPathState } from '../../hooks/useCurrentPath.svelte.ts';
+  import { useCurrentPath } from '../../hooks/useCurrentPath.svelte';
 
   const isAuthenticated = $derived(userState.contractId !== null);
-  useCurrentPath();
+  const currentPath = useCurrentPath();
+  const path = $derived(currentPath.path);
 </script>
 
 <div class="flex items-center mr-auto">
@@ -12,18 +13,18 @@
   </h1>
 
   <a
-    class="ml-4 hover:underline {currentPathState.path === '/mixtapes' || currentPathState.path.startsWith('/mixtapes/') ? 'underline' : ''}"
+    class="ml-4 hover:underline {path === '/mixtapes' || path.startsWith('/mixtapes/') ? 'underline' : ''}"
     href="/mixtapes"
   >Mixtapes</a>
 
   {#if isAuthenticated}
     <a
-      class="ml-5 hover:underline {currentPathState.path === '/created' ? 'underline' : ''}"
+      class="ml-5 hover:underline {path === '/created' ? 'underline' : ''}"
       href="/created">Created</a
     >
 
     <a
-      class="ml-5 hover:underline {currentPathState.path === '/liked' ? 'underline' : ''}"
+      class="ml-5 hover:underline {path === '/liked' ? 'underline' : ''}"
       href="/liked">Liked</a
     >
   {/if}

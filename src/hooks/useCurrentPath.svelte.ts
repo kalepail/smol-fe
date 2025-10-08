@@ -1,7 +1,7 @@
 import { onMount } from 'svelte';
 
 // Shared state across all component instances
-export const currentPathState = $state({
+const state = $state({
   path: typeof window !== 'undefined' ? location.pathname : '',
 });
 
@@ -14,10 +14,16 @@ export function useCurrentPath() {
       initialized = true;
 
       const updatePath = () => {
-        currentPathState.path = location.pathname;
+        state.path = location.pathname;
       };
 
       document.addEventListener('astro:page-load', updatePath);
     }
   });
+
+  return {
+    get path() {
+      return state.path;
+    },
+  };
 }
