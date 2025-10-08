@@ -41,6 +41,9 @@ export function useMixtapePlayback(controls: PlaybackControls) {
     // If clicking the currently selected track, toggle play/pause
     if (currentSongId === track.Id) {
       togglePlayPause();
+      // Update state to reflect the current track and playback status
+      controls.onTrackIndexChange(index);
+      controls.onPlayingAllChange(true);
     } else {
       // Otherwise, select and play the new track
       controls.onTrackIndexChange(index);
@@ -61,7 +64,7 @@ export function useMixtapePlayback(controls: PlaybackControls) {
 
     // If Play All is enabled, wrap around to beginning
     if (controls.isPlayingAll) {
-      for (let i = 0; i <= controls.currentTrackIndex; i++) {
+      for (let i = 0; i < controls.currentTrackIndex; i++) {
         if (controls.mixtapeTracks[i]?.Song_1) {
           controls.onTrackIndexChange(i);
           selectSong(controls.mixtapeTracks[i]);
