@@ -121,7 +121,7 @@
     if (!scrollTrigger) return;
 
     const scrollObserver = scrollHook.createScrollObserver(() => {
-      if (hasMore && !loadingMore) {
+      if (hasMore && !loadingMore && !loading) {
         loadMore();
       }
     });
