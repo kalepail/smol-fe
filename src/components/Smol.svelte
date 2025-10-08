@@ -9,6 +9,8 @@
   import { useSmolGeneration } from '../hooks/useSmolGeneration';
   import { useSmolMinting } from '../hooks/useSmolMinting';
   import { audioState } from '../stores/audio.svelte';
+  import { sac } from '../utils/passkey-kit';
+  import { getTokenBalance } from '../utils/balance';
 
   interface Props {
     id?: string | null;
@@ -72,15 +74,23 @@
     }
   });
 
+  // Track previous minted state to only update balance when mint completes
+  let wasMinted = $state(false);
   $effect(() => {
-    if (minted) {
+    // Only update balance when transitioning from unminted -> minted
+    if (minted && !wasMinted) {
       minting = false;
       mintingHook.clearMintPolling();
       if (userState.contractId) {
         updateContractBalance(userState.contractId);
       }
     }
+    wasMinted = minted;
   });
+
+  // Track last fetched values to prevent duplicate balance fetches
+  let lastFetchedMintToken = $state<string | null>(null);
+  let lastFetchedUser = $state<string | null>(null);
 
   // Fetch mint balance when available
   $effect(() => {
@@ -88,18 +98,30 @@
     const contractId = userState.contractId;
 
     if (mintToken && contractId) {
-      import('../utils/passkey-kit').then(({ sac }) => {
-        import('../utils/balance').then(({ getTokenBalance }) => {
-          const client = sac.getSACClient(mintToken);
-          getTokenBalance(client, contractId).then((balance) => {
+      // Only fetch if values actually changed
+      if (mintToken !== lastFetchedMintToken || contractId !== lastFetchedUser) {
+        lastFetchedMintToken = mintToken;
+        lastFetchedUser = contractId;
+
+        const client = sac.getSACClient(mintToken);
+        getTokenBalance(client, contractId)
+          .then((balance) => {
             tradeMintBalance = balance;
+          })
+          .catch((error) => {
+            console.error('Failed to fetch mint token balance:', error);
+            tradeMintBalance = 0n;
           });
-        });
-      });
+      }
     } else if (!mintToken) {
       tradeMintBalance = 0n;
+      lastFetchedMintToken = null;
+      lastFetchedUser = null;
     }
   });
+
+  // Track last fetched ID to prevent duplicate fetches
+  let lastFetchedId = $state<string | null>(null);
 
   // Fetch smol data when id changes
   async function fetchSmolData(smolId: string) {
@@ -116,9 +138,9 @@
       }
 
       data = await response.json();
-      d1 = data.d1;
-      kv_do = data.kv_do;
-      liked = data.liked;
+      d1 = data?.d1;
+      kv_do = data?.kv_do;
+      liked = data?.liked;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load';
       console.error('Failed to fetch smol data:', err);
@@ -128,7 +150,9 @@
   }
 
   $effect(() => {
-    if (id) {
+    // Only fetch if id actually changed
+    if (id && id !== lastFetchedId) {
+      lastFetchedId = id;
       fetchSmolData(id);
     }
   });

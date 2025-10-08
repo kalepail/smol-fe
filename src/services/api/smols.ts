@@ -16,9 +16,10 @@ export async function fetchSmols(): Promise<Smol[]> {
 /**
  * Fetch liked smol IDs for the current user
  */
-export async function fetchLikedSmols(): Promise<string[]> {
+export async function fetchLikedSmols(signal?: AbortSignal): Promise<string[]> {
   const response = await fetch(`${API_URL}/likes`, {
     credentials: 'include',
+    signal,
   });
   if (!response.ok) {
     return [];

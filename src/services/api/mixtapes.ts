@@ -129,9 +129,13 @@ interface ApiMixtapeDetail {
 /**
  * Get mixtape detail by ID
  */
-export async function getMixtapeDetail(id: string): Promise<MixtapeDetail | null> {
+export async function getMixtapeDetail(
+  id: string,
+  signal?: AbortSignal
+): Promise<MixtapeDetail | null> {
   const response = await fetch(`${API_URL}/mixtapes/${id}`, {
     credentials: 'include',
+    signal,
   });
 
   if (!response.ok) {

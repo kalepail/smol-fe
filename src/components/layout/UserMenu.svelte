@@ -16,10 +16,9 @@
   interface Props {
     initialKeyId: string | null;
     initialContractId: string | null;
-    initialBalance: string | null;
   }
 
-  let { initialKeyId, initialContractId, initialBalance }: Props = $props();
+  let { initialKeyId, initialContractId }: Props = $props();
 
   const authHook = useAuthentication();
 
@@ -28,7 +27,6 @@
 
   // Hydrate stores from server data ONCE on component creation (synchronous)
   hydrateUserState(initialContractId, initialKeyId);
-  hydrateBalance(initialBalance);
 
   onMount(() => {
     const updatePath = () => {
@@ -37,17 +35,28 @@
 
     document.addEventListener('astro:page-load', updatePath);
 
-    // Connect wallet after initial hydration if authenticated
+    // Connect wallet and fetch balance after initial hydration if authenticated
     if (userState.contractId && userState.keyId) {
       ensureWalletConnected().catch((error) => {
         console.error('[UserMenu] Failed to connect wallet:', error);
       });
+
+      // Fetch balance if not already loaded
+      if (balanceState.balance === null && !balanceState.loading) {
+        updateContractBalance(userState.contractId).catch((error) => {
+          console.error('[UserMenu] Failed to fetch balance:', error);
+        });
+      }
     }
 
     return () => {
       document.removeEventListener('astro:page-load', updatePath);
     };
   });
+
+  // Track last processed auth state to prevent duplicate balance fetches
+  let lastProcessedContractId = $state<string | null>(null);
+  let lastProcessedKeyId = $state<string | null>(null);
 
   // Handle prop updates during navigation (only if values actually changed)
   $effect(() => {
@@ -58,16 +67,27 @@
       userState.contractId = initialContractId;
       userState.keyId = initialKeyId;
 
-      if (initialContractId && initialKeyId) {
-        ensureWalletConnected().catch((error) => {
-          console.error('[UserMenu] Failed to connect wallet:', error);
-        });
-      }
-    }
+      // Only process if we haven't already processed this auth state
+      if (initialContractId !== lastProcessedContractId || initialKeyId !== lastProcessedKeyId) {
+        lastProcessedContractId = initialContractId;
+        lastProcessedKeyId = initialKeyId;
 
-    // Update balance if it changed (but don't trigger loading state)
-    if (initialBalance !== null && balanceState.balance !== BigInt(initialBalance)) {
-      balanceState.balance = BigInt(initialBalance);
+        if (initialContractId && initialKeyId) {
+          ensureWalletConnected().catch((error) => {
+            console.error('[UserMenu] Failed to connect wallet:', error);
+          });
+
+          // Fetch balance if not already loaded
+          if (balanceState.balance === null && !balanceState.loading) {
+            updateContractBalance(initialContractId).catch((error) => {
+              console.error('[UserMenu] Failed to fetch balance:', error);
+            });
+          }
+        } else {
+          // User logged out - reset balance
+          resetBalance();
+        }
+      }
     }
   });
 

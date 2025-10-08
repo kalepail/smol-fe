@@ -113,6 +113,19 @@ export function parseBalanceFromLedgerEntry(entryData: xdr.LedgerEntryData): big
   }
 }
 
+// Request deduplication cache
+const inflightRequests = new Map<string, Promise<BalanceBatchResult[]>>();
+
+/**
+ * Creates a cache key for deduplicating batch balance requests
+ */
+function createBatchCacheKey(requests: BalanceBatchRequest[]): string {
+  return requests
+    .map((req) => `${req.tokenContractId}:${req.holderAddress}`)
+    .sort()
+    .join('|');
+}
+
 /**
  * Batch retrieves SAC token balances using a single RPC call
  *
@@ -120,6 +133,8 @@ export function parseBalanceFromLedgerEntry(entryData: xdr.LedgerEntryData): big
  * especially when checking balances for many tokens.
  *
  * Maximum batch size is 200 keys per RPC call.
+ *
+ * Includes request deduplication to prevent duplicate fetches.
  *
  * @param requests - Array of balance requests
  * @returns Array of balance results
@@ -146,53 +161,72 @@ export async function getBatchSACBalances(
     return results;
   }
 
+  // Check if this exact request is already in-flight
+  const cacheKey = createBatchCacheKey(requests);
+  const existing = inflightRequests.get(cacheKey);
+  if (existing) {
+    console.log('Deduplicating batch balance request');
+    return existing;
+  }
+
   // Create ledger keys for all requests
   const keys = requests.map((req) =>
     createSACBalanceLedgerKey(req.tokenContractId, req.holderAddress)
   );
 
-  try {
-    // Create XDR LedgerKey objects from the base64 strings
-    const ledgerKeys = keys.map((key) => xdr.LedgerKey.fromXDR(key, 'base64'));
+  // Create the promise for this request
+  const requestPromise = (async () => {
+    try {
+      // Create XDR LedgerKey objects from the base64 strings
+      const ledgerKeys = keys.map((key) => xdr.LedgerKey.fromXDR(key, 'base64'));
 
-    // Make a single RPC call to get all ledger entries
-    const response = await rpc.getLedgerEntries(...ledgerKeys);
+      // Make a single RPC call to get all ledger entries
+      const response = await rpc.getLedgerEntries(...ledgerKeys);
 
-    // Map results back to the requests
-    const results: BalanceBatchResult[] = requests.map((req, index) => {
-      const entry = response.entries?.[index];
+      // Map results back to the requests
+      const results: BalanceBatchResult[] = requests.map((req, index) => {
+        const entry = response.entries?.[index];
 
-      if (!entry || !entry.val) {
+        if (!entry || !entry.val) {
+          return {
+            tokenContractId: req.tokenContractId,
+            holderAddress: req.holderAddress,
+            balance: 0n,
+            id: req.id,
+            error: 'Entry not found',
+          };
+        }
+
+        const balance = parseBalanceFromLedgerEntry(entry.val);
+
         return {
           tokenContractId: req.tokenContractId,
           holderAddress: req.holderAddress,
-          balance: 0n,
+          balance,
           id: req.id,
-          error: 'Entry not found',
         };
-      }
+      });
 
-      const balance = parseBalanceFromLedgerEntry(entry.val);
+      return results;
+    } catch (error) {
+      console.error('Error fetching batch balances:', error);
 
-      return {
+      // Return error results for all requests
+      return requests.map((req) => ({
         tokenContractId: req.tokenContractId,
         holderAddress: req.holderAddress,
-        balance,
+        balance: 0n,
         id: req.id,
-      };
-    });
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }));
+    } finally {
+      // Clean up the cache after request completes
+      inflightRequests.delete(cacheKey);
+    }
+  })();
 
-    return results;
-  } catch (error) {
-    console.error('Error fetching batch balances:', error);
+  // Store in cache
+  inflightRequests.set(cacheKey, requestPromise);
 
-    // Return error results for all requests
-    return requests.map((req) => ({
-      tokenContractId: req.tokenContractId,
-      holderAddress: req.holderAddress,
-      balance: 0n,
-      id: req.id,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    }));
-  }
+  return requestPromise;
 }

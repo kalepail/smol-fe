@@ -117,6 +117,9 @@
     },
   });
 
+  // Track last fetched ID to prevent duplicate fetches
+  let lastFetchedMixtapeId = $state<string | null>(null);
+
   // Fetch mixtape data
   async function fetchMixtapeData(mixtapeId: string) {
     loading = true;
@@ -176,9 +179,59 @@
   }
 
   $effect(() => {
-    if (id) {
+    // Only fetch if id actually changed
+    if (id && id !== lastFetchedMixtapeId) {
+      lastFetchedMixtapeId = id;
       fetchMixtapeData(id);
     }
+  });
+
+  // Refetch balances when user state becomes available (handles full page refresh)
+  let balanceRefreshTimeout: ReturnType<typeof setTimeout> | null = null;
+  let lastBalanceRefreshKey = $state<string | null>(null);
+
+  $effect(() => {
+    const contractId = userState.contractId;
+    const tracksLength = mixtapeTracks.length;
+    const isLoading = loading;
+
+    // Use untrack to prevent this effect from re-running when balance updates
+    untrack(() => {
+      if (contractId && tracksLength > 0 && !isLoading) {
+        const hasUndefinedBalances = mixtapeTracks.some(
+          (track) => track?.Mint_Token && track?.balance === undefined
+        );
+
+        if (hasUndefinedBalances) {
+          // Create a key to track this specific balance fetch
+          const trackIds = mixtapeTracks
+            .filter((t) => t?.Mint_Token && t?.balance === undefined)
+            .map((t) => t.Id)
+            .sort()
+            .join(',');
+          const refreshKey = `${contractId}-${trackIds}`;
+
+          // Only refresh if we haven't already fetched these exact balances
+          if (refreshKey !== lastBalanceRefreshKey) {
+            // Debounce balance refresh to prevent rapid re-fetches
+            if (balanceRefreshTimeout) clearTimeout(balanceRefreshTimeout);
+
+            balanceRefreshTimeout = setTimeout(() => {
+              lastBalanceRefreshKey = refreshKey;
+              balancesHook.refreshAllBalances(
+                mixtapeTracks,
+                contractId,
+                handleBalanceUpdated
+              );
+            }, 300);
+          }
+        }
+      }
+    });
+
+    return () => {
+      if (balanceRefreshTimeout) clearTimeout(balanceRefreshTimeout);
+    };
   });
 
   onMount(() => {
@@ -214,6 +267,11 @@
   });
 
   onDestroy(() => {
+    // Clear balance refresh timeout
+    if (balanceRefreshTimeout) {
+      clearTimeout(balanceRefreshTimeout);
+    }
+
     mintingHook.clearAllMintPolling();
     // Unregister the callback when this component is destroyed
     registerSongNextCallback(null);
