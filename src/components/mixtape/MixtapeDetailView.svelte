@@ -510,6 +510,7 @@
   $effect(() => {
     if (audioState.currentSong && mixtape) {
       const currentSong = audioState.currentSong;
+      const mixtapeTitle = mixtape.title;
       const index = mixtapeTracks.findIndex(
         (t) => t?.Id === currentSong.Id
       );
@@ -519,7 +520,7 @@
           currentTrackIndex = index;
         }
 
-        playbackHook.updateMediaSessionMetadata(currentSong, mixtape.title);
+        playbackHook.updateMediaSessionMetadata(currentSong, mixtapeTitle);
       });
     }
   });
