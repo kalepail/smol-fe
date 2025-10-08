@@ -1,5 +1,8 @@
 ---
+import { ClientRouter } from 'astro:transitions';
 import Header from '../components/Header.svelte'
+import MixtapeBuilderOverlay from '../components/mixtape/MixtapeBuilderOverlay.svelte'
+import BarAudioPlayer from '../components/audio/BarAudioPlayer.svelte'
 import '../styles/global.css'
 
 interface Props {
@@ -9,8 +12,8 @@ interface Props {
 	image_url?: string | null;
 }
 
-const { 
-	title, 
+const {
+	title,
 	description = "Smol art onchain",
 	song_url = "https://cdn2.aisonggenerator.io/491bb94b-79df-41bb-b09b-2d295f1dfd05.mp3",
 	image_url,
@@ -23,7 +26,7 @@ const token = Astro.cookies.get('smol_token')?.value?.split('.')?.[1];
 
 if (token) {
 	const { sub, key } = JSON.parse(atob(token));
-	
+
 	_kid = key;
 	_cid = sub;
 }
@@ -43,8 +46,9 @@ if (token) {
 		<meta name="apple-mobile-web-app-title" content={title}>
 		<meta name="theme-color" content="#9ae600">
 		<link rel="manifest" href="/manifest.json">
+		<ClientRouter />
 
-		<title>{title}</title>
+		<title transition:animate="fade">{title}</title>
 		<meta name="description" content={description}>
 		<!-- <meta name="medium" content="audio"> -->
 		<link rel="canonical" href={Astro.url}>
@@ -82,7 +86,9 @@ if (token) {
 		<meta name="twitter:player:height" content="240"> -->
 	</head>
 	<body class="bg-slate-950 text-white">
-		<Header {_kid} {_cid} client:load />
+		<Header {_kid} {_cid} client:only="svelte" transition:persist="header" />
+		<MixtapeBuilderOverlay client:only="svelte" transition:persist="mixtape-overlay" />
+		<BarAudioPlayer client:only="svelte" transition:persist="audio-player" />
 		<slot />
 	</body>
 </html>

@@ -1,0 +1,41 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import MixtapeDetailView from "../../components/mixtape/MixtapeDetailView.svelte";
+
+const { id } = Astro.params;
+
+// Fetch minimal data for SEO/meta tags only
+let title = "Smol – Mixtape";
+let description = "Smol art onchain";
+let image_url: string | null = null;
+
+if (id) {
+    try {
+        const data = await fetch(`${import.meta.env.PUBLIC_API_URL}/mixtapes/${id}`, {
+            headers: {
+                Cookie: Astro.request.headers.get('cookie') ?? '',
+            }
+        }).then(async (res) => {
+            if (res.ok) return res.json();
+            return null;
+        });
+
+        if (data) {
+            title = `${data.Title} – Smol`;
+            description = data.Desc || "Smol art onchain";
+
+            // Use first track's image as mixtape cover
+            if (data.Smols?.[0]?.Id) {
+                image_url = `${import.meta.env.PUBLIC_API_URL}/image/${data.Smols[0].Id}.png`;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to fetch mixtape meta data:', error);
+    }
+}
+---
+
+<Layout {title} {description} {image_url}>
+    <MixtapeDetailView {id} client:only="svelte" />
+</Layout>
+

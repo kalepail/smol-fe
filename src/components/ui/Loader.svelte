@@ -1,9 +1,14 @@
 <script lang="ts">
-    export let classNames: string | undefined = undefined
+    interface Props {
+        classNames?: string;
+        textColor?: string;
+    }
+
+    let { classNames = undefined, textColor = 'text-white' }: Props = $props();
 </script>
 
 <svg
-    class={classNames}
+    class={classNames + ' ' + textColor}
     width="50"
     height="50"
     viewBox="0 0 50 50"
@@ -14,7 +19,7 @@
         cy="25"
         r="20"
         fill="none"
-        stroke="white"
+        stroke="currentColor"
         stroke-width="4"
         stroke-dasharray="31.4 31.4"
         stroke-linecap="round"
