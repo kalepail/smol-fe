@@ -10,12 +10,6 @@
     playNextSong,
   } from '../../stores/audio.svelte';
 
-  interface Props {
-    classNames: string;
-  }
-
-  let { classNames }: Props = $props();
-
   /**
    * Effect: Sync audio source with current song
    * When the current song changes, update the audio element's src
@@ -86,7 +80,10 @@
 </script>
 
 {#if audioState.currentSong}
-  <div class={classNames} transition:fade={{ duration: 200 }}>
+  <div
+    class="fixed z-30 p-2 bottom-2 lg:w-full left-4 right-4 lg:max-w-1/2 lg:min-w-[300px] lg:left-1/2 lg:-translate-x-1/2 rounded-md bg-slate-950/50 backdrop-blur-lg border border-white/20 shadow-lg"
+    transition:fade={{ duration: 200 }}
+  >
     <div class="flex items-center justify-between max-w-7xl mx-auto">
       <div class="flex items-center gap-4 mr-4">
         <img

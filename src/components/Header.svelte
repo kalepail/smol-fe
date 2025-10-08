@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import Navigation from './layout/Navigation.svelte';
   import UserMenu from './layout/UserMenu.svelte';
+  import { useCurrentPath } from '../hooks/useCurrentPath.svelte';
 
   interface Props {
     _kid: string | null;
@@ -11,19 +11,7 @@
   let { _kid, _cid }: Props = $props();
 
   let playlist = $state<string | null>(typeof window !== 'undefined' ? localStorage.getItem('smol:playlist') : null);
-  let currentPath = $state(typeof window !== 'undefined' ? location.pathname : '');
-
-  onMount(() => {
-    const updatePath = () => {
-      currentPath = location.pathname;
-    };
-
-    document.addEventListener('astro:page-load', updatePath);
-
-    return () => {
-      document.removeEventListener('astro:page-load', updatePath);
-    };
-  });
+  const { currentPath } = useCurrentPath();
 </script>
 
 <header class="relative p-2 bg-slate-800 text-lime-500">

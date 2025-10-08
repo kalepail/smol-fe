@@ -1,22 +1,9 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { userState } from '../../stores/user.svelte';
+  import { useCurrentPath } from '../../hooks/useCurrentPath.svelte';
 
   const isAuthenticated = $derived(userState.contractId !== null);
-
-  let currentPath = $state(typeof window !== 'undefined' ? location.pathname : '');
-
-  onMount(() => {
-    const updatePath = () => {
-      currentPath = location.pathname;
-    };
-
-    document.addEventListener('astro:page-load', updatePath);
-
-    return () => {
-      document.removeEventListener('astro:page-load', updatePath);
-    };
-  });
+  const { currentPath } = useCurrentPath();
 </script>
 
 <div class="flex items-center mr-auto">

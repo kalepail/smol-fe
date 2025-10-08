@@ -9,12 +9,10 @@ export const userState = $state<{
   contractId: string | null;
   keyId: string | null;
   walletConnected: boolean;
-  hydrated: boolean; // Track if we've been initialized from server
 }>({
   contractId: null,
   keyId: null,
   walletConnected: false,
-  hydrated: false,
 });
 
 // Derived state function
@@ -42,17 +40,6 @@ export function setKeyId(id: string | null) {
 export function setUserAuth(contractId: string | null, keyId: string | null) {
   userState.contractId = contractId;
   userState.keyId = keyId;
-}
-
-/**
- * Initialize user state from server props (call once during hydration)
- */
-export function hydrateUserState(contractId: string | null, keyId: string | null) {
-  if (!userState.hydrated) {
-    userState.contractId = contractId;
-    userState.keyId = keyId;
-    userState.hydrated = true;
-  }
 }
 
 /**

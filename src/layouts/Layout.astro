@@ -46,7 +46,7 @@ if (token) {
 		<meta name="apple-mobile-web-app-title" content={title}>
 		<meta name="theme-color" content="#9ae600">
 		<link rel="manifest" href="/manifest.json">
-		<ClientRouter fallback="swap" />
+		<ClientRouter />
 
 		<title transition:animate="fade">{title}</title>
 		<meta name="description" content={description}>
@@ -86,13 +86,9 @@ if (token) {
 		<meta name="twitter:player:height" content="240"> -->
 	</head>
 	<body class="bg-slate-950 text-white">
-		<Header {_kid} {_cid} client:load transition:persist="header" />
-		<MixtapeBuilderOverlay client:idle transition:persist="mixtape-overlay" />
-		<BarAudioPlayer
-			classNames="fixed z-30 p-2 bottom-2 lg:w-full left-4 right-4 lg:max-w-1/2 lg:min-w-[300px] lg:left-1/2 lg:-translate-x-1/2 rounded-md bg-slate-950/50 backdrop-blur-lg border border-white/20 shadow-lg"
-			client:load
-			transition:persist="audio-player"
-		/>
+		<Header {_kid} {_cid} client:only="svelte" transition:persist="header" />
+		<MixtapeBuilderOverlay client:only="svelte" transition:persist="mixtape-overlay" />
+		<BarAudioPlayer client:only="svelte" transition:persist="audio-player" />
 		<slot />
 	</body>
 </html>
