@@ -234,7 +234,8 @@
     };
   });
 
-  onMount(() => {
+  // Setup playback when mixtape loads
+  $effect(() => {
     if (!mixtape) return;
 
     // Register the playNext callback for this page
@@ -242,9 +243,6 @@
 
     // Setup media session handlers
     playbackHook.setupMediaSession();
-
-    // Add keyboard event listener
-    window.addEventListener('keydown', playbackHook.handleKeyboard);
 
     // Handle autoplay
     const urlParams = new URLSearchParams(window.location.search);
@@ -259,6 +257,11 @@
 
       setTimeout(() => playbackHook.handlePlayAll(), 500);
     }
+  });
+
+  onMount(() => {
+    // Add keyboard event listener
+    window.addEventListener('keydown', playbackHook.handleKeyboard);
 
     return () => {
       window.removeEventListener('keydown', playbackHook.handleKeyboard);
