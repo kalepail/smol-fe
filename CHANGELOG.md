@@ -8,7 +8,7 @@ All notable changes to this project will be documented in this file.
 
 #### Artist Profile Tabs
 - **Discography Tab**: Shows songs created/published by the artist
-- **Minted Tab**: Shows songs the artist both created AND minted on-chain
+- **Minted Tab**: Songs from discography that have been minted on-chain
 - **Collection Tab**: Shows songs the artist minted from other creators
 
 #### Minter Tracking via Horizon API
