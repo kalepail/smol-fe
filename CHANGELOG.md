@@ -1,31 +1,18 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+## [1.1.0] - 2025-12-26
 
-## [Unreleased] - 2025-12-26
-
-### Added - Artist Profile Enhancements
+### Added
 
 #### Artist Profile Tabs
-- **Discography Tab**: Shows songs created/published by the artist
-- **Minted Tab**: Songs from discography that have been minted on-chain
-- **Collection Tab**: Shows songs the artist minted from other creators
+- **Discography**: All songs created by the artist
+- **Minted**: Songs from discography that have been minted on-chain
+- **Collection**: Songs the artist collected from other creators
 
-#### Minter Tracking via Horizon API
-- Integrated Stellar Horizon API to track who minted each song
-- New `Minted_By` field populated from blockchain transaction history
-- Snapshot generator queries mint operations to build ownership data
+#### Minter Tracking
+- Horizon API integration to identify who minted each song
+- `Minted_By` field in snapshot data
 
-#### Artist Profile UI Improvements
-- **Separate badges**: Published (lime) and Collected (purple) counts
-- Tags now derived from Discography only (not collected songs)
-- Recent 4 images show created songs only
-
-#### Data Attributes for Cards
-- Added `data-creator`, `data-address`, `data-minted-by` attributes to SmolCard
-
----
-
-## Previous Versions
-
-See upstream repository [kalepail/smol-fe](https://github.com/kalepail/smol-fe) for prior history.
+#### Profile Stats
+- Published and Collected count badges
+- Genre tags from artist's work
