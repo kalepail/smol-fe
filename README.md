@@ -25,6 +25,13 @@ A decentralized web application for generating AI music powered by Stellar block
 - **Share mixtapes** - Publish your mixtapes for others to discover
 - **Browse collections** - Explore mixtapes created by the community
 
+### 👤 Artist Profiles
+- **Discography** - View all songs an artist has created/published
+- **Minted** - Songs the artist created AND minted on-chain
+- **Collection** - Songs the artist minted from other creators
+- **Published/Collected badges** - Quick stats on artist activity
+- **Genre tags** - Top genres derived from artist's discography
+
 ### 🎧 Playback & Discovery
 - **Audio player** - Built-in player with progress tracking
 - **Like system** - Save your favorite songs
