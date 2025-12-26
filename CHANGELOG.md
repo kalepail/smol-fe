@@ -15,6 +15,9 @@
 - Published and Collected count badges
 - Genre tags from artist's work
 
+#### Mint Badges
+- Visual indicator on minted songs across all views
+
 #### Minter Tracking
 - Horizon API integration to identify who minted each song
 - `Minted_By` field in snapshot data
