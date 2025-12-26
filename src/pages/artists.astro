@@ -1,0 +1,40 @@
+---
+import Layout from '../layouts/Layout.astro';
+import ArtistsIndex from '../components/artist/ArtistsIndex.svelte';
+import snapshot from '../data/smols-snapshot.json';
+
+// Aggregate artists
+const artists = {};
+
+snapshot.forEach(smol => {
+    if (!smol.Address) return;
+    
+    if (!artists[smol.Address]) {
+        artists[smol.Address] = {
+            address: smol.Address,
+            count: 0,
+            latestSmol: smol
+        };
+    }
+    
+    // update details
+    const entry = artists[smol.Address];
+    entry.count++;
+    
+    // keep latest for cover
+    if (new Date(smol.Created_At) > new Date(entry.latestSmol.Created_At)) {
+        entry.latestSmol = smol;
+    }
+});
+
+const sortedArtists = Object.values(artists).sort((a, b) => b.count - a.count);
+---
+
+<Layout title="Smol – Artists">
+	<main class="min-h-screen bg-[#0d0d0d] text-white p-6 pt-24 max-w-7xl mx-auto">
+        <h1 class="text-3xl font-bold mb-2">Artists</h1>
+        <p class="text-white/50 mb-12">Browse all creators on Smol.</p>
+        
+        <ArtistsIndex client:load initialArtists={sortedArtists} />
+    </main>
+</Layout>

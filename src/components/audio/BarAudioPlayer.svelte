@@ -1,14 +1,15 @@
 <script lang="ts">
-  import { fade } from 'svelte/transition';
-  import MiniAudioPlayer from './MiniAudioPlayer.svelte';
-  import LikeButton from '../ui/LikeButton.svelte';
+  import { fade } from "svelte/transition";
+  import MiniAudioPlayer from "./MiniAudioPlayer.svelte";
+  import LikeButton from "../ui/LikeButton.svelte";
+  import { trackView } from "../../lib/analytics";
   import {
     audioState,
     setAudioElement,
     updateProgress,
     togglePlayPause,
     playNextSong,
-  } from '../../stores/audio.svelte';
+  } from "../../stores/audio.svelte";
 
   /**
    * Effect: Sync audio source with current song
@@ -27,11 +28,12 @@
       if (audio.src !== songUrl) {
         audio.src = songUrl;
         audio.load();
+        trackView(song.Id);
       }
     } else {
       // No song selected, clear audio
       audio.pause();
-      audio.src = '';
+      audio.src = "";
       audio.currentTime = 0;
     }
   });
@@ -52,7 +54,7 @@
       const playPromise = audio.play();
       if (playPromise !== undefined) {
         playPromise.catch((error) => {
-          console.error('Error playing audio:', error);
+          console.error("Error playing audio:", error);
           // Reset playing state on error
           audioState.playingId = null;
         });
@@ -92,7 +94,9 @@
           class="w-12 h-12 rounded object-cover"
         />
         <div>
-          <h3 class="text-white font-medium leading-5">{audioState.currentSong.Title}</h3>
+          <h3 class="text-white font-medium leading-5">
+            {audioState.currentSong.Title}
+          </h3>
         </div>
       </div>
 
@@ -122,11 +126,15 @@
   ontimeupdate={handleTimeUpdate}
   onended={handleEnded}
   onloadeddata={() => {
-    if (audioState.currentSong && audioState.playingId === audioState.currentSong.Id && audioState.audioElement) {
+    if (
+      audioState.currentSong &&
+      audioState.playingId === audioState.currentSong.Id &&
+      audioState.audioElement
+    ) {
       const playPromise = audioState.audioElement.play();
       if (playPromise !== undefined) {
         playPromise.catch((error) => {
-          console.error('Error playing audio on load:', error);
+          console.error("Error playing audio on load:", error);
           audioState.playingId = null;
         });
       }

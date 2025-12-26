@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { userState } from '../../stores/user.svelte';
-  import { useCurrentPath } from '../../hooks/useCurrentPath.svelte';
+  import { userState } from "../../stores/user.svelte";
+  import { useCurrentPath } from "../../hooks/useCurrentPath.svelte";
 
   const isAuthenticated = $derived(userState.contractId !== null);
   const currentPath = useCurrentPath();
@@ -13,9 +13,20 @@
   </h1>
 
   <a
-    class="ml-4 hover:underline {path === '/mixtapes' || path.startsWith('/mixtapes/') ? 'underline' : ''}"
-    href="/mixtapes"
-  >Mixtapes</a>
+    class="ml-4 hover:underline {path === '/mixtapes' ||
+    path.startsWith('/mixtapes/')
+      ? 'underline'
+      : ''}"
+    href="/mixtapes">Mixtapes</a
+  >
+
+  <a
+    class="ml-4 hover:underline {path === '/artists' ||
+    path.startsWith('/artists/')
+      ? 'underline'
+      : ''}"
+    href="/artists">Artists</a
+  >
 
   {#if isAuthenticated}
     <a

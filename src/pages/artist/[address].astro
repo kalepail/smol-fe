@@ -1,0 +1,125 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import snapshot from '../../data/smols-snapshot.json';
+import SmolGrid from '../../components/smol/SmolGrid.svelte';
+
+export function getStaticPaths() {
+  const addresses = new Set();
+  snapshot.forEach(smol => {
+    if (smol.Address) addresses.add(smol.Address);
+  });
+  
+  return Array.from(addresses).map(addr => ({ params: { address: addr } }));
+}
+
+const { address } = Astro.params;
+
+// Discography only (songs created by this artist) - used for tags and recent
+const discographySmols = snapshot.filter(s => 
+  s.Address === address || s.Creator === address
+);
+discographySmols.sort((a, b) => new Date(b.Created_At) - new Date(a.Created_At));
+
+const recentSmols = discographySmols.slice(0, 4);
+
+// Top Tags (from Discography only)
+const tagCounts = {};
+discographySmols.forEach(smol => {
+    if (smol.Tags && Array.isArray(smol.Tags)) {
+        smol.Tags.forEach(tag => {
+            tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+        });
+    }
+});
+const topTags = Object.entries(tagCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(t => t[0]);
+
+// All songs for this artist (for SmolGrid - includes Collection)
+const artistSmols = snapshot.filter(s => 
+  s.Address === address || 
+  s.Creator === address || 
+  s.Minted_By === address
+);
+artistSmols.sort((a, b) => new Date(b.Created_At) - new Date(a.Created_At));
+
+// Count for Collected (minted by this artist but NOT created by them)
+const collectedSmols = snapshot.filter(s => 
+  s.Minted_By === address && 
+  s.Address !== address && 
+  s.Creator !== address
+);
+const publishedCount = discographySmols.length;
+const collectedCount = collectedSmols.length;
+
+---
+
+<Layout title={`Artist ${address.substring(0, 6)}...`}>
+	<main class="min-h-screen bg-[#0d0d0d] text-white p-6 pt-24 max-w-7xl mx-auto">
+        
+        {/* Header Section */}
+        <div class="flex flex-col md:flex-row gap-8 mb-12">
+            
+            {/* Quad Panel (Recent 4) */}
+            <div class="flex-shrink-0">
+                <div class="grid grid-cols-2 gap-1 w-64 h-64 rounded-xl overflow-hidden shadow-2xl border border-white/10">
+                    {recentSmols.map(smol => (
+                        <img 
+                            src={`https://api.smol.xyz/image/${smol.Id}.png`} 
+                            class="w-full h-full object-cover pixelated" 
+                            alt={smol.Title}
+                            onerror="this.src='/placeholder.png'"
+                        />
+                    ))}
+                    {/* Fillers if < 4 */}
+                    {Array.from({ length: Math.max(0, 4 - recentSmols.length) }).map(() => (
+                        <div class="w-full h-full bg-white/5 animate-pulse"></div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Info */}
+            <div class="flex flex-col justify-end">
+                <h1 class="text-xs font-mono text-white/50 mb-2 uppercase tracking-widest">Artist Profile</h1>
+                <h2 class="text-3xl md:text-5xl font-bold font-mono break-all mb-6">{address}</h2>
+                
+                {/* Stats / Tags */}
+                <div class="flex flex-wrap gap-2 items-center">
+                    <span class="px-3 py-1 rounded-full bg-lime-500/20 text-lime-300 text-sm border border-lime-500/30">
+                        {publishedCount} PUBLISHED
+                    </span>
+                    <span class="px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 text-sm border border-purple-500/30">
+                        {collectedCount} COLLECTED
+                    </span>
+                    {topTags.map(tag => (
+                        <span class="px-3 py-1 rounded-full bg-blue-500/20 text-blue-300 text-sm border border-blue-500/30">
+                            #{tag}
+                        </span>
+                    ))}
+                </div>
+            </div>
+        </div>
+
+        {/* List Section */}
+        <div class="border-t border-white/10 pt-8">
+            <h3 class="text-xl font-bold mb-6">Discography</h3>
+            
+            <!-- Reusing SmolGrid logic but passing pre-filtered data. -->
+            <!-- Reusing SmolGrid logic but passing pre-filtered data. Enable Live Sync for updates. -->
+            <SmolGrid 
+                client:load 
+                initialSmols={artistSmols} 
+                hideSearch={false} 
+                enableLiveSync={true}
+                filterKey="Address"
+                filterValue={address}
+                showSortControls={true}
+                profileMode={true}
+            />
+
+
+        </div>
+
+	</main>
+</Layout>

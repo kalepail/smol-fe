@@ -13,7 +13,7 @@ export default defineConfig({
   integrations: [svelte()],
   adapter: cloudflare(),
   server: {
-    host: 'app.smol.xyz'
+    host: 'localhost'
   },
   vite: {
     // optimizeDeps: {
@@ -30,7 +30,7 @@ export default defineConfig({
       nodePolyfills({
         include: ['buffer']
       }),
-      mkcert(),
+      // mkcert(),
       tailwindcss()
     ],
   },
