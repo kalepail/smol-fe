@@ -16,3 +16,6 @@
 #### Profile Stats
 - Published and Collected count badges
 - Genre tags from artist's work
+
+#### SmolCard Enhancements
+- `data-creator`, `data-address`, `data-minted-by` attributes for filtering
