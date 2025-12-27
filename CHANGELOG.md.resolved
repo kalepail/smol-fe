@@ -8,6 +8,7 @@
 - **Real-time Visualizer**: Active waveform visualization using Web Audio API in the artist player
 - **Live Lyrics Display**: Auto-scrolling lyrics panel next to album art
 - **Lyrics Enhancements**: Smooth scrolling (60fps), filtered metadata tags, and dark filtered UI
+- **Playlist Controls**: Full playlist management with **Shuffle** support and Previous/Next navigation
 
 #### Artist Page Improvements
 - **Expanded Grid**: "Recent" section now displays 10 items in a responsive 5x2 layout
