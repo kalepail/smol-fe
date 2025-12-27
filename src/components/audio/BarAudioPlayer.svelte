@@ -22,7 +22,11 @@
     if (!audio) return;
 
     if (song && song.Id && song.Song_1) {
-      const songUrl = `${import.meta.env.PUBLIC_API_URL}/song/${song.Song_1}.mp3`;
+      // Use audio proxy if available (enables Web Audio API visualizer via CORS)
+      const audioProxyUrl = import.meta.env.PUBLIC_AUDIO_PROXY_URL;
+      const songUrl = audioProxyUrl
+        ? `${audioProxyUrl}/audio/${song.Song_1}`
+        : `${import.meta.env.PUBLIC_API_URL}/song/${song.Song_1}.mp3`;
 
       // Only update src if it's different to avoid reloading
       if (audio.src !== songUrl) {
@@ -122,6 +126,7 @@
 
 <audio
   preload="auto"
+  crossorigin="anonymous"
   bind:this={audioState.audioElement}
   ontimeupdate={handleTimeUpdate}
   onended={handleEnded}

@@ -2,6 +2,7 @@
 import Layout from '../../layouts/Layout.astro';
 import snapshot from '../../data/smols-snapshot.json';
 import SmolGrid from '../../components/smol/SmolGrid.svelte';
+import ArtistPlayer from '../../components/player/ArtistPlayer.svelte';
 
 export function getStaticPaths() {
   const addresses = new Set();
@@ -20,7 +21,7 @@ const discographySmols = snapshot.filter(s =>
 );
 discographySmols.sort((a, b) => new Date(b.Created_At) - new Date(a.Created_At));
 
-const recentSmols = discographySmols.slice(0, 4);
+const recentSmols = discographySmols.slice(0, 10);
 
 // Top Tags (from Discography only)
 const tagCounts = {};
@@ -33,7 +34,7 @@ discographySmols.forEach(smol => {
 });
 const topTags = Object.entries(tagCounts)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
+    .slice(0, 10)
     .map(t => t[0]);
 
 // All songs for this artist (for SmolGrid - includes Collection)
@@ -63,7 +64,7 @@ const collectedCount = collectedSmols.length;
             
             {/* Quad Panel (Recent 4) */}
             <div class="flex-shrink-0">
-                <div class="grid grid-cols-2 gap-1 w-64 h-64 rounded-xl overflow-hidden shadow-2xl border border-white/10">
+                <div class="grid grid-cols-5 gap-1 w-full max-w-[30rem] h-48 rounded-xl overflow-hidden shadow-2xl border border-white/10">
                     {recentSmols.map(smol => (
                         <img 
                             src={`https://api.smol.xyz/image/${smol.Id}.png`} 
@@ -73,7 +74,7 @@ const collectedCount = collectedSmols.length;
                         />
                     ))}
                     {/* Fillers if < 4 */}
-                    {Array.from({ length: Math.max(0, 4 - recentSmols.length) }).map(() => (
+                    {Array.from({ length: Math.max(0, 10 - recentSmols.length) }).map(() => (
                         <div class="w-full h-full bg-white/5 animate-pulse"></div>
                     ))}
                 </div>
@@ -99,6 +100,9 @@ const collectedCount = collectedSmols.length;
                     ))}
                 </div>
             </div>
+            
+            <!-- Artist Player -->
+            <ArtistPlayer client:load playlist={discographySmols} />
         </div>
 
         {/* List Section */}
