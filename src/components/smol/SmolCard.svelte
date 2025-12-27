@@ -67,9 +67,13 @@
     />
 
     {#if smol.Mint_Token}
-      <span
-        class="absolute right-1.5 top-1.5 rounded-full bg-amber-400 px-2 py-1 text-xs font-bold text-slate-950 shadow-lg border border-amber-300 z-10 cursor-help"
-        title="Minted">M</span
+      <a
+        href={`https://stellar.expert/explorer/public/contract/${smol.Mint_Token}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="absolute right-1.5 top-1.5 rounded-full bg-amber-400 px-2 py-1 text-xs font-bold text-slate-950 shadow-lg border border-amber-300 z-10 hover:bg-amber-300 transition-colors"
+        title="View on Stellar Expert"
+        onclick={(e) => e.stopPropagation()}>M</a
       >
     {/if}
 

@@ -44,13 +44,19 @@ export function useAuthentication() {
     // Mark wallet as connected since connectWallet was just called
     userState.walletConnected = true;
 
-    Cookies.set('smol_token', jwt, {
+    const domain = getDomain(window.location.hostname);
+    const isSecure = window.location.protocol === 'https:';
+    const cookieOptions: Cookies.CookieAttributes = {
       path: '/',
-      secure: true,
+      secure: isSecure,
       sameSite: 'Lax',
-      domain: '.smol.xyz',
       expires: 30,
-    });
+    };
+    if (domain) {
+      cookieOptions.domain = `.${domain}`;
+    }
+
+    Cookies.set('smol_token', jwt, cookieOptions);
   }
 
   async function signUp(username: string) {
@@ -87,24 +93,35 @@ export function useAuthentication() {
     // Mark wallet as connected since createWallet was just called (which internally connects)
     userState.walletConnected = true;
 
-    Cookies.set('smol_token', jwt, {
+    const domain = getDomain(window.location.hostname);
+    const isSecure = window.location.protocol === 'https:';
+    const cookieOptions: Cookies.CookieAttributes = {
       path: '/',
-      secure: true,
+      secure: isSecure,
       sameSite: 'Lax',
-      domain: '.smol.xyz',
       expires: 30,
-    });
+    };
+    if (domain) {
+      cookieOptions.domain = `.${domain}`;
+    }
+
+    Cookies.set('smol_token', jwt, cookieOptions);
   }
 
   async function logout() {
     clearUserAuth();
 
-    Cookies.remove('smol_token', {
+    const domain = getDomain(window.location.hostname);
+    const cookieOptions: Cookies.CookieAttributes = {
       path: '/',
       secure: true,
       sameSite: 'Lax',
-      domain: '.smol.xyz',
-    });
+    };
+    if (domain) {
+      cookieOptions.domain = `.${domain}`;
+    }
+
+    Cookies.remove('smol_token', cookieOptions);
 
     Object.keys(localStorage).forEach((key) => {
       if (key.includes('smol:')) {

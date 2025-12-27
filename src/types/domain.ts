@@ -15,6 +15,7 @@ export interface Smol {
   Mint_Token?: string;
   Mint_Amm?: string;
   Minted_By?: string; // Wallet address of who minted/owns the token
+  Tags?: string[]; // Extracted styles/tags for visualization
   lyrics?: {
     title?: string;
     style?: string[];

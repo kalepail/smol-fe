@@ -28,6 +28,11 @@
     href="/artists">Artists</a
   >
 
+  <a
+    class="ml-4 hover:underline {path === '/tags' ? 'underline' : ''}"
+    href="/tags">Tags</a
+  >
+
   {#if isAuthenticated}
     <a
       class="ml-5 hover:underline {path === '/created' ? 'underline' : ''}"
