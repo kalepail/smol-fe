@@ -1,31 +1,39 @@
 # Changelog
 
-## [2.2.0] - 2025-12-27
+## [1.2.0] - 2025-12-27
 
 ### Added
-- **Tag Explorer**: A new page (`/tags`) to browse the music library by genre and style.
-    - **Dynamic Tag Cloud**: Visualizes tag popularity with weighted sizing.
-    - **Search**: Real-time search to find specific styles instantly.
-    - **Show All**: Toggle to expand the list beyond the top 50 tags.
-    - **Instant Filtering**: Clicking a tag updates the song grid without reloading.
-- **Data Pipeline**: Updated `generate_snapshot.py` to extract and index style tags for the explorer.
 
-## [2.1.0] - 2025-12-26
+#### Tag Explorer
+- New `/tags` page to browse music by genre/style
+- Dynamic tag cloud with weighted sizing
+- Real-time search filtering
+- "Show All" toggle (50-tag default)
+- Instant song grid filtering on tag click
 
-### Added
-- **Artist Profile**: Dedicated pages for each creator (`/artist/[address]`).
-    - **Tabs**: Switch between "Discography" (Created) and "Collection" (Owned/Minted).
-    - **Stats**: Badges showing total songs published and collected.
-    - **Mint Badge**: Clickable badge linking to Stellar Expert for on-chain verification.
+---
 
-## [2.0.0] - 2025-12-25
+## [1.1.0] - 2025-12-26
 
 ### Added
-- **Authentication**: Keypass integration for secure login.
-- **Mixtape Mode**: Create and manage custom playlists.
-- **Like System**: "Heart" logic to save favorite songs.
-- **Infinite Scroll**: `SmolGrid` now supports pagination for large libraries.
 
-### Fixed
-- **Login Flow**: Resolved cookie domain issues for localhost vs production.
-- **Grid Layout**: Improved responsiveness on ultra-wide monitors.
+#### Artists Index
+- New `/artists` page listing all creators
+- Navigation menu link to Artists
+
+#### Artist Profile
+- Discography: All songs created by the artist
+- Minted: Songs from discography that have been minted on-chain
+- Collection: Songs the artist collected from other creators
+- Published and Collected count badges
+- Genre tags from artist's work
+
+#### Mint Badges
+- Visual indicator on minted songs across all views
+
+#### Minter Tracking
+- Horizon API integration to identify who minted each song
+- `Minted_By` field in snapshot data
+
+#### SmolCard Enhancements
+- `data-creator`, `data-address`, `data-minted-by` attributes for filtering
