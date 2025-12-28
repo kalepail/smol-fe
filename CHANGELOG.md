@@ -13,7 +13,6 @@
 - **Playlist Generation**: Auto-generates ~20 songs (~50 min) based on selected tags
 - **Shuffle Toggle**: Randomize playlist order before generation
 - **Tag Search**: Filter tags with search input
-- **Lazy Loading**: Images load progressively as you scroll
 
 ---
 
