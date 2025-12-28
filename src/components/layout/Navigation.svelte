@@ -33,6 +33,11 @@
     href="/tags">Tags</a
   >
 
+  <a
+    class="ml-4 hover:underline {path === '/radio' ? 'underline' : ''}"
+    href="/radio">Radio</a
+  >
+
   {#if isAuthenticated}
     <a
       class="ml-5 hover:underline {path === '/created' ? 'underline' : ''}"
