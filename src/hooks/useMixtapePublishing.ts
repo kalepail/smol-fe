@@ -1,5 +1,5 @@
 import type { MixtapeDraft } from '../types/domain';
-import { publishMixtape } from '../services/api/mixtapes';
+import { publishMixtape, updateMixtape } from '../services/api/mixtapes';
 
 export function useMixtapePublishing() {
   async function publish(draft: MixtapeDraft) {
@@ -11,7 +11,17 @@ export function useMixtapePublishing() {
     return published;
   }
 
+  async function update(id: string, draft: MixtapeDraft) {
+    if (draft.tracks.length === 0) {
+      throw new Error('Add at least one Smol before updating.');
+    }
+
+    const updated = await updateMixtape(id, draft);
+    return updated;
+  }
+
   return {
     publish,
+    update,
   };
 }

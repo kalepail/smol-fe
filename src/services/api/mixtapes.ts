@@ -73,6 +73,35 @@ export async function publishMixtape(draft: MixtapeDraft): Promise<{ id: string 
 }
 
 /**
+ * Update an existing mixtape
+ */
+export async function updateMixtape(id: string, draft: MixtapeDraft): Promise<{ id: string }> {
+  /* MOCK E2E: Simulate success for verification
+    ... (removed)
+  */
+
+  const response = await fetch(`${API_URL}/mixtapes/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include',
+    body: JSON.stringify({
+      title: draft.title || 'Untitled Mixtape',
+      desc: draft.description,
+      smols: draft.tracks.map((track) => track.id),
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to update mixtape: ${response.statusText}`);
+  }
+
+  const data: { id: string } = await response.json();
+  return data;
+}
+
+/**
  * List all mixtapes
  */
 export async function listMixtapes(): Promise<MixtapeSummary[]> {
@@ -210,9 +239,9 @@ export async function getSmolTrackData(smolId: string): Promise<SmolTrackData> {
         : null) ?? null,
     lyrics: kv_do?.lyrics
       ? {
-          title: kv_do.lyrics.title,
-          style: kv_do.lyrics.style,
-        }
+        title: kv_do.lyrics.title,
+        style: kv_do.lyrics.style,
+      }
       : null,
   };
 }

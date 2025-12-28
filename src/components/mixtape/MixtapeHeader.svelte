@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type { MixtapeDetail } from '../../services/api/mixtapes';
-  import type { Smol } from '../../types/domain';
-  import Loader from '../ui/Loader.svelte';
-  import { userState } from '../../stores/user.svelte';
+  import type { MixtapeDetail } from "../../services/api/mixtapes";
+  import type { Smol } from "../../types/domain";
+  import Loader from "../ui/Loader.svelte";
+  import { userState } from "../../stores/user.svelte";
 
   interface Props {
     mixtape: MixtapeDetail;
@@ -15,6 +15,7 @@
     onPlayAll: () => void;
     onStopPlayAll: () => void;
     onPurchaseClick: () => void;
+    onEdit?: () => void;
   }
 
   let {
@@ -27,7 +28,8 @@
     isPurchasing,
     onPlayAll,
     onStopPlayAll,
-    onPurchaseClick
+    onPurchaseClick,
+    onEdit,
   }: Props = $props();
 </script>
 
@@ -41,12 +43,12 @@
       <div class="aspect-square bg-slate-900">
         {#if coverUrls[index]}
           <img
-            src={`${coverUrls[index]}${coverUrls[index]?.includes('?') ? '' : '?scale=4'}`}
+            src={`${coverUrls[index]}${coverUrls[index]?.includes("?") ? "" : "?scale=4"}`}
             alt={mixtape.title}
             class="h-full w-full object-cover pixelated"
             onerror={(e) => {
               // @ts-ignore
-              e.currentTarget.style.display = 'none';
+              e.currentTarget.style.display = "none";
             }}
           />
         {:else}
@@ -109,7 +111,24 @@
           Play All
         </button>
       {/if}
-      {#if fullyOwned && userState.contractId}
+      {#if onEdit}
+        <span
+          class="relative flex items-center justify-center gap-2 rounded px-6 py-2 text-sm font-medium bg-gradient-to-r from-slate-400 to-slate-600"
+        >
+          Fully Owned
+          <img
+            src="/owned-badge.png"
+            alt="Fully Owned Badge"
+            class="absolute -top-4 -right-7 w-12 h-12 transform rotate-12 z-10"
+          />
+        </span>
+        <button
+          class="text-xs text-slate-400 hover:text-white underline decoration-slate-600 hover:decoration-white underline-offset-4 transition-colors"
+          onclick={onEdit}
+        >
+          Edit Mixtape (Creator Only)
+        </button>
+      {:else if fullyOwned && userState.contractId}
         <span
           class="relative flex items-center justify-center gap-2 rounded px-6 py-2 text-sm font-medium bg-gradient-to-r from-slate-400 to-slate-600"
         >
@@ -145,5 +164,16 @@
         </button>
       {/if}
     </div>
+
+    {#if onEdit && mixtape.creator === userState.contractId}
+      <div class="flex justify-center md:justify-start">
+        <button
+          class="text-xs text-slate-400 hover:text-white underline decoration-slate-600 hover:decoration-white underline-offset-4 transition-colors"
+          onclick={onEdit}
+        >
+          Edit Mixtape (Creator Only)
+        </button>
+      </div>
+    {/if}
   </div>
 </header>

@@ -16,6 +16,7 @@ export {
   resetDraft,
   clearDraft,
   loadDraft,
+  loadPublishedMixtape,
   touchMixtapeDraft,
   getSnapshotDraft,
   enterMixtapeMode,

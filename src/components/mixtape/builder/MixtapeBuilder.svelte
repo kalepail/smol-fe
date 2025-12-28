@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
-  import { type DndEvent, SHADOW_PLACEHOLDER_ITEM_ID } from 'svelte-dnd-action';
-  import type { MixtapeTrack } from '../../../types/domain';
+  import { onMount, onDestroy } from "svelte";
+  import { type DndEvent, SHADOW_PLACEHOLDER_ITEM_ID } from "svelte-dnd-action";
+  import type { MixtapeTrack } from "../../../types/domain";
   import {
     mixtapeDraftState,
     mixtapeDraftHasContent,
@@ -14,15 +14,15 @@
     touchMixtapeDraft,
     setTracks,
     getSnapshotDraft,
-  } from '../../../stores/mixtape.svelte';
-  import { useMixtapePublishing } from '../../../hooks/useMixtapePublishing';
-  import { useMixtapeDragDrop } from '../../../hooks/useMixtapeDragDrop';
-  import MixtapeTrackList from './MixtapeTrackList.svelte';
-  import MixtapeForm from './MixtapeForm.svelte';
+  } from "../../../stores/mixtape.svelte";
+  import { useMixtapePublishing } from "../../../hooks/useMixtapePublishing";
+  import { useMixtapeDragDrop } from "../../../hooks/useMixtapeDragDrop";
+  import MixtapeTrackList from "./MixtapeTrackList.svelte";
+  import MixtapeForm from "./MixtapeForm.svelte";
 
   let publishing = $state(false);
   let statusMessage = $state<string | null>(null);
-  let statusTone = $state<'info' | 'success' | 'error'>('info');
+  let statusTone = $state<"info" | "success" | "error">("info");
   let isDraggingTracks = $state(false);
   let tracksForDnd = $state<MixtapeTrack[]>([]);
   let isExternalDragActive = $state(false);
@@ -31,6 +31,8 @@
 
   const publishingHook = useMixtapePublishing();
   const dragDropHook = useMixtapeDragDrop();
+
+  const isEditing = $derived(mixtapeDraftState.draftId.length !== 36);
 
   function resetStatus() {
     statusMessage = null;
@@ -41,8 +43,8 @@
     statusTone = tone;
   }
 
-  function handleMove(index: number, direction: 'up' | 'down') {
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+  function handleMove(index: number, direction: "up" | "down") {
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
     moveTrack(index, targetIndex);
   }
 
@@ -59,7 +61,7 @@
       return;
     }
 
-    const confirmed = confirm('Discard current mixtape draft?');
+    const confirmed = confirm("Discard current mixtape draft?");
     if (!confirmed) return;
 
     clearDraft();
@@ -68,7 +70,7 @@
 
   function handleSaveDraft() {
     touchMixtapeDraft();
-    showStatus('Draft saved locally.', 'success');
+    showStatus("Draft saved locally.", "success");
     exitMixtapeMode();
   }
 
@@ -78,21 +80,40 @@
     publishing = true;
 
     try {
-      const published = await publishingHook.publish(getSnapshotDraft());
-      clearDraft();
-      showStatus('Mixtape published! Redirecting…', 'success');
+      let publishedId: string;
 
-      if (typeof window !== 'undefined') {
+      if (isEditing) {
+        const result = await publishingHook.update(
+          mixtapeDraftState.draftId,
+          getSnapshotDraft(),
+        );
+        publishedId = result.id;
+        showStatus("Mixtape updated! Redirecting…", "success");
+      } else {
+        const result = await publishingHook.publish(getSnapshotDraft());
+        publishedId = result.id;
+        showStatus("Mixtape published! Redirecting…", "success");
+      }
+
+      clearDraft();
+
+      if (typeof window !== "undefined") {
         setTimeout(() => {
           exitMixtapeMode();
-          window.location.href = `/mixtapes/${published.id}`;
+          window.location.href = `/mixtapes/${publishedId}`;
+          // showStatus(
+          //   "Simulation: Update sent! (Redirect disabled to show order)",
+          //   "success",
+          // );
         }, 400);
       }
     } catch (error) {
       console.error(error);
       showStatus(
-        error instanceof Error ? error.message : 'Failed to publish mixtape. Please try again.',
-        'error'
+        error instanceof Error
+          ? error.message
+          : "Failed to publish mixtape. Please try again.",
+        "error",
       );
     } finally {
       publishing = false;
@@ -107,7 +128,7 @@
   function handleTrackFinalize(event: CustomEvent<DndEvent<MixtapeTrack>>) {
     isDraggingTracks = false;
     const filtered = event.detail.items.filter(
-      (item) => item.id && item.id !== SHADOW_PLACEHOLDER_ITEM_ID
+      (item) => item.id && item.id !== SHADOW_PLACEHOLDER_ITEM_ID,
     );
     setTracks(filtered);
     tracksForDnd = getSnapshotDraft().tracks;
@@ -116,7 +137,7 @@
   let paddingUpdateScheduled = false;
 
   function updateBodyPadding() {
-    if (typeof document === 'undefined' || !modalEl) return;
+    if (typeof document === "undefined" || !modalEl) return;
     if (paddingUpdateScheduled) return;
 
     paddingUpdateScheduled = true;
@@ -139,7 +160,7 @@
       tracksListEl,
       (tracks) => {
         tracksForDnd = tracks;
-      }
+      },
     );
     if (shouldShowShadow) {
       isExternalDragActive = true;
@@ -154,7 +175,7 @@
       (tracks) => {
         isExternalDragActive = false;
         tracksForDnd = tracks;
-      }
+      },
     );
   }
 
@@ -168,7 +189,7 @@
         mixtapeDraftState.tracks = tracks;
         isExternalDragActive = false;
         tracksForDnd = getSnapshotDraft().tracks;
-      }
+      },
     );
   }
 
@@ -177,20 +198,20 @@
   });
 
   onDestroy(() => {
-    if (typeof document !== 'undefined') {
-      document.body.classList.remove('mixtape-mode-active');
-      document.body.style.paddingBottom = '';
+    if (typeof document !== "undefined") {
+      document.body.classList.remove("mixtape-mode-active");
+      document.body.style.paddingBottom = "";
     }
   });
 
   $effect(() => {
-    if (typeof document !== 'undefined') {
+    if (typeof document !== "undefined") {
       if (modalEl) {
-        document.body.classList.add('mixtape-mode-active');
+        document.body.classList.add("mixtape-mode-active");
         setTimeout(updateBodyPadding, 0);
       } else {
-        document.body.classList.remove('mixtape-mode-active');
-        document.body.style.paddingBottom = '';
+        document.body.classList.remove("mixtape-mode-active");
+        document.body.style.paddingBottom = "";
       }
     }
   });
@@ -251,6 +272,7 @@
     <MixtapeForm
       draft={mixtapeDraftState}
       {publishing}
+      {isEditing}
       {statusMessage}
       {statusTone}
       onTitleChange={(title) => {
