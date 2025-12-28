@@ -48,6 +48,22 @@ export interface SmolTrackData {
 const API_URL = import.meta.env.PUBLIC_API_URL!;
 
 /**
+ * Get auth headers from smol_token cookie.
+ * This enables cross-origin authenticated requests (e.g., localhost -> api.smol.xyz)
+ * since cookies are domain-bound and won't be sent cross-origin.
+ */
+function getAuthHeaders(): Record<string, string> {
+  if (typeof document === 'undefined') return {};
+
+  const cookies = document.cookie.split('; ');
+  const tokenCookie = cookies.find(c => c.startsWith('smol_token='));
+  if (!tokenCookie) return {};
+
+  const token = tokenCookie.split('=')[1];
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
+
+/**
  * Publish a new mixtape
  */
 export async function publishMixtape(draft: MixtapeDraft): Promise<{ id: string }> {
@@ -55,6 +71,7 @@ export async function publishMixtape(draft: MixtapeDraft): Promise<{ id: string 
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...getAuthHeaders(),
     },
     credentials: 'include',
     body: JSON.stringify({
@@ -76,14 +93,11 @@ export async function publishMixtape(draft: MixtapeDraft): Promise<{ id: string 
  * Update an existing mixtape
  */
 export async function updateMixtape(id: string, draft: MixtapeDraft): Promise<{ id: string }> {
-  /* MOCK E2E: Simulate success for verification
-    ... (removed)
-  */
-
   const response = await fetch(`${API_URL}/mixtapes/${id}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
+      ...getAuthHeaders(),
     },
     credentials: 'include',
     body: JSON.stringify({
@@ -190,15 +204,39 @@ export async function getMixtapeDetail(
     coverUrls.push(null);
   }
 
+  // Check for locally saved track order
+  const savedOrderJson = localStorage.getItem(`mixtape-order:${data.Id}`);
+  let orderedTracks = data.Smols;
+  if (savedOrderJson) {
+    try {
+      const savedOrder: string[] = JSON.parse(savedOrderJson);
+      console.log('[MOCK] Found saved track order:', savedOrder);
+      // Reorder tracks based on saved order
+      const trackMap = new Map(data.Smols.map((t) => [t.Id, t]));
+      orderedTracks = savedOrder
+        .map((id) => trackMap.get(id))
+        .filter((t): t is MixtapeSmolData => t !== undefined);
+      // Add any tracks that weren't in the saved order (safety)
+      const savedSet = new Set(savedOrder);
+      for (const track of data.Smols) {
+        if (!savedSet.has(track.Id)) {
+          orderedTracks.push(track);
+        }
+      }
+    } catch (e) {
+      console.error('[MOCK] Failed to parse saved order:', e);
+    }
+  }
+
   return {
     id: data.Id,
     title: data.Title,
     description: data.Desc,
-    trackCount: data.Smols.length,
+    trackCount: orderedTracks.length,
     coverUrls,
     updatedAt: data.Created_At,
     creator: data.Address,
-    tracks: data.Smols,
+    tracks: orderedTracks,
   };
 }
 

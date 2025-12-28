@@ -165,7 +165,7 @@
       {/if}
     </div>
 
-    {#if onEdit && mixtape.creator === userState.contractId}
+    {#if onEdit}
       <div class="flex justify-center md:justify-start">
         <button
           class="text-xs text-slate-400 hover:text-white underline decoration-slate-600 hover:decoration-white underline-offset-4 transition-colors"

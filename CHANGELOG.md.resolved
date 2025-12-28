@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.4.0] - 2025-12-28
+
+### Added
+
+#### Mixtape Editing
+- **Edit Mixtape Button**: Creator-only button on mixtape detail pages
+- **Track Reordering**: Drag-and-drop and arrow button controls for track order
+- **Safe Save**: Updates use API `PUT` call only—no blockchain/wallet interactions
+- **Draft Persistence**: Local storage backup of unsaved changes
+
+#### Developer Experience
+- **DEVELOPER_SETUP.md**: New comprehensive setup guide for fork contributors
+- **Cross-Origin Auth Headers**: `Authorization: Bearer` headers for API requests
+
+#### UI Polish
+- **Dark Scrollbar**: Styled scrollbar matching dark theme in mixtape track list
+
+### Pending
+- Mixtape save requires `PUT /mixtapes/:id` endpoint deployment to production API
+
+---
+
 ## [1.3.0] - 2025-12-27
 
 ### Added
