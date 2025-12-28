@@ -1,16 +1,5 @@
 # Changelog
 
-## [1.5.1] - 2025-12-28
-
-### Deep AI Radio 2.0
-- **Weighted Tag Fusion 🧬**: Tiered scoring (Exact 100pts / Broad 75pts / Related 40pts) for intelligent genre mixing.
-- **Order-Based Priority 🔢**: First selected tag drives the vibe (100% weight, decaying 10% per subsequent tag).
-- **Synergy Bonus 🤝**: 1.3x score multiplier for songs bridging multiple selected genres.
-- **Strict Freshness 🔄**: Guaranteed no repeats in consecutive playlist generations.
-- **Content-Aware Search**: Scans song lyrics and titles for mood keywords ("Thai Party" finds lyrics mentioning Thailand).
-
----
-
 ## [1.5.0] - 2025-12-28
 
 ### Added
@@ -24,6 +13,9 @@
 - **Playlist Generation**: Auto-generates ~20 songs (~50 min) based on selected tags
 - **Shuffle Toggle**: Randomize playlist order before generation
 - **Tag Search**: Filter tags with search input
+- **Lazy Loading**: Images load progressively as you scroll
+
+> **Note:** This is an MVP release. Future enhancements may include: Save as Mixtape, continuous play/repeat mode, visualizer, artist exclusion, tag presets, and station history.
 
 ---
 
@@ -57,14 +49,7 @@
 - **Real-time Visualizer**: Active waveform visualization using Web Audio API in the artist player
 - **Live Lyrics Display**: Auto-scrolling lyrics panel next to album art
 - **Lyrics Enhancements**: Smooth scrolling (60fps), filtered metadata tags, and dark filtered UI
-- **Playlist mode** - Generate songs tagged to specific playlists
 - **Playlist Controls**: Full playlist management with **Shuffle** support and Previous/Next navigation
-
-### 📻 AI Radio 2.0
-- **Smart Generation** - Multi-tag fusion with weighted scoring and lyric analysis
-- **Adaptive Vibe** - Order-based prioritization (e.g. "Jazz" + "Hip Hop" ≠ "Hip Hop" + "Jazz")
-- **Freshness Guarantee** - Deduplication logic ensures fresh tracks every spin
-- **Local Fallback** - Robust "fail-fast" local generation when AI is rate-limited management with **Shuffle** support and Previous/Next navigation
 
 #### Artist Page Improvements
 - **Expanded Grid**: "Recent" section now displays 10 items in a responsive 5x2 layout

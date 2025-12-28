@@ -6,8 +6,15 @@
     registerSongNextCallback,
   } from "../../stores/audio.svelte";
   import RadioPlayer from "./RadioPlayer.svelte";
+  import {
+    moodToTags,
+    generateStationName,
+    generateStationDescription,
+  } from "../../services/ai/gemini";
 
   let { smols = [] }: { smols: Smol[] } = $props();
+
+  const GEMINI_API_KEY = import.meta.env.PUBLIC_GEMINI_API_KEY;
 
   const MAX_TAGS = 5;
   const TARGET_SONGS = 20;
@@ -43,6 +50,25 @@
     Classical: 30,
   };
 
+  // Genealogies / Relationships for "Silent Merge"
+  // If user selects key, we also look for values (Tier 3 match)
+  const TAG_RELATIONSHIPS: Record<string, string[]> = {
+    "hip hop": ["rap", "trap", "r&b", "urban", "drill", "grime"],
+    rap: ["hip hop", "trap", "drill", "grime"],
+    rock: ["metal", "punk", "grunge", "alternative", "indie rock"],
+    indie: ["alternative", "indie rock", "bedroom pop", "shoegaze"],
+    electronic: ["house", "techno", "edm", "dance", "trance", "dubstep"],
+    house: ["electronic", "techno", "deep house", "tech house"],
+    techno: ["electronic", "house", "minimal", "acid"],
+    pop: ["indie pop", "dance", "k-pop"],
+    "r&b": ["soul", "hip hop", "urban", "funk"],
+    jazz: ["soul", "blues", "funk"],
+    metal: ["rock", "punk", "hardcore"],
+    "lo-fi": ["chill", "ambient", "beats", "study", "downtempo"],
+    chill: ["lo-fi", "ambient", "downtempo"],
+    ambient: ["chill", "drone", "atmospheric"],
+  };
+
   let selectedTags = $state<string[]>([]);
   let searchQuery = $state("");
   let showAll = $state(false);
@@ -53,6 +79,15 @@
   let sortMode = $state<"popularity" | "frequency" | "alphabetical">(
     "popularity",
   );
+
+  // AI-powered features
+  let moodInput = $state("");
+  let isFetchingMood = $state(false);
+  let stationName = $state("Your Radio Station");
+  let stationDescription = $state("");
+
+  // History for Deduplication (prevent "same 20 songs" on re-roll)
+  let recentlyGeneratedIds = $state<Set<string>>(new Set());
 
   // Extract tags from smols
   function getTags(smol: Smol): string[] {
@@ -132,24 +167,234 @@
     return min + (1 - min) * (Math.log(count + 1) / Math.log(max + 1));
   }
 
-  function generateStation() {
+  // Cache for AI responses to avoid repeating requests
+  const suggestCache = new Map<string, string[]>();
+
+  // Use full DB knowledge to find tags based on lyrics/titles
+  function findTagsFromContent(terms: string[]): string[] {
+    const termMatches = new Map<string, number>();
+
+    smols.forEach((smol) => {
+      const title = (smol.Title || "").toLowerCase();
+      const lyrics = (smol.lyrics?.text || "").toLowerCase();
+
+      const hits = terms.filter(
+        (t) => title.includes(t) || lyrics.includes(t),
+      ).length;
+      if (hits > 0) {
+        const smolTags = getTags(smol);
+        smolTags.forEach((tag) => {
+          termMatches.set(tag, (termMatches.get(tag) || 0) + hits);
+        });
+      }
+    });
+
+    // Return top tags found via content
+    return Array.from(termMatches.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map((e) => e[0]);
+  }
+
+  // Local fallback: simple keyword matching if API fails
+  function localTagMatch(input: string): string[] {
+    const terms = input.toLowerCase().split(/[\s,]+/);
+    const normalizedTags = processedTags.map((t) => ({
+      original: t.tag,
+      norm: normalizeTag(t.tag),
+    }));
+
+    const matches = new Set<string>();
+
+    // 1. Direct tag match
+    for (const term of terms) {
+      const termNorm = normalizeTag(term);
+      const found = normalizedTags.find(
+        (t) =>
+          t.norm === termNorm ||
+          (termNorm.length > 3 && t.norm.includes(termNorm)),
+      );
+      if (found) matches.add(found.original);
+    }
+
+    // 2. Vibe mapping (synonyms)
+    const vibeMap: Record<string, string[]> = {
+      chill: ["Lo-Fi", "Ambient", "Downtempo"],
+      study: ["Lo-Fi", "Classical", "Instrumental"],
+      party: ["Dance", "Pop", "Electronic", "House", "Hip Hop"],
+      workout: ["Rock", "Hip Hop", "Trap", "Phonk"],
+      sleep: ["Ambient", "Classical", "Solfeggio"],
+      happy: ["Pop", "Indie Pop", "Disco"],
+      sad: ["Acoustic", "Blues", "Emo"],
+      focus: ["Deep House", "Techno", "Trance"],
+      vibes: ["Lo-Fi", "Chill", "Ambient"],
+      energy: ["Electronic", "Dance", "Metal"],
+      relax: ["Acoustic", "Soul", "Jazz"],
+    };
+
+    for (const term of terms) {
+      if (vibeMap[term]) {
+        vibeMap[term].forEach((t) => matches.add(t));
+      }
+    }
+
+    // 3. Deep Content Search (Lyrics/Titles)
+    const contentTags = findTagsFromContent(terms);
+    contentTags.slice(0, 5).forEach((t) => matches.add(t));
+
+    // Filter to only available tags
+    return Array.from(matches)
+      .filter((t) => processedTags.some((pt) => pt.tag === t))
+      .slice(0, MAX_TAGS);
+  }
+
+  // AI: Convert mood description to tag suggestions
+  async function suggestTagsFromMood() {
+    const input = moodInput.trim();
+    if (!input || !GEMINI_API_KEY) return;
+
+    isFetchingMood = true;
+    let suggestions: string[] = [];
+
+    // 1. Check Cache
+    if (suggestCache.has(input.toLowerCase())) {
+      suggestions = suggestCache.get(input.toLowerCase()) || [];
+    } else {
+      // 2. Try API
+      try {
+        const allTagNames = processedTags.map((t) => t.tag);
+        suggestions = await moodToTags(input, allTagNames, GEMINI_API_KEY);
+
+        if (suggestions.length > 0) {
+          suggestCache.set(input.toLowerCase(), suggestions);
+        }
+      } catch (e) {
+        console.warn("[AI] API failed, using fallback", e);
+      }
+    }
+
+    // 3. Local Fallback if API returned nothing
+    if (suggestions.length === 0) {
+      console.log("[AI] Using local fallback");
+      suggestions = localTagMatch(input);
+    }
+
+    // Clear previous tags if we found new ones (New Vibe)
+    if (suggestions.length > 0) {
+      selectedTags = [];
+    }
+
+    // Add suggested tags (up to max)
+    for (const tag of suggestions) {
+      if (!selectedTags.includes(tag) && selectedTags.length < MAX_TAGS) {
+        selectedTags = [...selectedTags, tag];
+      }
+    }
+
+    moodInput = "";
+    isFetchingMood = false;
+
+    // Auto-generate if we have tags
+    if (selectedTags.length > 0) {
+      setTimeout(() => generateStation(), 100);
+    }
+  }
+
+  // Normalize tag for matching (remove special chars, lowercase)
+  function normalizeTag(tag: string): string {
+    return tag.toLowerCase().replace(/[^a-z0-9]/g, "");
+  }
+
+  async function generateStation() {
     if (selectedTags.length === 0) return;
     isGenerating = true;
+    stationName = "Generating...";
+    stationDescription = "";
 
-    const matching = smols.filter((smol) => {
-      const tags = getTags(smol);
-      return selectedTags.some((t) => tags.includes(t));
-    });
+    const normalizedSelected = selectedTags.map(normalizeTag);
 
-    const scored = matching.map((smol) => {
-      const tags = getTags(smol);
-      const tagMatches = selectedTags.filter((t) => tags.includes(t)).length;
-      const popularity = (smol.Plays || 0) + (smol.Views || 0) * 0.1;
-      return {
-        smol,
-        score: tagMatches * 100 + popularity + Math.random() * 50,
-      };
-    });
+    // 3. Score & Filter (Weighted System)
+    // We score ALL smols to find the best relevant ones
+    const scored = smols
+      .map((smol) => {
+        let matchScore = 0;
+        const tags = getTags(smol);
+        let distinctMatches = 0;
+
+        // Check for tiered matches
+        normalizedSelected.forEach((sel, index) => {
+          // Find if this specific selected tag matches anything in the song
+          let bestTagScore = 0;
+
+          // Order-Based Weighting: Earlier tags = Higher Priority
+          // 1st tag: 100%, 2nd: 90%, 3rd: 80%, etc. (Decay 0.1 per slot, floor 0.5)
+          const orderWeight = Math.max(0.5, 1 - index * 0.1);
+
+          tags.forEach((t) => {
+            const tNorm = normalizeTag(t);
+
+            // Tier 1: Exact Match (100pts)
+            if (tNorm === sel) {
+              bestTagScore = Math.max(bestTagScore, 100);
+            }
+            // Tier 2: Broad/Substring Match (75pts) - Slightly reduced to prioritize exact
+            else if (tNorm.includes(sel) || sel.includes(tNorm)) {
+              // Length check to avoid noise (e.g. "pop" matching "pope")
+              if (sel.length > 2 && tNorm.length > 2) {
+                bestTagScore = Math.max(bestTagScore, 75);
+              }
+            }
+            // Tier 3: Related Match (40pts) - Reduced to prevent dominance
+            else if (TAG_RELATIONSHIPS[sel]?.includes(tNorm)) {
+              bestTagScore = Math.max(bestTagScore, 40);
+            }
+          });
+
+          if (bestTagScore > 0) {
+            // Apply Order Weight here
+            matchScore += bestTagScore * orderWeight;
+            distinctMatches++;
+          }
+        });
+
+        // Synergy Bonus: Boost songs that match MULTIPLE selected tags/concepts
+        if (distinctMatches > 1) {
+          matchScore *= 1.3; // 30% boost for multi-genre synergy (Stronger signal)
+        }
+
+        // Bonus: Check if tag appears in title or lyrics (Holistic)
+        // Reduced to 25 to be a tie-breaker, not a primary driver
+        const keywordBonus = normalizedSelected.some((term) => {
+          const title = normalizeTag(smol.Title || "");
+          const lyrics = normalizeTag(smol.lyrics?.text || "");
+          return title.includes(term) || lyrics.includes(term);
+        })
+          ? 25
+          : 0;
+
+        // Popularity: drastically reduced to just be a tie-breaker (0.01)
+        // This prevents pop songs from crashing a niche playlist just because they have 10k plays
+        const popularity = (smol.Plays || 0) * 0.01 + (smol.Views || 0) * 0.005;
+
+        // Deduplication Penalty
+        // Strict Mode: If song was in previous batch, Score = 0 (Excluded completely)
+        // This prevents repeats even if we run out of songs (shorter playlist = verified fresh)
+        const historyPenalty = recentlyGeneratedIds.has(smol.Id) ? 0 : 1.0;
+
+        // Only include if there is SOME relevance (score > 0)
+        return {
+          smol,
+          // deterministic score (no random)
+          score:
+            matchScore > 0
+              ? (matchScore + keywordBonus + popularity) * historyPenalty
+              : 0,
+        };
+      })
+      .filter((s) => s.score > 0);
+
+    console.log(
+      `[AI] Generated ${scored.length} candidates. History size: ${recentlyGeneratedIds.size}`,
+    );
 
     scored.sort((a, b) => b.score - a.score);
     let selected = scored.slice(0, TARGET_SONGS).map((s) => s.smol);
@@ -163,7 +408,28 @@
     isGenerating = false;
 
     if (selected.length > 0) {
+      // Update history for next time
+      recentlyGeneratedIds = new Set(selected.map((s) => s.Id));
+      console.log(
+        `[AI] Updated history. New size: ${recentlyGeneratedIds.size}`,
+      );
       playSongAtIndex(0);
+    }
+
+    // AI: Generate station name and description
+    if (GEMINI_API_KEY) {
+      generateStationName(selectedTags, GEMINI_API_KEY).then((name) => {
+        stationName = name;
+      });
+      generateStationDescription(
+        selectedTags,
+        selected.length,
+        GEMINI_API_KEY,
+      ).then((desc) => {
+        stationDescription = desc;
+      });
+    } else {
+      stationName = "Your Radio Station";
     }
   }
 
@@ -226,6 +492,27 @@
         />
       </div>
     </div>
+
+    <!-- AI Mood Input -->
+    {#if GEMINI_API_KEY}
+      <div class="mb-4 flex gap-2">
+        <input
+          type="text"
+          bind:value={moodInput}
+          placeholder="✨ Describe a vibe... (e.g., 'chill beats for studying')"
+          class="flex-1 bg-slate-800/50 border border-purple-500/30 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-colors"
+          onkeydown={(e) => e.key === "Enter" && suggestTagsFromMood()}
+          disabled={isFetchingMood}
+        />
+        <button
+          class="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-medium px-4 py-2 rounded-lg transition-all disabled:opacity-50"
+          onclick={suggestTagsFromMood}
+          disabled={!moodInput.trim() || isFetchingMood}
+        >
+          {isFetchingMood ? "✨..." : "✨ AI Suggest"}
+        </button>
+      </div>
+    {/if}
 
     {#if selectedTags.length > 0}
       <div class="flex flex-wrap gap-2 mb-4">
@@ -322,12 +609,19 @@
       />
 
       <div class="flex justify-between items-center mb-4 mt-6">
-        <h3 class="text-xl font-semibold text-white">
-          Your Radio Station
-          <span class="text-sm text-slate-500 font-normal ml-2"
-            >({generatedPlaylist.length} songs • ~{estimatedDuration} min)</span
-          >
-        </h3>
+        <div>
+          <h3 class="text-xl font-semibold text-white">
+            {stationName}
+            <span class="text-sm text-slate-500 font-normal ml-2"
+              >({generatedPlaylist.length} songs • ~{estimatedDuration} min)</span
+            >
+          </h3>
+          {#if stationDescription}
+            <p class="text-purple-400/80 text-sm mt-1 italic">
+              {stationDescription}
+            </p>
+          {/if}
+        </div>
       </div>
 
       <div

@@ -1,29 +1,16 @@
 # Changelog
 
-## [1.5.1] - 2025-12-28
-
-### Deep AI Radio 2.0
-- **Weighted Tag Fusion 🧬**: Tiered scoring (Exact 100pts / Broad 75pts / Related 40pts) for intelligent genre mixing.
-- **Order-Based Priority 🔢**: First selected tag drives the vibe (100% weight, decaying 10% per subsequent tag).
-- **Synergy Bonus 🤝**: 1.3x score multiplier for songs bridging multiple selected genres.
-- **Strict Freshness 🔄**: Guaranteed no repeats in consecutive playlist generations.
-- **Content-Aware Search**: Scans song lyrics and titles for mood keywords ("Thai Party" finds lyrics mentioning Thailand).
-
----
-
 ## [1.5.0] - 2025-12-28
 
 ### Added
 
 #### Radio Tab
-- **Radio Station Generator**: New `/radio` page for personalized radio stations
+- **Radio Station Generator**: New `/radio` page for creating personalized radio stations
 - **Multi-Tag Selection**: Select up to 5 tags/genres to curate your station
-- **Dedicated Radio Player**: Purple-themed player with album art, prev/next, and progress bar
-- **Tag Sorting**: Dropdown to sort by popularity, frequency, or alphabetically  
-- **Genre Popularity**: Tags sorted by real-world genre popularity by default
 - **Playlist Generation**: Auto-generates ~20 songs (~50 min) based on selected tags
-- **Shuffle Toggle**: Randomize playlist order before generation
-- **Tag Search**: Filter tags with search input
+- **Shuffle Support**: Randomize playlist order before generation
+- **Integrated Playback**: Full audio player integration with prev/next controls
+- **Tag Cloud UI**: Weighted tag display with search filtering
 
 ---
 
@@ -57,14 +44,7 @@
 - **Real-time Visualizer**: Active waveform visualization using Web Audio API in the artist player
 - **Live Lyrics Display**: Auto-scrolling lyrics panel next to album art
 - **Lyrics Enhancements**: Smooth scrolling (60fps), filtered metadata tags, and dark filtered UI
-- **Playlist mode** - Generate songs tagged to specific playlists
 - **Playlist Controls**: Full playlist management with **Shuffle** support and Previous/Next navigation
-
-### 📻 AI Radio 2.0
-- **Smart Generation** - Multi-tag fusion with weighted scoring and lyric analysis
-- **Adaptive Vibe** - Order-based prioritization (e.g. "Jazz" + "Hip Hop" ≠ "Hip Hop" + "Jazz")
-- **Freshness Guarantee** - Deduplication logic ensures fresh tracks every spin
-- **Local Fallback** - Robust "fail-fast" local generation when AI is rate-limited management with **Shuffle** support and Previous/Next navigation
 
 #### Artist Page Improvements
 - **Expanded Grid**: "Recent" section now displays 10 items in a responsive 5x2 layout
