@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.5.0] - 2025-12-28
+
+### Added
+
+#### Radio Tab
+- **Radio Station Generator**: New `/radio` page for personalized radio stations
+- **Multi-Tag Selection**: Select up to 5 tags/genres to curate your station
+- **Dedicated Radio Player**: Purple-themed player with album art, prev/next, and progress bar
+- **Tag Sorting**: Dropdown to sort by popularity, frequency, or alphabetically  
+- **Genre Popularity**: Tags sorted by real-world genre popularity by default
+- **Playlist Generation**: Auto-generates ~20 songs (~50 min) based on selected tags
+- **Shuffle Toggle**: Randomize playlist order before generation
+- **Tag Search**: Filter tags with search input
+- **Lazy Loading**: Images load progressively as you scroll
+
+---
+
 ## [1.4.0] - 2025-12-28
 
 ### Added
