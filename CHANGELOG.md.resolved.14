@@ -1,18 +1,29 @@
 # Changelog
 
-## [1.5.2] - 2025-12-29
+## [1.5.3] - 2025-12-29
 
+### Fixed
+- **Visualizer Lifecycle**: Fixed closure issue where `playing` state wasn't updating in draw loop
+- **Visualizer Gradient**: Moved gradient creation inside draw loop to prevent stale canvas dimensions
+- **Visualizer Effect**: Restructured `$effect()` for reliable start/stop on play/pause transitions
+- **Svelte 5 Syntax**: Fixed `{@const}` placement error by moving to `$derived` runes
+
+### Changed
+- **UI Colors**: Updated accent color scheme
+  - Input focus: Blue (`#2276cb`)
+  - "Dream It" button: Teal (`#19859b`) with matching border
+- **Smart Shuffle Toggle**: Redesigned as a glowing green node (`#9ae600`)
+  - Circular shape with neon glow effect when active
+- **Tag Cloud Search**: Added smooth search bar with icon directly in the tag cloud
+- **Search Icon**: Glows blue (`#2276cb`) on input focus
+
+---
+
+## [1.5.2] - 2025-12-28
 ### Added
-- **Smart Shuffle**: Artist-aware algorithm prevents artist clustering in playlists
-- **Save as Mixtape**: One-click save generated radio stations as permanent mixtapes
-- **Glassmorphism UI**: Premium visual upgrade with blur effects and smooth animations
-- **Inline Tag Search**: Smooth search bar with glowing icon directly in the tag cloud
-- **Dream It Button**: AI-powered vibe-to-tags conversion—describe a mood and get matching genre tags
-
-### Enhanced
-- **Visualizer Engine**: Upgraded lifecycle management for seamless play/pause transitions
-- **Color System**: Refined accent palette (Blue `#2276cb` inputs, Teal `#19859b` actions)
-- **Smart Shuffle Toggle**: Redesigned as a glowing green node (`#36b04a`) with neon aura
+- **Smart Shuffle**: New algorithm prevents artist clustering (no more "3 Drake songs in a row").
+- **Save as Mixtape**: One-click save generated radio stations as permanent mixtapes.
+- **Glassmorphism UI**: Premium visual upgrade for Radio results with blur effects and smooth animations.
 
 ## [1.5.1] - 2025-12-28
 

@@ -6,11 +6,15 @@
     registerSongNextCallback,
   } from "../../stores/audio.svelte";
   import RadioPlayer from "./RadioPlayer.svelte";
+  import RadioResults from "./RadioResults.svelte";
   import {
     moodToTags,
     generateStationName,
     generateStationDescription,
   } from "../../services/ai/gemini";
+  import { publishMixtape } from "../../services/api/mixtapes";
+  import { isAuthenticated } from "../../stores/user.svelte";
+  import type { MixtapeDraft } from "../../types/domain";
 
   let { smols = [] }: { smols: Smol[] } = $props();
 
@@ -85,6 +89,7 @@
   let isFetchingMood = $state(false);
   let stationName = $state("Your Radio Station");
   let stationDescription = $state("");
+  let isSavingMixtape = $state(false);
 
   // History for Deduplication (prevent "same 20 songs" on re-roll)
   let recentlyGeneratedIds = $state<Set<string>>(new Set());
@@ -138,6 +143,9 @@
   const maxCount = $derived(
     processedTags.length > 0 ? processedTags[0].count : 1,
   );
+
+  let isCompact = $derived(generatedPlaylist.length > 0);
+  let showCloud = $derived(!isCompact || showAll);
 
   function toggleTag(tag: string) {
     if (selectedTags.includes(tag)) {
@@ -399,8 +407,9 @@
     scored.sort((a, b) => b.score - a.score);
     let selected = scored.slice(0, TARGET_SONGS).map((s) => s.smol);
 
+    // Smart Shuffle: Prevent artist clustering
     if (isShuffled) {
-      selected = selected.sort(() => Math.random() - 0.5);
+      selected = smartShuffle(selected);
     }
 
     generatedPlaylist = selected;
@@ -430,6 +439,79 @@
       });
     } else {
       stationName = "Your Radio Station";
+    }
+  }
+
+  // Smart Shuffle: Spacing Algorithm
+  function smartShuffle(list: Smol[]): Smol[] {
+    const artists = new Map<string, Smol[]>();
+    list.forEach((s) => {
+      const a = s.Address || "Unknown";
+      if (!artists.has(a)) artists.set(a, []);
+      artists.get(a)?.push(s);
+    });
+
+    const result: Smol[] = [];
+    let lastArtist = "";
+    let entries = Array.from(artists.entries()); // [ [Artist, [Songs]], ... ]
+
+    // Shuffle song lists internally first
+    entries.forEach(([_, songs]) => songs.sort(() => Math.random() - 0.5));
+
+    while (result.length < list.length) {
+      // Filter out empty artists
+      entries = entries.filter((e) => e[1].length > 0);
+      if (entries.length === 0) break;
+
+      // Try to find an artist who is NOT the last one
+      let candidates = entries.filter((e) => e[0] !== lastArtist);
+
+      // If only the last artist is left, we have to pick them
+      if (candidates.length === 0) candidates = entries;
+
+      // Pick random artist
+      const chosenIdx = Math.floor(Math.random() * candidates.length);
+      const [artist, songs] = candidates[chosenIdx];
+
+      // Pick their next song
+      const song = songs.pop();
+      if (song) {
+        result.push(song);
+        lastArtist = artist;
+      }
+    }
+    return result;
+  }
+
+  async function saveAsMixtape() {
+    if (!isAuthenticated() || isSavingMixtape || generatedPlaylist.length === 0)
+      return;
+
+    isSavingMixtape = true;
+    try {
+      const draft: MixtapeDraft = {
+        title: stationName || "AI Radio Mix",
+        description:
+          stationDescription ||
+          `Generated radio station based on: ${selectedTags.join(", ")}`,
+        // Map to minimum format needed for publish (API only needs IDs usually, but type needs full)
+        tracks: generatedPlaylist.map((s) => ({
+          id: s.Id,
+          title: s.Title,
+          creator: s.Address,
+          coverUrl: null,
+          audioUrl: null,
+          lyrics: null,
+        })),
+      };
+
+      await publishMixtape(draft);
+      alert("Mixtape saved successfully! 💾");
+    } catch (e) {
+      console.error("Failed to save mixtape", e);
+      alert("Failed to save mixtape. See console.");
+    } finally {
+      isSavingMixtape = false;
     }
   }
 
@@ -464,231 +546,266 @@
   );
 </script>
 
-<div class="container mx-auto px-4 py-8">
-  <div class="mb-8">
-    <div
-      class="flex flex-col md:flex-row justify-between items-start md:items-end mb-4 gap-4"
-    >
-      <div>
-        <h2 class="text-2xl font-bold text-purple-400">📻 RADIO STATION</h2>
-        <p class="text-slate-400 text-sm mt-1">
-          Select up to {MAX_TAGS} tags to generate your station
-        </p>
-      </div>
-      <div class="flex gap-2 items-center">
-        <select
-          bind:value={sortMode}
-          class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-purple-500"
-        >
-          <option value="popularity">Sort: Popularity</option>
-          <option value="frequency">Sort: Frequency</option>
-          <option value="alphabetical">Sort: A-Z</option>
-        </select>
-        <input
-          type="text"
-          bind:value={searchQuery}
-          placeholder="Search tags..."
-          class="bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-colors w-48"
-        />
-      </div>
-    </div>
+<div class="container mx-auto px-4 py-8 relative z-10">
+  <!-- Eigengrau Void (Removed) -->
 
-    <!-- AI Mood Input -->
-    {#if GEMINI_API_KEY}
-      <div class="mb-4 flex gap-2">
-        <input
-          type="text"
-          bind:value={moodInput}
-          placeholder="✨ Describe a vibe... (e.g., 'chill beats for studying')"
-          class="flex-1 bg-slate-800/50 border border-purple-500/30 rounded-lg px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-colors"
-          onkeydown={(e) => e.key === "Enter" && suggestTagsFromMood()}
-          disabled={isFetchingMood}
-        />
-        <button
-          class="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-medium px-4 py-2 rounded-lg transition-all disabled:opacity-50"
-          onclick={suggestTagsFromMood}
-          disabled={!moodInput.trim() || isFetchingMood}
+  <div
+    class="relative transition-all duration-700 ease-in-out {isCompact
+      ? 'pt-4'
+      : 'py-12'}"
+  >
+    <!-- HEADER / TUNER CONTROLS -->
+    <div class="flex flex-col gap-6 mb-8 transition-all duration-500">
+      <!-- COMPACT ROW: Logo + Input + Ignite -->
+      {#if isCompact}
+        <div
+          class="flex items-center gap-4 animate-in fade-in slide-in-from-top-4 duration-500"
         >
-          {isFetchingMood ? "✨..." : "✨ AI Suggest"}
-        </button>
-      </div>
-    {/if}
-
-    {#if selectedTags.length > 0}
-      <div class="flex flex-wrap gap-2 mb-4">
-        {#each selectedTags as tag}
-          <span
-            class="inline-flex items-center gap-1 bg-purple-600/30 text-purple-300 px-3 py-1 rounded-full text-sm border border-purple-500/50"
+          <div
+            class="flex items-baseline gap-2 cursor-pointer group"
+            onclick={() => (generatedPlaylist = [])}
           >
-            {tag}
-            <button class="hover:text-white ml-1" onclick={() => removeTag(tag)}
-              >×</button
+            <span
+              class="text-[#9ae600] font-bold text-xl tracking-tight group-hover:shadow-[0_0_15px_rgba(154,230,0,0.5)] transition-all"
+              >SMOL</span
             >
-          </span>
-        {/each}
-        <button
-          class="text-xs text-slate-500 hover:text-purple-400 transition-colors"
-          onclick={clearTags}>Clear all</button
-        >
-      </div>
-    {/if}
+            <span class="font-thin text-white text-xl">RADIO</span>
+          </div>
 
-    <div
-      class="flex flex-col items-center p-6 bg-slate-900/50 rounded-2xl border border-slate-800"
-    >
-      <div
-        class="flex flex-wrap gap-x-3 gap-y-1.5 justify-center max-h-64 overflow-y-auto dark-scrollbar w-full"
-      >
-        {#each displayedTags as { tag, count }}
+          <!-- Quick Mood Input -->
+          {#if GEMINI_API_KEY}
+            <div class="flex-1 max-w-xl flex gap-2">
+              <input
+                bind:value={moodInput}
+                placeholder="Add a vibe..."
+                class="reactive-input flex-1 px-4 py-2 text-sm placeholder-white/20 focus:outline-none transition-all font-mono bg-black/40"
+                onkeydown={(e) => e.key === "Enter" && suggestTagsFromMood()}
+                disabled={isFetchingMood}
+              />
+              <button
+                class="reactive-button text-[#19859b] font-bold px-4 py-2 transition-all disabled:opacity-50 uppercase tracking-widest text-[10px]"
+                onclick={suggestTagsFromMood}
+                disabled={!moodInput.trim() || isFetchingMood}
+              >
+                {isFetchingMood ? "..." : "+"}
+              </button>
+            </div>
+          {/if}
+
+          <!-- REGENERATE -->
           <button
-            class="transition-all duration-200 hover:text-purple-400 hover:scale-105 leading-none py-1 disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap"
-            class:text-purple-400={selectedTags.includes(tag)}
-            class:text-white={!selectedTags.includes(tag)}
-            class:font-bold={selectedTags.includes(tag)}
-            style="font-size: {getFontSize(
-              count,
-              maxCount,
-            )}; opacity: {selectedTags.includes(tag)
-              ? 1
-              : getOpacity(count, maxCount)}"
-            onclick={() => toggleTag(tag)}
-            disabled={!selectedTags.includes(tag) &&
-              selectedTags.length >= MAX_TAGS}
+            class="reactive-button-ignite text-white font-bold h-10 w-10 flex items-center justify-center rounded-full transition-all hover:scale-105 active:scale-95 shadow-lg"
+            onclick={generateStation}
+            title="Regenerate Station"
+            disabled={isGenerating}
           >
-            {tag}
-            {#if selectedTags.includes(tag)}
-              <span class="text-xs align-top ml-0.5 opacity-60">({count})</span>
-            {/if}
+            <span class:animate-spin={isGenerating}>↻</span>
           </button>
-        {/each}
-      </div>
 
-      {#if filteredTags.length === 0}
-        <div class="text-slate-500 italic mt-4">No tags found.</div>
-      {/if}
-
-      {#if !searchQuery && processedTags.length > INITIAL_TAG_LIMIT}
-        <button
-          class="mt-6 text-xs font-bold tracking-widest text-slate-500 hover:text-purple-400 transition-colors uppercase border-t border-slate-800 pt-4 w-full"
-          onclick={() => (showAll = !showAll)}
+          <!-- TOGGLE CLOUD -->
+          <button
+            class="text-white/40 hover:text-white text-xs uppercase tracking-widest transition-colors"
+            onclick={() => (showAll = !showAll)}
+          >
+            {showAll ? "Hide Tags" : "Tags"}
+          </button>
+        </div>
+      {:else}
+        <!-- FULL HEADER (Initial State) -->
+        <div
+          class="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 animate-in fade-in zoom-in-95 duration-500"
         >
-          {showAll ? "Show Less" : `Show All (${processedTags.length} Tags)`}
-        </button>
-      {/if}
-    </div>
-
-    <div class="flex justify-center mt-6 gap-4 items-center">
-      <label
-        class="flex items-center gap-2 text-slate-400 text-sm cursor-pointer"
-      >
-        <input
-          type="checkbox"
-          bind:checked={isShuffled}
-          class="accent-purple-500 w-4 h-4"
-        />
-        Shuffle
-      </label>
-      <button
-        class="bg-purple-600 hover:bg-purple-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-bold py-3 px-8 rounded-full transition-all duration-200 disabled:cursor-not-allowed"
-        onclick={generateStation}
-        disabled={selectedTags.length === 0 || isGenerating}
-      >
-        {isGenerating
-          ? "Generating..."
-          : `🎲 Generate Station (${selectedTags.length}/${MAX_TAGS} tags)`}
-      </button>
-    </div>
-  </div>
-
-  {#if generatedPlaylist.length > 0}
-    <div class="animate-fade-in-up">
-      <RadioPlayer
-        playlist={generatedPlaylist}
-        onNext={playNext}
-        onPrev={playPrev}
-      />
-
-      <div class="flex justify-between items-center mb-4 mt-6">
-        <div>
-          <h3 class="text-xl font-semibold text-white">
-            {stationName}
-            <span class="text-sm text-slate-500 font-normal ml-2"
-              >({generatedPlaylist.length} songs • ~{estimatedDuration} min)</span
+          <div>
+            <h2
+              class="text-4xl font-thin tracking-tighter text-white mb-2"
+              style="text-shadow: 0 0 20px rgba(255,255,255,0.3);"
             >
-          </h3>
-          {#if stationDescription}
-            <p class="text-purple-400/80 text-sm mt-1 italic">
-              {stationDescription}
+              <span class="text-[#9ae600] font-bold">SMOL</span>
+              <span class="font-thin text-white">RADIO</span>
+            </h2>
+            <p class="text-white/60 text-sm tracking-wide font-light">
+              SELECT UP TO {MAX_TAGS} VIBES
             </p>
+          </div>
+          <!-- Sort & Filter Controls -->
+          <!-- Sort & Filter Controls (Moved to Tag Cloud) -->
+        </div>
+
+        <!-- Initial Mood Input -->
+        {#if GEMINI_API_KEY}
+          <div
+            class="flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-100"
+          >
+            <input
+              bind:value={moodInput}
+              placeholder="Describe a vibe (e.g., 'summer road trip')..."
+              class="reactive-input flex-1 px-6 py-4 text-lg placeholder-white/20 focus:outline-none transition-all font-mono"
+              onkeydown={(e) => e.key === "Enter" && suggestTagsFromMood()}
+              disabled={isFetchingMood}
+            />
+            <button
+              class="reactive-button text-[#19859b] font-bold px-8 py-2 transition-all disabled:opacity-50 uppercase tracking-widest text-xs border border-[#19859b]/50 hover:border-[#19859b] hover:shadow-[0_0_15px_rgba(25,133,155,0.4)]"
+              onclick={suggestTagsFromMood}
+              disabled={!moodInput.trim() || isFetchingMood}
+            >
+              {isFetchingMood ? "Dreaming..." : "Dream It"}
+            </button>
+          </div>
+        {/if}
+      {/if}
+
+      <!-- ACTIVE TAGS (Always Visible) -->
+      {#if selectedTags.length > 0}
+        <div class="flex flex-wrap gap-2 animate-in fade-in duration-300">
+          {#each selectedTags as tag}
+            <span
+              class="reactive-pill selected inline-flex items-center gap-2 px-3 py-1 text-xs text-purple-300 font-mono shadow-[0_0_10px_rgba(168,85,247,0.2)]"
+            >
+              {tag}
+              <button
+                class="hover:text-white transition-colors font-bold"
+                onclick={() => removeTag(tag)}>×</button
+              >
+            </span>
+          {/each}
+          {#if isCompact}
+            <button
+              class="text-[10px] text-white/30 hover:text-white transition-colors uppercase tracking-widest ml-2"
+              onclick={clearTags}>Clear</button
+            >
           {/if}
         </div>
-      </div>
+      {/if}
 
-      <div
-        class="bg-slate-900/50 rounded-xl border border-slate-800 overflow-hidden"
-      >
-        <ul
-          class="divide-y divide-slate-800 max-h-96 overflow-y-auto dark-scrollbar"
+      <!-- TAG CLOUD (Collapsible) -->
+      {#if showCloud}
+        <div
+          class="reactive-glass flex flex-col items-center p-6 border border-white/5 transition-all duration-500 {isCompact
+            ? 'scale-95 opacity-90'
+            : ''}"
         >
-          {#each generatedPlaylist as song, index}
-            <li>
-              <button
-                class="w-full flex items-center gap-3 p-3 hover:bg-slate-800/50 transition-colors text-left {index ===
-                currentIndex
-                  ? 'bg-purple-900/30'
-                  : ''}"
-                onclick={() => playSongAtIndex(index)}
+          <!-- Toolbar: Search & Sort -->
+          <div
+            class="w-full flex gap-3 mb-4 animate-in fade-in slide-in-from-top-2 duration-300"
+          >
+            <div class="relative flex-1 group">
+              <span
+                class="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-[#2276cb] transition-colors"
               >
-                <span class="text-slate-500 w-6 text-right text-sm"
-                  >{index + 1}</span
+                <svg
+                  class="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  ><path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  ></path></svg
                 >
-                <span
-                  class="w-10 h-10 rounded bg-slate-800 flex-shrink-0 relative overflow-hidden"
-                >
-                  <img
-                    src={`${API_URL}/image/${song.Id}.png`}
-                    alt=""
-                    class="w-full h-full object-cover"
-                    loading="lazy"
-                    onerror={(e) => {
-                      e.currentTarget.style.display = "none";
-                    }}
-                  />
-                  <span
-                    class="absolute inset-0 flex items-center justify-center text-slate-500 text-lg"
-                    >♪</span
-                  >
-                </span>
-                <div class="flex-1 min-w-0">
-                  <div
-                    class="font-medium truncate {index === currentIndex
-                      ? 'text-purple-300'
-                      : 'text-white'}"
-                  >
-                    {song.lyrics?.title || song.Title || "Untitled"}
-                  </div>
-                  <div class="text-xs text-slate-500 truncate">
-                    {getTags(song).slice(0, 3).join(", ") || "No tags"}
-                  </div>
-                </div>
-                {#if index === currentIndex && audioState.playingId === song.Id}
-                  <span class="text-purple-400 animate-pulse">▶</span>
-                {/if}
+              </span>
+              <input
+                type="text"
+                bind:value={searchQuery}
+                placeholder="Search vibes..."
+                class="reactive-input w-full pl-10 pr-4 py-2.5 text-sm placeholder-white/30 focus:outline-none transition-all"
+              />
+            </div>
+
+            <select
+              bind:value={sortMode}
+              class="reactive-input px-4 py-2 text-sm focus:outline-none appearance-none cursor-pointer hover:bg-white/5 transition-colors text-white/60 hover:text-white"
+            >
+              <option value="popularity" class="bg-slate-900">Popularity</option
+              >
+              <option value="frequency" class="bg-slate-900">Frequency</option>
+              <option value="alphabetical" class="bg-slate-900">A-Z</option>
+            </select>
+          </div>
+          <div
+            class="flex flex-wrap gap-x-2 gap-y-2 justify-center max-h-64 overflow-y-auto dark-scrollbar w-full p-2"
+          >
+            {#each displayedTags as { tag, count }}
+              <button
+                class="reactive-pill px-3 py-1 transition-all duration-200 disabled:opacity-20 whitespace-nowrap font-mono text-[10px] md:text-xs"
+                class:selected={selectedTags.includes(tag)}
+                class:text-white={!selectedTags.includes(tag)}
+                class:opacity-60={!selectedTags.includes(tag)}
+                style="font-size: {isCompact
+                  ? '0.75rem'
+                  : getFontSize(count, maxCount)};"
+                onclick={() => toggleTag(tag)}
+                disabled={!selectedTags.includes(tag) &&
+                  selectedTags.length >= MAX_TAGS}
+              >
+                {tag}
               </button>
-            </li>
-          {/each}
-        </ul>
+            {/each}
+          </div>
+
+          {#if !isCompact && !searchQuery && processedTags.length > INITIAL_TAG_LIMIT}
+            <button
+              class="mt-4 text-xs font-bold tracking-[0.2em] text-white/40 hover:text-white transition-colors uppercase w-full py-2 border-t border-white/5"
+              onclick={() => (showAll = !showAll)}
+            >
+              {showAll ? "Collapse" : `Show All (${processedTags.length})`}
+            </button>
+          {/if}
+        </div>
+      {/if}
+
+      <!-- MAIN IGNITE BUTTON (Only if not compact) -->
+      {#if !isCompact}
+        <div class="flex justify-center mt-4 gap-6 items-center">
+          <label
+            class="flex items-center gap-3 text-white/60 text-sm cursor-pointer hover:text-white transition-colors"
+          >
+            <input
+              type="checkbox"
+              bind:checked={isShuffled}
+              class="appearance-none w-5 h-5 border border-white/20 rounded-full bg-white/5 checked:bg-[#36b04a] checked:border-black cursor-pointer transition-all checked:shadow-[0_0_15px_#36b04a] hover:border-[#36b04a]/50"
+            />
+            SMART SHUFFLE
+          </label>
+          <button
+            class="reactive-button-ignite text-white font-bold py-4 px-12 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-[0.2em] text-lg border border-white/10"
+            onclick={generateStation}
+            disabled={selectedTags.length === 0 || isGenerating}
+          >
+            {isGenerating ? "SYNTHESIZING..." : "IGNITE"}
+          </button>
+        </div>
+      {/if}
+    </div>
+
+    <!-- PLAYLIST RESULTS (Intelligently Available) -->
+    {#if generatedPlaylist.length > 0}
+      <div class="animate-in fade-in slide-in-from-bottom-8 duration-700">
+        <RadioResults
+          playlist={generatedPlaylist}
+          {stationName}
+          {stationDescription}
+          {currentIndex}
+          {isSavingMixtape}
+          onNext={playNext}
+          onPrev={playPrev}
+          onSelect={playSongAtIndex}
+          onSaveMixtape={saveAsMixtape}
+        />
       </div>
-    </div>
-  {:else if selectedTags.length > 0}
-    <div class="text-center text-slate-500 mt-12">
-      Click "Generate Station" to create your radio playlist.
-    </div>
-  {:else}
-    <div class="text-center text-slate-500 mt-12">
-      Select some tags above to get started.
-    </div>
-  {/if}
+    {:else if selectedTags.length > 0}
+      <div
+        class="text-center text-white/30 mt-16 font-light tracking-wide animate-pulse"
+      >
+        Ready to ignite...
+      </div>
+    {:else}
+      <div class="text-center text-white/20 mt-16 font-light tracking-wide">
+        Select vibes to begin transmission
+      </div>
+    {/if}
+  </div>
 </div>
 
 <style>
@@ -704,23 +821,5 @@
   }
   .animate-fade-in-up {
     animation: fadeInUp 0.4s ease-out forwards;
-  }
-  .dark-scrollbar::-webkit-scrollbar {
-    width: 8px;
-  }
-  .dark-scrollbar::-webkit-scrollbar-track {
-    background: rgba(30, 41, 59, 0.5);
-    border-radius: 4px;
-  }
-  .dark-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(100, 116, 139, 0.6);
-    border-radius: 4px;
-  }
-  .dark-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(148, 163, 184, 0.8);
-  }
-  .dark-scrollbar {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(100, 116, 139, 0.6) rgba(30, 41, 59, 0.5);
   }
 </style>

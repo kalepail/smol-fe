@@ -1,18 +1,10 @@
 # Changelog
 
-## [1.5.2] - 2025-12-29
-
+## [1.5.2] - 2025-12-28
 ### Added
-- **Smart Shuffle**: Artist-aware algorithm prevents artist clustering in playlists
-- **Save as Mixtape**: One-click save generated radio stations as permanent mixtapes
-- **Glassmorphism UI**: Premium visual upgrade with blur effects and smooth animations
-- **Inline Tag Search**: Smooth search bar with glowing icon directly in the tag cloud
-- **Dream It Button**: AI-powered vibe-to-tags conversion—describe a mood and get matching genre tags
-
-### Enhanced
-- **Visualizer Engine**: Upgraded lifecycle management for seamless play/pause transitions
-- **Color System**: Refined accent palette (Blue `#2276cb` inputs, Teal `#19859b` actions)
-- **Smart Shuffle Toggle**: Redesigned as a glowing green node (`#36b04a`) with neon aura
+- **Smart Shuffle**: New algorithm prevents artist clustering (no more "3 Drake songs in a row").
+- **Save as Mixtape**: One-click save generated radio stations as permanent mixtapes.
+- **Glassmorphism UI**: Premium visual upgrade for Radio results with blur effects and smooth animations.
 
 ## [1.5.1] - 2025-12-28
 
