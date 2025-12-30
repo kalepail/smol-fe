@@ -104,7 +104,7 @@
         </div>
 
         <div
-            class="flex flex-col lg:flex-row gap-8 h-auto lg:h-[580px] items-stretch p-6"
+            class="flex flex-col lg:flex-row gap-8 h-auto lg:h-[560px] items-stretch p-4"
         >
             <!-- LEFT COLUMN: PLAYER -->
             <div class="w-full lg:w-1/2 flex flex-col gap-4">

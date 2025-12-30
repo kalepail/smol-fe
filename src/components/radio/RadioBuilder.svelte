@@ -617,7 +617,9 @@
 </script>
 
 <div
-  class="container mx-auto px-4 py-4 relative z-10 w-full flex flex-col justify-center"
+  class="container mx-auto px-4 {isCompact
+    ? 'pt-2 pb-4'
+    : 'py-4'} relative z-10 w-full flex flex-col justify-center"
 >
   <!-- Eigengrau Void (Removed) -->
 
@@ -628,7 +630,9 @@
   >
     <!-- HEADER / TUNER CONTROLS -->
     <div
-      class="flex flex-col gap-6 mb-4 transition-all duration-500 {isCompact
+      class="flex flex-col gap-6 {isCompact
+        ? 'mb-0'
+        : 'mb-4'} transition-all duration-500 {isCompact
         ? 'max-w-6xl mx-auto w-full'
         : ''}"
     >
