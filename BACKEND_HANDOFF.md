@@ -41,6 +41,28 @@ Hey Tyler, we've made significant progress on the Radio and Track Detail UI. We 
     - **Likes**: Toggling likes on the Radio and Artist pages.
     - **Ownership Checks**: Ensuring only the original creator can "Publish/Unpublish" or "Delete" tracks on the detailed `/[id]` page.
 
+## 📚 Module Reference Syllabus
+
+To help you navigate, these are the primary files involved in the features listed above:
+
+### 1. Radio & Generation
+- **[`RadioBuilder.svelte`](file:///src/components/radio/RadioBuilder.svelte)**: Core logic for radio generation, tag management, AI-assisted "Dream Mode", and session state persistence.
+- **[`RadioResults.svelte`](file:///src/components/radio/RadioResults.svelte)**: The radio dashboard. Contains the "Trade" button logic, confetti triggers, and mobile scroller styling.
+- **[`RadioPlayer.svelte`](file:///src/components/radio/RadioPlayer.svelte)**: High-fidelity audio player with integrated 'Like' and variant switching.
+
+### 2. Blockchain & Trading
+- **[`MintTradeModal.svelte`](file:///src/components/shared/MintTradeModal.svelte)**: The central component for Stellar AMM trades and track minting. Connects frontend actions to contract calls.
+- **[`TokenBalancePill.svelte`](file:///src/components/shared/TokenBalancePill.svelte)**: Displays live token balances; useful for verifying transaction outcomes in the UI.
+
+### 3. Track Detail & Metadata
+- **[`SmolResults.svelte`](file:///src/components/smol/SmolResults.svelte)**: The detailed `/[id]` view. Manages V1/V2 versioning, lyrics display, and the "Publish/Unpublish" owner tools.
+- **[`ArtistResults.svelte`](file:///src/components/artist/ArtistResults.svelte)**: Manages artist-specific track lists and "Fresh Drops" sorting logic.
+
+### 4. Global Architecture
+- **[`audio.svelte.ts`](file:///src/stores/audio.svelte.ts)**: Global audio rune; ensures music doesn't stop when users navigate between Radio and Artist pages.
+- **[`user.svelte.ts`](file:///src/stores/user.svelte.ts)**: Global authentication state; used to guard owner-only tools and 'Like' features.
+- **[`global.css`](file:///src/styles/global.css)**: Contains the `.dark-scrollbar` utility and Glass design system tokens.
+
 ---
 
 **Note**: The UI is now very polished and reactive. If you see any errors in the console during these tests, please flag them immediately so we can adjust the frontend error handling.
