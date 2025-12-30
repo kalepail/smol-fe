@@ -4,6 +4,9 @@ Hey Tyler, we've made significant progress on the Radio and Track Detail UI. We 
 
 ## 🛠 Critical Verification Needed
 
+> [!IMPORTANT]
+> **Mentorship Request**: Once you've checked these features, can you help me learn how to test them all myself? I want to be able to verify this stuff independently moving forward!
+
 ### 1. Mint & Trade Modals (`MintTradeModal.svelte`)
 - **Action**: Verify the end-to-end flow for single track minting and AMM trading.
 - **Context**: The UI is now fully wired to use the blue "Trade" button and the minting hook.
