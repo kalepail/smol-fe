@@ -243,17 +243,17 @@
                                 />
                             </svg>
                         </div>
-                        <div class="flex items-baseline gap-3">
+                        <div class="flex items-baseline gap-3 overflow-hidden">
                             <span
-                                class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 whitespace-nowrap"
+                                class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 whitespace-nowrap hidden sm:inline"
                                 >Track Detail /</span
                             >
                             <span
-                                class="text-xs font-bold text-white tracking-tight"
+                                class="text-xs font-bold text-white tracking-tight truncate"
                                 >{data.d1?.Title || "Untitled"}</span
                             >
                             <span
-                                class="text-[9px] text-[#d836ff]/60 uppercase tracking-widest flex items-center gap-1"
+                                class="text-[9px] text-[#d836ff]/60 uppercase tracking-widest flex items-center gap-1 shrink-0"
                             >
                                 BY <a
                                     href="/artist/{data.d1?.Address}"
@@ -301,7 +301,7 @@
                 </div>
 
                 <div
-                    class="flex flex-col lg:flex-row gap-8 items-stretch p-6 h-auto lg:h-[580px]"
+                    class="flex flex-col lg:flex-row gap-2 lg:gap-8 items-stretch px-4 py-8 lg:p-6 h-auto lg:h-[580px]"
                 >
                     <!-- Left: Player Column -->
                     <div class="w-full lg:w-1/2 flex flex-col">
@@ -322,7 +322,7 @@
                             }}
                         />
 
-                        <div class="mt-auto flex gap-4">
+                        <div class="mt-auto flex gap-4 w-full">
                             {#if minted}
                                 {#if tradeReady}
                                     <button
@@ -357,7 +357,7 @@
 
                     <!-- Right: Info/Lyrics Column -->
                     <div
-                        class="w-full lg:w-1/2 flex flex-col min-h-0 bg-black/20 border border-white/5 rounded-2xl overflow-hidden shadow-inner"
+                        class="w-full lg:w-1/2 flex flex-col h-[500px] lg:h-auto lg:min-h-0 bg-black/20 border border-white/5 rounded-2xl overflow-hidden shadow-inner isolate"
                     >
                         <!-- Content Tabs -->
                         <div
@@ -416,6 +416,7 @@
                                     <div
                                         class="space-y-8 animate-in fade-in duration-300"
                                     >
+                                        <!-- Technical Details (First) -->
                                         <div>
                                             <h4
                                                 class="text-[10px] uppercase tracking-[0.2em] text-white/20 mb-4 font-bold"
@@ -488,6 +489,24 @@
                                             </div>
                                         </div>
 
+                                        <!-- Styles & Tags (Second) -->
+                                        <div>
+                                            <h4
+                                                class="text-[9px] uppercase tracking-widest text-white/20 mb-3"
+                                            >
+                                                Styles & Tags
+                                            </h4>
+                                            <div class="flex flex-wrap gap-2">
+                                                {#each data.kv_do?.lyrics?.style || [] as tag}
+                                                    <span
+                                                        class="px-2 py-1 rounded bg-[#d836ff]/5 text-[#d836ff]/50 text-[10px] border border-[#d836ff]/10"
+                                                        >#{tag}</span
+                                                    >
+                                                {/each}
+                                            </div>
+                                        </div>
+
+                                        <!-- Model Metadata (Third) -->
                                         <div>
                                             <h4
                                                 class="text-[10px] uppercase tracking-[0.2em] text-white/20 mb-4 font-bold"
@@ -511,23 +530,6 @@
                                                             "No prompt stored"}"
                                                     </p>
                                                 </div>
-                                            </div>
-                                        </div>
-
-                                        <!-- Tags moved here -->
-                                        <div>
-                                            <h4
-                                                class="text-[9px] uppercase tracking-widest text-white/20 mb-3"
-                                            >
-                                                Styles & Tags
-                                            </h4>
-                                            <div class="flex flex-wrap gap-2">
-                                                {#each data.kv_do?.lyrics?.style || [] as tag}
-                                                    <span
-                                                        class="px-2 py-1 rounded bg-[#d836ff]/5 text-[#d836ff]/50 text-[10px] border border-[#d836ff]/10"
-                                                        >#{tag}</span
-                                                    >
-                                                {/each}
                                             </div>
                                         </div>
                                     </div>
