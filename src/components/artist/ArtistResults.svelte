@@ -8,6 +8,7 @@
     import TokenBalancePill from "../ui/TokenBalancePill.svelte";
     import MintTradeModal from "../MintTradeModal.svelte";
     import { getTokenBalance } from "../../utils/balance";
+    import TipArtistModal from "./TipArtistModal.svelte";
 
     let {
         discography = [],
@@ -38,6 +39,7 @@
     let showTradeModal = $state(false);
     let tradeMintBalance = $state(0);
     let showGridView = $state(false);
+    let showTipModal = $state(false);
 
     const mintingHook = useSmolMinting();
     const currentSong = $derived(audioState.currentSong);
@@ -224,7 +226,7 @@
             </div>
             <div class="flex items-center gap-2 mt-2">
                 <button
-                    onclick={copyAddress}
+                    onclick={() => (showTipModal = true)}
                     class="px-3 py-1 bg-gradient-to-r from-green-600/20 to-green-500/10 border border-green-500/30 rounded-full text-green-400 text-[10px] font-bold uppercase tracking-widest hover:bg-green-500/20 transition-all flex items-center gap-1.5"
                 >
                     <span class="text-base leading-none">🥬</span>
@@ -677,5 +679,12 @@
         on:complete={() => {
             showTradeModal = false;
         }}
+    />
+{/if}
+
+{#if showTipModal}
+    <TipArtistModal
+        artistAddress={address}
+        onClose={() => (showTipModal = false)}
     />
 {/if}
