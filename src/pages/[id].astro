@@ -1,5 +1,5 @@
 ---
-import Smol from "../components/Smol.svelte";
+import SmolResults from "../components/smol/SmolResults.svelte";
 import Layout from "../layouts/Layout.astro";
 
 const { id } = Astro.params;
@@ -39,5 +39,7 @@ if (id) {
 ---
 
 <Layout {title} {description} {song_url} {image_url}>
-	<Smol id={id} client:only="svelte" />
+	<div class="h-screen flex items-center justify-center -mt-16">
+		<SmolResults id={id as string} client:only="svelte" />
+	</div>
 </Layout>
