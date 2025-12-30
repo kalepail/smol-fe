@@ -10,7 +10,7 @@
     import LikeButton from "../ui/LikeButton.svelte";
     import Loader from "../ui/Loader.svelte";
     import TokenBalancePill from "../ui/TokenBalancePill.svelte";
-    import { userState } from "../../stores/user.svelte";
+    import { userState, isAuthenticated } from "../../stores/user.svelte";
     import { updateContractBalance } from "../../stores/balance.svelte";
     import { useSmolMinting } from "../../hooks/useSmolMinting";
     import { sac } from "../../utils/passkey-kit";
@@ -324,6 +324,7 @@
                             }}
                             onMint={!minted ? triggerMint : undefined}
                             isMinting={minting}
+                            isAuthenticated={isAuthenticated()}
                         />
 
                         <div class="mt-auto flex gap-4 w-full">
