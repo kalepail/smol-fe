@@ -3,6 +3,7 @@
     import { audioState } from "../../stores/audio.svelte";
     import RadioPlayer from "./RadioPlayer.svelte";
     import { isAuthenticated } from "../../stores/user.svelte";
+    import LikeButton from "../ui/LikeButton.svelte";
 
     let {
         playlist = [],
@@ -14,6 +15,8 @@
         onPrev,
         onSelect,
         onSaveMixtape,
+        onRegenerate,
+        onToggleLike,
     }: {
         playlist: Smol[];
         stationName: string;
@@ -24,6 +27,8 @@
         onPrev: () => void;
         onSelect: (index: number) => void;
         onSaveMixtape: () => void;
+        onToggleLike?: (index: number, liked: boolean) => void;
+        onRegenerate?: () => void;
     } = $props();
 
     const API_URL = import.meta.env.PUBLIC_API_URL;
@@ -75,7 +80,15 @@
             {/if}
         </div>
 
-        <RadioPlayer {playlist} {onNext} {onPrev} />
+        <RadioPlayer
+            {playlist}
+            {onNext}
+            {onPrev}
+            {onRegenerate}
+            {onSelect}
+            {onToggleLike}
+            {currentIndex}
+        />
 
         <div class="h-px bg-white/5 my-8"></div>
 
@@ -90,7 +103,16 @@
                             currentIndex
                                 ? 'bg-purple-500/10'
                                 : ''}"
-                            onclick={() => onSelect(index)}
+                            onclick={(e) => {
+                                // Ignore clicks on links or buttons (like the like button or song link)
+                                const target = e.target as HTMLElement;
+                                if (
+                                    target.closest("a") ||
+                                    target.closest("button")
+                                )
+                                    return;
+                                onSelect(index);
+                            }}
                         >
                             <span class="text-slate-500 w-6 text-right text-sm"
                                 >{index + 1}</span
@@ -128,16 +150,41 @@
                                 >
                                     {song.Title || "Untitled"}
                                 </div>
-                                <div class="text-xs text-slate-500 truncate">
+                                <a
+                                    href="/artist/{song.Address}"
+                                    class="text-xs text-slate-500 truncate hover:text-[#9ae600] transition-colors hover:underline block"
+                                    onclick={(e) => e.stopPropagation()}
+                                >
                                     {song.Address || "Unknown Artist"}
-                                </div>
+                                </a>
+                                {#if song.Tags && song.Tags.length > 0}
+                                    <div class="flex gap-1 mt-1 flex-wrap">
+                                        {#each song.Tags.slice(0, 3) as tag}
+                                            <span
+                                                class="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-white/40 font-mono"
+                                                >{tag}</span
+                                            >
+                                        {/each}
+                                    </div>
+                                {/if}
                             </div>
+
+                            <div>
+                                <LikeButton
+                                    smolId={song.Id}
+                                    liked={song.Liked || false}
+                                    classNames="p-2 text-slate-500 hover:text-[#ff424c] hover:bg-white/5 rounded-full transition-colors"
+                                    on:likeChanged={(e) => {
+                                        onToggleLike(index, e.detail.liked);
+                                    }}
+                                />
+                            </div>
+
                             <!-- Song Page Link -->
                             <a
-                                href="/song/{song.Id}"
+                                href="/{song.Id}"
                                 class="p-2 text-slate-500 hover:text-white transition-colors"
                                 title="View Song Details"
-                                onclick={(e) => e.stopPropagation()}
                             >
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"

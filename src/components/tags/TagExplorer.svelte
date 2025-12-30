@@ -1,10 +1,10 @@
-<script lang="ts">
+﻿<script lang="ts">
     import type { Smol } from "../../types/domain";
     import SmolGrid from "../smol/SmolGrid.svelte";
 
     let { smols = [] }: { smols: Smol[] } = $props();
 
-    let selectedTag = $state<string | null>(null);
+    let selectedTags = $state<string[]>([]);
     let searchQuery = $state("");
     let showAll = $state(false);
     const INITIAL_TAG_LIMIT = 50;
@@ -54,23 +54,24 @@
 
     // Filter smols based on selection
     let filteredSmols = $derived.by(() => {
-        if (!selectedTag) return [];
+        if (selectedTags.length === 0) return [];
 
         return smols.filter((smol) => {
             const styles = new Set<string>();
             if (smol.Tags) smol.Tags.forEach((t) => styles.add(t));
             if (smol.lyrics?.style)
                 smol.lyrics.style.forEach((t) => styles.add(t));
-            return styles.has(selectedTag!);
+
+            // Show song if it matches ANY selected tag
+            return selectedTags.some((tag) => styles.has(tag));
         });
     });
 
     function selectTag(tag: string) {
-        if (selectedTag === tag) {
-            selectedTag = null;
+        if (selectedTags.includes(tag)) {
+            selectedTags = selectedTags.filter((t) => t !== tag);
         } else {
-            selectedTag = tag;
-            // Optionally scroll to grid here
+            selectedTags = [...selectedTags, tag];
         }
     }
 
@@ -96,88 +97,174 @@
     );
 </script>
 
-<div class="container mx-auto px-4 py-8">
+<div class="container mx-auto px-4 py-2 relative z-10">
     <div class="mb-8">
+        <!-- Header & Search Row -->
         <div
-            class="flex flex-col md:flex-row justify-between items-end mb-4 gap-4"
+            class="flex flex-col md:flex-row justify-between items-center mb-6 gap-6"
         >
-            <h2 class="text-2xl font-bold text-lime-400">EXPLORE TAGS</h2>
+            <div class="flex items-baseline gap-2 cursor-default group">
+                <span
+                    class="text-[#9ae600] font-bold text-3xl tracking-tight drop-shadow-[0_0_10px_rgba(154,230,0,0.3)]"
+                    >SMOL</span
+                >
+                <span class="font-thin text-white text-3xl">TAGS</span>
+            </div>
 
-            <!-- Search Bar -->
-            <div class="relative w-full md:w-64">
+            <!-- Search Bar (Radio Style) -->
+            <div class="relative w-full md:w-80 flex gap-2">
                 <input
                     type="text"
                     bind:value={searchQuery}
-                    placeholder="Search tags..."
-                    class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white placeholder-slate-500 focus:outline-none focus:border-lime-500 transition-colors"
+                    placeholder="Search vibes..."
+                    class="reactive-input flex-1 px-4 py-2 text-sm placeholder-white/20 focus:outline-none transition-all font-mono bg-black/40"
                 />
+                {#if searchQuery}
+                    <button
+                        class="text-white/40 hover:text-white transition-colors"
+                        onclick={() => (searchQuery = "")}
+                    >
+                        ✕
+                    </button>
+                {/if}
             </div>
         </div>
 
-        <!-- Tag Cloud/Map -->
+        <!-- Tag Cloud (Radio Style) -->
         <div
-            class="flex flex-col items-center p-8 bg-slate-900/50 rounded-3xl border border-slate-800 transition-all duration-500 ease-in-out"
+            class="p-8 reactive-glass rounded-3xl transition-all duration-500 ease-in-out border border-white/5 backdrop-blur-xl"
         >
-            <div class="flex flex-wrap gap-x-4 gap-y-2 justify-center">
-                {#each displayedTags as { tag, count }}
-                    <button
-                        class="transition-all duration-200 hover:text-lime-400 hover:scale-105 leading-none py-1"
-                        class:text-lime-400={selectedTag === tag}
-                        class:text-white={selectedTag !== tag}
-                        class:font-bold={count > 5}
-                        style="font-size: {getFontSize(
-                            count,
-                            maxCount,
-                        )}; opacity: {selectedTag === tag
-                            ? 1
-                            : getOpacity(count, maxCount)}"
-                        onclick={() => selectTag(tag)}
-                    >
-                        {tag}
-                        {#if selectedTag === tag}
-                            <span class="text-xs align-top ml-0.5 opacity-60"
-                                >({count})</span
-                            >
-                        {/if}
-                    </button>
-                {/each}
+            <div class="max-h-[400px] overflow-y-auto pr-4 custom-scrollbar">
+                <div
+                    class="flex flex-wrap gap-x-4 gap-y-3 justify-center items-center"
+                >
+                    {#each displayedTags as { tag, count }}
+                        <button
+                            class="transition-all duration-300 hover:scale-110 leading-none py-1 px-2 rounded-full {selectedTags.includes(
+                                tag,
+                            )
+                                ? 'text-[#9ae600] drop-shadow-[0_0_8px_rgba(154,230,0,0.5)] bg-white/5'
+                                : 'text-white'}"
+                            style="font-size: {getFontSize(
+                                count,
+                                maxCount,
+                            )}; opacity: {selectedTags.includes(tag)
+                                ? 1
+                                : getOpacity(count, maxCount)}"
+                            onclick={() => selectTag(tag)}
+                        >
+                            {tag}
+                            {#if selectedTags.includes(tag)}
+                                <span
+                                    class="text-[0.6em] align-top ml-0.5 text-white/40 font-mono tracking-tighter"
+                                    >{count}</span
+                                >
+                            {/if}
+                        </button>
+                    {/each}
+                </div>
             </div>
 
             {#if processedTags.length === 0}
-                <div class="text-slate-500 italic mt-4">No tags found.</div>
+                <div
+                    class="text-center text-white/20 italic py-10 font-mono text-sm tracking-widest"
+                >
+                    NO TAGS FOUND FOR "{searchQuery.toUpperCase()}"
+                </div>
             {/if}
 
             {#if !searchQuery && processedTags.length > INITIAL_TAG_LIMIT}
-                <button
-                    class="mt-8 text-xs font-bold tracking-widest text-slate-500 hover:text-lime-400 transition-colors uppercase border-t border-slate-800 pt-4 w-full"
-                    onclick={() => (showAll = !showAll)}
+                <div
+                    class="mt-8 pt-6 border-t border-white/5 flex {selectedTags.length >
+                    0
+                        ? 'justify-between'
+                        : 'justify-center'} items-center gap-4"
                 >
-                    {showAll
-                        ? "Show Less"
-                        : `Show All (${processedTags.length} Tags)`}
-                </button>
+                    <button
+                        class="text-[10px] font-black tracking-[0.2em] text-white/30 hover:text-[#9ae600] transition-all uppercase px-8 py-2 rounded-full border border-white/5 hover:border-[#9ae600]/30"
+                        onclick={() => (showAll = !showAll)}
+                    >
+                        {showAll
+                            ? "Show Less"
+                            : `Expand Library (${processedTags.length} Vibes)`}
+                    </button>
+
+                    {#if selectedTags.length > 0}
+                        <a
+                            href={`/radio?${selectedTags.map((t) => `tag=${encodeURIComponent(t)}`).join("&")}`}
+                            class="reactive-button-ignite inline-block text-white font-bold px-6 py-2 rounded-full transition-all hover:scale-105 active:scale-95 shadow-lg uppercase tracking-wider text-[11px] animate-in fade-in zoom-in-95 duration-300"
+                        >
+                            Send to Radio 📻
+                        </a>
+                    {/if}
+                </div>
+            {:else if selectedTags.length > 0}
+                <!-- If no Expand button, still show the Send to Radio button -->
+                <div
+                    class="mt-8 pt-6 border-t border-white/5 flex justify-center"
+                >
+                    <a
+                        href={`/radio?${selectedTags.map((t) => `tag=${encodeURIComponent(t)}`).join("&")}`}
+                        class="reactive-button-ignite inline-block text-white font-bold px-8 py-2 rounded-full transition-all hover:scale-105 active:scale-95 shadow-lg uppercase tracking-wider text-[11px] animate-in fade-in zoom-in-95 duration-300"
+                    >
+                        Send to Radio 📻
+                    </a>
+                </div>
             {/if}
         </div>
     </div>
 
-    {#if selectedTag}
-        <div class="animate-fade-in-up">
-            <h3 class="text-xl font-semibold mb-4 px-2">
-                Songs tagged with <span class="text-lime-400"
-                    >"{selectedTag}"</span
+    <!-- Results Section -->
+    {#if selectedTags.length > 0}
+        <div
+            class="animate-fade-in-up mt-12 bg-black/20 rounded-3xl p-6 border border-white/5"
+        >
+            <div
+                class="flex flex-col sm:flex-row items-center justify-between mb-8 px-2 gap-4"
+            >
+                <div class="flex flex-wrap items-center gap-2">
+                    <h3
+                        class="text-xs font-black tracking-[0.2em] text-white/40 uppercase mr-2"
+                    >
+                        VIBE POOL:
+                    </h3>
+                    {#each selectedTags as tag}
+                        <span
+                            class="bg-[#9ae600]/10 text-[#9ae600] px-3 py-1 rounded-full text-[10px] font-black tracking-wider uppercase border border-[#9ae600]/20 flex items-center gap-2 group"
+                        >
+                            {tag}
+                            <button
+                                class="text-[#9ae600]/40 group-hover:text-[#9ae600] transition-colors"
+                                onclick={() => selectTag(tag)}
+                            >
+                                ✕
+                            </button>
+                        </span>
+                    {/each}
+                    <span class="text-[10px] font-mono text-white/20 ml-2">
+                        {filteredSmols.length} RESULTS
+                    </span>
+                </div>
+
+                <button
+                    class="text-[10px] font-black tracking-widest text-white/30 hover:text-white transition-colors uppercase"
+                    onclick={() => (selectedTags = [])}
                 >
-                <span class="text-sm text-slate-500 font-normal ml-2"
-                    >({filteredSmols.length})</span
-                >
-            </h3>
-            <!-- KEY ADDED HERE -->
-            {#key selectedTag}
+                    Clear Filter
+                </button>
+            </div>
+
+            {#key selectedTags.join(",")}
                 <SmolGrid initialSmols={filteredSmols} />
             {/key}
         </div>
     {:else}
-        <div class="text-center text-slate-500 mt-12">
-            Select a tag above to view songs.
+        <div class="text-center py-20 animate-pulse">
+            <div
+                class="text-white/10 font-mono text-xs tracking-[0.4em] uppercase"
+            >
+                Select a vibe to explore the archive
+            </div>
         </div>
     {/if}
 </div>
@@ -195,5 +282,19 @@
     }
     .animate-fade-in-up {
         animation: fadeInUp 0.4s ease-out forwards;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(154, 230, 0, 0.3);
     }
 </style>

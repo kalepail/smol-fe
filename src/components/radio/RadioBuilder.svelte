@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import type { Smol } from "../../types/domain";
   import {
     audioState,
@@ -93,6 +94,24 @@
 
   // History for Deduplication (prevent "same 20 songs" on re-roll)
   let recentlyGeneratedIds = $state<Set<string>>(new Set());
+
+  // Handle URL params for "Send to Radio" feature from TagExplorer
+  onMount(() => {
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const urlTags = params.getAll("tag");
+
+    if (urlTags.length > 0) {
+      // Set the tags from URL and auto-generate
+      selectedTags = urlTags.slice(0, MAX_TAGS);
+
+      // Short delay to allow component to initialize, then auto-generate
+      setTimeout(() => {
+        generateStation();
+      }, 100);
+    }
+  });
 
   // Extract tags from smols
   function getTags(smol: Smol): string[] {
@@ -769,7 +788,7 @@
             SMART SHUFFLE
           </label>
           <button
-            class="reactive-button-ignite text-white font-bold py-4 px-12 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-[0.2em] text-lg border border-white/10"
+            class="reactive-button-ignite text-white font-bold py-4 px-12 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-[0.2em] text-lg border-2 border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.5)] hover:shadow-[0_0_25px_rgba(249,115,22,0.7)] hover:border-orange-400"
             onclick={generateStation}
             disabled={selectedTags.length === 0 || isGenerating}
           >
@@ -801,8 +820,10 @@
         Ready to ignite...
       </div>
     {:else}
-      <div class="text-center text-white/20 mt-16 font-light tracking-wide">
-        Select vibes to begin transmission
+      <div class="text-center text-white/40 mt-16 font-light tracking-wide">
+        🔥 Select vibes and hit <span class="text-orange-500 font-semibold"
+          >IGNITE</span
+        > to begin transmission
       </div>
     {/if}
   </div>
