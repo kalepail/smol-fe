@@ -26,19 +26,52 @@
     let showTradeModal = $state(false);
     let minting = $state(false);
     let activeTab = $state<"lyrics" | "metadata">("lyrics");
+    let tradeMintBalance = $state(0n); // Restored missing state
 
     const mintingHook = useSmolMinting();
 
-    // Derived track object for player
+    // Version Handling
+    let selectedVersionId = $state<string | null>(null);
+
+    const versions = $derived.by(() => {
+        if (!data?.kv_do?.songs) return [];
+        // Map song IDs to V1, V2 labels
+        return data.kv_do.songs.map((s, i) => ({
+            id: s.music_id,
+            label: `V${i + 1}`,
+            isBest: s.music_id === data?.d1?.Song_1,
+            audio: s.audio,
+        }));
+    });
+
+    // Set default version on load
+    $effect(() => {
+        if (!selectedVersionId && versions.length > 0) {
+            const best = versions.find((v) => v.isBest);
+            selectedVersionId = best ? best.id : versions[0].id;
+        }
+    });
+
+    // Derived track object for player with DYNAMIC AUDIO
     const track = $derived.by(() => {
         if (!data?.d1) return null;
+
+        let audioUrl = "";
+        if (selectedVersionId) {
+            audioUrl = `${import.meta.env.PUBLIC_API_URL}/song/${selectedVersionId}.mp3`;
+        } else {
+            audioUrl = `${import.meta.env.PUBLIC_API_URL}/song/${data.d1.Song_1}.mp3`;
+        }
+
         return {
             ...data.d1,
             Liked: data.liked,
             Tags: data.kv_do?.lyrics?.style || [],
+            Song_1: selectedVersionId || data.d1.Song_1,
         } as Smol;
     });
 
+    // RESTORED LOGIC FROM ORIGINAL FILE
     const isOwner = $derived(data?.d1?.Address === userState.contractId);
     const tradeReady = $derived(
         Boolean(id && data?.d1?.Mint_Amm && data?.d1?.Mint_Token),
@@ -270,6 +303,16 @@
                             currentIndex={0}
                             accentColor="#d836ff"
                             onSelect={() => {}}
+                            onTrade={tradeReady
+                                ? () => (showTradeModal = true)
+                                : undefined}
+                            {versions}
+                            currentVersionId={selectedVersionId || ""}
+                            onVersionSelect={(id) => {
+                                selectedVersionId = id;
+                                // Force player update if needed
+                                if (track) selectSong(track);
+                            }}
                         />
 
                         <div class="mt-2 flex gap-4">

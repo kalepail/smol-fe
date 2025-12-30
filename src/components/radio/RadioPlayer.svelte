@@ -17,6 +17,11 @@
     onSelect,
     currentIndex,
     accentColor = "#9ae600",
+    onToggleLike,
+    onTrade,
+    versions,
+    currentVersionId,
+    onVersionSelect,
   }: {
     playlist: Smol[];
     onNext?: () => void;
@@ -24,8 +29,12 @@
     onRegenerate?: () => void;
     onSelect?: (index: number) => void;
     onToggleLike?: (index: number, liked: boolean) => void;
+    onTrade?: () => void;
     currentIndex?: number;
     accentColor?: string;
+    versions?: { id: string; label: string; isBest: boolean }[];
+    currentVersionId?: string;
+    onVersionSelect?: (id: string) => void;
   } = $props();
 
   const currentSong = $derived(audioState.currentSong);
@@ -374,6 +383,29 @@
               {songTags}
             </div>
           {/if}
+
+          <!-- VERSION SELECTOR -->
+          {#if versions && versions.length > 0}
+            <div class="flex items-center gap-2 mt-3">
+              {#each versions as v}
+                <button
+                  class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest rounded border transition-all {currentVersionId ===
+                  v.id
+                    ? 'bg-white text-black border-white'
+                    : 'bg-transparent text-white/40 border-white/20 hover:text-white hover:border-white/40'}"
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    onVersionSelect?.(v.id);
+                  }}
+                >
+                  {v.label}
+                  {#if v.isBest}
+                    <span class="ml-1 text-[#d836ff]">★</span>
+                  {/if}
+                </button>
+              {/each}
+            </div>
+          {/if}
         </div>
 
         <!-- FULLSCREEN TOGGLE BUTTONS (TOP RIGHT OF ART) -->
@@ -507,6 +539,7 @@
           {/if}
         </button>
 
+        <!-- NEXT BUTTON -->
         <button
           class="tech-button w-12 h-12 flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md"
           onclick={handleNext}
@@ -516,6 +549,29 @@
             <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
           </svg>
         </button>
+
+        <!-- TRADE BUTTON -->
+        {#if onTrade}
+          <button
+            class="tech-button w-12 h-12 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-blue-400 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.3)]"
+            onclick={onTrade}
+            title="Trade / Swap"
+          >
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+              />
+            </svg>
+          </button>
+        {/if}
 
         {#if onRegenerate}
           <button
