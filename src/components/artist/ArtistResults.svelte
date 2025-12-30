@@ -274,11 +274,11 @@
 
     <!-- Main Player Card -->
     <div
-        class="max-w-6xl mx-auto reactive-glass border border-white/5 bg-[#1a1a1a]/80 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden relative min-h-[500px]"
+        class="max-w-6xl mx-auto reactive-glass border border-white/5 bg-[#1a1a1a]/80 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden relative flex flex-col h-[calc(100vh-200px)] min-h-[400px]"
     >
         <!-- Control Bar -->
         <div
-            class="flex items-center justify-between p-3 border-b border-white/5 bg-black/20"
+            class="flex items-center justify-between p-3 border-b border-white/5 bg-black/20 shrink-0"
         >
             <div class="flex items-center gap-2 select-none">
                 <div
@@ -326,349 +326,357 @@
                 </div>
             </div>
 
-            <button
-                onclick={() => (showGridView = !showGridView)}
-                class="flex items-center gap-2 px-3 py-1 rounded border transition-all {showGridView
-                    ? 'border-purple-500/50 bg-purple-500/10 text-purple-400'
-                    : 'border-white/10 text-white/40 hover:text-white'}"
-            >
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke-width="1.5"
-                    stroke="currentColor"
-                    class="w-3 h-3"
+            <div class="flex items-center gap-2">
+                <button
+                    onclick={() => (showGridView = !showGridView)}
+                    class="flex items-center gap-2 px-3 py-1 rounded border transition-all {showGridView
+                        ? 'border-purple-500/50 bg-purple-500/10 text-purple-400'
+                        : 'border-white/10 text-white/40 hover:text-white'}"
                 >
-                    <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H18A2.25 2.25 0 0 1 13.5 18v-2.25Z"
-                    />
-                </svg>
-                <span class="text-[9px] font-bold uppercase tracking-widest"
-                    >Grid View</span
-                >
-            </button>
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke-width="1.5"
+                        stroke="currentColor"
+                        class="w-3 h-3"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H18A2.25 2.25 0 0 1 13.5 18v-2.25Z"
+                        />
+                    </svg>
+                    <span class="text-[9px] font-bold uppercase tracking-widest"
+                        >Grid View</span
+                    >
+                </button>
 
-            <button
-                onclick={toggleShuffle}
-                class="flex items-center gap-2 px-3 py-1 rounded border transition-all {shuffleEnabled
-                    ? 'border-lime-500/50 bg-lime-500/10 text-lime-400'
-                    : 'border-white/10 text-white/40 hover:text-white'}"
-            >
-                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-                    <path
-                        d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"
-                    />
-                </svg>
-                <span class="text-[9px] font-bold uppercase tracking-widest"
-                    >{shuffleEnabled ? "Shuffle On" : "Shuffle Off"}</span
+                <button
+                    onclick={toggleShuffle}
+                    class="flex items-center gap-2 px-3 py-1 rounded border transition-all {shuffleEnabled
+                        ? 'border-lime-500/50 bg-lime-500/10 text-lime-400'
+                        : 'border-white/10 text-white/40 hover:text-white'}"
                 >
-            </button>
-        </div>
-    </div>
-
-    <div class="relative min-h-[600px]">
-        {#if showGridView}
-            <div
-                class="absolute inset-0 z-50 bg-[#121212] p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto dark-scrollbar"
-            >
-                <div
-                    class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4"
-                >
-                    {#each displayPlaylist as song, index}
-                        <button
-                            class="flex flex-col gap-2 group text-left"
-                            onclick={() => {
-                                handleSelect(index);
-                                showGridView = false;
-                            }}
-                        >
-                            <div
-                                class="aspect-square rounded-lg bg-slate-800 overflow-hidden border border-white/10 group-hover:border-lime-500/50 transition-all shadow-lg relative"
-                            >
-                                <img
-                                    src="{API_URL}/image/{song.Id}.png"
-                                    alt={song.Title}
-                                    class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                                />
-                                {#if index === currentIndex}
-                                    <div
-                                        class="absolute inset-0 bg-lime-500/20 flex items-center justify-center"
-                                    >
-                                        <div
-                                            class="w-2 h-2 rounded-full bg-lime-500 shadow-[0_0_12px_#84cc16]"
-                                        ></div>
-                                    </div>
-                                {/if}
-                            </div>
-                            <span
-                                class="text-[10px] font-bold text-white/60 truncate group-hover:text-white transition-colors"
-                                >{song.Title || "Untitled"}</span
-                            >
-                        </button>
-                    {/each}
-                </div>
+                    <svg
+                        class="w-3 h-3"
+                        fill="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"
+                        />
+                    </svg>
+                    <span class="text-[9px] font-bold uppercase tracking-widest"
+                        >{shuffleEnabled ? "Shuffle On" : "Shuffle Off"}</span
+                    >
+                </button>
             </div>
-        {/if}
+        </div>
 
-        <div
-            class="flex flex-col lg:flex-row gap-8 h-auto lg:h-[560px] items-stretch p-4"
-        >
-            <!-- LEFT COLUMN: PLAYER -->
-            <div class="w-full lg:w-1/2 flex flex-col gap-4">
-                <RadioPlayer
-                    playlist={displayPlaylist}
-                    onNext={handleNext}
-                    onPrev={handlePrev}
-                    onSelect={handleSelect}
-                    onToggleLike={handleToggleLike}
-                    onTrade={isMinted
-                        ? () => {
-                              if (!userState.contractId) {
-                                  triggerLogin();
-                                  return;
-                              }
-                              showTradeModal = true;
-                          }
-                        : undefined}
-                    onMint={!isMinted ? triggerMint : undefined}
-                    isMinting={minting}
-                    isAuthenticated={userState.contractId !== null}
-                    {currentIndex}
-                />
-
-                <!-- Mint + Trade Buttons -->
-                <div class="flex gap-3 -mt-2">
-                    {#if isMinted}
-                        {#if currentSong?.Mint_Amm && currentSong?.Mint_Token}
+        <div class="relative flex-1 min-h-0">
+            {#if showGridView}
+                <div
+                    class="absolute inset-0 z-50 bg-[#121212] p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto dark-scrollbar"
+                >
+                    <div
+                        class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 pb-20"
+                    >
+                        {#each displayPlaylist as song, index}
                             <button
+                                class="flex flex-col gap-2 group text-left"
                                 onclick={() => {
-                                    if (!userState.contractId) {
-                                        triggerLogin();
-                                        return;
-                                    }
-                                    showTradeModal = true;
+                                    handleSelect(index);
+                                    showGridView = false;
                                 }}
-                                class="flex-1 py-3 bg-[#2775ca] hover:brightness-110 text-white font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
                             >
-                                Trade <TokenBalancePill
-                                    balance={tradeMintBalance}
-                                />
+                                <div
+                                    class="aspect-square rounded-lg bg-slate-800 overflow-hidden border border-white/10 group-hover:border-lime-500/50 transition-all shadow-lg relative"
+                                >
+                                    <img
+                                        src="{API_URL}/image/{song.Id}.png"
+                                        alt={song.Title}
+                                        class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                    />
+                                    {#if index === currentIndex}
+                                        <div
+                                            class="absolute inset-0 bg-lime-500/20 flex items-center justify-center"
+                                        >
+                                            <div
+                                                class="w-2 h-2 rounded-full bg-lime-500 shadow-[0_0_12px_#84cc16]"
+                                            ></div>
+                                        </div>
+                                    {/if}
+                                </div>
+                                <span
+                                    class="text-[10px] font-bold text-white/60 truncate group-hover:text-white transition-colors"
+                                    >{song.Title || "Untitled"}</span
+                                >
                             </button>
+                        {/each}
+                    </div>
+                </div>
+            {/if}
+
+            <div
+                class="flex flex-col lg:flex-row gap-4 h-full items-stretch p-4 pb-0"
+            >
+                <!-- LEFT COLUMN: PLAYER -->
+                <div class="w-full lg:w-1/2 flex flex-col gap-4">
+                    <RadioPlayer
+                        playlist={displayPlaylist}
+                        onNext={handleNext}
+                        onPrev={handlePrev}
+                        onSelect={handleSelect}
+                        onToggleLike={handleToggleLike}
+                        onTrade={isMinted
+                            ? () => {
+                                  if (!userState.contractId) {
+                                      triggerLogin();
+                                      return;
+                                  }
+                                  showTradeModal = true;
+                              }
+                            : undefined}
+                        onMint={!isMinted ? triggerMint : undefined}
+                        isMinting={minting}
+                        isAuthenticated={userState.contractId !== null}
+                        {currentIndex}
+                    />
+
+                    <!-- Mint + Trade Buttons -->
+                    <div class="flex gap-3 -mt-2">
+                        {#if isMinted}
+                            {#if currentSong?.Mint_Amm && currentSong?.Mint_Token}
+                                <button
+                                    onclick={() => {
+                                        if (!userState.contractId) {
+                                            triggerLogin();
+                                            return;
+                                        }
+                                        showTradeModal = true;
+                                    }}
+                                    class="flex-1 py-3 bg-[#2775ca] hover:brightness-110 text-white font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
+                                >
+                                    Trade <TokenBalancePill
+                                        balance={tradeMintBalance}
+                                    />
+                                </button>
+                            {:else}
+                                <button
+                                    onclick={() =>
+                                        (window.location.href = `/${currentSong?.Id}`)}
+                                    class="flex-1 py-3 bg-emerald-500/20 text-emerald-300 font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2 border border-emerald-500/30"
+                                >
+                                    ✓ Minted
+                                </button>
+                            {/if}
                         {:else}
                             <button
-                                onclick={() =>
-                                    (window.location.href = `/${currentSong?.Id}`)}
-                                class="flex-1 py-3 bg-emerald-500/20 text-emerald-300 font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2 border border-emerald-500/30"
+                                onclick={triggerMint}
+                                disabled={minting}
+                                class="flex-1 py-3 bg-[#d836ff] hover:brightness-110 disabled:opacity-50 text-white font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
                             >
-                                ✓ Minted
+                                {minting ? "Minting..." : "Mint Track"}
                             </button>
                         {/if}
-                    {:else}
                         <button
-                            onclick={triggerMint}
-                            disabled={minting}
-                            class="flex-1 py-3 bg-[#d836ff] hover:brightness-110 disabled:opacity-50 text-white font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
-                        >
-                            {minting ? "Minting..." : "Mint Track"}
-                        </button>
-                    {/if}
-                    <button
-                        onclick={share}
-                        class="px-6 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl border border-white/5 transition-all text-xs uppercase tracking-widest"
-                        >Share</button
-                    >
-                </div>
-            </div>
-
-            <!-- RIGHT COLUMN: PLAYLIST -->
-            <div
-                class="w-full lg:w-1/2 flex flex-col min-h-0 bg-black/20 border border-white/5 rounded-2xl overflow-hidden shadow-inner"
-            >
-                <div
-                    class="flex items-center justify-between p-4 border-b border-white/5 bg-white/5 flex-shrink-0"
-                >
-                    <h3
-                        class="text-white font-bold tracking-widest uppercase text-xs"
-                    >
-                        {activeModule} ({displayPlaylist.length})
-                    </h3>
-                    <div class="flex items-center gap-2">
-                        <span
-                            class="w-2 h-2 rounded-full bg-lime-500 shadow-[0_0_8px_#84cc16]"
-                        ></span>
-                        <span
-                            class="text-[9px] text-white/30 font-mono uppercase"
-                            >Live</span
+                            onclick={share}
+                            class="px-6 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl border border-white/5 transition-all text-xs uppercase tracking-widest"
+                            >Share</button
                         >
                     </div>
                 </div>
 
+                <!-- RIGHT COLUMN: PLAYLIST -->
                 <div
-                    class="h-[380px] lg:h-full lg:flex-1 overflow-y-scroll dark-scrollbar pr-2"
+                    class="w-full lg:w-1/2 flex flex-col min-h-0 bg-black/20 border border-white/5 rounded-2xl overflow-hidden shadow-inner mb-4"
                 >
-                    <ul class="divide-y divide-white/5">
-                        {#each displayPlaylist as song, index}
-                            <li>
-                                <div
-                                    role="button"
-                                    tabindex="0"
-                                    class="w-full flex items-center gap-4 p-4 hover:bg-white/[0.07] active:bg-white/[0.1] transition-all duration-200 text-left cursor-pointer group {index ===
-                                    currentIndex
-                                        ? 'bg-lime-500/15 border-l-4 border-lime-500'
-                                        : 'border-l-4 border-transparent hover:border-white/10'}"
-                                    onclick={(e) => {
-                                        const target = e.target as HTMLElement;
-                                        if (
-                                            target.closest("a") ||
-                                            target.closest("button")
-                                        )
-                                            return;
-                                        handleSelect(index);
-                                    }}
-                                    onkeydown={(e) => {
-                                        if (
-                                            e.key === "Enter" ||
-                                            e.key === " "
-                                        ) {
-                                            e.preventDefault();
+                    <div
+                        class="flex items-center justify-between p-3 border-b border-white/5 bg-white/5 flex-shrink-0"
+                    >
+                        <h3
+                            class="text-white font-bold tracking-widest uppercase text-xs"
+                        >
+                            {activeModule} ({displayPlaylist.length})
+                        </h3>
+                        <div class="flex items-center gap-2">
+                            <span
+                                class="w-2 h-2 rounded-full bg-lime-500 shadow-[0_0_8px_#84cc16]"
+                            ></span>
+                            <span
+                                class="text-[9px] text-white/30 font-mono uppercase"
+                                >Live</span
+                            >
+                        </div>
+                    </div>
+
+                    <div class="flex-1 overflow-y-scroll dark-scrollbar pr-2">
+                        <ul class="divide-y divide-white/5">
+                            {#each displayPlaylist as song, index}
+                                <li>
+                                    <div
+                                        role="button"
+                                        tabindex="0"
+                                        class="w-full flex items-center gap-4 p-3 hover:bg-white/[0.07] active:bg-white/[0.1] transition-all duration-200 text-left cursor-pointer group {index ===
+                                        currentIndex
+                                            ? 'bg-lime-500/15 border-l-4 border-lime-500'
+                                            : 'border-l-4 border-transparent hover:border-white/10'}"
+                                        onclick={(e) => {
+                                            const target =
+                                                e.target as HTMLElement;
+                                            if (
+                                                target.closest("a") ||
+                                                target.closest("button")
+                                            )
+                                                return;
                                             handleSelect(index);
-                                        }
-                                    }}
-                                >
-                                    <span
-                                        class="text-white/20 w-4 text-center text-xs font-mono"
-                                        >{index + 1}</span
+                                        }}
+                                        onkeydown={(e) => {
+                                            if (
+                                                e.key === "Enter" ||
+                                                e.key === " "
+                                            ) {
+                                                e.preventDefault();
+                                                handleSelect(index);
+                                            }
+                                        }}
                                     >
-
-                                    <div
-                                        class="relative w-12 h-12 rounded-xl bg-slate-800 flex-shrink-0 overflow-hidden group/thumb border border-white/10 shadow-lg"
-                                    >
-                                        <img
-                                            src="{API_URL}/image/{song.Id}.png"
-                                            alt="Art"
-                                            class="w-full h-full object-cover transition-transform duration-500 group-hover/thumb:scale-110 group-hover:brightness-50"
-                                            onerror={(e) => {
-                                                e.currentTarget.style.display =
-                                                    "none";
-                                            }}
-                                        />
-
-                                        <!-- Play overlay on hover -->
-                                        <div
-                                            class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20"
+                                        <span
+                                            class="text-white/20 w-4 text-center text-xs font-mono"
+                                            >{index + 1}</span
                                         >
-                                            <svg
-                                                class="w-6 h-6 text-lime-400"
-                                                fill="currentColor"
-                                                viewBox="0 0 24 24"
-                                            >
-                                                <path d="M8 5v14l11-7z" />
-                                            </svg>
-                                        </div>
 
-                                        {#if index === currentIndex && audioState.playingId === song.Id}
+                                        <div
+                                            class="relative w-10 h-10 rounded-lg bg-slate-800 flex-shrink-0 overflow-hidden group/thumb border border-white/10 shadow-lg"
+                                        >
+                                            <img
+                                                src="{API_URL}/image/{song.Id}.png"
+                                                alt="Art"
+                                                class="w-full h-full object-cover transition-transform duration-500 group-hover/thumb:scale-110 group-hover:brightness-50"
+                                                onerror={(e) => {
+                                                    e.currentTarget.style.display =
+                                                        "none";
+                                                }}
+                                            />
+
+                                            <!-- Play overlay on hover -->
                                             <div
-                                                class="absolute inset-0 bg-black/60 flex items-center justify-center"
+                                                class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20"
                                             >
-                                                <div
-                                                    class="flex gap-0.5 items-end h-3"
+                                                <svg
+                                                    class="w-5 h-5 text-lime-400"
+                                                    fill="currentColor"
+                                                    viewBox="0 0 24 24"
                                                 >
-                                                    <div
-                                                        class="w-1 bg-lime-500 animate-bounce"
-                                                        style="animation-delay: 0.1s; height: 100%;"
-                                                    ></div>
-                                                    <div
-                                                        class="w-1 bg-lime-500 animate-bounce"
-                                                        style="animation-delay: 0.2s; height: 60%;"
-                                                    ></div>
-                                                    <div
-                                                        class="w-1 bg-lime-500 animate-bounce"
-                                                        style="animation-delay: 0.3s; height: 80%;"
-                                                    ></div>
-                                                </div>
+                                                    <path d="M8 5v14l11-7z" />
+                                                </svg>
                                             </div>
-                                        {/if}
-                                    </div>
 
-                                    <div
-                                        class="overflow-hidden text-left flex-1 min-w-0"
-                                    >
-                                        <div
-                                            class="text-sm font-bold text-white/90 truncate {index ===
-                                            currentIndex
-                                                ? 'text-lime-400'
-                                                : ''}"
-                                        >
-                                            {song.Title || "Untitled"}
-                                        </div>
-                                        <div
-                                            class="flex items-center gap-3 text-[10px] text-white/30 truncate uppercase tracking-widest mt-0.5 font-light"
-                                        >
-                                            {new Date(
-                                                song.Created_At,
-                                            ).toLocaleDateString(undefined, {
-                                                month: "short",
-                                                day: "numeric",
-                                                year: "numeric",
-                                            })}
-
-                                            {#if song.Tags && song.Tags.length > 0}
+                                            {#if index === currentIndex && audioState.playingId === song.Id}
                                                 <div
-                                                    class="flex gap-1.5 items-center ml-2 border-l border-white/10 pl-2"
+                                                    class="absolute inset-0 bg-black/60 flex items-center justify-center"
                                                 >
-                                                    {#each song.Tags.slice(0, 3) as tag}
-                                                        <span
-                                                            class="text-[9px] text-lime-400/50 hover:text-lime-400 transition-colors cursor-default"
-                                                            >#{tag}</span
-                                                        >
-                                                    {/each}
+                                                    <div
+                                                        class="flex gap-0.5 items-end h-3"
+                                                    >
+                                                        <div
+                                                            class="w-1 bg-lime-500 animate-bounce"
+                                                            style="animation-delay: 0.1s; height: 100%;"
+                                                        ></div>
+                                                        <div
+                                                            class="w-1 bg-lime-500 animate-bounce"
+                                                            style="animation-delay: 0.2s; height: 60%;"
+                                                        ></div>
+                                                        <div
+                                                            class="w-1 bg-lime-500 animate-bounce"
+                                                            style="animation-delay: 0.3s; height: 80%;"
+                                                        ></div>
+                                                    </div>
                                                 </div>
                                             {/if}
                                         </div>
-                                    </div>
 
-                                    <div class="flex items-center gap-1">
-                                        <LikeButton
-                                            smolId={song.Id}
-                                            liked={song.Liked || false}
-                                            classNames="p-2 text-white/20 hover:text-[#ff424c] hover:bg-white/5 rounded-full transition-colors"
-                                            on:likeChanged={(e) => {
-                                                handleToggleLike(
-                                                    index,
-                                                    e.detail.liked,
-                                                );
-                                            }}
-                                        />
-
-                                        <a
-                                            href="/{song.Id}"
-                                            class="p-2 text-white/20 hover:text-white transition-colors"
-                                            title="View Details"
-                                            onclick={(e) => e.stopPropagation()}
+                                        <div
+                                            class="overflow-hidden text-left flex-1 min-w-0"
                                         >
-                                            <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                                stroke-width="1.5"
-                                                stroke="currentColor"
-                                                class="w-4 h-4"
+                                            <div
+                                                class="text-xs font-bold text-white/90 truncate {index ===
+                                                currentIndex
+                                                    ? 'text-lime-400'
+                                                    : ''}"
                                             >
-                                                <path
-                                                    stroke-linecap="round"
-                                                    stroke-linejoin="round"
-                                                    d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"
-                                                />
-                                            </svg>
-                                        </a>
+                                                {song.Title || "Untitled"}
+                                            </div>
+                                            <div
+                                                class="flex items-center gap-3 text-[9px] text-white/30 truncate uppercase tracking-widest mt-0.5 font-light"
+                                            >
+                                                {new Date(
+                                                    song.Created_At,
+                                                ).toLocaleDateString(
+                                                    undefined,
+                                                    {
+                                                        month: "short",
+                                                        day: "numeric",
+                                                    },
+                                                )}
+
+                                                {#if song.Tags && song.Tags.length > 0}
+                                                    <div
+                                                        class="flex gap-1.5 items-center ml-2 border-l border-white/10 pl-2"
+                                                    >
+                                                        {#each song.Tags.slice(0, 3) as tag}
+                                                            <span
+                                                                class="text-[9px] text-lime-400/50 hover:text-lime-400 transition-colors cursor-default"
+                                                                >#{tag}</span
+                                                            >
+                                                        {/each}
+                                                    </div>
+                                                {/if}
+                                            </div>
+                                        </div>
+
+                                        <div class="flex items-center gap-1">
+                                            <LikeButton
+                                                smolId={song.Id}
+                                                liked={song.Liked || false}
+                                                classNames="p-1.5 text-white/20 hover:text-[#ff424c] hover:bg-white/5 rounded-full transition-colors"
+                                                on:likeChanged={(e) => {
+                                                    handleToggleLike(
+                                                        index,
+                                                        e.detail.liked,
+                                                    );
+                                                }}
+                                            />
+
+                                            <a
+                                                href="/{song.Id}"
+                                                class="p-1.5 text-white/20 hover:text-white transition-colors"
+                                                title="View Details"
+                                                onclick={(e) =>
+                                                    e.stopPropagation()}
+                                            >
+                                                <svg
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke-width="1.5"
+                                                    stroke="currentColor"
+                                                    class="w-3.5 h-3.5"
+                                                >
+                                                    <path
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"
+                                                    />
+                                                </svg>
+                                            </a>
+                                        </div>
                                     </div>
-                                </div>
-                            </li>
-                        {/each}
-                    </ul>
+                                </li>
+                            {/each}
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
