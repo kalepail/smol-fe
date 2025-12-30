@@ -88,6 +88,7 @@
   );
 
   // AI-powered features
+  let showBuilder = $state(true);
   let moodInput = $state("");
   let isFetchingMood = $state(false);
   let stationName = $state("Your Radio Station");
@@ -150,18 +151,60 @@
   onMount(() => {
     if (typeof window === "undefined") return;
 
+    // 1. Load persisted state
+    const saved = localStorage.getItem("smol_radio_state");
+    if (saved) {
+      try {
+        const state = JSON.parse(saved);
+        if (state.selectedTags) selectedTags = state.selectedTags;
+        if (state.generatedPlaylist)
+          generatedPlaylist = state.generatedPlaylist;
+        if (state.stationName) stationName = state.stationName;
+        if (state.stationDescription)
+          stationDescription = state.stationDescription;
+        if (state.isActiveGlobalShuffle !== undefined)
+          isActiveGlobalShuffle = state.isActiveGlobalShuffle;
+        if (state.currentIndex !== undefined) currentIndex = state.currentIndex;
+        if (state.showBuilder !== undefined) showBuilder = state.showBuilder;
+
+        // Reset history set from loaded IDs
+        if (state.generatedPlaylist) {
+          recentlyGeneratedIds = new Set(
+            state.generatedPlaylist.map((s: Smol) => s.Id),
+          );
+        }
+      } catch (e) {
+        console.error("Failed to restore radio state:", e);
+      }
+    }
+
+    // 2. Handle URL params (overrides persisted state if present)
     const params = new URLSearchParams(window.location.search);
     const urlTags = params.getAll("tag");
 
     if (urlTags.length > 0) {
-      // Set the tags from URL and auto-generate
       selectedTags = urlTags.slice(0, MAX_TAGS);
-
-      // Short delay to allow component to initialize, then auto-generate
       setTimeout(() => {
         generateStation();
       }, 100);
     }
+  });
+
+  // Persist state on change
+  $effect(() => {
+    if (typeof window === "undefined") return;
+
+    const stateToSave = {
+      selectedTags,
+      generatedPlaylist,
+      stationName,
+      stationDescription,
+      isActiveGlobalShuffle,
+      currentIndex,
+      showBuilder,
+    };
+
+    localStorage.setItem("smol_radio_state", JSON.stringify(stateToSave));
   });
 
   // Extract tags from smols
@@ -621,12 +664,6 @@
     if (currentIndex > 0) {
       playSongAtIndex(currentIndex - 1);
     }
-  }
-
-  let showBuilder = $state(true);
-
-  function toggleBuilder() {
-    showBuilder = !showBuilder;
   }
 
   $effect(() => {
