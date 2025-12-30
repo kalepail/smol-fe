@@ -189,11 +189,11 @@
 </script>
 
 <div
-    class="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700 font-mono"
+    class="space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-700 font-mono"
 >
     <!-- Artist Info Header (Windowed) -->
     <div
-        class="max-w-6xl mx-auto reactive-glass border border-white/5 bg-[#1a1a1a]/80 backdrop-blur-xl rounded-2xl shadow-xl overflow-hidden mb-2 p-4 flex flex-col md:flex-row items-start md:items-end justify-between gap-4 relative group/header"
+        class="max-w-6xl mx-auto reactive-glass border border-white/5 bg-[#1a1a1a]/80 backdrop-blur-xl rounded-2xl shadow-xl overflow-hidden mb-2 p-2 px-4 flex flex-col md:flex-row items-center justify-between gap-4 relative group/header"
     >
         <div class="space-y-1 relative z-10">
             <h1
@@ -394,7 +394,7 @@
                                     class="aspect-square rounded-lg bg-slate-800 overflow-hidden border border-white/10 group-hover:border-lime-500/50 transition-all shadow-lg relative"
                                 >
                                     <img
-                                        src="{API_URL}/image/{song.Id}.png"
+                                        src="{API_URL}/image/{song.Id}.png?scale=8"
                                         alt={song.Title}
                                         class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                     />
@@ -492,7 +492,7 @@
 
                 <!-- RIGHT COLUMN: PLAYLIST -->
                 <div
-                    class="w-full lg:w-1/2 flex flex-col min-h-0 bg-black/20 border border-white/5 rounded-2xl overflow-hidden shadow-inner mb-4"
+                    class="w-full lg:w-1/2 flex flex-col min-h-0 border border-white/5 rounded-2xl overflow-hidden shadow-inner mb-4"
                 >
                     <div
                         class="flex items-center justify-between p-3 border-b border-white/5 bg-white/5 flex-shrink-0"
@@ -553,7 +553,7 @@
                                             class="relative w-10 h-10 rounded-lg bg-slate-800 flex-shrink-0 overflow-hidden group/thumb border border-white/10 shadow-lg"
                                         >
                                             <img
-                                                src="{API_URL}/image/{song.Id}.png"
+                                                src="{API_URL}/image/{song.Id}.png?scale=8"
                                                 alt="Art"
                                                 class="w-full h-full object-cover transition-transform duration-500 group-hover/thumb:scale-110 group-hover:brightness-50"
                                                 onerror={(e) => {
