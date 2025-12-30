@@ -1,6 +1,6 @@
 <script lang="ts">
     import type { Smol } from "../../types/domain";
-    import { audioState } from "../../stores/audio.svelte";
+    import { audioState, selectSong } from "../../stores/audio.svelte";
     import RadioPlayer from "../radio/RadioPlayer.svelte";
     import { isAuthenticated } from "../../stores/user.svelte";
     import LikeButton from "../ui/LikeButton.svelte";
@@ -62,9 +62,7 @@
 
             // Auto-play the first song of the new artist
             if (discography.length > 0) {
-                import("../../stores/audio.svelte").then(({ selectSong }) => {
-                    selectSong(discography[0]);
-                });
+                selectSong(discography[0]);
             }
         }
     });
@@ -73,16 +71,22 @@
 
     function handleSelect(index: number) {
         currentIndex = index;
+        const song = displayPlaylist[index];
+        if (song) {
+            selectSong(song);
+        }
     }
 
     function handleNext() {
-        currentIndex = (currentIndex + 1) % displayPlaylist.length;
+        const nextIndex = (currentIndex + 1) % displayPlaylist.length;
+        handleSelect(nextIndex);
     }
 
     function handlePrev() {
-        currentIndex =
+        const prevIndex =
             (currentIndex - 1 + displayPlaylist.length) %
             displayPlaylist.length;
+        handleSelect(prevIndex);
     }
 
     function handleToggleLike(index: number, liked: boolean) {
@@ -257,10 +261,10 @@
                                 <div
                                     role="button"
                                     tabindex="0"
-                                    class="w-full flex items-center gap-3 p-3 hover:bg-white/5 transition-all duration-200 text-left cursor-pointer {index ===
+                                    class="w-full flex items-center gap-4 p-4 hover:bg-white/[0.07] active:bg-white/[0.1] transition-all duration-200 text-left cursor-pointer group {index ===
                                     currentIndex
-                                        ? 'bg-lime-500/10 border-l-2 border-lime-500'
-                                        : 'border-l-2 border-transparent'}"
+                                        ? 'bg-lime-500/15 border-l-4 border-lime-500'
+                                        : 'border-l-4 border-transparent hover:border-white/10'}"
                                     onclick={(e) => {
                                         const target = e.target as HTMLElement;
                                         if (
@@ -286,17 +290,31 @@
                                     >
 
                                     <div
-                                        class="relative w-10 h-10 rounded-lg bg-slate-800 flex-shrink-0 overflow-hidden group/thumb border border-white/10 shadow-lg"
+                                        class="relative w-12 h-12 rounded-xl bg-slate-800 flex-shrink-0 overflow-hidden group/thumb border border-white/10 shadow-lg"
                                     >
                                         <img
                                             src="{API_URL}/image/{song.Id}.png"
                                             alt="Art"
-                                            class="w-full h-full object-cover transition-transform duration-500 group-hover/thumb:scale-110"
+                                            class="w-full h-full object-cover transition-transform duration-500 group-hover/thumb:scale-110 group-hover:brightness-50"
                                             onerror={(e) => {
                                                 e.currentTarget.style.display =
                                                     "none";
                                             }}
                                         />
+
+                                        <!-- Play overlay on hover -->
+                                        <div
+                                            class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20"
+                                        >
+                                            <svg
+                                                class="w-6 h-6 text-lime-400"
+                                                fill="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path d="M8 5v14l11-7z" />
+                                            </svg>
+                                        </div>
+
                                         {#if index === currentIndex && audioState.playingId === song.Id}
                                             <div
                                                 class="absolute inset-0 bg-black/60 flex items-center justify-center"
@@ -333,7 +351,7 @@
                                             {song.Title || "Untitled"}
                                         </div>
                                         <div
-                                            class="text-[10px] text-white/30 truncate uppercase tracking-widest mt-0.5 font-light"
+                                            class="flex items-center gap-3 text-[10px] text-white/30 truncate uppercase tracking-widest mt-0.5 font-light"
                                         >
                                             {new Date(
                                                 song.Created_At,
@@ -342,6 +360,19 @@
                                                 day: "numeric",
                                                 year: "numeric",
                                             })}
+
+                                            {#if song.Tags && song.Tags.length > 0}
+                                                <div
+                                                    class="flex gap-1.5 items-center ml-2 border-l border-white/10 pl-2"
+                                                >
+                                                    {#each song.Tags.slice(0, 3) as tag}
+                                                        <span
+                                                            class="text-[9px] text-lime-400/50 hover:text-lime-400 transition-colors cursor-default"
+                                                            >#{tag}</span
+                                                        >
+                                                    {/each}
+                                                </div>
+                                            {/if}
                                         </div>
                                     </div>
 
