@@ -287,6 +287,7 @@
                         : undefined}
                     onMint={!isMinted ? triggerMint : undefined}
                     isMinting={minting}
+                    isAuthenticated={isAuthenticated()}
                 />
 
                 <!-- Mint + Trade Buttons -->

@@ -363,6 +363,7 @@
                         : undefined}
                     onMint={!isMinted ? triggerMint : undefined}
                     isMinting={minting}
+                    isAuthenticated={isAuthenticated()}
                     {currentIndex}
                 />
 
