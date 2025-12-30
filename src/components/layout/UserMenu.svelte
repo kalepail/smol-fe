@@ -1,17 +1,21 @@
 <script lang="ts">
-  import { userState, ensureWalletConnected } from '../../stores/user.svelte';
-  import { balanceState, updateContractBalance, resetBalance } from '../../stores/balance.svelte';
+  import { userState, ensureWalletConnected } from "../../stores/user.svelte";
+  import {
+    balanceState,
+    updateContractBalance,
+    resetBalance,
+  } from "../../stores/balance.svelte";
   import {
     mixtapeModeState,
     mixtapeDraftHasContent,
     enterMixtapeMode,
     exitMixtapeMode,
-  } from '../../stores/mixtape.svelte';
-  import { useAuthentication } from '../../hooks/useAuthentication';
-  import { useCurrentPath } from '../../hooks/useCurrentPath.svelte';
-  import AuthButtons from './AuthButtons.svelte';
-  import UserBalance from './UserBalance.svelte';
-  import MixtapeModeToggle from './MixtapeModeToggle.svelte';
+  } from "../../stores/mixtape.svelte";
+  import { useAuthentication } from "../../hooks/useAuthentication";
+  import { useCurrentPath } from "../../hooks/useCurrentPath.svelte";
+  import AuthButtons from "./AuthButtons.svelte";
+  import UserBalance from "./UserBalance.svelte";
+  import MixtapeModeToggle from "./MixtapeModeToggle.svelte";
 
   interface Props {
     initialKeyId: string | null;
@@ -37,7 +41,10 @@
   // React to prop changes during navigation
   $effect(() => {
     // Only process if props actually changed
-    if (initialContractId !== lastProcessedContractId || initialKeyId !== lastProcessedKeyId) {
+    if (
+      initialContractId !== lastProcessedContractId ||
+      initialKeyId !== lastProcessedKeyId
+    ) {
       lastProcessedContractId = initialContractId;
       lastProcessedKeyId = initialKeyId;
 
@@ -46,20 +53,27 @@
       userState.keyId = initialKeyId;
 
       if (initialContractId && initialKeyId) {
-
         // User authenticated - connect wallet and fetch balance
         ensureWalletConnected().catch((error) => {
-          console.error('[UserMenu] Failed to connect wallet:', error);
+          console.error("[UserMenu] Failed to connect wallet:", error);
         });
 
         updateContractBalance(initialContractId).catch((error) => {
-          console.error('[UserMenu] Failed to fetch balance:', error);
+          console.error("[UserMenu] Failed to fetch balance:", error);
         });
       } else {
         // User logged out - reset balance
         resetBalance();
       }
     }
+  });
+
+  // Listen for login requests from other components (like RadioPlayer)
+  $effect(() => {
+    const handleRequest = () => handleLogin();
+    window.addEventListener("smol:request-login", handleRequest);
+    return () =>
+      window.removeEventListener("smol:request-login", handleRequest);
   });
 
   async function handleLogin() {
@@ -70,10 +84,10 @@
     creating = true;
 
     try {
-      const username = prompt('Enter your username');
+      const username = prompt("Enter your username");
 
       if (!username) {
-        throw new Error('Username is required');
+        throw new Error("Username is required");
       }
 
       await authHook.signUp(username);
@@ -89,7 +103,9 @@
   function handleMixtapeClick() {
     if (mixtapeModeState.active) {
       if (mixtapeDraftHasContent.current) {
-        const confirmed = confirm('Exit Mixtape Mode? Your draft will stay saved locally.');
+        const confirmed = confirm(
+          "Exit Mixtape Mode? Your draft will stay saved locally.",
+        );
         if (!confirmed) return;
       }
       exitMixtapeMode();

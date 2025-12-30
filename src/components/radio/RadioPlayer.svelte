@@ -8,9 +8,6 @@
   } from "../../stores/audio.svelte";
 
   import LikeButton from "../ui/LikeButton.svelte";
-  import { useAuthentication } from "../../hooks/useAuthentication";
-
-  const { login } = useAuthentication();
 
   let {
     playlist = [],
@@ -59,10 +56,7 @@
   }
 
   function triggerLogin() {
-    login().catch((err) => {
-      console.error("Login failed:", err);
-      alert("Login failed. Please try the Login button in the header.");
-    });
+    window.dispatchEvent(new CustomEvent("smol:request-login"));
   }
 
   function handlePrev() {

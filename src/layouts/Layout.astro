@@ -89,7 +89,7 @@ if (token) {
 	</head>
 	<body class="bg-[#020618] text-white">
 		<Header _kid={_kid} _cid={_cid} client:load transition:persist="header" />
-		<div class={(hideBottomBar || Astro.url.pathname.startsWith('/radio')) ? 'hidden' : ''}>
+		<div class={(hideBottomBar || Astro.url.pathname.startsWith('/radio') || Astro.url.pathname.startsWith('/artist')) ? 'hidden' : ''}>
 			<BarAudioPlayer client:only="svelte" transition:persist="audio-player" />
 		</div>
 		<slot />
