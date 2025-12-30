@@ -320,6 +320,8 @@
                                 // Force player update if needed
                                 if (track) selectSong(track);
                             }}
+                            onMint={!minted ? triggerMint : undefined}
+                            isMinting={minting}
                         />
 
                         <div class="mt-auto flex gap-4 w-full">

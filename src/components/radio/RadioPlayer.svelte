@@ -19,6 +19,8 @@
     accentColor = "#9ae600",
     onToggleLike,
     onTrade,
+    onMint,
+    isMinting,
     versions,
     currentVersionId,
     onVersionSelect,
@@ -35,6 +37,8 @@
     versions?: { id: string; label: string; isBest: boolean }[];
     currentVersionId?: string;
     onVersionSelect?: (id: string) => void;
+    onMint?: () => void;
+    isMinting?: boolean;
   } = $props();
 
   const currentSong = $derived(audioState.currentSong);
@@ -355,7 +359,7 @@
 
         <!-- Visualizer Canvas (Bottom Bar) -->
         <div
-          class="absolute bottom-0 left-0 right-0 h-24 z-30 pointer-events-none opacity-90"
+          class="absolute bottom-4 left-0 right-0 h-24 z-30 pointer-events-none opacity-90"
         >
           <canvas
             bind:this={canvasRef}
@@ -383,34 +387,11 @@
               {songTags}
             </div>
           {/if}
-
-          <!-- VERSION SELECTOR -->
-          {#if versions && versions.length > 0}
-            <div class="flex items-center gap-2 mt-3">
-              {#each versions as v}
-                <button
-                  class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest rounded border transition-all {currentVersionId ===
-                  v.id
-                    ? 'bg-white text-black border-white'
-                    : 'bg-transparent text-white/40 border-white/20 hover:text-white hover:border-white/40'}"
-                  onclick={(e) => {
-                    e.stopPropagation();
-                    onVersionSelect?.(v.id);
-                  }}
-                >
-                  {v.label}
-                  {#if v.isBest}
-                    <span class="ml-1 text-[#d836ff]">★</span>
-                  {/if}
-                </button>
-              {/each}
-            </div>
-          {/if}
         </div>
 
         <!-- FULLSCREEN TOGGLE BUTTONS (TOP RIGHT OF ART) -->
         <div
-          class="absolute top-4 right-4 z-40 flex gap-2 {isFullscreen
+          class="absolute bottom-4 right-4 z-40 flex gap-2 {isFullscreen
             ? 'opacity-0 group-hover/fs:opacity-100 transition-opacity'
             : ''}"
         >
@@ -481,6 +462,29 @@
             {/if}
           </button>
         </div>
+
+        <!-- VERSION SELECTOR (MOVED TO BOTTOM LEFT) -->
+        {#if versions && versions.length > 0}
+          <div class="absolute bottom-4 left-4 z-40 flex items-center gap-2">
+            {#each versions as v}
+              <button
+                class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest rounded border transition-all {currentVersionId ===
+                v.id
+                  ? 'bg-white text-black border-white'
+                  : 'bg-transparent text-white/40 border-white/20 hover:text-white hover:border-white/40'}"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  onVersionSelect?.(v.id);
+                }}
+              >
+                {v.label}
+                {#if v.isBest}
+                  <span class="ml-1 text-[#d836ff]">★</span>
+                {/if}
+              </button>
+            {/each}
+          </div>
+        {/if}
       </div>
 
       <!-- Controls (below art in standard, bottom in fullscreen) -->
@@ -549,6 +553,53 @@
             <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
           </svg>
         </button>
+
+        <!-- MINT BUTTON -->
+        {#if onMint}
+          <button
+            class="tech-button w-12 h-12 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-[#d836ff] text-[#d836ff] bg-[#d836ff]/10 hover:bg-[#d836ff]/20 shadow-[0_0_15px_rgba(216,54,255,0.3)]"
+            onclick={onMint}
+            title="Mint Track"
+            disabled={isMinting}
+          >
+            {#if isMinting}
+              <svg
+                class="w-5 h-5 animate-spin"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"
+                ></circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+            {:else}
+              <svg
+                class="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
+                />
+              </svg>
+            {/if}
+          </button>
+        {/if}
 
         <!-- TRADE BUTTON -->
         {#if onTrade}
@@ -680,4 +731,26 @@
       </div>
     {/if}
   </div>
+
+  {#if isFullscreen}
+    <button
+      class="fixed top-6 right-6 z-[120] text-white/40 hover:text-white hover:bg-white/10 p-3 rounded-full transition-all backdrop-blur-md bg-black/20"
+      onclick={toggleFullscreen}
+      title="Exit Fullscreen"
+    >
+      <svg
+        class="w-6 h-6"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M6 18L18 6M6 6l12 12"
+        />
+      </svg>
+    </button>
+  {/if}
 </div>
