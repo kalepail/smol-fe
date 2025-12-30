@@ -92,6 +92,7 @@
   let stationDescription = $state("");
   let isSavingMixtape = $state(false);
   let isAiLoading = $state(false);
+  let isDreamMode = $state(false);
 
   // AI Assist Handler
   async function handleAiAssist() {
@@ -322,7 +323,7 @@
   // AI: Convert mood description to tag suggestions
   async function suggestTagsFromMood() {
     const input = moodInput.trim();
-    if (!input || !GEMINI_API_KEY) return;
+    if (!input) return;
 
     isFetchingMood = true;
     let suggestions: string[] = [];
@@ -330,8 +331,8 @@
     // 1. Check Cache
     if (suggestCache.has(input.toLowerCase())) {
       suggestions = suggestCache.get(input.toLowerCase()) || [];
-    } else {
-      // 2. Try API
+    } else if (GEMINI_API_KEY) {
+      // 2. Try API (only if key exists)
       try {
         const allTagNames = processedTags.map((t) => t.tag);
         suggestions = await moodToTags(input, allTagNames, GEMINI_API_KEY);
@@ -705,7 +706,7 @@
           >
             <div>
               <h2
-                class="text-4xl font-thin tracking-tighter text-white mb-2"
+                class="text-2xl md:text-4xl font-thin tracking-tighter text-white mb-2"
                 style="text-shadow: 0 0 20px rgba(255,255,255,0.3);"
               >
                 <span class="text-[#9ae600] font-bold">SMOL</span>
@@ -718,28 +719,6 @@
             <!-- Sort & Filter Controls -->
             <!-- Sort & Filter Controls (Moved to Tag Cloud) -->
           </div>
-
-          <!-- Initial Mood Input -->
-          {#if GEMINI_API_KEY}
-            <div
-              class="flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-100"
-            >
-              <input
-                bind:value={moodInput}
-                placeholder="Describe a vibe (e.g., 'summer road trip')..."
-                class="reactive-input flex-1 px-6 py-4 text-lg placeholder-white/20 focus:outline-none transition-all font-mono"
-                onkeydown={(e) => e.key === "Enter" && suggestTagsFromMood()}
-                disabled={isFetchingMood}
-              />
-              <button
-                class="reactive-button text-[#19859b] font-bold px-8 py-2 transition-all disabled:opacity-50 uppercase tracking-widest text-xs border border-[#19859b]/50 hover:border-[#19859b] hover:shadow-[0_0_15px_rgba(25,133,155,0.4)]"
-                onclick={suggestTagsFromMood}
-                disabled={!moodInput.trim() || isFetchingMood}
-              >
-                {isFetchingMood ? "Dreaming..." : "Dream It"}
-              </button>
-            </div>
-          {/if}
         {/if}
       {/if}
 
@@ -769,7 +748,7 @@
       <!-- TAG CLOUD (Collapsible) -->
       {#if showCloud}
         <div
-          class="reactive-glass flex flex-col items-center p-6 border border-white/5 transition-all duration-500 {isCompact
+          class="md:col-span-7 reactive-glass flex flex-col items-center p-6 border border-white/5 transition-all duration-500 relative z-40 {isCompact
             ? 'scale-95 opacity-90'
             : ''}"
         >
@@ -777,30 +756,89 @@
           <div
             class="w-full flex gap-3 mb-4 animate-in fade-in slide-in-from-top-2 duration-300"
           >
-            <div class="relative flex-1 group">
-              <span
-                class="absolute left-3 top-1/2 -translate-y-1/2 text-white/30 group-focus-within:text-[#2276cb] transition-colors"
+            <form
+              class="relative flex-1 group"
+              onsubmit={(e) => {
+                e.preventDefault();
+                if (isDreamMode && !isFetchingMood && moodInput.trim()) {
+                  suggestTagsFromMood();
+                }
+              }}
+            >
+              <button
+                type="button"
+                class="absolute left-2 top-1/2 -translate-y-1/2 transition-all duration-300 z-50 flex items-center justify-center w-11 h-11 rounded-full cursor-pointer {isDreamMode
+                  ? 'bg-[#fdda24]/10 text-[#fdda24] shadow-[0_0_10px_rgba(253,218,36,0.2)]'
+                  : 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10'}"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  isDreamMode = !isDreamMode;
+                }}
+                title={isDreamMode
+                  ? "Switch to Search"
+                  : "Switch to Dream Mode"}
               >
+                <!-- SPARKLE ICON (Always visible, changes color) -->
                 <svg
-                  class="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
+                  xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"
-                  ><path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  ></path></svg
+                  fill="currentColor"
+                  class="w-5 h-5 transition-transform duration-300 {isDreamMode
+                    ? 'scale-110'
+                    : 'scale-90'}"
                 >
-              </span>
-              <input
-                type="text"
-                bind:value={searchQuery}
-                placeholder="Search vibes..."
-                class="reactive-input w-full pl-10 pr-4 py-2.5 text-sm placeholder-white/30 focus:outline-none transition-all"
-              />
-            </div>
+                  <path
+                    fill-rule="evenodd"
+                    d="M9 4.5a.75.75 0 01.721.544l.813 2.846a3.75 3.75 0 002.576 2.576l2.846.813a.75.75 0 010 1.442l-2.846.813a3.75 3.75 0 00-2.576 2.576l-.813 2.846a.75.75 0 01-1.442 0l-.813-2.846a3.75 3.75 0 00-2.576-2.576l-2.846-.813a.75.75 0 010-1.442l2.846-.813a3.75 3.75 0 002.576-2.576l.813-2.846A.75.75 0 019 4.5zM18 1.5a.75.75 0 01.728.568l.258 1.036c.236.94.97 1.674 1.91 1.91l1.036.258a.75.75 0 010 1.456l-1.036.258c-.94.236-1.674.97-1.91 1.91l-.258 1.036a.75.75 0 01-1.456 0l-.258-1.036a2.625 2.625 0 00-1.91-1.91l-1.036-.258a.75.75 0 010-1.456l1.036-.258a2.625 2.625 0 001.91-1.91l.258-1.036A.75.75 0 0118 1.5zM16.5 15a.75.75 0 01.712.513l.394 1.183c.15.447.5.799.948.948l1.183.394a.75.75 0 010 1.422l-1.183.394c-.447.15-.799.5-.948.948l-.394 1.183a.75.75 0 01-1.422 0l-.394-1.183a1.5 1.5 0 00-.948-.948l-1.183-.394a.75.75 0 010-1.422l1.183-.394c.447-.15.799-.5.948-.948l.394-1.183A.75.75 0 0116.5 15z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </button>
+
+              {#if isDreamMode}
+                <input
+                  type="text"
+                  bind:value={moodInput}
+                  placeholder="Dream it... (e.g. 'Chill Vibes')"
+                  class="reactive-input w-full pl-14 pr-12 py-3 text-base placeholder-[#fdda24]/50 text-[#fdda24] border-[#fdda24]/30 focus:border-[#fdda24] focus:outline-none transition-all"
+                  disabled={isFetchingMood}
+                  enterkeyhint="go"
+                  autofocus
+                />
+                <button
+                  class="absolute right-2 top-1/2 -translate-y-1/2 text-[#fdda24] hover:text-white disabled:opacity-50 p-3 cursor-pointer z-50 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                  type="submit"
+                  onclick={() => {}}
+                  disabled={!moodInput.trim() || isFetchingMood}
+                >
+                  {#if isFetchingMood}
+                    <span class="animate-spin text-xs">↻</span>
+                  {:else}
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      class="w-5 h-5"
+                    >
+                      <path
+                        fill-rule="evenodd"
+                        d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z"
+                        clip-rule="evenodd"
+                      />
+                    </svg>
+                  {/if}
+                </button>
+              {:else}
+                <input
+                  type="text"
+                  bind:value={searchQuery}
+                  placeholder="Search vibes..."
+                  class="reactive-input w-full pl-14 pr-4 py-3 text-base placeholder-white/30 focus:outline-none transition-all"
+                  onkeydown={(e) => e.key === "Enter" && e.preventDefault()}
+                />
+              {/if}
+            </form>
 
             <select
               bind:value={sortMode}
@@ -813,7 +851,7 @@
             </select>
           </div>
           <div
-            class="flex flex-wrap gap-x-2 gap-y-2 justify-center max-h-64 overflow-y-auto dark-scrollbar w-full p-2"
+            class="flex flex-wrap gap-x-2 gap-y-2 justify-center max-h-[50vh] md:max-h-64 overflow-y-auto dark-scrollbar w-full p-2"
           >
             {#each displayedTags as { tag, count }}
               <button
@@ -858,47 +896,21 @@
             SMART SHUFFLE
           </label>
 
-          <!-- Dream It Search Bar -->
-          <div class="relative w-full max-w-md mx-auto mb-6">
-            <input
-              type="text"
-              bind:value={moodInput}
-              placeholder="Dream it... (e.g. 'cyberpunk city lights')"
-              class="w-full bg-white/5 border border-white/10 rounded-full py-3 pl-6 pr-14 text-white placeholder-white/30 focus:outline-none focus:border-[#2775ca] focus:bg-white/10 transition-all font-mono"
-              onkeydown={(e) => e.key === "Enter" && handleAiAssist()}
-            />
-            <button
-              class="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center text-[#fdda24] hover:text-white transition-colors disabled:opacity-50"
-              onclick={handleAiAssist}
-              disabled={isAiLoading}
-            >
-              {#if isAiLoading}
-                <span class="animate-spin">✨</span>
-              {:else}
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke-width="1.5"
-                  stroke="currentColor"
-                  class="w-5 h-5"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"
-                  />
-                </svg>
-              {/if}
-            </button>
-          </div>
-
           <button
-            class="reactive-button-ignite text-white font-bold py-4 px-12 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-[0.2em] text-lg border-2 border-[#f7931a] shadow-[0_0_15px_rgba(247,147,26,0.5)] hover:shadow-[0_0_25px_rgba(247,147,26,0.7)] hover:border-[#fcd09e]"
-            onclick={generateStation}
-            disabled={selectedTags.length === 0 || isGenerating}
+            class="reactive-button-ignite text-white font-bold py-3 px-8 md:py-4 md:px-12 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-[0.2em] text-base md:text-lg border-2 border-[#f7931a] shadow-[0_0_15px_rgba(247,147,26,0.5)] hover:shadow-[0_0_25px_rgba(247,147,26,0.7)] hover:border-[#fcd09e] fixed bottom-6 left-6 right-6 z-[999] md:static md:bottom-auto md:left-auto md:right-auto md:z-auto shadow-[0_0_30px_rgba(247,147,26,0.8)] md:shadow-[0_0_15px_rgba(247,147,26,0.5)]"
+            onclick={() => {
+              if (isDreamMode && moodInput.trim()) {
+                suggestTagsFromMood();
+              } else {
+                generateStation();
+              }
+            }}
+            disabled={(selectedTags.length === 0 &&
+              (!isDreamMode || !moodInput.trim())) ||
+              isGenerating ||
+              (isDreamMode && isFetchingMood)}
           >
-            {isGenerating ? "SYNTHESIZING..." : "IGNITE"}
+            {isGenerating || isFetchingMood ? "SYNTHESIZING..." : "IGNITE"}
           </button>
         </div>
       {/if}
