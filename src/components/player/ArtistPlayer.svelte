@@ -81,45 +81,28 @@
     return () => clearInterval(interval);
   });
 
-  // Real Web Audio API visualizer
+  // Shared Audio Context Visualizer
   let canvasRef = $state<HTMLCanvasElement | null>(null);
-  let analyserNode: AnalyserNode | null = null;
-  let audioContext: AudioContext | null = null;
-  let sourceNode: MediaElementAudioSourceNode | null = null;
   let animationId: number | null = null;
-  let visualizerConnected = false; // Not reactive, just a flag
 
-  // Setup visualizer when canvas becomes available
+  // Ensure global context is init (idempotent)
   $effect(() => {
-    const audioEl = audioState.audioElement;
-    const canvas = canvasRef;
-
-    if (!audioEl || !canvas) return;
-    if (visualizerConnected) {
-      // Already connected, just ensure animation is running
-      if (playing && !animationId) {
-        startVisualization();
-      }
-      return;
+    if (audioState.audioElement) {
+      // Import dynamically to avoid circular deps if needed,
+      // or just rely on the store being valid
+      import("../../stores/audio.svelte").then(({ initAudioContext }) => {
+        initAudioContext();
+      });
     }
+  });
 
-    try {
-      console.log("[Visualizer] Setting up Web Audio API...");
+  // Start visualizer loop using shared analyser
+  $effect(() => {
+    if (!canvasRef || !audioState.analyser) return;
 
-      audioContext = new AudioContext();
-      analyserNode = audioContext.createAnalyser();
-      analyserNode.fftSize = 256;
-
-      sourceNode = audioContext.createMediaElementSource(audioEl);
-      sourceNode.connect(analyserNode);
-      analyserNode.connect(audioContext.destination);
-
-      visualizerConnected = true;
-      console.log("[Visualizer] Connected successfully!");
+    // Start drawing if not already running
+    if (!animationId) {
       startVisualization();
-    } catch (e: any) {
-      console.error("[Visualizer] Setup failed:", e.message);
-      // Don't mark as connected on error - the canvas won't work anyway
     }
 
     return () => {
@@ -131,25 +114,33 @@
   });
 
   function startVisualization() {
-    if (!canvasRef || !analyserNode) return;
+    if (!canvasRef) return;
+
+    // Get latest state safely
+    // Note: audioState.analyser is a live reference from the store
+    if (!audioState.analyser) return;
 
     const canvas = canvasRef;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const bufferLength = analyserNode.frequencyBinCount;
+    // Use the global analyser
+    const analyser = audioState.analyser;
+    const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
 
     function draw() {
-      if (!ctx || !analyserNode || !canvas) return;
+      const currentAnalyser = audioState.analyser;
+      if (!ctx || !currentAnalyser || !canvas) return;
 
       animationId = requestAnimationFrame(draw);
-      analyserNode.getByteTimeDomainData(dataArray);
+      currentAnalyser.getByteTimeDomainData(dataArray);
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       // Draw oscilloscope waveform
       ctx.beginPath();
+      // Use the lime-500 color to match the theme
       ctx.strokeStyle = "#84cc16";
       ctx.lineWidth = 2;
 

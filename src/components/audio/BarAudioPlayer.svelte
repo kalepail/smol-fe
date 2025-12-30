@@ -114,7 +114,7 @@
         <!-- Shuffle/Radio Button -->
         <a
           href="/radio"
-          class="w-8 h-8 flex items-center justify-center text-orange-500 hover:text-white hover:bg-orange-500/20 active:scale-95 border border-orange-500/30 hover:border-orange-500 transition-all rounded-full bg-orange-500/5"
+          class="w-8 h-8 flex items-center justify-center text-[#f7931a] hover:text-white hover:bg-[#f7931a]/20 active:scale-95 border border-[#f7931a]/30 hover:border-[#f7931a] transition-all rounded-full bg-[#f7931a]/5"
           title="Open Radio"
         >
           <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">

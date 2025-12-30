@@ -187,12 +187,13 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       const isFs = !!document.fullscreenElement;
-      ctx.lineWidth = isFs ? 6 : 3;
+      ctx.lineWidth = 5; // Thicker lines for visibility
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
-      ctx.shadowBlur = isFs ? 25 : 15;
-      ctx.shadowColor = "rgba(168, 85, 247, 0.6)";
+      ctx.shadowBlur = 25; // Stronger glow
+      ctx.shadowColor = "rgba(168, 85, 247, 0.8)";
 
+      // Gradient for the line
       const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
       gradient.addColorStop(0, "#9ae600");
       gradient.addColorStop(0.5, "#a855f7");
@@ -200,48 +201,71 @@
       ctx.strokeStyle = gradient;
 
       ctx.beginPath();
+      const centerY = canvas.height / 2;
+
+      ctx.beginPath();
 
       if (zeroFrames > 5 || !currentAnalyser) {
-        // SIMULATION MODE
-        phase += 0.02;
-        const centerY = canvas.height / 2;
+        // Simulation fallback
+        phase += 0.02; // Slower simulation (was 0.05)
         ctx.moveTo(0, centerY);
-        for (let x = 0; x <= canvas.width; x += 10) {
-          const y = centerY + Math.sin(x * 0.005 + phase) * (isFs ? 40 : 20);
-          ctx.lineTo(x, y);
+        for (let i = 0; i < canvas.width; i += 10) {
+          const y = centerY + Math.sin(i * 0.01 + phase) * 20;
+          ctx.lineTo(i, y);
         }
       } else {
-        // REAL MODE
+        // Temporal Smoothing (Lerp)
         for (let i = 0; i < bufferLength; i++) {
-          const target = dataArray[i] === 0 ? 128 : dataArray[i];
-          lastDataArray[i] += (target - lastDataArray[i]) * 0.2;
+          const target = dataArray[i];
+          // Balanced reaction: fast enough for details, slow enough to be smooth (0.12)
+          lastDataArray[i] += (target - lastDataArray[i]) * 0.12;
         }
 
+        // Spatial Smoothing (Moving Average) - Removes "jaggies"
+        const smoothed = new Float32Array(bufferLength);
+        for (let i = 1; i < bufferLength - 1; i++) {
+          smoothed[i] =
+            (lastDataArray[i - 1] + lastDataArray[i] + lastDataArray[i + 1]) /
+            3;
+        }
+        smoothed[0] = lastDataArray[0];
+        smoothed[bufferLength - 1] = lastDataArray[bufferLength - 1];
+
         const sliceWidth = canvas.width / bufferLength;
-        const BOOST = isFs ? 3.5 : 2.5;
+        const BOOST = isFs ? 4.0 : 3.0; // Slightly bigger (was 2.5) for visibility
         let x = 0;
 
-        const v0 = (lastDataArray[0] - 128) / 128.0;
-        const y0 = canvas.height / 2 + v0 * (canvas.height / 2) * BOOST;
+        // Start at first point
+        let v0 = (smoothed[0] - 128) / 128.0;
+        // Non-linear Expansion (Bass Boost): Exaggerate peaks
+        // v * (1 + |v| * 3) -> louder sounds get much bigger
+        v0 = v0 * (1 + Math.abs(v0) * 3);
+
+        const y0 = centerY + v0 * (canvas.height / 2) * BOOST;
         ctx.moveTo(0, y0);
 
+        // Curve Smoothing
         for (let i = 1; i < bufferLength - 2; i++) {
-          const v = (lastDataArray[i] - 128) / 128.0;
-          const y = canvas.height / 2 + v * (canvas.height / 2) * BOOST;
+          let v = (smoothed[i] - 128) / 128.0;
+          v = v * (1 + Math.abs(v) * 3); // Expand
+          const y = centerY + v * (canvas.height / 2) * BOOST;
 
-          const vNext = (lastDataArray[i + 1] - 128) / 128.0;
-          const yNext = canvas.height / 2 + vNext * (canvas.height / 2) * BOOST;
+          let vNext = (smoothed[i + 1] - 128) / 128.0;
+          vNext = vNext * (1 + Math.abs(vNext) * 3); // Expand
+          const yNext = centerY + vNext * (canvas.height / 2) * BOOST;
 
           const xc = (x + (x + sliceWidth)) / 2;
           const yc = (y + yNext) / 2;
+
           ctx.quadraticCurveTo(x, y, xc, yc);
           x += sliceWidth;
         }
-        ctx.lineTo(canvas.width, canvas.height / 2);
+
+        // Connect to end
+        ctx.lineTo(canvas.width, centerY);
       }
 
       ctx.stroke();
-      ctx.shadowBlur = 0;
     }
 
     animationId = requestAnimationFrame(draw);
@@ -277,27 +301,37 @@
       <!-- MERGED ALBUM ART + VISUALIZER -->
       <div
         class="relative w-full aspect-square {isFullscreen
-          ? 'max-h-[60vh]'
-          : 'max-h-[400px] sm:max-h-[500px]'} rounded-2xl overflow-hidden bg-black/40 border border-white/10 shadow-2xl mx-auto transition-all duration-500 isolate"
+          ? 'max-h-[60vh] max-w-[60vh]'
+          : 'max-h-[380px] max-w-[380px] sm:max-h-[400px] sm:max-w-[400px]'} rounded-2xl overflow-hidden bg-black/40 border border-white/10 shadow-2xl mx-auto transition-all duration-500 isolate"
         style="clip-path: inset(0 round 1rem);"
       >
-        <!-- Album Art Background -->
+        <!-- Album Art Background (Blurred & Zoomed) -->
         {#if coverUrl}
+          <div class="absolute inset-0 z-0">
+            <img
+              src={coverUrl}
+              alt=""
+              class="w-full h-full object-cover opacity-50 blur-2xl scale-110"
+            />
+            <div class="absolute inset-0 bg-black/20"></div>
+          </div>
+
+          <!-- Main Art (Contained) -->
           <img
             src={coverUrl}
             alt={songTitle}
-            class="absolute inset-0 w-full h-full object-cover rounded-2xl {isFullscreen
+            class="absolute inset-0 w-full h-full object-contain z-10 rounded-2xl transition-opacity duration-300 {isFullscreen
               ? 'opacity-100'
-              : 'opacity-80'}"
+              : 'opacity-100'}"
             onerror={(e) => {
               e.currentTarget.style.display = "none";
             }}
           />
         {/if}
 
-        <!-- Gradient overlay for text readability -->
+        <!-- Gradient overlay for text readability (only at bottom) -->
         <div
-          class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/20 to-transparent"
+          class="absolute inset-0 z-20 bg-gradient-to-t from-black/95 via-transparent to-transparent pointer-events-none"
         ></div>
 
         <!-- Fallback icon -->
@@ -306,11 +340,9 @@
           >📻</span
         >
 
-        <!-- Visualizer Canvas (overlaid at bottom) -->
+        <!-- Visualizer Canvas (Bottom Bar) -->
         <div
-          class="absolute bottom-0 left-0 right-0 {isFullscreen
-            ? 'h-32 opacity-80'
-            : 'h-16 sm:h-20'}"
+          class="absolute bottom-0 left-0 right-0 h-24 z-30 pointer-events-none opacity-90"
         >
           <canvas
             bind:this={canvasRef}
@@ -320,16 +352,12 @@
           ></canvas>
         </div>
 
-        <!-- Song Info Overlay -->
-        <div
-          class="absolute {isFullscreen
-            ? 'bottom-32'
-            : 'bottom-16 sm:bottom-20'} left-0 right-0 px-8 pb-4"
-        >
+        <!-- Song Info Overlay (Top Left) -->
+        <div class="absolute top-0 left-0 p-6 z-30">
           <div
             class="{isFullscreen
               ? 'text-4xl'
-              : 'text-sm sm:text-base md:text-lg'} text-white font-bold tracking-tight truncate drop-shadow-2xl"
+              : 'text-2xl'} text-white font-bold tracking-tight truncate drop-shadow-2xl"
           >
             {songTitle}
           </div>
@@ -337,23 +365,11 @@
             <div
               class="{isFullscreen
                 ? 'text-base mt-2'
-                : 'text-[10px] mt-0.5'} text-purple-400 font-medium uppercase tracking-[0.2em] truncate drop-shadow-md"
+                : 'text-xs mt-1'} text-purple-400 font-medium uppercase tracking-[0.2em] truncate drop-shadow-md"
             >
               {songTags}
             </div>
           {/if}
-        </div>
-
-        <!-- Progress Bar (overlaid) -->
-        <div
-          class="absolute {isFullscreen
-            ? 'bottom-28'
-            : 'bottom-14 sm:bottom-[4.5rem]'} left-8 right-8 h-1 bg-white/10 rounded-full overflow-hidden"
-        >
-          <div
-            class="h-full bg-gradient-to-r from-purple-500 to-fuchsia-500 transition-all duration-200"
-            style="width: {progress}%;"
-          ></div>
         </div>
 
         <!-- FULLSCREEN TOGGLE BUTTONS (TOP RIGHT OF ART) -->
@@ -433,12 +449,34 @@
 
       <!-- Controls (below art in standard, bottom in fullscreen) -->
       <div
-        class="flex items-center justify-center gap-6 mt-8 transition-all duration-500 {isFullscreen
+        class="flex items-center justify-center gap-4 sm:gap-6 mt-3 pb-0 transition-all duration-500 {isFullscreen
           ? showControls
             ? 'opacity-100 translate-y-0'
             : 'opacity-0 translate-y-4 pointer-events-none'
           : ''}"
       >
+        <!-- LIKE BUTTON (Left of controls) -->
+        {#if currentSong}
+          {@const currentIdx = playlist.findIndex(
+            (s) => s.Id === currentSong?.Id,
+          )}
+          {@const isLiked =
+            currentIdx !== -1 ? playlist[currentIdx].Liked : false}
+
+          <LikeButton
+            smolId={currentSong.Id}
+            liked={!!isLiked}
+            classNames="tech-button w-12 h-12 flex items-center justify-center active:scale-95 disabled:opacity-30 border rounded-full backdrop-blur-md transition-all duration-300 border-[#ff424c] shadow-[0_0_20px_rgba(255,66,76,0.3)] {isLiked
+              ? 'bg-[#ff424c] text-white'
+              : 'bg-[#ff424c]/10 text-[#ff424c] hover:bg-[#ff424c]/20'}"
+            on:likeChanged={(e) => {
+              if (onToggleLike && currentIdx !== -1) {
+                onToggleLike(currentIdx, e.detail.liked);
+              }
+            }}
+          />
+        {/if}
+
         <button
           class="tech-button w-12 h-12 flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md"
           onclick={handlePrev}
@@ -450,7 +488,7 @@
         </button>
 
         <button
-          class="tech-button w-20 h-20 flex items-center justify-center text-white border border-white/10 hover:border-purple-500 hover:bg-purple-500/20 active:scale-95 transition-all relative overflow-hidden group rounded-full bg-white/5 backdrop-blur-xl shadow-2xl shadow-purple-500/10"
+          class="tech-button w-20 h-20 flex items-center justify-center active:scale-95 transition-all relative overflow-hidden group rounded-full backdrop-blur-xl border border-[#089981] text-[#089981] bg-[#089981]/10 shadow-[0_0_30px_rgba(8,153,129,0.4)] hover:bg-[#089981]/20 hover:text-white hover:shadow-[0_0_40px_rgba(8,153,129,0.6)]"
           onclick={playPause}
           title={playing ? "Pause" : "Play"}
         >
@@ -477,13 +515,25 @@
 
         {#if onRegenerate}
           <button
-            class="tech-button w-12 h-12 flex items-center justify-center text-[#F7931A] hover:text-white hover:bg-[#F7931A]/20 active:scale-95 border border-[#F7931A]/30 hover:border-[#F7931A] transition-all rounded-full bg-[#F7931A]/5 backdrop-blur-md"
+            class="tech-button w-12 h-12 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-[#F7931A] text-[#F7931A] bg-[#F7931A]/10 shadow-[0_0_20px_rgba(247,147,26,0.3)] hover:bg-[#F7931A]/20 hover:text-white"
             onclick={handleRegenerate}
             title="Regenerate Station"
           >
             <span class="text-xl">↻</span>
           </button>
         {/if}
+      </div>
+
+      <!-- Scrubber (Bottom of Player) -->
+      <div class="px-8 pb-6 mt-6 w-full max-w-[400px] sm:max-w-[500px] mx-auto">
+        <div
+          class="h-1.5 bg-white/10 rounded-full overflow-hidden w-full backdrop-blur-sm"
+        >
+          <div
+            class="h-full bg-[#9ae600] shadow-[0_0_10px_#9ae600] transition-all duration-200 ease-linear"
+            style="width: {progress}%;"
+          ></div>
+        </div>
       </div>
     </div>
 

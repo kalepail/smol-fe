@@ -29,6 +29,7 @@
         onSaveMixtape: () => void;
         onToggleLike?: (index: number, liked: boolean) => void;
         onRegenerate?: () => void;
+        onToggleSettings?: () => void;
     } = $props();
 
     const API_URL = import.meta.env.PUBLIC_API_URL;
@@ -38,7 +39,7 @@
     class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 font-mono"
 >
     <div
-        class="reactive-glass p-6 border border-white/5 bg-[#1d1d1d]"
+        class="reactive-glass border border-white/5 bg-[#1d1d1d] max-w-6xl mx-auto overflow-hidden rounded-xl"
         onmousemove={(e) => {
             const rect = e.currentTarget.getBoundingClientRect();
             e.currentTarget.style.setProperty(
@@ -52,159 +53,220 @@
         }}
     >
         <div
-            class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6"
+            class="flex items-center justify-between px-6 py-1.5 bg-black/40 border-b border-white/5"
         >
-            <div class="flex-1">
-                <h2
-                    class="text-2xl font-bold text-white tracking-widest uppercase"
+            <div class="flex items-center gap-2 select-none">
+                <!-- Stellar Logo (White part, Glowing) -->
+                <div
+                    class="text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]"
                 >
-                    {stationName}
-                </h2>
-                <div class="flex items-center gap-2 mt-1 flex-wrap">
-                    <!-- Tagline removed -->
+                    <svg
+                        viewBox="0 0 24 24"
+                        class="w-6 h-6"
+                        fill="currentColor"
+                        xmlns="http://www.w3.org/2000/svg"
+                    >
+                        <title>Stellar</title>
+                        <path
+                            d="M12.003 1.716c-1.37 0-2.7.27-3.948.78A10.18 10.18 0 0 0 2.66 7.901a10.136 10.136 0 0 0-.797 3.954c0 .258.01.516.027.775a1.942 1.942 0 0 1-1.055 1.88L0 14.934v1.902l2.463-1.26.072-.032v.005l.77-.39.758-.385.066-.039 14.807-7.56 1.666-.847 3.392-1.732V2.694L17.792 5.86 3.744 13.025l-.104.055-.017-.115a8.286 8.286 0 0 1-.071-1.105c0-2.255.88-4.377 2.474-5.977a8.462 8.462 0 0 1 2.71-1.82 8.513 8.513 0 0 1 3.2-.654h.067a8.41 8.41 0 0 1 4.09 1.055l1.628-.83.126-.066a10.11 10.11 0 0 0-5.845-1.853zM24 7.143 5.047 16.808l-1.666.847L0 19.382v1.902l3.282-1.671 2.91-1.485 14.058-7.153.105-.055.016.115c.05.369.072.743.072 1.11 0 2.255-.88 4.383-2.475 5.978a8.461 8.461 0 0 1-2.71 1.82 8.305 8.305 0 0 1-3.2.654h-.06c-1.441 0-2.86-.369-4.102-1.061l-.066.033-1.683.857c.594.418 1.232.776 1.903 1.062a10.11 10.11 0 0 0 3.947.797 10.09 10.09 0 0 0 7.17-2.975 10.136 10.136 0 0 0 2.969-7.18c0-.259-.005-.523-.027-.781a1.942 1.942 0 0 1 1.055-1.88L24 9.044z"
+                        />
+                    </svg>
                 </div>
             </div>
-
-            {#if isAuthenticated()}
+            <div class="flex items-center gap-4">
                 <button
-                    onclick={onSaveMixtape}
-                    disabled={isSavingMixtape}
-                    class="tech-button px-6 py-2 text-sm font-bold text-white flex items-center gap-2 disabled:opacity-50 whitespace-nowrap uppercase tracking-wider border border-white/10 hover:border-purple-500/50"
+                    class="text-xs font-bold text-slate-500 hover:text-white uppercase tracking-widest transition-colors"
+                    onclick={onToggleSettings}
                 >
-                    {#if isSavingMixtape}
-                        <span class="animate-spin">⏳</span> SAVING...
-                    {:else}
-                        <span>💾</span> SAVE MIXTAPE
-                    {/if}
+                    Tags
                 </button>
-            {/if}
+                <button
+                    class="text-slate-500 hover:text-white transition-colors"
+                    title="Settings"
+                    onclick={onToggleSettings}
+                >
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke-width="1.5"
+                        stroke="currentColor"
+                        class="w-5 h-5"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 1 1 0-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 0 1-1.44-4.282m3.102.069a18.03 18.03 0 0 1-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 0 1 8.835 2.535M10.34 6.66a23.847 23.847 0 0 0 8.835-2.535m0 0A23.74 23.74 0 0 0 18.795 3m.38 1.125a23.91 23.91 0 0 1 1.014 5.395m-1.014 8.855c-.118 1.716-.532 3.467-1.117 5.2"
+                        />
+                    </svg>
+                </button>
+            </div>
         </div>
 
-        <RadioPlayer
-            {playlist}
-            {onNext}
-            {onPrev}
-            {onRegenerate}
-            {onSelect}
-            {onToggleLike}
-            {currentIndex}
-        />
+        <div
+            class="flex flex-col lg:flex-row gap-8 h-auto lg:h-[580px] items-stretch p-6"
+        >
+            <!-- LEFT COLUMN: PLAYER -->
+            <div class="w-full lg:w-1/2 flex flex-col gap-4">
+                <RadioPlayer
+                    {playlist}
+                    {onNext}
+                    {onPrev}
+                    {onRegenerate}
+                    {onSelect}
+                    {onToggleLike}
+                    {currentIndex}
+                />
+            </div>
 
-        <div class="h-px bg-white/5 my-8"></div>
-
-        <div class="bg-black/20 rounded border border-white/5 overflow-hidden">
-            <ul
-                class="divide-y divide-white/5 max-h-96 overflow-y-auto dark-scrollbar"
+            <!-- RIGHT COLUMN: PLAYLIST -->
+            <div
+                class="w-full lg:w-1/2 flex flex-col min-h-0 bg-black/20 border border-white/5 rounded-2xl overflow-hidden"
             >
-                {#each playlist as song, index}
-                    <li>
+                <div
+                    class="flex items-center justify-between p-4 border-b border-white/5 bg-white/5 flex-shrink-0"
+                >
+                    <h3
+                        class="text-white font-bold tracking-widest uppercase text-xs"
+                    >
+                        Up Next
+                    </h3>
+                    {#if isAuthenticated()}
                         <button
-                            class="w-full flex items-center gap-3 p-3 hover:bg-white/5 transition-colors text-left {index ===
-                            currentIndex
-                                ? 'bg-purple-500/10'
-                                : ''}"
-                            onclick={(e) => {
-                                // Ignore clicks on links or buttons (like the like button or song link)
-                                const target = e.target as HTMLElement;
-                                if (
-                                    target.closest("a") ||
-                                    target.closest("button")
-                                )
-                                    return;
-                                onSelect(index);
-                            }}
+                            onclick={onSaveMixtape}
+                            disabled={isSavingMixtape}
+                            class="tech-button px-4 py-1.5 text-xs font-bold text-white flex items-center gap-2 disabled:opacity-50 whitespace-nowrap uppercase tracking-wider border border-white/10 hover:border-purple-500/50"
                         >
-                            <span class="text-slate-500 w-6 text-right text-sm"
-                                >{index + 1}</span
-                            >
-                            <div
-                                class="relative w-10 h-10 rounded bg-slate-800 flex-shrink-0 overflow-hidden group"
-                            >
-                                <img
-                                    src="{API_URL}/image/{song.Id}.png"
-                                    alt="Art"
-                                    class="w-full h-full object-cover"
-                                    onerror={(e) => {
-                                        e.currentTarget.style.display = "none";
-                                    }}
-                                />
-                                {#if index === currentIndex && audioState.playingId === song.Id}
-                                    <div
-                                        class="absolute inset-0 bg-black/50 flex items-center justify-center"
-                                    >
-                                        <span
-                                            class="text-purple-400 text-xs animate-pulse"
-                                            >▶</span
-                                        >
-                                    </div>
-                                {/if}
-                            </div>
-                            <div
-                                class="overflow-hidden text-left flex-1 min-w-0"
-                            >
-                                <div
-                                    class="text-sm font-medium text-slate-200 truncate {index ===
-                                    currentIndex
-                                        ? 'text-purple-300'
-                                        : ''}"
-                                >
-                                    {song.Title || "Untitled"}
-                                </div>
-                                <a
-                                    href="/artist/{song.Address}"
-                                    class="text-xs text-slate-500 truncate hover:text-[#9ae600] transition-colors hover:underline block"
-                                    onclick={(e) => e.stopPropagation()}
-                                >
-                                    {song.Address || "Unknown Artist"}
-                                </a>
-                                {#if song.Tags && song.Tags.length > 0}
-                                    <div class="flex gap-1 mt-1 flex-wrap">
-                                        {#each song.Tags.slice(0, 3) as tag}
-                                            <span
-                                                class="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-white/40 font-mono"
-                                                >{tag}</span
-                                            >
-                                        {/each}
-                                    </div>
-                                {/if}
-                            </div>
-
-                            <div>
-                                <LikeButton
-                                    smolId={song.Id}
-                                    liked={song.Liked || false}
-                                    classNames="p-2 text-slate-500 hover:text-[#ff424c] hover:bg-white/5 rounded-full transition-colors"
-                                    on:likeChanged={(e) => {
-                                        onToggleLike(index, e.detail.liked);
-                                    }}
-                                />
-                            </div>
-
-                            <!-- Song Page Link -->
-                            <a
-                                href="/{song.Id}"
-                                class="p-2 text-slate-500 hover:text-white transition-colors"
-                                title="View Song Details"
-                            >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke-width="1.5"
-                                    stroke="currentColor"
-                                    class="w-5 h-5"
-                                >
-                                    <path
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"
-                                    />
-                                </svg>
-                            </a>
+                            {#if isSavingMixtape}
+                                <span class="animate-spin">⏳</span> SAVING...
+                            {:else}
+                                <span>💾</span> SAVE
+                            {/if}
                         </button>
-                    </li>
-                {/each}
-            </ul>
+                    {/if}
+                </div>
+
+                <div class="flex-1 relative min-h-0">
+                    <ul
+                        class="divide-y divide-white/5 h-full overflow-y-auto dark-scrollbar"
+                    >
+                        {#each playlist as song, index}
+                            <li>
+                                <div
+                                    role="button"
+                                    tabindex="0"
+                                    class="w-full flex items-center gap-3 p-3 hover:bg-white/5 transition-colors text-left cursor-pointer {index ===
+                                    currentIndex
+                                        ? 'bg-purple-500/10'
+                                        : ''}"
+                                    onclick={(e) => {
+                                        // Ignore clicks on links or inner buttons
+                                        const target = e.target as HTMLElement;
+                                        if (
+                                            target.closest("a") ||
+                                            target.closest("button")
+                                        )
+                                            return;
+                                        onSelect(index);
+                                    }}
+                                    onkeydown={(e) => {
+                                        if (
+                                            e.key === "Enter" ||
+                                            e.key === " "
+                                        ) {
+                                            e.preventDefault();
+                                            onSelect(index);
+                                        }
+                                    }}
+                                >
+                                    <span
+                                        class="text-slate-500 w-6 text-right text-base"
+                                        >{index + 1}</span
+                                    >
+                                    <div
+                                        class="relative w-10 h-10 rounded bg-slate-800 flex-shrink-0 overflow-hidden group"
+                                    >
+                                        <img
+                                            src="{API_URL}/image/{song.Id}.png"
+                                            alt="Art"
+                                            class="w-full h-full object-cover"
+                                            onerror={(e) => {
+                                                e.currentTarget.style.display =
+                                                    "none";
+                                            }}
+                                        />
+                                        {#if index === currentIndex && audioState.playingId === song.Id}
+                                            <div
+                                                class="absolute inset-0 bg-black/50 flex items-center justify-center"
+                                            >
+                                                <span
+                                                    class="text-purple-400 text-xs animate-pulse"
+                                                    >▶</span
+                                                >
+                                            </div>
+                                        {/if}
+                                    </div>
+                                    <div
+                                        class="overflow-hidden text-left flex-1 min-w-0"
+                                    >
+                                        <div
+                                            class="text-lg font-medium text-slate-200 truncate {index ===
+                                            currentIndex
+                                                ? 'text-purple-300'
+                                                : ''}"
+                                        >
+                                            {song.Title || "Untitled"}
+                                        </div>
+                                        <a
+                                            href="/artist/{song.Address}"
+                                            class="text-sm text-slate-500 truncate hover:text-[#9ae600] transition-colors hover:underline block"
+                                            onclick={(e) => e.stopPropagation()}
+                                        >
+                                            {song.Address || "Unknown Artist"}
+                                        </a>
+                                    </div>
+
+                                    <div>
+                                        <LikeButton
+                                            smolId={song.Id}
+                                            liked={song.Liked || false}
+                                            classNames="p-2 text-slate-500 hover:text-[#ff424c] hover:bg-white/5 rounded-full transition-colors"
+                                            on:likeChanged={(e) => {
+                                                onToggleLike(
+                                                    index,
+                                                    e.detail.liked,
+                                                );
+                                            }}
+                                        />
+                                    </div>
+
+                                    <!-- Song Page Link -->
+                                    <a
+                                        href="/{song.Id}"
+                                        class="p-2 text-slate-500 hover:text-white transition-colors"
+                                        title="View Song Details"
+                                    >
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke-width="1.5"
+                                            stroke="currentColor"
+                                            class="w-5 h-5"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"
+                                            />
+                                        </svg>
+                                    </a>
+                                </div>
+                            </li>
+                        {/each}
+                    </ul>
+                </div>
+            </div>
         </div>
     </div>
 </div>

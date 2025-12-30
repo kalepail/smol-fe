@@ -9,7 +9,12 @@
 
 <div class="flex items-center mr-auto">
   <h1 class="flex flex-col text-xl py-1">
-    <a href="/"><strong>SMOL</strong></a>
+    <a href="/" class="flex items-center gap-1">
+      <span class="text-[#9ae600] font-bold">SMOL</span>
+      {#if path === "/radio"}
+        <span class="font-thin text-white tracking-widest text-lg">RADIO</span>
+      {/if}
+    </a>
   </h1>
 
   <a
