@@ -298,7 +298,7 @@
   bind:this={containerRef}
   class="w-full relative {isFullscreen
     ? 'overflow-hidden'
-    : ''} group/fs {isFullscreen
+    : 'h-full'} group/fs {isFullscreen
     ? 'fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center'
     : ''}"
   onmousemove={handleMouseMove}
@@ -324,11 +324,21 @@
     <div class="flex-1 flex flex-col items-center">
       <!-- MERGED ALBUM ART + VISUALIZER -->
       <div
-        class="relative aspect-square shrink shadow-2xl mx-auto transition-all duration-500 isolate rounded-2xl overflow-hidden bg-black/40 border border-white/10 {isFullscreen
-          ? 'w-auto h-auto max-h-[60vh]'
-          : 'w-auto h-auto max-h-full'}"
+        class="relative shrink-0 shadow-2xl mx-auto transition-all duration-500 isolate rounded-2xl overflow-hidden bg-black/40 border border-white/10 flex items-center justify-center {isFullscreen
+          ? 'max-h-[60vh] max-w-[60vh]'
+          : 'max-w-full max-h-full aspect-square'}"
         style="clip-path: inset(0 round 1rem);"
       >
+        <!-- SPACER FOR ASPECT RATIO (Forces container to fit parent min dimension) -->
+        <img
+          src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"
+          alt=""
+          class="block w-full h-full object-contain opacity-0 pointer-events-none relative z-0 {isFullscreen
+            ? 'h-[60vh] w-[60vh]'
+            : ''}"
+          aria-hidden="true"
+        />
+
         <!-- Album Art Background (Blurred & Zoomed) -->
         {#if coverUrl}
           <div class="absolute inset-0 z-0">
