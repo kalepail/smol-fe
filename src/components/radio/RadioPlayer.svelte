@@ -55,6 +55,27 @@
     }
   }
 
+  function triggerLogin() {
+    // Try attribute selector first
+    let loginBtn = document.querySelector('button[onclick*="onLogin"]');
+
+    // Fallback: search by text content
+    if (!loginBtn) {
+      const buttons = Array.from(document.querySelectorAll("button"));
+      loginBtn =
+        buttons.find((b) => b.textContent?.trim().toLowerCase() === "login") ||
+        null;
+    }
+
+    if (loginBtn) {
+      (loginBtn as HTMLButtonElement).click();
+    } else {
+      alert(
+        "Please login to continue. The Login button can be found in the header.",
+      );
+    }
+  }
+
   function handlePrev() {
     if (onPrev) onPrev();
   }
@@ -571,11 +592,7 @@
             class="tech-button w-12 h-12 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-[#d836ff] text-[#d836ff] bg-[#d836ff]/10 hover:bg-[#d836ff]/20 shadow-[0_0_15px_rgba(216,54,255,0.3)]"
             onclick={() => {
               if (!isAuthenticated) {
-                const loginBtn = document.querySelector(
-                  'button[onclick*="onLogin"]',
-                );
-                if (loginBtn) (loginBtn as HTMLButtonElement).click();
-                else alert("Please login to mint tracks");
+                triggerLogin();
                 return;
               }
               onMint?.();
@@ -628,11 +645,7 @@
             class="tech-button w-12 h-12 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-blue-400 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.3)]"
             onclick={() => {
               if (!isAuthenticated) {
-                const loginBtn = document.querySelector(
-                  'button[onclick*="onLogin"]',
-                );
-                if (loginBtn) (loginBtn as HTMLButtonElement).click();
-                else alert("Please login to trade tracks");
+                triggerLogin();
                 return;
               }
               onTrade?.();
