@@ -22,12 +22,20 @@ Hey Tyler, we've made significant progress on the Radio and Track Detail UI. We 
 - **Context**: Users can now publish/unpublish their tracks directly from the detailed view.
 - **Goal**: Confirm ownership validation is strictly enforced and that the database state updates immediately to reflect visibility changes on the home feed.
 
-### 4. Generation Pipeline & Versioning
+### 4. Live API & DB Integration (CRITICAL)
+- **Problem**: Development was done using `smols-snapshot.json` due to local API limitations.
+- **Action**: Verify that all song-fetching logic in `RadioBuilder.svelte` and `ArtistResults.svelte` works correctly with the **LIVE** database.
+- **Goal**: Ensure:
+    - **Live Fetching**: Songs are being pulled from the actual API, not the snapshot.
+    - **Sorting Logic**: The popularity and frequency sorting works as intended with live metadata.
+    - **Generation Pipeline**: The AI-assisted radio generation correctly maps to live song IDs and successfully fetches their metadata from the backend.
+
+### 5. Generation Pipeline & Versioning
 - **Action**: Sanity check the end-to-end workflow (Pixellab -> CF AI -> AI Song Gen -> D1/R2).
 - **Context**: We've introduced V1/V2 versioning in the UI. 
 - **Goal**: Ensure the backend correctly associates multiple song variants with a single prompt/ID and that the "best version" flag (D1) stays synced when users swap variants.
 
-### 5. Logged-in Features
+### 6. Logged-in Features
 - **Action**: Test every feature that requires authentication.
 - **Goal**: Verify:
     - **Likes**: Toggling likes on the Radio and Artist pages.
