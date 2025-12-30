@@ -2,8 +2,12 @@
     import type { Smol } from "../../types/domain";
     import { audioState, selectSong } from "../../stores/audio.svelte";
     import RadioPlayer from "../radio/RadioPlayer.svelte";
-    import { isAuthenticated } from "../../stores/user.svelte";
+    import { isAuthenticated, userState } from "../../stores/user.svelte";
     import LikeButton from "../ui/LikeButton.svelte";
+    import { useSmolMinting } from "../../hooks/useSmolMinting";
+    import TokenBalancePill from "../ui/TokenBalancePill.svelte";
+    import MintTradeModal from "../MintTradeModal.svelte";
+    import { getTokenBalance } from "../../utils/balance";
 
     let {
         discography = [],
@@ -30,6 +34,27 @@
     );
     let shuffleEnabled = $state(false);
     let currentIndex = $state(0);
+    let minting = $state(false);
+    let showTradeModal = $state(false);
+    let tradeMintBalance = $state(0);
+    let showGridView = $state(false);
+
+    const mintingHook = useSmolMinting();
+    const currentSong = $derived(audioState.currentSong);
+
+    const isMinted = $derived(
+        Boolean(currentSong?.Mint_Token && currentSong?.Mint_Amm),
+    );
+
+    $effect(() => {
+        if (currentSong?.Mint_Token && userState.contractId) {
+            getTokenBalance(currentSong.Mint_Token, userState.contractId).then(
+                (b) => {
+                    tradeMintBalance = b;
+                },
+            );
+        }
+    });
 
     // Derived playlist based on module and shuffle
     const basePlaylist = $derived.by(() => {
@@ -97,6 +122,50 @@
 
     function toggleShuffle() {
         shuffleEnabled = !shuffleEnabled;
+    }
+
+    async function triggerMint() {
+        if (!currentSong?.Id || minting || isMinted) return;
+        if (!userState.contractId) return alert("Connect wallet to mint");
+
+        try {
+            minting = true;
+            await mintingHook.triggerMint(
+                {
+                    id: currentSong.Id,
+                    contractId: userState.contractId,
+                    keyId: userState.keyId!,
+                    smolContractId: import.meta.env.PUBLIC_SMOL_CONTRACT_ID!,
+                    rpcUrl: import.meta.env.PUBLIC_RPC_URL!,
+                    networkPassphrase: import.meta.env
+                        .PUBLIC_NETWORK_PASSPHRASE!,
+                    creatorAddress: currentSong.Address || "",
+                    kaleSacId: import.meta.env.PUBLIC_KALE_SAC_ID!,
+                },
+                () => {
+                    // Update the local state to match minted status if needed
+                },
+            );
+        } catch (e: any) {
+            alert(e.message);
+        } finally {
+            minting = false;
+        }
+    }
+
+    function share() {
+        const url = currentSong?.Id
+            ? `${window.location.origin}/${currentSong.Id}`
+            : window.location.href;
+        navigator
+            .share?.({
+                title: currentSong?.Title || "SMOL Artist",
+                url,
+            })
+            .catch(() => {
+                navigator.clipboard.writeText(url);
+                alert("Link copied!");
+            });
     }
 </script>
 
@@ -191,28 +260,92 @@
                 </div>
             </div>
 
-            <div class="flex items-center gap-4">
-                <button
-                    onclick={toggleShuffle}
-                    class="flex items-center gap-2 px-3 py-1 rounded border transition-all {shuffleEnabled
-                        ? 'border-lime-500/50 bg-lime-500/10 text-lime-400'
-                        : 'border-white/10 text-white/40 hover:text-white'}"
+            <button
+                onclick={() => (showGridView = !showGridView)}
+                class="flex items-center gap-2 px-3 py-1 rounded border transition-all {showGridView
+                    ? 'border-purple-500/50 bg-purple-500/10 text-purple-400'
+                    : 'border-white/10 text-white/40 hover:text-white'}"
+            >
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke-width="1.5"
+                    stroke="currentColor"
+                    class="w-3 h-3"
                 >
-                    <svg
-                        class="w-3 h-3"
-                        fill="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-                        <path
-                            d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"
-                        />
-                    </svg>
-                    <span class="text-[9px] font-bold uppercase tracking-widest"
-                        >{shuffleEnabled ? "Shuffle On" : "Shuffle Off"}</span
-                    >
-                </button>
-            </div>
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H18A2.25 2.25 0 0 1 13.5 18v-2.25Z"
+                    />
+                </svg>
+                <span class="text-[9px] font-bold uppercase tracking-widest"
+                    >Grid View</span
+                >
+            </button>
+
+            <button
+                onclick={toggleShuffle}
+                class="flex items-center gap-2 px-3 py-1 rounded border transition-all {shuffleEnabled
+                    ? 'border-lime-500/50 bg-lime-500/10 text-lime-400'
+                    : 'border-white/10 text-white/40 hover:text-white'}"
+            >
+                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                        d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"
+                    />
+                </svg>
+                <span class="text-[9px] font-bold uppercase tracking-widest"
+                    >{shuffleEnabled ? "Shuffle On" : "Shuffle Off"}</span
+                >
+            </button>
         </div>
+    </div>
+
+    <div class="relative">
+        {#if showGridView}
+            <div
+                class="absolute inset-x-0 top-0 z-50 bg-black/90 backdrop-blur-xl border-b border-white/5 p-6 animate-in fade-in slide-in-from-top-4 duration-300 max-h-[400px] overflow-y-auto dark-scrollbar"
+            >
+                <div
+                    class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4"
+                >
+                    {#each displayPlaylist as song, index}
+                        <button
+                            class="flex flex-col gap-2 group text-left"
+                            onclick={() => {
+                                handleSelect(index);
+                                showGridView = false;
+                            }}
+                        >
+                            <div
+                                class="aspect-square rounded-lg bg-slate-800 overflow-hidden border border-white/10 group-hover:border-lime-500/50 transition-all shadow-lg relative"
+                            >
+                                <img
+                                    src="{API_URL}/image/{song.Id}.png"
+                                    alt={song.Title}
+                                    class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                />
+                                {#if index === currentIndex}
+                                    <div
+                                        class="absolute inset-0 bg-lime-500/20 flex items-center justify-center"
+                                    >
+                                        <div
+                                            class="w-2 h-2 rounded-full bg-lime-500 shadow-[0_0_12px_#84cc16]"
+                                        ></div>
+                                    </div>
+                                {/if}
+                            </div>
+                            <span
+                                class="text-[10px] font-bold text-white/60 truncate group-hover:text-white transition-colors"
+                                >{song.Title || "Untitled"}</span
+                            >
+                        </button>
+                    {/each}
+                </div>
+            </div>
+        {/if}
 
         <div
             class="flex flex-col lg:flex-row gap-8 h-auto lg:h-[560px] items-stretch p-4"
@@ -227,6 +360,43 @@
                     onToggleLike={handleToggleLike}
                     {currentIndex}
                 />
+
+                <!-- Mint + Trade Buttons -->
+                <div class="flex gap-3 -mt-2">
+                    {#if isMinted}
+                        {#if currentSong?.Mint_Amm && currentSong?.Mint_Token}
+                            <button
+                                onclick={() => (showTradeModal = true)}
+                                class="flex-1 py-3 bg-[#2775ca] hover:brightness-110 text-white font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
+                            >
+                                Trade <TokenBalancePill
+                                    balance={tradeMintBalance}
+                                />
+                            </button>
+                        {:else}
+                            <button
+                                onclick={() =>
+                                    (window.location.href = `/${currentSong?.Id}`)}
+                                class="flex-1 py-3 bg-emerald-500/20 text-emerald-300 font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2 border border-emerald-500/30"
+                            >
+                                ✓ Minted
+                            </button>
+                        {/if}
+                    {:else}
+                        <button
+                            onclick={triggerMint}
+                            disabled={minting}
+                            class="flex-1 py-3 bg-[#d836ff] hover:brightness-110 disabled:opacity-50 text-white font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
+                        >
+                            {minting ? "Minting..." : "Mint Track"}
+                        </button>
+                    {/if}
+                    <button
+                        onclick={share}
+                        class="px-6 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl border border-white/5 transition-all text-xs uppercase tracking-widest"
+                        >Share</button
+                    >
+                </div>
             </div>
 
             <!-- RIGHT COLUMN: PLAYLIST -->
@@ -234,10 +404,10 @@
                 class="w-full lg:w-1/2 flex flex-col min-h-0 bg-black/20 border border-white/5 rounded-2xl overflow-hidden shadow-inner"
             >
                 <div
-                    class="flex items-center justify-between p-4 border-b border-white/5 bg-white/2 flex-shrink-0"
+                    class="flex items-center justify-between p-4 border-b border-white/5 bg-white/5 flex-shrink-0"
                 >
                     <h3
-                        class="text-white/80 font-bold tracking-[0.2em] uppercase text-[10px]"
+                        class="text-white font-bold tracking-widest uppercase text-xs"
                     >
                         {activeModule} ({displayPlaylist.length})
                     </h3>
@@ -252,10 +422,9 @@
                     </div>
                 </div>
 
-                <div class="flex-1 relative min-h-0">
-                    <ul
-                        class="divide-y divide-white/5 h-full overflow-y-auto dark-scrollbar"
-                    >
+                <div
+                    class="h-[380px] lg:h-full lg:flex-1 overflow-y-scroll dark-scrollbar pr-2"
+                >
                         {#each displayPlaylist as song, index}
                             <li>
                                 <div
@@ -421,18 +590,17 @@
     </div>
 </div>
 
-<style>
-    .dark-scrollbar::-webkit-scrollbar {
-        width: 6px;
-    }
-    .dark-scrollbar::-webkit-scrollbar-track {
-        background: rgba(0, 0, 0, 0.2);
-    }
-    .dark-scrollbar::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 10px;
-    }
-    .dark-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: rgba(255, 255, 255, 0.2);
-    }
-</style>
+{#if showTradeModal && currentSong && currentSong.Mint_Amm && currentSong.Mint_Token}
+    <MintTradeModal
+        ammId={currentSong.Mint_Amm}
+        mintTokenId={currentSong.Mint_Token}
+        songId={currentSong.Id}
+        title={currentSong.Title || "Untitled"}
+        imageUrl="{API_URL}/image/{currentSong.Id}.png"
+        on:close={() => (showTradeModal = false)}
+        on:complete={() => {
+            showTradeModal = false;
+        }}
+    />
+{/if}
+
