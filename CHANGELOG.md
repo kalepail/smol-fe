@@ -1,6 +1,33 @@
 # Changelog
 
-## [1.5.2] - 2025-12-29
+## [1.5.4] - 2025-12-30
+
+### 🚀 Major Features
+- **Premium Track Experience**: New dedicated track detail page (`/[id]`) with:
+  - **Dynamic Backgrounds**: Album art blur portal effect.
+  - **Live Version Switching**: Seamless V1/V2 toggling without audio interruption.
+  - **Trade & Mint UI**: Integrated buttons for trading and minting songs (visual only).
+  - **Lyrics & Metadata**: Tabbed interface for deep song details.
+- **Radio Player v2**:
+  - **Desktop Sidebar**: Split-view layout with player on left, playlist on right.
+  - **Visualizer**: Integrated waveform visualizer in bottom bar.
+  - **Trade Integration**: New "Trade" button in player controls for flagged songs.
+  - **Scrubber**: Interactive progress bar with smoother motion.
+- **Artist Page Overhaul**:
+  - **Sorting**: "Fresh Drops" (Time) vs "Top Artists" (Volume) sorting toggles.
+  - **Relative Time**: Timestamps now show "2h ago", "1d ago", etc.
+  - **Visual Polish**: Enhanced card glows and metadata typography.
+
+### 🛠 Improvements
+- **Mobile Polish**: Better wrapping for player controls and artist grids.
+- **Theme**: Unified `#d836ff` (Purple) accent color across all buttons and inputs.
+- **Performance**: Hydration fix for `PUBLIC_RPC_URL` crashes.
+- **Layout**: Mathematical vertical centering for the track detail card.
+
+---
+
+## [1.5.3] - 2025-12-29
+
 
 ### Added
 - **Smart Shuffle**: Artist-aware algorithm prevents artist clustering in playlists
