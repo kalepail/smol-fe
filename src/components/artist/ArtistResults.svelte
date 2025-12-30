@@ -425,6 +425,7 @@
                 <div
                     class="h-[380px] lg:h-full lg:flex-1 overflow-y-scroll dark-scrollbar pr-2"
                 >
+                    <ul class="divide-y divide-white/5">
                         {#each displayPlaylist as song, index}
                             <li>
                                 <div
@@ -603,4 +604,3 @@
         }}
     />
 {/if}
-
