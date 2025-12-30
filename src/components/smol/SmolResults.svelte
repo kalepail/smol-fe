@@ -181,46 +181,6 @@
         </div>
     {:else if data}
         <div class="animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <!-- Header -->
-            <div
-                class="flex flex-col md:flex-row items-start md:items-end justify-between gap-4 mb-3"
-            >
-                <div>
-                    <h1
-                        class="text-[10px] text-white/40 uppercase tracking-[0.3em] mb-1"
-                    >
-                        Track Detail
-                    </h1>
-                    <h2 class="text-3xl font-bold tracking-tighter text-white">
-                        {data.d1?.Title || "Untitled"}
-                    </h2>
-                    <p
-                        class="text-xs text-[#d836ff]/60 mt-1 uppercase tracking-widest flex items-center gap-2"
-                    >
-                        CREATED BY <a
-                            href="/artist/{data.d1?.Address}"
-                            class="hover:underline text-[#d836ff]"
-                            >{data.d1?.Address?.slice(0, 12)}...</a
-                        >
-                    </p>
-                </div>
-
-                <div class="flex gap-3">
-                    {#if minted}
-                        <span
-                            class="px-3 py-1 rounded bg-[#d836ff]/10 text-[#d836ff] text-[10px] border border-[#d836ff]/20 uppercase font-bold tracking-widest"
-                            >MINTED</span
-                        >
-                    {/if}
-                    {#if data.kv_do?.nsfw?.safe === false}
-                        <span
-                            class="px-3 py-1 rounded bg-rose-500/10 text-rose-400 text-[10px] border border-rose-500/20 uppercase font-bold tracking-widest"
-                            >NSFW</span
-                        >
-                    {/if}
-                </div>
-            </div>
-
             <!-- Main Portal -->
             <div
                 class="reactive-glass border border-white/5 bg-[#1a1a1a] overflow-hidden rounded-2xl shadow-2xl"
@@ -235,7 +195,7 @@
                         >
                             <svg
                                 viewBox="0 0 24 24"
-                                class="w-5 h-5"
+                                class="w-4 h-4"
                                 fill="currentColor"
                             >
                                 <path
@@ -243,10 +203,40 @@
                                 />
                             </svg>
                         </div>
-                        <span
-                            class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40"
-                            >Mixtape Audio Engine</span
-                        >
+                        <div class="flex items-baseline gap-3">
+                            <span
+                                class="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 whitespace-nowrap"
+                                >Track Detail /</span
+                            >
+                            <span
+                                class="text-xs font-bold text-white tracking-tight"
+                                >{data.d1?.Title || "Untitled"}</span
+                            >
+                            <span
+                                class="text-[9px] text-[#d836ff]/60 uppercase tracking-widest flex items-center gap-1"
+                            >
+                                BY <a
+                                    href="/artist/{data.d1?.Address}"
+                                    class="hover:underline text-[#d836ff]"
+                                    >{data.d1?.Address?.slice(0, 8)}...</a
+                                >
+                            </span>
+                        </div>
+
+                        <div class="flex gap-2 ml-2">
+                            {#if minted}
+                                <span
+                                    class="px-2 py-0.5 rounded bg-[#d836ff]/10 text-[#d836ff] text-[8px] border border-[#d836ff]/20 uppercase font-bold tracking-widest"
+                                    >MINTED</span
+                                >
+                            {/if}
+                            {#if data.kv_do?.nsfw?.safe === false}
+                                <span
+                                    class="px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 text-[8px] border border-rose-500/20 uppercase font-bold tracking-widest"
+                                    >NSFW</span
+                                >
+                            {/if}
+                        </div>
                     </div>
 
                     <div class="flex items-center gap-4">
@@ -271,7 +261,7 @@
                 </div>
 
                 <div
-                    class="flex flex-col lg:flex-row gap-6 items-stretch p-4 h-auto lg:h-[540px]"
+                    class="flex flex-col lg:flex-row gap-8 items-stretch p-6 h-auto lg:h-[580px]"
                 >
                     <!-- Left: Player Column -->
                     <div class="w-full lg:w-1/2 flex flex-col">
