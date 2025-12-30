@@ -350,6 +350,10 @@
         <div
           class="absolute inset-0 z-20 bg-gradient-to-t from-black/95 via-transparent to-transparent pointer-events-none"
         ></div>
+        <!-- Top Gradient for Text Contrast -->
+        <div
+          class="absolute inset-0 z-20 bg-gradient-to-b from-black/40 via-transparent to-transparent pointer-events-none h-32"
+        ></div>
 
         <!-- Fallback icon -->
         <span
@@ -373,8 +377,13 @@
         <div class="absolute top-0 left-0 p-6 z-30">
           <div
             class="{isFullscreen
-              ? 'text-4xl'
-              : 'text-2xl'} text-white font-bold tracking-tight truncate drop-shadow-2xl"
+              ? songTitle?.length > 25
+                ? 'text-2xl'
+                : 'text-4xl'
+              : songTitle?.length > 25
+                ? 'text-lg'
+                : 'text-2xl'} text-white font-bold tracking-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] leading-tight"
+            style="text-shadow: 0 0 2px rgba(0,0,0,0.5);"
           >
             {songTitle}
           </div>
