@@ -337,11 +337,9 @@
                 </div>
 
                 <div
-                    class="flex-1 relative min-h-0 h-[450px] lg:h-full overflow-y-auto dark-scrollbar pr-2"
+                    class="h-[380px] lg:h-full lg:flex-1 overflow-y-scroll dark-scrollbar pr-2"
                 >
-                    <ul
-                        class="divide-y divide-white/5 h-full overflow-y-auto dark-scrollbar"
-                    >
+                    <ul class="divide-y divide-white/5">
                         {#each playlist as song, index}
                             <li>
                                 <div
