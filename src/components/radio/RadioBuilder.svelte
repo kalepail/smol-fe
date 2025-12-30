@@ -5,6 +5,8 @@
     audioState,
     selectSong,
     registerSongNextCallback,
+    togglePlayPause,
+    isPlaying as getIsPlaying,
   } from "../../stores/audio.svelte";
   import RadioPlayer from "./RadioPlayer.svelte";
   import RadioResults from "./RadioResults.svelte";
@@ -93,6 +95,9 @@
   let isSavingMixtape = $state(false);
   let isAiLoading = $state(false);
   let isDreamMode = $state(false);
+  let isActiveGlobalShuffle = $state(false);
+
+  let isPlaying = $derived(getIsPlaying());
 
   // AI Assist Handler
   async function handleAiAssist() {
@@ -378,9 +383,9 @@
   }
 
   async function generateStation() {
-    if (selectedTags.length === 0) return;
     isGenerating = true;
-    stationName = "Generating...";
+    stationName =
+      selectedTags.length > 0 ? "Generating..." : "Global Shuffle...";
     stationDescription = "";
 
     const normalizedSelected = selectedTags.map(normalizeTag);
@@ -453,13 +458,19 @@
         // This prevents repeats even if we run out of songs (shorter playlist = verified fresh)
         const historyPenalty = recentlyGeneratedIds.has(smol.Id) ? 0 : 1.0;
 
-        // Only include if there is SOME relevance (score > 0)
+        const isGlobalShuffle = normalizedSelected.length === 0;
+
+        // Only include if there is SOME relevance (score > 0) or if in global shuffle mode
         return {
           smol,
           // deterministic score (no random)
           score:
-            matchScore > 0
-              ? (matchScore + keywordBonus + popularity) * historyPenalty
+            matchScore > 0 || isGlobalShuffle
+              ? (matchScore +
+                  keywordBonus +
+                  popularity +
+                  (isGlobalShuffle ? 1 : 0)) *
+                historyPenalty
               : 0,
         };
       })
@@ -469,17 +480,27 @@
       `[AI] Generated ${scored.length} candidates. History size: ${recentlyGeneratedIds.size}`,
     );
 
-    scored.sort((a, b) => b.score - a.score);
-    let selected = scored.slice(0, TARGET_SONGS).map((s) => s.smol);
+    const isGlobalShuffle = normalizedSelected.length === 0;
+    let selected: Smol[] = [];
 
-    // Smart Shuffle: Prevent artist clustering
-    if (isShuffled) {
-      selected = smartShuffle(selected);
+    if (isGlobalShuffle) {
+      // Pick TARGET_SONGS random candidates from the pool
+      const pool = scored.map((s) => s.smol);
+      selected = pool.sort(() => Math.random() - 0.5).slice(0, TARGET_SONGS);
+    } else {
+      // Standard relevance-based selection
+      scored.sort((a, b) => b.score - a.score);
+      selected = scored.slice(0, TARGET_SONGS).map((s) => s.smol);
     }
+
+    // Smart Shuffle: Prevent artist clustering (always apply for spacing)
+    selected = smartShuffle(selected);
 
     generatedPlaylist = selected;
     currentIndex = 0;
     isGenerating = false;
+    isActiveGlobalShuffle = isGlobalShuffle;
+    showBuilder = false;
 
     if (selected.length > 0) {
       // Update history for next time
@@ -728,31 +749,6 @@
             {/if}
           {/if}
 
-          <!-- ACTIVE TAGS (Only visible on desktop in full mode - mobile shows in title bar) -->
-          {#if selectedTags.length > 0 && !isCompact}
-            <div
-              class="hidden md:flex flex-wrap gap-2 animate-in fade-in duration-300"
-            >
-              {#each selectedTags as tag}
-                <span
-                  class="reactive-pill selected inline-flex items-center gap-2 px-3 py-1 text-xs text-white font-mono bg-[#872ab0] shadow-[0_0_15px_rgba(135,42,176,0.7)] border-none"
-                >
-                  {tag}
-                  <button
-                    class="hover:text-red-200 transition-colors font-bold"
-                    onclick={() => removeTag(tag)}>×</button
-                  >
-                </span>
-              {/each}
-              {#if isCompact}
-                <button
-                  class="text-[10px] text-white/30 hover:text-white transition-colors uppercase tracking-widest ml-2"
-                  onclick={clearTags}>Clear</button
-                >
-              {/if}
-            </div>
-          {/if}
-
           <!-- TAG CLOUD (Collapsible) -->
           {#if showCloud}
             <div
@@ -783,18 +779,24 @@
                 class="w-full flex flex-wrap items-center justify-between gap-2 mb-3"
               >
                 {#if selectedTags.length > 0}
-                  <div class="flex flex-wrap gap-1 items-center">
+                  <div class="flex flex-wrap gap-2 items-center">
                     {#each selectedTags as tag}
                       <span
-                        class="px-2 py-0.5 text-[10px] bg-[#872ab0] text-white rounded-full border border-[#872ab0]/50 shadow-[0_0_12px_rgba(135,42,176,0.6)]"
+                        class="px-2 py-0.5 text-[10px] bg-[#872ab0] text-white rounded-full border border-[#872ab0]/50 shadow-[0_0_12px_rgba(135,42,176,0.6)] flex items-center gap-1.5 cursor-pointer hover:bg-[#872ab0]/90 transition-all"
+                        onclick={() => removeTag(tag)}
                       >
                         {tag}
+                        <span class="text-[8px] opacity-70 hover:opacity-100"
+                          >✕</span
+                        >
                       </span>
                     {/each}
                     <button
                       class="text-[10px] text-white/30 hover:text-red-400 transition-colors ml-1"
-                      onclick={clearTags}>✕</button
+                      onclick={clearTags}
                     >
+                      Clear All
+                    </button>
                   </div>
                 {:else}
                   <span class="text-[10px] text-white/30"
@@ -949,10 +951,8 @@
                     generateStation();
                   }
                 }}
-                disabled={(selectedTags.length === 0 &&
-                  (!isDreamMode || !moodInput.trim())) ||
-                  isGenerating ||
-                  (isDreamMode && isFetchingMood)}
+                disabled={isGenerating ||
+                  (isDreamMode && isFetchingMood && !moodInput.trim())}
               >
                 {isGenerating || isFetchingMood ? "SYNTHESIZING..." : "IGNITE"}
               </button>
@@ -966,17 +966,22 @@
     {#if generatedPlaylist.length > 0 && !showBuilder}
       <div class="animate-in fade-in slide-in-from-bottom-8 duration-700">
         <RadioResults
-          playlist={generatedPlaylist}
+          {generatedPlaylist}
+          {selectedTags}
+          {isPlaying}
+          currentSongIndex={currentIndex}
           {stationName}
           {stationDescription}
-          {currentIndex}
           {isSavingMixtape}
           onNext={playNext}
           onPrev={playPrev}
-          onSelect={playSongAtIndex}
+          onPlaySong={playSongAtIndex}
+          onTogglePlay={togglePlayPause}
           onSaveMixtape={saveAsMixtape}
           onRegenerate={generateStation}
-          onShowBuilder={toggleBuilder}
+          onRemoveTag={removeTag}
+          isGlobalShuffle={isActiveGlobalShuffle}
+          onShowBuilder={() => (showBuilder = true)}
         />
       </div>
     {/if}

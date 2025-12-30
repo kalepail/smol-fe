@@ -5,32 +5,43 @@
     import { isAuthenticated, userState } from "../../stores/user.svelte";
     import LikeButton from "../ui/LikeButton.svelte";
     import { useSmolMinting } from "../../hooks/useSmolMinting";
+    import confetti from "canvas-confetti";
 
     let {
-        playlist = [],
+        generatedPlaylist: playlist = [],
+        selectedTags = [],
+        isPlaying,
+        currentSongIndex: currentIndex,
         stationName,
         stationDescription,
-        currentIndex,
         isSavingMixtape,
         onNext,
         onPrev,
-        onSelect,
+        onPlaySong: onSelect,
+        onTogglePlay,
         onSaveMixtape,
         onRegenerate,
         onToggleLike,
+        onRemoveTag,
+        isGlobalShuffle = false,
         onShowBuilder,
     }: {
-        playlist: Smol[];
+        generatedPlaylist: Smol[];
+        selectedTags: string[];
+        isPlaying: boolean;
+        currentSongIndex: number;
         stationName: string;
         stationDescription: string;
-        currentIndex: number;
         isSavingMixtape: boolean;
-        onNext: () => void;
-        onPrev: () => void;
-        onSelect: (index: number) => void;
-        onSaveMixtape: () => void;
-        onToggleLike?: (index: number, liked: boolean) => void;
+        onNext?: () => void;
+        onPrev?: () => void;
+        onPlaySong: (index: number) => void;
+        onTogglePlay?: () => void;
+        onSaveMixtape?: () => void;
         onRegenerate?: () => void;
+        onToggleLike?: (index: number, liked: boolean) => void;
+        onRemoveTag?: (tag: string) => void;
+        isGlobalShuffle?: boolean;
         onShowBuilder?: () => void;
     } = $props();
 
@@ -42,6 +53,41 @@
 
     // Current song derived
     const currentSong = $derived(playlist[currentIndex]);
+
+    // Confetti logic for Global Mode
+    let lastGlobalState = $state(false);
+    $effect(() => {
+        if (isGlobalShuffle && !lastGlobalState) {
+            // Triple burst for maximum impact!
+            const count = 200;
+            const defaults = {
+                origin: { y: 0.7 },
+                colors: ["#F7931A", "#872ab0", "#1b8da0", "#ffffff"],
+                zIndex: 999,
+            };
+
+            function fire(particleRatio: number, opts: any) {
+                confetti({
+                    ...defaults,
+                    ...opts,
+                    particleCount: Math.floor(count * particleRatio),
+                });
+            }
+
+            fire(0.25, { spread: 26, startVelocity: 55 });
+            fire(0.2, { spread: 60 });
+            fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
+            fire(0.1, {
+                spread: 120,
+                startVelocity: 25,
+                decay: 0.92,
+                scalar: 1.2,
+            });
+            fire(0.1, { spread: 120, startVelocity: 45 });
+        }
+        lastGlobalState = isGlobalShuffle;
+    });
+
     const isMinted = $derived(
         Boolean(currentSong?.Mint_Token && currentSong?.Mint_Amm),
     );
@@ -111,23 +157,63 @@
         <div
             class="flex items-center justify-between px-6 py-1.5 bg-black/40 border-b border-white/5"
         >
-            <div class="flex items-center gap-2 select-none">
-                <!-- Stellar Logo (White part, Glowing) -->
-                <div
-                    class="text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]"
-                >
-                    <svg
-                        viewBox="0 0 24 24"
-                        class="w-6 h-6"
-                        fill="currentColor"
-                        xmlns="http://www.w3.org/2000/svg"
-                    >
-                        <title>Stellar</title>
-                        <path
-                            d="M12.003 1.716c-1.37 0-2.7.27-3.948.78A10.18 10.18 0 0 0 2.66 7.901a10.136 10.136 0 0 0-.797 3.954c0 .258.01.516.027.775a1.942 1.942 0 0 1-1.055 1.88L0 14.934v1.902l2.463-1.26.072-.032v.005l.77-.39.758-.385.066-.039 14.807-7.56 1.666-.847 3.392-1.732V2.694L17.792 5.86 3.744 13.025l-.104.055-.017-.115a8.286 8.286 0 0 1-.071-1.105c0-2.255.88-4.377 2.474-5.977a8.462 8.462 0 0 1 2.71-1.82 8.513 8.513 0 0 1 3.2-.654h.067a8.41 8.41 0 0 1 4.09 1.055l1.628-.83.126-.066a10.11 10.11 0 0 0-5.845-1.853zM24 7.143 5.047 16.808l-1.666.847L0 19.382v1.902l3.282-1.671 2.91-1.485 14.058-7.153.105-.055.016.115c.05.369.072.743.072 1.11 0 2.255-.88 4.383-2.475 5.978a8.461 8.461 0 0 1-2.71 1.82 8.305 8.305 0 0 1-3.2.654h-.06c-1.441 0-2.86-.369-4.102-1.061l-.066.033-1.683.857c.594.418 1.232.776 1.903 1.062a10.11 10.11 0 0 0 3.947.797 10.09 10.09 0 0 0 7.17-2.975 10.136 10.136 0 0 0 2.969-7.18c0-.259-.005-.523-.027-.781a1.942 1.942 0 0 1 1.055-1.88L24 9.044z"
+            <div class="flex items-center gap-3 select-none flex-1">
+                {#if isGlobalShuffle}
+                    <!-- Global Mode Branding -->
+                    <div class="flex items-center gap-2.5">
+                        <img
+                            src="/global_mode.png"
+                            alt="Stellar Global"
+                            class="w-6 h-6 object-contain drop-shadow-[0_0_4px_rgba(255,255,255,0.4)]"
                         />
-                    </svg>
-                </div>
+                        <span
+                            class="text-xs font-black text-white uppercase tracking-[0.2em] animate-pulse"
+                        >
+                            GLOBAL MODE!!! 🚀
+                        </span>
+                    </div>
+                {:else}
+                    <!-- Stellar Logo (White part, Glowing) -->
+                    <div
+                        class="text-white drop-shadow-[0_0_4px_rgba(255,255,255,0.4)]"
+                    >
+                        <svg
+                            viewBox="0 0 24 24"
+                            class="w-5 h-5"
+                            fill="currentColor"
+                            xmlns="http://www.w3.org/2000/svg"
+                        >
+                            <title>Stellar</title>
+                            <path
+                                d="M12.003 1.716c-1.37 0-2.7.27-3.948.78A10.18 10.18 0 0 0 2.66 7.901a10.136 10.136 0 0 0-.797 3.954c0 .258.01.516.027.775a1.942 1.942 0 0 1-1.055 1.88L0 14.934v1.902l2.463-1.26.072-.032v.005l.77-.39.758-.385.066-.039 14.807-7.56 1.666-.847 3.392-1.732V2.694L17.792 5.86 3.744 13.025l-.104.055-.017-.115a8.286 8.286 0 0 1-.071-1.105c0-2.255.88-4.377 2.474-5.977a8.462 8.462 0 0 1 2.71-1.82 8.513 8.513 0 0 1 3.2-.654h.067a8.41 8.41 0 0 1 4.09 1.055l1.628-.83.126-.066a10.11 10.11 0 0 0-5.845-1.853zM24 7.143 5.047 16.808l-1.666.847L0 19.382v1.902l3.282-1.671 2.91-1.485 14.058-7.153.105-.055.016.115c.05.369.072.743.072 1.11 0 2.255-.88 4.383-2.475 5.978a8.461 8.461 0 0 1-2.71 1.82 8.305 8.305 0 0 1-3.2.654h-.06c-1.441 0-2.86-.369-4.102-1.061l-.066.033-1.683.857c.594.418 1.232.776 1.903 1.062a10.11 10.11 0 0 0 3.947.797 10.09 10.09 0 0 0 7.17-2.975 10.136 10.136 0 0 0 2.969-7.18c0-.259-.005-.523-.027-.781a1.942 1.942 0 0 1 1.055-1.88L24 9.044z"
+                            />
+                        </svg>
+                    </div>
+                {/if}
+
+                <!-- Active Tags Display -->
+                {#if selectedTags.length > 0}
+                    <div
+                        class="flex gap-2 overflow-x-auto no-scrollbar py-1 mask-fade-right"
+                    >
+                        {#each selectedTags as tag}
+                            <button
+                                type="button"
+                                class="px-2 py-0.5 text-[9px] bg-[#872ab0]/20 text-[#872ab0] rounded-full border border-[#872ab0]/30 shadow-[0_0_8px_rgba(135,42,176,0.3)] whitespace-nowrap flex items-center gap-1.5 cursor-pointer hover:bg-[#872ab0]/30 transition-all group"
+                                onclick={(e) => {
+                                    e.stopPropagation();
+                                    onRemoveTag?.(tag);
+                                }}
+                            >
+                                {tag}
+                                <span
+                                    class="text-[8px] opacity-50 group-hover:opacity-100"
+                                    >✕</span
+                                >
+                            </button>
+                        {/each}
+                    </div>
+                {/if}
             </div>
             <div class="flex items-center gap-4">
                 <button
