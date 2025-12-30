@@ -193,11 +193,11 @@
 >
     <!-- Artist Info Header (Windowed) -->
     <div
-        class="max-w-6xl mx-auto reactive-glass border border-white/5 bg-[#1a1a1a]/80 backdrop-blur-xl rounded-2xl shadow-xl overflow-hidden mb-4 p-6 md:p-8 flex flex-col md:flex-row items-start md:items-end justify-between gap-6 relative group/header"
+        class="max-w-6xl mx-auto reactive-glass border border-white/5 bg-[#1a1a1a]/80 backdrop-blur-xl rounded-2xl shadow-xl overflow-hidden mb-2 p-4 flex flex-col md:flex-row items-start md:items-end justify-between gap-4 relative group/header"
     >
-        <div class="space-y-2 relative z-10">
+        <div class="space-y-1 relative z-10">
             <h1
-                class="text-[10px] font-mono text-white/40 uppercase tracking-[0.3em]"
+                class="text-[9px] font-mono text-white/40 uppercase tracking-[0.3em]"
             >
                 Artist Profile
             </h1>
@@ -226,7 +226,13 @@
             </div>
             <div class="flex items-center gap-2 mt-2">
                 <button
-                    onclick={() => (showTipModal = true)}
+                    onclick={() => {
+                        if (!userState.contractId) {
+                            triggerLogin();
+                            return;
+                        }
+                        showTipModal = true;
+                    }}
                     class="px-3 py-1 bg-gradient-to-r from-green-600/20 to-green-500/10 border border-green-500/30 rounded-full text-green-400 text-[10px] font-bold uppercase tracking-widest hover:bg-green-500/20 transition-all flex items-center gap-1.5"
                 >
                     <span class="text-base leading-none">🥬</span>
@@ -268,10 +274,11 @@
 
     <!-- Main Player Card -->
     <div
-        class="reactive-glass border border-white/5 bg-[#1a1a1a] max-w-6xl mx-auto overflow-hidden rounded-2xl shadow-2xl"
+        class="max-w-6xl mx-auto reactive-glass border border-white/5 bg-[#1a1a1a]/80 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden relative min-h-[500px]"
     >
+        <!-- Control Bar -->
         <div
-            class="flex items-center justify-between px-6 py-1.5 bg-black/40 border-b border-white/5"
+            class="flex items-center justify-between p-3 border-b border-white/5 bg-black/20"
         >
             <div class="flex items-center gap-2 select-none">
                 <div
@@ -362,10 +369,10 @@
         </div>
     </div>
 
-    <div class="relative">
+    <div class="relative min-h-[600px]">
         {#if showGridView}
             <div
-                class="absolute inset-x-0 top-0 z-50 bg-black/90 backdrop-blur-xl border-b border-white/5 p-6 animate-in fade-in slide-in-from-top-4 duration-300 max-h-[400px] overflow-y-auto dark-scrollbar"
+                class="absolute inset-0 z-50 bg-[#121212] p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto dark-scrollbar"
             >
                 <div
                     class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4"
