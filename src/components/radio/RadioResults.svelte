@@ -327,19 +327,6 @@
                     >
                         Up Next
                     </h3>
-                    {#if isAuthenticated()}
-                        <button
-                            onclick={onSaveMixtape}
-                            disabled={isSavingMixtape}
-                            class="tech-button px-4 py-1.5 text-xs font-bold text-white flex items-center gap-2 disabled:opacity-50 whitespace-nowrap uppercase tracking-wider border border-white/10 hover:border-purple-500/50"
-                        >
-                            {#if isSavingMixtape}
-                                <span class="animate-spin">⏳</span> SAVING...
-                            {:else}
-                                <span>💾</span> SAVE
-                            {/if}
-                        </button>
-                    {/if}
                 </div>
 
                 <div class="flex-1 relative min-h-0">

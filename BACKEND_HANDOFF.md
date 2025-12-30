@@ -28,7 +28,6 @@ Hey Tyler, we've made significant progress on the Radio and Track Detail UI. We 
 - **Action**: Test every feature that requires authentication.
 - **Goal**: Verify:
     - **Likes**: Toggling likes on the Radio and Artist pages.
-    - **Mixtape Saving**: Saving radio generations as mixtapes.
     - **Ownership Checks**: Ensuring only the original creator can "Publish/Unpublish" or "Delete" tracks on the detailed `/[id]` page.
 
 ---
