@@ -6,6 +6,10 @@
     import LikeButton from "../ui/LikeButton.svelte";
     import { useSmolMinting } from "../../hooks/useSmolMinting";
     import confetti from "canvas-confetti";
+    import TokenBalancePill from "../ui/TokenBalancePill.svelte";
+    import MintTradeModal from "../MintTradeModal.svelte";
+    import { sac } from "../../utils/passkey-kit";
+    import { getTokenBalance } from "../../utils/balance";
 
     let {
         generatedPlaylist: playlist = [],
@@ -51,8 +55,23 @@
     const mintingHook = useSmolMinting();
     let minting = $state(false);
 
-    // Current song derived
     const currentSong = $derived(playlist[currentIndex]);
+    let showTradeModal = $state(false);
+    let tradeMintBalance = $state(0n);
+
+    // Fetch mint balance for current track
+    $effect(() => {
+        const mintToken = currentSong?.Mint_Token;
+        const contractId = userState.contractId;
+        if (mintToken && contractId) {
+            const client = sac.getSACClient(mintToken);
+            getTokenBalance(client, contractId).then(
+                (b) => (tradeMintBalance = b),
+            );
+        } else {
+            tradeMintBalance = 0n;
+        }
+    });
 
     // Confetti logic for Global Mode
     let lastGlobalState = $state(false);
@@ -258,16 +277,27 @@
                     {currentIndex}
                 />
 
-                <!-- Mint + Share Buttons -->
+                <!-- Mint + Trade Buttons -->
                 <div class="flex gap-3 -mt-2">
                     {#if isMinted}
-                        <button
-                            onclick={() =>
-                                (window.location.href = `/${currentSong?.Id}`)}
-                            class="flex-1 py-3 bg-emerald-500/20 text-emerald-300 font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2 border border-emerald-500/30"
-                        >
-                            ✓ Minted
-                        </button>
+                        {#if currentSong?.Mint_Amm && currentSong?.Mint_Token}
+                            <button
+                                onclick={() => (showTradeModal = true)}
+                                class="flex-1 py-3 bg-[#2775ca] hover:brightness-110 text-white font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
+                            >
+                                Trade <TokenBalancePill
+                                    balance={tradeMintBalance}
+                                />
+                            </button>
+                        {:else}
+                            <button
+                                onclick={() =>
+                                    (window.location.href = `/${currentSong?.Id}`)}
+                                class="flex-1 py-3 bg-emerald-500/20 text-emerald-300 font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2 border border-emerald-500/30"
+                            >
+                                ✓ Minted
+                            </button>
+                        {/if}
                     {:else}
                         <button
                             onclick={triggerMint}
@@ -436,3 +466,19 @@
         </div>
     </div>
 </div>
+
+{#if showTradeModal && currentSong && currentSong.Mint_Amm && currentSong.Mint_Token}
+    <MintTradeModal
+        ammId={currentSong.Mint_Amm}
+        mintTokenId={currentSong.Mint_Token}
+        songId={currentSong.Id}
+        title={currentSong.Title || "Untitled"}
+        imageUrl="{API_URL}/image/{currentSong.Id}.png"
+        on:close={() => (showTradeModal = false)}
+        on:complete={() => {
+            // No simple way to trigger a full re-fetch of the single song in Radio
+            // but the getTokenBalance effect will auto-update the pill.
+            showTradeModal = false;
+        }}
+    />
+{/if}
