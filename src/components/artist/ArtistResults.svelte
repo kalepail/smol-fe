@@ -174,44 +174,103 @@
                 alert("Link copied!");
             });
     }
+
+    function copyAddress() {
+        navigator.clipboard.writeText(address).then(() => {
+            alert("Address copied! Send XLM or USDC to tip this artist.");
+        });
+    }
+
+    const shortAddress = $derived(
+        address ? `${address.slice(0, 4)}...${address.slice(-4)}` : "",
+    );
 </script>
 
 <div
     class="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700 font-mono"
 >
-    <!-- Artist Info Header -->
+    <!-- Artist Info Header (Windowed) -->
     <div
-        class="max-w-6xl mx-auto flex flex-col md:flex-row items-start md:items-end justify-between px-4 gap-4 mb-2"
+        class="max-w-6xl mx-auto reactive-glass border border-white/5 bg-[#1a1a1a]/80 backdrop-blur-xl rounded-2xl shadow-xl overflow-hidden mb-4 p-6 md:p-8 flex flex-col md:flex-row items-start md:items-end justify-between gap-6 relative group/header"
     >
-        <div>
+        <div class="space-y-2 relative z-10">
             <h1
-                class="text-[10px] font-mono text-white/40 uppercase tracking-[0.3em] mb-1"
+                class="text-[10px] font-mono text-white/40 uppercase tracking-[0.3em]"
             >
                 Artist Profile
             </h1>
-            <h2
-                class="text-2xl md:text-3xl font-bold tracking-tighter text-white break-all"
-            >
-                {address}
-            </h2>
+            <div class="flex items-center gap-3">
+                <button
+                    onclick={copyAddress}
+                    class="text-3xl md:text-4xl font-bold tracking-tighter text-white hover:text-[#d836ff] transition-colors flex items-center gap-3 group/address text-left"
+                    title="Click to copy address"
+                >
+                    {shortAddress}
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke-width="2"
+                        stroke="currentColor"
+                        class="w-5 h-5 opacity-0 group-hover/address:opacity-100 transition-all text-[#d836ff] -ml-2 group-hover/address:ml-0"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75"
+                        />
+                    </svg>
+                </button>
+            </div>
+            <div class="flex items-center gap-2 mt-2">
+                <button
+                    onclick={copyAddress}
+                    class="px-3 py-1 bg-gradient-to-r from-yellow-600/20 to-yellow-500/10 border border-yellow-500/30 rounded-full text-yellow-500 text-[10px] font-bold uppercase tracking-widest hover:bg-yellow-500/20 transition-all flex items-center gap-1.5"
+                >
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        class="w-3 h-3"
+                    >
+                        <path
+                            d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"
+                        />
+                    </svg>
+                    Tip Artist
+                </button>
+            </div>
         </div>
-        <div class="flex flex-wrap gap-2">
-            <span
-                class="px-2 py-0.5 rounded bg-lime-500/10 text-lime-400 text-[10px] border border-lime-500/20 uppercase tracking-widest font-bold"
-            >
-                {publishedCount} Published
-            </span>
-            <span
-                class="px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 text-[10px] border border-purple-500/20 uppercase tracking-widest font-bold"
-            >
-                {mintedCount} Minted
-            </span>
-            <span
-                class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 text-[10px] border border-blue-500/20 uppercase tracking-widest font-bold"
-            >
-                {collectedCount} Collected
-            </span>
+
+        <div class="flex flex-col items-end gap-3 relative z-10">
+            <div class="flex flex-wrap gap-2 justify-end">
+                <span
+                    class="px-3 py-1 rounded-md bg-lime-500/10 text-lime-400 text-[10px] border border-lime-500/20 uppercase tracking-widest font-bold shadow-[0_0_10px_rgba(132,204,22,0.1)]"
+                >
+                    {publishedCount} Published
+                </span>
+                <span
+                    class="px-3 py-1 rounded-md bg-purple-500/10 text-purple-400 text-[10px] border border-purple-500/20 uppercase tracking-widest font-bold shadow-[0_0_10px_rgba(216,54,255,0.1)]"
+                >
+                    {mintedCount} Minted
+                </span>
+            </div>
+            <div class="flex gap-2">
+                <span
+                    class="px-3 py-1 rounded-md bg-blue-500/10 text-blue-400 text-[10px] border border-blue-500/20 uppercase tracking-widest font-bold shadow-[0_0_10px_rgba(59,130,246,0.1)]"
+                >
+                    {collectedCount} Collected
+                </span>
+            </div>
         </div>
+
+        <!-- Decorative Background Glow -->
+        <div
+            class="absolute -top-24 -right-24 w-64 h-64 bg-[#d836ff]/5 rounded-full blur-[80px] pointer-events-none"
+        ></div>
+        <div
+            class="absolute -bottom-24 -left-24 w-64 h-64 bg-lime-500/5 rounded-full blur-[80px] pointer-events-none"
+        ></div>
     </div>
 
     <!-- Main Player Card -->
