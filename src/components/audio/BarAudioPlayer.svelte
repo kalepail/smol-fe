@@ -110,6 +110,20 @@
           liked={audioState.currentSong?.Liked || false}
           on:likeChanged={(e) => handleLikeChanged(e.detail.liked)}
         />
+
+        <!-- Shuffle/Radio Button -->
+        <a
+          href="/radio"
+          class="w-8 h-8 flex items-center justify-center text-orange-500 hover:text-white hover:bg-orange-500/20 active:scale-95 border border-orange-500/30 hover:border-orange-500 transition-all rounded-full bg-orange-500/5"
+          title="Open Radio"
+        >
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+            <path
+              d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"
+            />
+          </svg>
+        </a>
+
         {#if audioState.currentSong.Id && audioState.currentSong.Song_1}
           <MiniAudioPlayer
             id={audioState.currentSong.Id}

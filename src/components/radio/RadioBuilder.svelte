@@ -811,6 +811,7 @@
           onPrev={playPrev}
           onSelect={playSongAtIndex}
           onSaveMixtape={saveAsMixtape}
+          onRegenerate={generateStation}
         />
       </div>
     {:else if selectedTags.length > 0}
