@@ -8,6 +8,7 @@
   } from "../../stores/audio.svelte";
 
   import LikeButton from "../ui/LikeButton.svelte";
+  import { userState } from "../../stores/user.svelte";
 
   let {
     playlist = [],
@@ -574,7 +575,7 @@
           <button
             class="tech-button w-12 h-12 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-[#d836ff] text-[#d836ff] bg-[#d836ff]/10 hover:bg-[#d836ff]/20 shadow-[0_0_15px_rgba(216,54,255,0.3)]"
             onclick={() => {
-              if (!isAuthenticated) {
+              if (!userState.contractId) {
                 triggerLogin();
                 return;
               }
@@ -627,7 +628,7 @@
           <button
             class="tech-button w-12 h-12 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-blue-400 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.3)]"
             onclick={() => {
-              if (!isAuthenticated) {
+              if (!userState.contractId) {
                 triggerLogin();
                 return;
               }

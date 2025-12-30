@@ -124,9 +124,16 @@
         shuffleEnabled = !shuffleEnabled;
     }
 
+    function triggerLogin() {
+        window.dispatchEvent(new CustomEvent("smol:request-login"));
+    }
+
     async function triggerMint() {
+        if (!userState.contractId) {
+            triggerLogin();
+            return;
+        }
         if (!currentSong?.Id || minting || isMinted) return;
-        if (!userState.contractId) return alert("Connect wallet to mint");
 
         try {
             minting = true;
@@ -359,11 +366,17 @@
                     onSelect={handleSelect}
                     onToggleLike={handleToggleLike}
                     onTrade={isMinted
-                        ? () => (showTradeModal = true)
+                        ? () => {
+                              if (!userState.contractId) {
+                                  triggerLogin();
+                                  return;
+                              }
+                              showTradeModal = true;
+                          }
                         : undefined}
                     onMint={!isMinted ? triggerMint : undefined}
                     isMinting={minting}
-                    isAuthenticated={isAuthenticated()}
+                    isAuthenticated={userState.contractId !== null}
                     {currentIndex}
                 />
 
@@ -372,7 +385,13 @@
                     {#if isMinted}
                         {#if currentSong?.Mint_Amm && currentSong?.Mint_Token}
                             <button
-                                onclick={() => (showTradeModal = true)}
+                                onclick={() => {
+                                    if (!userState.contractId) {
+                                        triggerLogin();
+                                        return;
+                                    }
+                                    showTradeModal = true;
+                                }}
                                 class="flex-1 py-3 bg-[#2775ca] hover:brightness-110 text-white font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
                             >
                                 Trade <TokenBalancePill

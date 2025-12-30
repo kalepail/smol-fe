@@ -1,23 +1,23 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount, untrack } from 'svelte';
-  import Loader from './ui/Loader.svelte';
-  import TradeForm from './trade/TradeForm.svelte';
-  import TradeBalances from './trade/TradeBalances.svelte';
-  import TradeSimulation from './trade/TradeSimulation.svelte';
-  import { userState } from '../stores/user.svelte';
-  import { updateContractBalance } from '../stores/balance.svelte';
-  import { kale, sac } from '../utils/passkey-kit';
-  import { Client as CometClient } from 'comet-sdk';
-  import { useTradeSimulation } from '../hooks/useTradeSimulation';
-  import { useTradeExecution } from '../hooks/useTradeExecution';
+  import { createEventDispatcher, onMount, untrack } from "svelte";
+  import Loader from "./ui/Loader.svelte";
+  import TradeForm from "./trade/TradeForm.svelte";
+  import TradeBalances from "./trade/TradeBalances.svelte";
+  import TradeSimulation from "./trade/TradeSimulation.svelte";
+  import { userState } from "../stores/user.svelte";
+  import { updateContractBalance } from "../stores/balance.svelte";
+  import { kale, sac } from "../utils/passkey-kit";
+  import { Client as CometClient } from "comet-sdk";
+  import { useTradeSimulation } from "../hooks/useTradeSimulation";
+  import { useTradeExecution } from "../hooks/useTradeExecution";
   import {
     computeAmmBuyCap,
     computeMaxBuy,
     formatAmount,
     parseInputToUnits,
-  } from '../utils/tradeCalculations';
+  } from "../utils/tradeCalculations";
 
-  const DISPLAY_TOKEN_NAME = 'SMOL';
+  const DISPLAY_TOKEN_NAME = "SMOL";
 
   interface Props {
     ammId: string;
@@ -28,29 +28,32 @@
     fallbackImage?: string;
   }
 
-  let { ammId, mintTokenId, songId, title, imageUrl, fallbackImage }: Props = $props();
+  let { ammId, mintTokenId, songId, title, imageUrl, fallbackImage }: Props =
+    $props();
 
   const dispatch = createEventDispatcher();
 
   let loading = $state(true);
   let loadError = $state<string | null>(null);
 
-  let mode = $state<'buy' | 'sell'>('buy');
-  let previousMode = $state<'buy' | 'sell'>('buy');
-  let inputAmount = $state('');
+  let mode = $state<"buy" | "sell">("buy");
+  let previousMode = $state<"buy" | "sell">("buy");
+  let inputAmount = $state("");
   let submitting = $state(false);
 
   let simulationLoading = $state(false);
   let simulationError = $state<string | null>(null);
   let simulatedAmountOut = $state<bigint | null>(null);
-  let lastSimulatedMode = $state<'buy' | 'sell'>('buy');
+  let lastSimulatedMode = $state<"buy" | "sell">("buy");
 
   let cometClient = $state<CometClient | null>(null);
-  let mintTokenClient = $state<ReturnType<typeof sac.getSACClient> | null>(null);
+  let mintTokenClient = $state<ReturnType<typeof sac.getSACClient> | null>(
+    null,
+  );
 
   let kaleDecimals = $state(7);
   let mintDecimals = $state(7);
-  let kaleSymbol = $state('KALE');
+  let kaleSymbol = $state("KALE");
 
   let ammKaleBalance = $state<bigint>(0n);
   let userKaleBalance = $state<bigint>(0n);
@@ -68,19 +71,19 @@
   const executionHook = useTradeExecution();
 
   function handleKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape') {
+    if (event.key === "Escape") {
       event.preventDefault();
       close();
     }
   }
 
   onMount(() => {
-    window.addEventListener('keydown', handleKeydown);
+    window.addEventListener("keydown", handleKeydown);
     void initialize();
 
     return () => {
       simulationHook.clearTimer();
-      window.removeEventListener('keydown', handleKeydown);
+      window.removeEventListener("keydown", handleKeydown);
     };
   });
 
@@ -90,8 +93,19 @@
     simulationError = null;
     simulatedAmountOut = null;
     try {
+      if (!currentContractId) {
+        throw new Error("Please login to use the trade feature.");
+      }
+
       if (!ammId || !mintTokenId) {
-        throw new Error('Missing AMM configuration.');
+        throw new Error("Missing AMM configuration.");
+      }
+
+      // Final safety check for missing env vars
+      if (!import.meta.env.PUBLIC_KALE_SAC_ID) {
+        throw new Error(
+          "Blockchain configuration is missing (Missing KALE SAC ID).",
+        );
       }
 
       cometClient = new CometClient({
@@ -102,12 +116,15 @@
 
       mintTokenClient = sac.getSACClient(mintTokenId);
 
-      const [{ result: kaleDecRes }, { result: mintDecRes }, { result: ammBalanceRes }] =
-        await Promise.all([
-          kale.decimals(),
-          mintTokenClient.decimals(),
-          kale.balance({ id: ammId }),
-        ]);
+      const [
+        { result: kaleDecRes },
+        { result: mintDecRes },
+        { result: ammBalanceRes },
+      ] = await Promise.all([
+        kale.decimals(),
+        mintTokenClient.decimals(),
+        kale.balance({ id: ammId }),
+      ]);
 
       kaleDecimals = Number(kaleDecRes);
       mintDecimals = Number(mintDecRes);
@@ -124,7 +141,7 @@
     } catch (error) {
       console.error(error);
       loadError =
-        error instanceof Error ? error.message : 'Failed to load trading data.';
+        error instanceof Error ? error.message : "Failed to load trading data.";
     } finally {
       loading = false;
     }
@@ -134,14 +151,15 @@
     if (!currentContractId || !mintTokenClient) return;
 
     try {
-      const [{ result: kaleResult }, { result: mintResult }] = await Promise.all([
-        kale.balance({ id: currentContractId }),
-        mintTokenClient.balance({ id: currentContractId }),
-      ]);
+      const [{ result: kaleResult }, { result: mintResult }] =
+        await Promise.all([
+          kale.balance({ id: currentContractId }),
+          mintTokenClient.balance({ id: currentContractId }),
+        ]);
       userKaleBalance = kaleResult;
       userMintBalance = mintResult;
     } catch (error) {
-      console.error('Failed to refresh balances', error);
+      console.error("Failed to refresh balances", error);
     }
   }
 
@@ -156,8 +174,8 @@
           ammKaleBalance = result;
         })
         .catch((error) => {
-          console.error('Failed to refresh AMM balance', error);
-        })
+          console.error("Failed to refresh AMM balance", error);
+        }),
     );
 
     if (currentContractId) {
@@ -171,8 +189,8 @@
             userMintBalance = mintResult;
           })
           .catch((error) => {
-            console.error('Failed to refresh user balances', error);
-          })
+            console.error("Failed to refresh user balances", error);
+          }),
       );
     }
 
@@ -185,8 +203,8 @@
     maxBuyAmount = computeMaxBuy(ammKaleBalance, userKaleBalance);
     maxSellAmount = userMintBalance;
 
-    if (mode === 'sell' && maxSellAmount <= 0n) {
-      mode = 'buy';
+    if (mode === "sell" && maxSellAmount <= 0n) {
+      mode = "buy";
     }
   }
 
@@ -199,11 +217,11 @@
   async function runSimulation() {
     if (!cometClient) return;
     if (!currentContractId) {
-      simulationError = 'Connect your wallet to simulate trades.';
+      simulationError = "Connect your wallet to simulate trades.";
       return;
     }
     if (loading) return;
-    const decimals = mode === 'buy' ? kaleDecimals : mintDecimals;
+    const decimals = mode === "buy" ? kaleDecimals : mintDecimals;
     const amount = parseInputToUnits(inputAmount, decimals);
 
     simulationLoading = false;
@@ -214,23 +232,23 @@
       return;
     }
 
-    const maxIn = mode === 'buy' ? maxBuyAmount : maxSellAmount;
+    const maxIn = mode === "buy" ? maxBuyAmount : maxSellAmount;
     if (maxIn <= 0n) {
       simulationError =
-        mode === 'buy'
+        mode === "buy"
           ? `Insufficient ${kaleSymbol} balance to buy.`
           : `No ${DISPLAY_TOKEN_NAME} available to sell.`;
       return;
     }
     if (amount > maxIn) {
-      simulationError = `Amount exceeds max ${mode === 'buy' ? 'buy' : 'sell'} limit.`;
+      simulationError = `Amount exceeds max ${mode === "buy" ? "buy" : "sell"} limit.`;
       return;
     }
 
     const tokenIn =
-      mode === 'buy' ? import.meta.env.PUBLIC_KALE_SAC_ID : mintTokenId;
+      mode === "buy" ? import.meta.env.PUBLIC_KALE_SAC_ID : mintTokenId;
     const tokenOut =
-      mode === 'buy' ? mintTokenId : import.meta.env.PUBLIC_KALE_SAC_ID;
+      mode === "buy" ? mintTokenId : import.meta.env.PUBLIC_KALE_SAC_ID;
 
     simulationLoading = true;
     lastSimulatedMode = mode;
@@ -242,17 +260,17 @@
         amount,
         tokenIn,
         tokenOut,
-        currentContractId
+        currentContractId,
       );
 
       if (nonce !== simulationHook.getCurrentNonce()) return;
 
       simulatedAmountOut = amountOut;
     } catch (error) {
-      console.error('Simulation failed', error);
+      console.error("Simulation failed", error);
       if (simulationHook.getCurrentNonce()) {
         simulationError =
-          error instanceof Error ? error.message : 'Simulation failed.';
+          error instanceof Error ? error.message : "Simulation failed.";
       }
     } finally {
       simulationLoading = false;
@@ -263,7 +281,7 @@
     if (previousMode !== mode) {
       untrack(() => {
         previousMode = mode;
-        inputAmount = '';
+        inputAmount = "";
         simulationError = null;
         simulatedAmountOut = null;
         lastSimulatedMode = mode;
@@ -287,28 +305,28 @@
   async function executeSwap() {
     if (!cometClient || !mintTokenClient) return;
     if (!currentContractId || !currentKeyId) {
-      simulationError = 'Connect your wallet before trading.';
+      simulationError = "Connect your wallet before trading.";
       return;
     }
 
-    const decimals = mode === 'buy' ? kaleDecimals : mintDecimals;
+    const decimals = mode === "buy" ? kaleDecimals : mintDecimals;
     const amount = parseInputToUnits(inputAmount, decimals);
 
     if (!amount || amount <= 0n) {
-      simulationError = 'Enter a valid amount.';
+      simulationError = "Enter a valid amount.";
       return;
     }
 
-    const maxIn = mode === 'buy' ? maxBuyAmount : maxSellAmount;
+    const maxIn = mode === "buy" ? maxBuyAmount : maxSellAmount;
     if (maxIn <= 0n) {
       simulationError =
-        mode === 'buy'
+        mode === "buy"
           ? `Insufficient ${kaleSymbol} balance to buy.`
           : `No ${DISPLAY_TOKEN_NAME} available to sell.`;
       return;
     }
     if (amount > maxIn) {
-      simulationError = `Amount exceeds max ${mode === 'buy' ? 'buy' : 'sell'} limit.`;
+      simulationError = `Amount exceeds max ${mode === "buy" ? "buy" : "sell"} limit.`;
       return;
     }
 
@@ -316,9 +334,9 @@
     simulationError = null;
 
     const tokenIn =
-      mode === 'buy' ? import.meta.env.PUBLIC_KALE_SAC_ID : mintTokenId;
+      mode === "buy" ? import.meta.env.PUBLIC_KALE_SAC_ID : mintTokenId;
     const tokenOut =
-      mode === 'buy' ? mintTokenId : import.meta.env.PUBLIC_KALE_SAC_ID;
+      mode === "buy" ? mintTokenId : import.meta.env.PUBLIC_KALE_SAC_ID;
 
     try {
       const expectedOut = await executionHook.executeSwap({
@@ -335,7 +353,7 @@
         await updateContractBalance(currentContractId);
       }
 
-      dispatch('complete', {
+      dispatch("complete", {
         side: mode,
         amountIn: amount,
         amountOut: expectedOut,
@@ -343,27 +361,27 @@
 
       close();
     } catch (error) {
-      console.error('Swap failed', error);
+      console.error("Swap failed", error);
       simulationError =
-        error instanceof Error ? error.message : 'Swap request failed.';
+        error instanceof Error ? error.message : "Swap request failed.";
     } finally {
       submitting = false;
     }
   }
 
   function close() {
-    dispatch('close');
+    dispatch("close");
   }
 
   const sellDisabled = $derived(maxSellAmount <= 0n);
   const actionLabel = $derived(
     submitting
-      ? mode === 'buy'
-        ? 'Buying...'
-        : 'Selling...'
-      : mode === 'buy'
+      ? mode === "buy"
+        ? "Buying..."
+        : "Selling..."
+      : mode === "buy"
         ? `Buy ${DISPLAY_TOKEN_NAME}`
-        : `Sell ${DISPLAY_TOKEN_NAME}`
+        : `Sell ${DISPLAY_TOKEN_NAME}`,
   );
   const maxBuyDisplay = $derived(formatAmount(maxBuyAmount, kaleDecimals));
   const maxSellDisplay = $derived(formatAmount(maxSellAmount, mintDecimals));
@@ -375,9 +393,9 @@
     simulatedAmountOut
       ? formatAmount(
           simulatedAmountOut,
-          lastSimulatedMode === 'buy' ? mintDecimals : kaleDecimals
+          lastSimulatedMode === "buy" ? mintDecimals : kaleDecimals,
         )
-      : '–'
+      : "–",
   );
 </script>
 
