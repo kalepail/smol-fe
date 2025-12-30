@@ -225,18 +225,9 @@
             <div class="flex items-center gap-2 mt-2">
                 <button
                     onclick={copyAddress}
-                    class="px-3 py-1 bg-gradient-to-r from-yellow-600/20 to-yellow-500/10 border border-yellow-500/30 rounded-full text-yellow-500 text-[10px] font-bold uppercase tracking-widest hover:bg-yellow-500/20 transition-all flex items-center gap-1.5"
+                    class="px-3 py-1 bg-gradient-to-r from-green-600/20 to-green-500/10 border border-green-500/30 rounded-full text-green-400 text-[10px] font-bold uppercase tracking-widest hover:bg-green-500/20 transition-all flex items-center gap-1.5"
                 >
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                        class="w-3 h-3"
-                    >
-                        <path
-                            d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z"
-                        />
-                    </svg>
+                    <span class="text-base leading-none">🥬</span>
                     Tip Artist
                 </button>
             </div>
