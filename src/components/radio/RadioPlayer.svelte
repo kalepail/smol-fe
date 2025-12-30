@@ -8,6 +8,9 @@
   } from "../../stores/audio.svelte";
 
   import LikeButton from "../ui/LikeButton.svelte";
+  import { useAuthentication } from "../../hooks/useAuthentication";
+
+  const { login } = useAuthentication();
 
   let {
     playlist = [],
@@ -56,24 +59,10 @@
   }
 
   function triggerLogin() {
-    // Try attribute selector first
-    let loginBtn = document.querySelector('button[onclick*="onLogin"]');
-
-    // Fallback: search by text content
-    if (!loginBtn) {
-      const buttons = Array.from(document.querySelectorAll("button"));
-      loginBtn =
-        buttons.find((b) => b.textContent?.trim().toLowerCase() === "login") ||
-        null;
-    }
-
-    if (loginBtn) {
-      (loginBtn as HTMLButtonElement).click();
-    } else {
-      alert(
-        "Please login to continue. The Login button can be found in the header.",
-      );
-    }
+    login().catch((err) => {
+      console.error("Login failed:", err);
+      alert("Login failed. Please try the Login button in the header.");
+    });
   }
 
   function handlePrev() {
