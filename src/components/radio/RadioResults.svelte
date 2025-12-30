@@ -158,11 +158,9 @@
             </div>
         </div>
 
-        <div
-            class="flex flex-col lg:flex-row gap-8 h-auto lg:h-[560px] items-stretch p-4"
-        >
+        <div class="flex flex-col lg:flex-row gap-8 h-auto lg:h-[560px] p-4">
             <!-- LEFT COLUMN: PLAYER -->
-            <div class="w-full lg:w-1/2 flex flex-col gap-4">
+            <div class="w-full lg:w-1/2 flex flex-col gap-2 lg:self-start">
                 <RadioPlayer
                     {playlist}
                     {onNext}
@@ -174,7 +172,7 @@
                 />
 
                 <!-- Mint + Share Buttons -->
-                <div class="flex gap-3 mt-4">
+                <div class="flex gap-3 -mt-2">
                     {#if isMinted}
                         <button
                             onclick={() =>

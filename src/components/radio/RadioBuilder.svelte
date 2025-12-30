@@ -750,7 +750,7 @@
       <!-- TAG CLOUD (Collapsible) -->
       {#if showCloud}
         <div
-          class="md:col-span-7 reactive-glass flex flex-col items-center p-4 md:p-6 border border-white/5 transition-all duration-500 relative z-40 {isCompact
+          class="md:col-span-7 reactive-glass flex flex-col items-center p-4 md:p-6 border border-white/5 transition-all duration-500 relative z-40 rounded-xl overflow-hidden {isCompact
             ? 'scale-95 opacity-90'
             : ''}"
         >
@@ -880,7 +880,7 @@
             </select>
           </div>
           <div
-            class="flex flex-wrap gap-x-2 gap-y-2 justify-center max-h-[50vh] md:max-h-64 overflow-y-auto dark-scrollbar w-full p-2"
+            class="flex flex-wrap gap-x-2 gap-y-2 justify-center max-h-[35vh] md:max-h-64 overflow-y-auto dark-scrollbar w-full p-2"
           >
             {#each displayedTags as { tag, count }}
               <button
@@ -913,28 +913,9 @@
 
       <!-- MAIN IGNITE BUTTON (Only if not compact) -->
       {#if !isCompact}
-        <!-- Instructions text above Ignite -->
-        {#if generatedPlaylist.length === 0}
-          {#if selectedTags.length > 0}
-            <div
-              class="text-center text-white/30 mb-4 font-light tracking-wide animate-pulse"
-            >
-              Ready to ignite...
-            </div>
-          {:else}
-            <div
-              class="text-center text-white/40 mb-4 font-light tracking-wide"
-            >
-              🔥 Select vibes and hit <span
-                class="text-orange-500 font-semibold">IGNITE</span
-              > to begin transmission
-            </div>
-          {/if}
-        {/if}
-
-        <div class="flex justify-center mt-4 gap-6 items-center">
+        <div class="flex justify-center mt-6 mb-8 md:mb-0 gap-6 items-center">
           <button
-            class="reactive-button-ignite text-white font-bold py-4 px-8 md:py-4 md:px-12 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-[0.2em] text-lg md:text-lg border-2 border-[#f7931a] shadow-[0_0_30px_rgba(247,147,26,0.8)] hover:shadow-[0_0_25px_rgba(247,147,26,0.7)] hover:border-[#fcd09e] fixed bottom-8 left-4 right-4 z-[999] md:static md:bottom-auto md:left-auto md:right-auto md:z-auto md:shadow-[0_0_15px_rgba(247,147,26,0.5)] backdrop-blur-sm bg-black/80 md:bg-transparent md:backdrop-blur-none rounded-xl"
+            class="reactive-button-ignite w-full md:w-auto text-white font-bold py-4 px-8 md:py-4 md:px-12 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-[0.2em] text-lg md:text-lg border-2 border-[#f7931a] shadow-[0_0_30px_rgba(247,147,26,0.8)] hover:shadow-[0_0_25px_rgba(247,147,26,0.7)] hover:border-[#fcd09e] md:shadow-[0_0_15px_rgba(247,147,26,0.5)] rounded-xl"
             onclick={() => {
               if (isDreamMode && moodInput.trim()) {
                 suggestTagsFromMood();
