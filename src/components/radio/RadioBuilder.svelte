@@ -627,7 +627,7 @@
   <div
     class="relative transition-all duration-700 ease-in-out {isCompact
       ? 'pt-0'
-      : 'py-12'}"
+      : 'py-2 md:py-8'}"
   >
     <!-- HEADER / TUNER CONTROLS -->
     <div
@@ -722,9 +722,11 @@
         {/if}
       {/if}
 
-      <!-- ACTIVE TAGS (Only visible in full mode) -->
+      <!-- ACTIVE TAGS (Only visible on desktop in full mode - mobile shows in title bar) -->
       {#if selectedTags.length > 0 && !isCompact}
-        <div class="flex flex-wrap gap-2 animate-in fade-in duration-300">
+        <div
+          class="hidden md:flex flex-wrap gap-2 animate-in fade-in duration-300"
+        >
           {#each selectedTags as tag}
             <span
               class="reactive-pill selected inline-flex items-center gap-2 px-3 py-1 text-xs text-purple-300 font-mono shadow-[0_0_10px_rgba(168,85,247,0.2)]"
@@ -748,10 +750,37 @@
       <!-- TAG CLOUD (Collapsible) -->
       {#if showCloud}
         <div
-          class="md:col-span-7 reactive-glass flex flex-col items-center p-6 border border-white/5 transition-all duration-500 relative z-40 {isCompact
+          class="md:col-span-7 reactive-glass flex flex-col items-center p-4 md:p-6 border border-white/5 transition-all duration-500 relative z-40 {isCompact
             ? 'scale-95 opacity-90'
             : ''}"
         >
+          <!-- Title Bar with Selected Tags -->
+          <div
+            class="w-full flex flex-wrap items-center justify-between gap-2 mb-3 pb-3 border-b border-white/10"
+          >
+            <h3
+              class="text-xs uppercase tracking-[0.2em] text-white/50 font-semibold"
+            >
+              {isDreamMode ? "✨ Dream Mode" : "🎵 Vibe Builder"}
+            </h3>
+            {#if selectedTags.length > 0}
+              <div class="flex flex-wrap gap-1 items-center">
+                {#each selectedTags as tag}
+                  <span
+                    class="px-2 py-0.5 text-[10px] bg-purple-500/20 text-purple-300 rounded-full border border-purple-500/30"
+                  >
+                    {tag}
+                  </span>
+                {/each}
+                <button
+                  class="text-[10px] text-white/30 hover:text-red-400 transition-colors ml-1"
+                  onclick={clearTags}>✕</button
+                >
+              </div>
+            {:else}
+              <span class="text-[10px] text-white/30">No vibes selected</span>
+            {/if}
+          </div>
           <!-- Toolbar: Search & Sort -->
           <div
             class="w-full flex gap-3 mb-4 animate-in fade-in slide-in-from-top-2 duration-300"
@@ -884,20 +913,28 @@
 
       <!-- MAIN IGNITE BUTTON (Only if not compact) -->
       {#if !isCompact}
-        <div class="flex justify-center mt-4 gap-6 items-center">
-          <label
-            class="flex items-center gap-3 text-white/60 text-sm cursor-pointer hover:text-white transition-colors"
-          >
-            <input
-              type="checkbox"
-              bind:checked={isShuffled}
-              class="appearance-none w-5 h-5 border border-white/20 rounded-full bg-white/5 checked:bg-[#36b04a] checked:border-black cursor-pointer transition-all checked:shadow-[0_0_15px_#36b04a] hover:border-[#36b04a]/50"
-            />
-            SMART SHUFFLE
-          </label>
+        <!-- Instructions text above Ignite -->
+        {#if generatedPlaylist.length === 0}
+          {#if selectedTags.length > 0}
+            <div
+              class="text-center text-white/30 mb-4 font-light tracking-wide animate-pulse"
+            >
+              Ready to ignite...
+            </div>
+          {:else}
+            <div
+              class="text-center text-white/40 mb-4 font-light tracking-wide"
+            >
+              🔥 Select vibes and hit <span
+                class="text-orange-500 font-semibold">IGNITE</span
+              > to begin transmission
+            </div>
+          {/if}
+        {/if}
 
+        <div class="flex justify-center mt-4 gap-6 items-center">
           <button
-            class="reactive-button-ignite text-white font-bold py-3 px-8 md:py-4 md:px-12 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-[0.2em] text-base md:text-lg border-2 border-[#f7931a] shadow-[0_0_15px_rgba(247,147,26,0.5)] hover:shadow-[0_0_25px_rgba(247,147,26,0.7)] hover:border-[#fcd09e] fixed bottom-6 left-6 right-6 z-[999] md:static md:bottom-auto md:left-auto md:right-auto md:z-auto shadow-[0_0_30px_rgba(247,147,26,0.8)] md:shadow-[0_0_15px_rgba(247,147,26,0.5)]"
+            class="reactive-button-ignite text-white font-bold py-4 px-8 md:py-4 md:px-12 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-[0.2em] text-lg md:text-lg border-2 border-[#f7931a] shadow-[0_0_30px_rgba(247,147,26,0.8)] hover:shadow-[0_0_25px_rgba(247,147,26,0.7)] hover:border-[#fcd09e] fixed bottom-8 left-4 right-4 z-[999] md:static md:bottom-auto md:left-auto md:right-auto md:z-auto md:shadow-[0_0_15px_rgba(247,147,26,0.5)] backdrop-blur-sm bg-black/80 md:bg-transparent md:backdrop-blur-none rounded-xl"
             onclick={() => {
               if (isDreamMode && moodInput.trim()) {
                 suggestTagsFromMood();
@@ -932,18 +969,6 @@
           onRegenerate={generateStation}
           onToggleSettings={toggleSettings}
         />
-      </div>
-    {:else if selectedTags.length > 0}
-      <div
-        class="text-center text-white/30 mt-16 font-light tracking-wide animate-pulse"
-      >
-        Ready to ignite...
-      </div>
-    {:else}
-      <div class="text-center text-white/40 mt-16 font-light tracking-wide">
-        🔥 Select vibes and hit <span class="text-orange-500 font-semibold"
-          >IGNITE</span
-        > to begin transmission
       </div>
     {/if}
   </div>

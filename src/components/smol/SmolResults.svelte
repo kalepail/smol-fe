@@ -206,7 +206,7 @@
     }
 </script>
 
-<div class="max-w-6xl mx-auto px-4 font-mono">
+<div class="max-w-6xl mx-auto px-4 font-mono overflow-x-hidden">
     {#if loading}
         <div class="flex items-center justify-center py-32">
             <Loader classNames="w-12 h-12" textColor="text-[#d836ff]" />
@@ -229,7 +229,9 @@
                 <div
                     class="flex items-center justify-between px-6 py-2 bg-black/40 border-b border-white/5"
                 >
-                    <div class="flex items-center gap-4">
+                    <div
+                        class="flex items-center gap-4 min-w-0 overflow-hidden flex-1"
+                    >
                         <div
                             class="text-[#d836ff] drop-shadow-[0_0_8px_#d836ff]"
                         >

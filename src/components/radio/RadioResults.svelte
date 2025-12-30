@@ -2,8 +2,9 @@
     import type { Smol } from "../../types/domain";
     import { audioState } from "../../stores/audio.svelte";
     import RadioPlayer from "./RadioPlayer.svelte";
-    import { isAuthenticated } from "../../stores/user.svelte";
+    import { isAuthenticated, userState } from "../../stores/user.svelte";
     import LikeButton from "../ui/LikeButton.svelte";
+    import { useSmolMinting } from "../../hooks/useSmolMinting";
 
     let {
         playlist = [],
@@ -33,6 +34,60 @@
     } = $props();
 
     const API_URL = import.meta.env.PUBLIC_API_URL;
+
+    // Minting logic (same as SmolResults)
+    const mintingHook = useSmolMinting();
+    let minting = $state(false);
+
+    // Current song derived
+    const currentSong = $derived(playlist[currentIndex]);
+    const isMinted = $derived(
+        Boolean(currentSong?.Mint_Token && currentSong?.Mint_Amm),
+    );
+
+    async function triggerMint() {
+        if (!currentSong?.Id || minting || isMinted) return;
+        if (!userState.contractId) return alert("Connect wallet to mint");
+
+        try {
+            minting = true;
+            await mintingHook.triggerMint(
+                {
+                    id: currentSong.Id,
+                    contractId: userState.contractId,
+                    keyId: userState.keyId!,
+                    smolContractId: import.meta.env.PUBLIC_SMOL_CONTRACT_ID!,
+                    rpcUrl: import.meta.env.PUBLIC_RPC_URL!,
+                    networkPassphrase: import.meta.env
+                        .PUBLIC_NETWORK_PASSPHRASE!,
+                    creatorAddress: currentSong.Address || "",
+                    kaleSacId: import.meta.env.PUBLIC_KALE_SAC_ID!,
+                },
+                () => {
+                    // Refresh would go here if needed
+                },
+            );
+        } catch (e: any) {
+            alert(e.message);
+        } finally {
+            minting = false;
+        }
+    }
+
+    function share() {
+        const url = currentSong?.Id
+            ? `${window.location.origin}/${currentSong.Id}`
+            : window.location.href;
+        navigator
+            .share?.({
+                title: currentSong?.Title || "SMOL Radio",
+                url,
+            })
+            .catch(() => {
+                navigator.clipboard.writeText(url);
+                alert("Link copied!");
+            });
+    }
 </script>
 
 <div
@@ -117,6 +172,32 @@
                     {onToggleLike}
                     {currentIndex}
                 />
+
+                <!-- Mint + Share Buttons -->
+                <div class="flex gap-3 mt-4">
+                    {#if isMinted}
+                        <button
+                            onclick={() =>
+                                (window.location.href = `/${currentSong?.Id}`)}
+                            class="flex-1 py-3 bg-emerald-500/20 text-emerald-300 font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2 border border-emerald-500/30"
+                        >
+                            ✓ Minted
+                        </button>
+                    {:else}
+                        <button
+                            onclick={triggerMint}
+                            disabled={minting}
+                            class="flex-1 py-3 bg-[#d836ff] hover:brightness-110 disabled:opacity-50 text-white font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
+                        >
+                            {minting ? "Minting..." : "Mint Track"}
+                        </button>
+                    {/if}
+                    <button
+                        onclick={share}
+                        class="px-6 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl border border-white/5 transition-all text-xs uppercase tracking-widest"
+                        >Share</button
+                    >
+                </div>
             </div>
 
             <!-- RIGHT COLUMN: PLAYLIST -->

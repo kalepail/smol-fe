@@ -498,7 +498,7 @@
 
       <!-- Controls (below art in standard, bottom in fullscreen) -->
       <div
-        class="flex items-center justify-center gap-4 sm:gap-6 mt-3 pb-0 transition-all duration-500 {isFullscreen
+        class="flex items-center justify-center gap-2 sm:gap-4 md:gap-6 mt-3 pb-0 transition-all duration-500 {isFullscreen
           ? showControls
             ? 'opacity-100 translate-y-0'
             : 'opacity-0 translate-y-4 pointer-events-none'
@@ -515,7 +515,7 @@
           <LikeButton
             smolId={currentSong.Id}
             liked={!!isLiked}
-            classNames="tech-button w-12 h-12 flex items-center justify-center active:scale-95 disabled:opacity-30 border rounded-full backdrop-blur-md transition-all duration-300 border-[#ff424c] shadow-[0_0_20px_rgba(255,66,76,0.3)] {isLiked
+            classNames="tech-button w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center active:scale-95 disabled:opacity-30 border rounded-full backdrop-blur-md transition-all duration-300 border-[#ff424c] shadow-[0_0_20px_rgba(255,66,76,0.3)] {isLiked
               ? 'bg-[#ff424c] text-white'
               : 'bg-[#ff424c]/10 text-[#ff424c] hover:bg-[#ff424c]/20'}"
             on:likeChanged={(e) => {
@@ -527,7 +527,7 @@
         {/if}
 
         <button
-          class="tech-button w-12 h-12 flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md"
+          class="tech-button w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md"
           onclick={handlePrev}
           title="Previous"
         >
@@ -537,7 +537,7 @@
         </button>
 
         <button
-          class="tech-button w-20 h-20 flex items-center justify-center active:scale-95 transition-all relative overflow-hidden group rounded-full backdrop-blur-xl border border-[#089981] text-[#089981] bg-[#089981]/10 shadow-[0_0_30px_rgba(8,153,129,0.4)] hover:bg-[#089981]/20 hover:text-white hover:shadow-[0_0_40px_rgba(8,153,129,0.6)]"
+          class="tech-button w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center active:scale-95 transition-all relative overflow-hidden group rounded-full backdrop-blur-xl border border-[#089981] text-[#089981] bg-[#089981]/10 shadow-[0_0_30px_rgba(8,153,129,0.4)] hover:bg-[#089981]/20 hover:text-white hover:shadow-[0_0_40px_rgba(8,153,129,0.6)]"
           onclick={playPause}
           title={playing ? "Pause" : "Play"}
         >
@@ -554,7 +554,7 @@
 
         <!-- NEXT BUTTON -->
         <button
-          class="tech-button w-12 h-12 flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md"
+          class="tech-button w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md"
           onclick={handleNext}
           title="Next"
         >
