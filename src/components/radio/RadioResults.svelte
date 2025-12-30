@@ -18,6 +18,7 @@
         onSaveMixtape,
         onRegenerate,
         onToggleLike,
+        onShowBuilder,
     }: {
         playlist: Smol[];
         stationName: string;
@@ -30,7 +31,7 @@
         onSaveMixtape: () => void;
         onToggleLike?: (index: number, liked: boolean) => void;
         onRegenerate?: () => void;
-        onToggleSettings?: () => void;
+        onShowBuilder?: () => void;
     } = $props();
 
     const API_URL = import.meta.env.PUBLIC_API_URL;
@@ -131,14 +132,14 @@
             <div class="flex items-center gap-4">
                 <button
                     class="text-xs font-bold text-slate-500 hover:text-white uppercase tracking-widest transition-colors"
-                    onclick={onToggleSettings}
+                    onclick={onShowBuilder}
                 >
                     Tags
                 </button>
                 <button
                     class="text-slate-500 hover:text-white transition-colors"
                     title="Settings"
-                    onclick={onToggleSettings}
+                    onclick={onShowBuilder}
                 >
                     <svg
                         xmlns="http://www.w3.org/2000/svg"

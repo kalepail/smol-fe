@@ -209,7 +209,7 @@
     processedTags.length > 0 ? processedTags[0].count : 1,
   );
 
-  let isCompact = $derived(generatedPlaylist.length > 0);
+  let isCompact = $derived(generatedPlaylist.length > 0 && !showBuilder);
   let showCloud = $derived(!isCompact || showAll);
 
   function toggleTag(tag: string) {
@@ -505,6 +505,9 @@
     } else {
       stationName = "Your Radio Station";
     }
+
+    // Auto-switch to player view after generation
+    showBuilder = false;
   }
 
   // Smart Shuffle: Spacing Algorithm
@@ -599,10 +602,10 @@
     }
   }
 
-  let isSettingsOpen = $state(false);
+  let showBuilder = $state(true);
 
-  function toggleSettings() {
-    isSettingsOpen = !isSettingsOpen;
+  function toggleBuilder() {
+    showBuilder = !showBuilder;
   }
 
   $effect(() => {
@@ -629,313 +632,338 @@
       ? 'pt-0'
       : 'py-2 md:py-8'}"
   >
-    <!-- HEADER / TUNER CONTROLS -->
-    <div
-      class="flex flex-col gap-6 {isCompact
-        ? 'mb-0'
-        : 'mb-4'} transition-all duration-500 {isCompact
-        ? 'max-w-6xl mx-auto w-full'
-        : ''}"
-    >
-      <!-- COMPACT ROW: Logo + Input + Ignite -->
-      {#if false}
-        <!-- STASHED HEADER LOGIC PER USER REQUEST (TAGS MENU ETC) -->
-        {#if isCompact}
-          <div
-            class="flex flex-wrap items-center justify-between md:justify-start gap-4 animate-in fade-in slide-in-from-top-4 duration-500"
-          >
-            <div
-              class="flex items-center gap-1 cursor-pointer group select-none"
-              onclick={() => (generatedPlaylist = [])}
-            >
-              <h2
-                class="text-3xl font-thin tracking-tighter text-white flex items-center gap-1"
-                style="text-shadow: 0 0 15px rgba(255,255,255,0.3);"
-              >
-                <span class="text-[#9ae600] font-bold">SMOL</span>
-                <span class="font-thin text-white">RADIO</span>
-              </h2>
-            </div>
-
-            <!-- Quick Mood Input (Full width on mobile, middle on desktop) -->
-            {#if GEMINI_API_KEY}
-              <div
-                class="w-full order-last md:order-none md:w-auto md:flex-1 max-w-xl flex gap-2"
-              >
-                <input
-                  bind:value={moodInput}
-                  placeholder="Add a vibe..."
-                  class="reactive-input flex-1 px-4 py-2 text-sm placeholder-white/20 focus:outline-none transition-all font-mono bg-black/40 border border-white/10 focus:border-[#2775ca]"
-                  onkeydown={(e) => e.key === "Enter" && suggestTagsFromMood()}
-                  disabled={isFetchingMood}
-                />
-                <button
-                  class="reactive-button text-[#19859b] font-bold px-4 py-2 transition-all disabled:opacity-50 uppercase tracking-widest text-[10px]"
-                  onclick={suggestTagsFromMood}
-                  disabled={!moodInput.trim() || isFetchingMood}
-                >
-                  {isFetchingMood ? "..." : "+"}
-                </button>
-              </div>
-            {/if}
-
-            <!-- REGENERATE -->
-            <div class="flex items-center gap-4">
-              <button
-                class="reactive-button-ignite h-10 w-10 flex items-center justify-center rounded-full transition-all hover:scale-105 active:scale-95 border border-[#F7931A] text-[#F7931A] bg-[#F7931A]/10 shadow-[0_0_20px_rgba(247,147,26,0.3)] hover:bg-[#F7931A]/20 hover:text-white"
-                onclick={generateStation}
-                title="Regenerate Station"
-                disabled={isGenerating}
-              >
-                <span class:animate-spin={isGenerating}>↻</span>
-              </button>
-
-              <!-- TOGGLE CLOUD -->
-              <button
-                class="text-white/40 hover:text-white text-xs uppercase tracking-widest transition-colors"
-                onclick={() => (showAll = !showAll)}
-              >
-                {showAll ? "Hide Tags" : "Tags"}
-              </button>
-            </div>
-          </div>
-        {:else}
-          <!-- FULL HEADER (Initial State) -->
-          <div
-            class="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 animate-in fade-in zoom-in-95 duration-500"
-          >
-            <div>
-              <h2
-                class="text-2xl md:text-4xl font-thin tracking-tighter text-white mb-2"
-                style="text-shadow: 0 0 20px rgba(255,255,255,0.3);"
-              >
-                <span class="text-[#9ae600] font-bold">SMOL</span>
-                <span class="font-thin text-white">RADIO</span>
-              </h2>
-              <p class="text-white/60 text-sm tracking-wide font-light">
-                SELECT UP TO {MAX_TAGS} VIBES
-              </p>
-            </div>
-            <!-- Sort & Filter Controls -->
-            <!-- Sort & Filter Controls (Moved to Tag Cloud) -->
-          </div>
-        {/if}
-      {/if}
-
-      <!-- ACTIVE TAGS (Only visible on desktop in full mode - mobile shows in title bar) -->
-      {#if selectedTags.length > 0 && !isCompact}
+    <!-- HEADER / TUNER CONTROLS (Only show when Builder is active) -->
+    {#if showBuilder || generatedPlaylist.length === 0}
+      <div>
         <div
-          class="hidden md:flex flex-wrap gap-2 animate-in fade-in duration-300"
-        >
-          {#each selectedTags as tag}
-            <span
-              class="reactive-pill selected inline-flex items-center gap-2 px-3 py-1 text-xs text-purple-300 font-mono shadow-[0_0_10px_rgba(168,85,247,0.2)]"
-            >
-              {tag}
-              <button
-                class="hover:text-white transition-colors font-bold"
-                onclick={() => removeTag(tag)}>×</button
-              >
-            </span>
-          {/each}
-          {#if isCompact}
-            <button
-              class="text-[10px] text-white/30 hover:text-white transition-colors uppercase tracking-widest ml-2"
-              onclick={clearTags}>Clear</button
-            >
-          {/if}
-        </div>
-      {/if}
-
-      <!-- TAG CLOUD (Collapsible) -->
-      {#if showCloud}
-        <div
-          class="md:col-span-7 reactive-glass flex flex-col items-center p-4 md:p-6 border border-white/5 transition-all duration-500 relative z-40 rounded-xl overflow-hidden {isCompact
-            ? 'scale-95 opacity-90'
+          class="flex flex-col gap-6 {isCompact
+            ? 'mb-0'
+            : 'mb-4'} transition-all duration-500 {isCompact
+            ? 'max-w-6xl mx-auto w-full'
             : ''}"
         >
-          <!-- Title Bar with Selected Tags -->
-          <div
-            class="w-full flex flex-wrap items-center justify-between gap-2 mb-3 pb-3 border-b border-white/10"
-          >
-            <h3
-              class="text-xs uppercase tracking-[0.2em] text-white/50 font-semibold"
-            >
-              {isDreamMode ? "✨ Dream Mode" : "🎵 Vibe Builder"}
-            </h3>
-            {#if selectedTags.length > 0}
-              <div class="flex flex-wrap gap-1 items-center">
-                {#each selectedTags as tag}
-                  <span
-                    class="px-2 py-0.5 text-[10px] bg-purple-500/20 text-purple-300 rounded-full border border-purple-500/30"
-                  >
-                    {tag}
-                  </span>
-                {/each}
-                <button
-                  class="text-[10px] text-white/30 hover:text-red-400 transition-colors ml-1"
-                  onclick={clearTags}>✕</button
+          <!-- COMPACT ROW: Logo + Input + Ignite -->
+          {#if false}
+            <!-- STASHED HEADER LOGIC PER USER REQUEST (TAGS MENU ETC) -->
+            {#if isCompact}
+              <div
+                class="flex flex-wrap items-center justify-between md:justify-start gap-4 animate-in fade-in slide-in-from-top-4 duration-500"
+              >
+                <div
+                  class="flex items-center gap-1 cursor-pointer group select-none"
+                  onclick={() => (generatedPlaylist = [])}
                 >
+                  <h2
+                    class="text-3xl font-thin tracking-tighter text-white flex items-center gap-1"
+                    style="text-shadow: 0 0 15px rgba(255,255,255,0.3);"
+                  >
+                    <span class="text-[#9ae600] font-bold">SMOL</span>
+                    <span class="font-thin text-white">RADIO</span>
+                  </h2>
+                </div>
+
+                <!-- Quick Mood Input (Full width on mobile, middle on desktop) -->
+                {#if GEMINI_API_KEY}
+                  <div
+                    class="w-full order-last md:order-none md:w-auto md:flex-1 max-w-xl flex gap-2"
+                  >
+                    <input
+                      bind:value={moodInput}
+                      placeholder="Add a vibe..."
+                      class="reactive-input flex-1 px-4 py-2 text-sm placeholder-white/20 focus:outline-none transition-all font-mono bg-black/40 border border-white/10 focus:border-[#2775ca]"
+                      onkeydown={(e) =>
+                        e.key === "Enter" && suggestTagsFromMood()}
+                      disabled={isFetchingMood}
+                    />
+                    <button
+                      class="reactive-button text-[#19859b] font-bold px-4 py-2 transition-all disabled:opacity-50 uppercase tracking-widest text-[10px]"
+                      onclick={suggestTagsFromMood}
+                      disabled={!moodInput.trim() || isFetchingMood}
+                    >
+                      {isFetchingMood ? "..." : "+"}
+                    </button>
+                  </div>
+                {/if}
+
+                <!-- REGENERATE -->
+                <div class="flex items-center gap-4">
+                  <button
+                    class="reactive-button-ignite h-10 w-10 flex items-center justify-center rounded-full transition-all hover:scale-105 active:scale-95 border border-[#F7931A] text-[#F7931A] bg-[#F7931A]/10 shadow-[0_0_20px_rgba(247,147,26,0.3)] hover:bg-[#F7931A]/20 hover:text-white"
+                    onclick={generateStation}
+                    title="Regenerate Station"
+                    disabled={isGenerating}
+                  >
+                    <span class:animate-spin={isGenerating}>↻</span>
+                  </button>
+
+                  <!-- TOGGLE CLOUD -->
+                  <button
+                    class="text-white/40 hover:text-white text-xs uppercase tracking-widest transition-colors"
+                    onclick={() => (showAll = !showAll)}
+                  >
+                    {showAll ? "Hide Tags" : "Tags"}
+                  </button>
+                </div>
               </div>
             {:else}
-              <span class="text-[10px] text-white/30">No vibes selected</span>
-            {/if}
-          </div>
-          <!-- Toolbar: Search & Sort -->
-          <div
-            class="w-full flex gap-3 mb-4 animate-in fade-in slide-in-from-top-2 duration-300"
-          >
-            <form
-              class="relative flex-1 group"
-              onsubmit={(e) => {
-                e.preventDefault();
-                if (isDreamMode && !isFetchingMood && moodInput.trim()) {
-                  suggestTagsFromMood();
-                }
-              }}
-            >
-              <button
-                type="button"
-                class="absolute left-2 top-1/2 -translate-y-1/2 transition-all duration-300 z-50 flex items-center justify-center w-11 h-11 rounded-full cursor-pointer {isDreamMode
-                  ? 'bg-[#fdda24]/10 text-[#fdda24] shadow-[0_0_10px_rgba(253,218,36,0.2)]'
-                  : 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10'}"
-                onclick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  isDreamMode = !isDreamMode;
-                }}
-                title={isDreamMode
-                  ? "Switch to Search"
-                  : "Switch to Dream Mode"}
+              <!-- FULL HEADER (Initial State) -->
+              <div
+                class="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 animate-in fade-in zoom-in-95 duration-500"
               >
-                <!-- SPARKLE ICON (Always visible, changes color) -->
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  class="w-5 h-5 transition-transform duration-300 {isDreamMode
-                    ? 'scale-110'
-                    : 'scale-90'}"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M9 4.5a.75.75 0 01.721.544l.813 2.846a3.75 3.75 0 002.576 2.576l2.846.813a.75.75 0 010 1.442l-2.846.813a3.75 3.75 0 00-2.576 2.576l-.813 2.846a.75.75 0 01-1.442 0l-.813-2.846a3.75 3.75 0 00-2.576-2.576l-2.846-.813a.75.75 0 010-1.442l2.846-.813a3.75 3.75 0 002.576-2.576l.813-2.846A.75.75 0 019 4.5zM18 1.5a.75.75 0 01.728.568l.258 1.036c.236.94.97 1.674 1.91 1.91l1.036.258a.75.75 0 010 1.456l-1.036.258c-.94.236-1.674.97-1.91 1.91l-.258 1.036a.75.75 0 01-1.456 0l-.258-1.036a2.625 2.625 0 00-1.91-1.91l-1.036-.258a.75.75 0 010-1.456l1.036-.258a2.625 2.625 0 001.91-1.91l.258-1.036A.75.75 0 0118 1.5zM16.5 15a.75.75 0 01.712.513l.394 1.183c.15.447.5.799.948.948l1.183.394a.75.75 0 010 1.422l-1.183.394c-.447.15-.799.5-.948.948l-.394 1.183a.75.75 0 01-1.422 0l-.394-1.183a1.5 1.5 0 00-.948-.948l-1.183-.394a.75.75 0 010-1.422l1.183-.394c.447-.15.799-.5.948-.948l.394-1.183A.75.75 0 0116.5 15z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
-              </button>
+                <div>
+                  <h2
+                    class="text-2xl md:text-4xl font-thin tracking-tighter text-white mb-2"
+                    style="text-shadow: 0 0 20px rgba(255,255,255,0.3);"
+                  >
+                    <span class="text-[#9ae600] font-bold">SMOL</span>
+                    <span class="font-thin text-white">RADIO</span>
+                  </h2>
+                  <p class="text-white/60 text-sm tracking-wide font-light">
+                    SELECT UP TO {MAX_TAGS} VIBES
+                  </p>
+                </div>
+                <!-- Sort & Filter Controls -->
+                <!-- Sort & Filter Controls (Moved to Tag Cloud) -->
+              </div>
+            {/if}
+          {/if}
 
-              {#if isDreamMode}
-                <input
-                  type="text"
-                  bind:value={moodInput}
-                  placeholder="Dream it... (e.g. 'Chill Vibes')"
-                  class="reactive-input w-full pl-14 pr-12 py-3 text-base placeholder-[#fdda24]/50 text-[#fdda24] border-[#fdda24]/30 focus:border-[#fdda24] focus:outline-none transition-all"
-                  disabled={isFetchingMood}
-                  enterkeyhint="go"
-                  autofocus
-                />
-                <button
-                  class="absolute right-2 top-1/2 -translate-y-1/2 text-[#fdda24] hover:text-white disabled:opacity-50 p-3 cursor-pointer z-50 min-w-[44px] min-h-[44px] flex items-center justify-center"
-                  type="submit"
-                  onclick={() => {}}
-                  disabled={!moodInput.trim() || isFetchingMood}
+          <!-- ACTIVE TAGS (Only visible on desktop in full mode - mobile shows in title bar) -->
+          {#if selectedTags.length > 0 && !isCompact}
+            <div
+              class="hidden md:flex flex-wrap gap-2 animate-in fade-in duration-300"
+            >
+              {#each selectedTags as tag}
+                <span
+                  class="reactive-pill selected inline-flex items-center gap-2 px-3 py-1 text-xs text-white font-mono bg-[#872ab0] shadow-[0_0_15px_rgba(135,42,176,0.7)] border-none"
                 >
-                  {#if isFetchingMood}
-                    <span class="animate-spin text-xs">↻</span>
-                  {:else}
+                  {tag}
+                  <button
+                    class="hover:text-red-200 transition-colors font-bold"
+                    onclick={() => removeTag(tag)}>×</button
+                  >
+                </span>
+              {/each}
+              {#if isCompact}
+                <button
+                  class="text-[10px] text-white/30 hover:text-white transition-colors uppercase tracking-widest ml-2"
+                  onclick={clearTags}>Clear</button
+                >
+              {/if}
+            </div>
+          {/if}
+
+          <!-- TAG CLOUD (Collapsible) -->
+          {#if showCloud}
+            <div
+              class="md:col-span-7 reactive-glass flex flex-col items-center p-4 md:p-6 border border-white/5 transition-all duration-500 relative z-40 rounded-xl overflow-hidden"
+            >
+              <!-- Title Bar -->
+              <div
+                class="w-full flex items-center justify-between mb-3 pb-3 border-b border-white/10"
+              >
+                <h3
+                  class="text-xs uppercase tracking-[0.2em] text-white/50 font-semibold"
+                >
+                  {isDreamMode ? "✨ Dream Mode" : "🎵 Vibe Builder"}
+                </h3>
+
+                {#if generatedPlaylist.length > 0}
+                  <button
+                    class="flex items-center gap-2 px-3 py-1.5 text-[10px] font-bold text-[#1b8da0] border border-[#1b8da0]/30 rounded-full hover:bg-[#1b8da0]/10 transition-all uppercase tracking-widest bg-black/20"
+                    onclick={() => (showBuilder = false)}
+                  >
+                    Return to Player →
+                  </button>
+                {/if}
+              </div>
+
+              <!-- Selected Vibes Row -->
+              <div
+                class="w-full flex flex-wrap items-center justify-between gap-2 mb-3"
+              >
+                {#if selectedTags.length > 0}
+                  <div class="flex flex-wrap gap-1 items-center">
+                    {#each selectedTags as tag}
+                      <span
+                        class="px-2 py-0.5 text-[10px] bg-[#872ab0] text-white rounded-full border border-[#872ab0]/50 shadow-[0_0_12px_rgba(135,42,176,0.6)]"
+                      >
+                        {tag}
+                      </span>
+                    {/each}
+                    <button
+                      class="text-[10px] text-white/30 hover:text-red-400 transition-colors ml-1"
+                      onclick={clearTags}>✕</button
+                    >
+                  </div>
+                {:else}
+                  <span class="text-[10px] text-white/30"
+                    >No vibes selected</span
+                  >
+                {/if}
+              </div>
+              <!-- Toolbar: Search & Sort -->
+              <div
+                class="w-full flex gap-3 mb-4 animate-in fade-in slide-in-from-top-2 duration-300"
+              >
+                <form
+                  class="relative flex-1 group"
+                  onsubmit={(e) => {
+                    e.preventDefault();
+                    if (isDreamMode && !isFetchingMood && moodInput.trim()) {
+                      suggestTagsFromMood();
+                    }
+                  }}
+                >
+                  <button
+                    type="button"
+                    class="absolute left-2 top-1/2 -translate-y-1/2 transition-all duration-300 z-50 flex items-center justify-center w-11 h-11 rounded-full cursor-pointer {isDreamMode
+                      ? 'bg-[#fdda24]/10 text-[#fdda24] shadow-[0_0_10px_rgba(253,218,36,0.2)]'
+                      : 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10'}"
+                    onclick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      isDreamMode = !isDreamMode;
+                    }}
+                    title={isDreamMode
+                      ? "Switch to Search"
+                      : "Switch to Dream Mode"}
+                  >
+                    <!-- SPARKLE ICON (Always visible, changes color) -->
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 20 20"
+                      viewBox="0 0 24 24"
                       fill="currentColor"
-                      class="w-5 h-5"
+                      class="w-5 h-5 transition-transform duration-300 {isDreamMode
+                        ? 'scale-110'
+                        : 'scale-90'}"
                     >
                       <path
                         fill-rule="evenodd"
-                        d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z"
+                        d="M9 4.5a.75.75 0 01.721.544l.813 2.846a3.75 3.75 0 002.576 2.576l2.846.813a.75.75 0 010 1.442l-2.846.813a3.75 3.75 0 00-2.576 2.576l-.813 2.846a.75.75 0 01-1.442 0l-.813-2.846a3.75 3.75 0 00-2.576-2.576l-2.846-.813a.75.75 0 010-1.442l2.846-.813a3.75 3.75 0 002.576-2.576l.813-2.846A.75.75 0 019 4.5zM18 1.5a.75.75 0 01.728.568l.258 1.036c.236.94.97 1.674 1.91 1.91l1.036.258a.75.75 0 010 1.456l-1.036.258c-.94.236-1.674.97-1.91 1.91l-.258 1.036a.75.75 0 01-1.456 0l-.258-1.036a2.625 2.625 0 00-1.91-1.91l-1.036-.258a.75.75 0 010-1.456l1.036-.258a2.625 2.625 0 001.91-1.91l.258-1.036A.75.75 0 0118 1.5zM16.5 15a.75.75 0 01.712.513l.394 1.183c.15.447.5.799.948.948l1.183.394a.75.75 0 010 1.422l-1.183.394c-.447.15-.799.5-.948.948l-.394 1.183a.75.75 0 01-1.422 0l-.394-1.183a1.5 1.5 0 00-.948-.948l-1.183-.394a.75.75 0 010-1.422l1.183-.394c.447-.15.799-.5.948-.948l.394-1.183A.75.75 0 0116.5 15z"
                         clip-rule="evenodd"
                       />
                     </svg>
+                  </button>
+
+                  {#if isDreamMode}
+                    <input
+                      type="text"
+                      bind:value={moodInput}
+                      placeholder="Dream it... (e.g. 'Chill Vibes')"
+                      class="reactive-input w-full pl-14 pr-12 py-3 text-base placeholder-[#fdda24]/50 text-[#fdda24] border-[#fdda24]/30 focus:border-[#fdda24] focus:outline-none transition-all"
+                      disabled={isFetchingMood}
+                      enterkeyhint="go"
+                      autofocus
+                    />
+                    <button
+                      class="absolute right-2 top-1/2 -translate-y-1/2 text-[#fdda24] hover:text-white disabled:opacity-50 p-3 cursor-pointer z-50 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                      type="submit"
+                      onclick={() => {}}
+                      disabled={!moodInput.trim() || isFetchingMood}
+                    >
+                      {#if isFetchingMood}
+                        <span class="animate-spin text-xs">↻</span>
+                      {:else}
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          class="w-5 h-5"
+                        >
+                          <path
+                            fill-rule="evenodd"
+                            d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z"
+                            clip-rule="evenodd"
+                          />
+                        </svg>
+                      {/if}
+                    </button>
+                  {:else}
+                    <input
+                      type="text"
+                      bind:value={searchQuery}
+                      placeholder="Search vibes..."
+                      class="reactive-input w-full pl-14 pr-4 py-3 text-base placeholder-white/30 focus:outline-none transition-all"
+                      onkeydown={(e) => e.key === "Enter" && e.preventDefault()}
+                    />
                   {/if}
+                </form>
+
+                <select
+                  bind:value={sortMode}
+                  class="reactive-input px-4 py-2 text-sm focus:outline-none appearance-none cursor-pointer hover:bg-white/5 transition-colors text-white/60 hover:text-white"
+                >
+                  <option value="popularity" class="bg-slate-900"
+                    >Popularity</option
+                  >
+                  <option value="frequency" class="bg-slate-900"
+                    >Frequency</option
+                  >
+                  <option value="alphabetical" class="bg-slate-900">A-Z</option>
+                </select>
+              </div>
+              <div
+                class="flex flex-wrap gap-x-2 gap-y-2 justify-center max-h-[35vh] md:max-h-64 overflow-y-auto dark-scrollbar w-full p-2"
+              >
+                {#each displayedTags as { tag, count }}
+                  <button
+                    class="reactive-pill px-3 py-1 transition-all duration-200 disabled:opacity-20 whitespace-nowrap font-mono text-[10px] md:text-xs"
+                    class:selected={selectedTags.includes(tag)}
+                    class:text-white={!selectedTags.includes(tag)}
+                    class:opacity-60={!selectedTags.includes(tag)}
+                    style="font-size: {isCompact
+                      ? '0.75rem'
+                      : getFontSize(count, maxCount)};"
+                    onclick={() => toggleTag(tag)}
+                    disabled={!selectedTags.includes(tag) &&
+                      selectedTags.length >= MAX_TAGS}
+                  >
+                    {tag}
+                  </button>
+                {/each}
+              </div>
+
+              {#if !isCompact && !searchQuery && processedTags.length > INITIAL_TAG_LIMIT}
+                <button
+                  class="mt-4 text-xs font-bold tracking-[0.2em] text-white/40 hover:text-white transition-colors uppercase w-full py-2 border-t border-white/5"
+                  onclick={() => (showAll = !showAll)}
+                >
+                  {showAll ? "Collapse" : `Show All (${processedTags.length})`}
                 </button>
-              {:else}
-                <input
-                  type="text"
-                  bind:value={searchQuery}
-                  placeholder="Search vibes..."
-                  class="reactive-input w-full pl-14 pr-4 py-3 text-base placeholder-white/30 focus:outline-none transition-all"
-                  onkeydown={(e) => e.key === "Enter" && e.preventDefault()}
-                />
               {/if}
-            </form>
+            </div>
+          {/if}
 
-            <select
-              bind:value={sortMode}
-              class="reactive-input px-4 py-2 text-sm focus:outline-none appearance-none cursor-pointer hover:bg-white/5 transition-colors text-white/60 hover:text-white"
+          <!-- MAIN IGNITE BUTTON (Only if not compact) -->
+          {#if !isCompact}
+            <div
+              class="flex justify-center mt-6 mb-8 md:mb-0 gap-6 items-center"
             >
-              <option value="popularity" class="bg-slate-900">Popularity</option
-              >
-              <option value="frequency" class="bg-slate-900">Frequency</option>
-              <option value="alphabetical" class="bg-slate-900">A-Z</option>
-            </select>
-          </div>
-          <div
-            class="flex flex-wrap gap-x-2 gap-y-2 justify-center max-h-[35vh] md:max-h-64 overflow-y-auto dark-scrollbar w-full p-2"
-          >
-            {#each displayedTags as { tag, count }}
               <button
-                class="reactive-pill px-3 py-1 transition-all duration-200 disabled:opacity-20 whitespace-nowrap font-mono text-[10px] md:text-xs"
-                class:selected={selectedTags.includes(tag)}
-                class:text-white={!selectedTags.includes(tag)}
-                class:opacity-60={!selectedTags.includes(tag)}
-                style="font-size: {isCompact
-                  ? '0.75rem'
-                  : getFontSize(count, maxCount)};"
-                onclick={() => toggleTag(tag)}
-                disabled={!selectedTags.includes(tag) &&
-                  selectedTags.length >= MAX_TAGS}
+                class="reactive-button-ignite w-full md:w-auto text-white font-bold py-4 px-8 md:py-4 md:px-12 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-[0.2em] text-lg md:text-lg border-2 border-[#F7931A] shadow-[0_0_30px_rgba(247,147,26,0.6)] hover:shadow-[0_0_40px_rgba(247,147,26,0.8)] hover:border-[#F7931A] md:shadow-[0_0_15px_rgba(247,147,26,0.4)] rounded-xl"
+                onclick={() => {
+                  if (isDreamMode && moodInput.trim()) {
+                    suggestTagsFromMood();
+                  } else {
+                    generateStation();
+                  }
+                }}
+                disabled={(selectedTags.length === 0 &&
+                  (!isDreamMode || !moodInput.trim())) ||
+                  isGenerating ||
+                  (isDreamMode && isFetchingMood)}
               >
-                {tag}
+                {isGenerating || isFetchingMood ? "SYNTHESIZING..." : "IGNITE"}
               </button>
-            {/each}
-          </div>
-
-          {#if !isCompact && !searchQuery && processedTags.length > INITIAL_TAG_LIMIT}
-            <button
-              class="mt-4 text-xs font-bold tracking-[0.2em] text-white/40 hover:text-white transition-colors uppercase w-full py-2 border-t border-white/5"
-              onclick={() => (showAll = !showAll)}
-            >
-              {showAll ? "Collapse" : `Show All (${processedTags.length})`}
-            </button>
+            </div>
           {/if}
         </div>
-      {/if}
-
-      <!-- MAIN IGNITE BUTTON (Only if not compact) -->
-      {#if !isCompact}
-        <div class="flex justify-center mt-6 mb-8 md:mb-0 gap-6 items-center">
-          <button
-            class="reactive-button-ignite w-full md:w-auto text-white font-bold py-4 px-8 md:py-4 md:px-12 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-[0.2em] text-lg md:text-lg border-2 border-[#f7931a] shadow-[0_0_30px_rgba(247,147,26,0.8)] hover:shadow-[0_0_25px_rgba(247,147,26,0.7)] hover:border-[#fcd09e] md:shadow-[0_0_15px_rgba(247,147,26,0.5)] rounded-xl"
-            onclick={() => {
-              if (isDreamMode && moodInput.trim()) {
-                suggestTagsFromMood();
-              } else {
-                generateStation();
-              }
-            }}
-            disabled={(selectedTags.length === 0 &&
-              (!isDreamMode || !moodInput.trim())) ||
-              isGenerating ||
-              (isDreamMode && isFetchingMood)}
-          >
-            {isGenerating || isFetchingMood ? "SYNTHESIZING..." : "IGNITE"}
-          </button>
-        </div>
-      {/if}
-    </div>
+      </div>
+    {/if}
 
     <!-- PLAYLIST RESULTS (Intelligently Available) -->
-    {#if generatedPlaylist.length > 0}
+    {#if generatedPlaylist.length > 0 && !showBuilder}
       <div class="animate-in fade-in slide-in-from-bottom-8 duration-700">
         <RadioResults
           playlist={generatedPlaylist}
@@ -948,7 +976,7 @@
           onSelect={playSongAtIndex}
           onSaveMixtape={saveAsMixtape}
           onRegenerate={generateStation}
-          onToggleSettings={toggleSettings}
+          onShowBuilder={toggleBuilder}
         />
       </div>
     {/if}
