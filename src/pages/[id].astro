@@ -39,7 +39,7 @@ if (id) {
 ---
 
 <Layout {title} {description} {song_url} {image_url} hideBottomBar={true}>
-	<div class="h-screen flex items-center justify-center">
+	<div class="h-[calc(100vh-80px)] flex items-center justify-center overflow-hidden pt-12 pb-8 px-6">
 		<SmolResults id={id as string} client:only="svelte" />
 	</div>
 </Layout>

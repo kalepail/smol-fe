@@ -26,6 +26,7 @@
     let showTradeModal = $state(false);
     let minting = $state(false);
     let activeTab = $state<"lyrics" | "metadata">("lyrics");
+    let autoScroll = $state(false); // Enable auto-scroll (Default OFF)
     let tradeMintBalance = $state(0n); // Restored missing state
 
     const mintingHook = useSmolMinting();
@@ -131,7 +132,13 @@
     // Lyrics auto-scroll
     $effect(() => {
         const container = lyricsContainerRef;
-        if (!container || !isPlaying() || lyricsLines.length === 0) return;
+        if (
+            !container ||
+            !isPlaying() ||
+            lyricsLines.length === 0 ||
+            !autoScroll
+        )
+            return;
 
         const intervalId = setInterval(() => {
             const progress = audioState.progress;
@@ -315,12 +322,12 @@
                             }}
                         />
 
-                        <div class="mt-2 flex gap-4">
+                        <div class="mt-auto flex gap-4">
                             {#if minted}
                                 {#if tradeReady}
                                     <button
                                         onclick={() => (showTradeModal = true)}
-                                        class="flex-1 flex items-center justify-center gap-2 py-3 bg-sky-500 hover:bg-sky-400 text-sky-950 font-bold rounded-xl transition-all uppercase tracking-widest text-xs"
+                                        class="flex-1 flex items-center justify-center gap-2 py-3 bg-[#2775ca] hover:brightness-110 text-white font-bold rounded-xl transition-all uppercase tracking-widest text-xs"
                                     >
                                         Trade <TokenBalancePill
                                             balance={tradeMintBalance}
@@ -354,24 +361,40 @@
                     >
                         <!-- Content Tabs -->
                         <div
-                            class="flex px-4 pt-4 gap-6 border-b border-white/5 flex-shrink-0"
+                            class="flex px-4 pt-4 gap-6 border-b border-white/5 flex-shrink-0 items-center justify-between"
                         >
-                            <button
-                                onclick={() => (activeTab = "lyrics")}
-                                class="pb-3 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors {activeTab ===
-                                'lyrics'
-                                    ? 'text-[#d836ff] border-b-2 border-[#d836ff]'
-                                    : 'text-white/30 hover:text-white'}"
-                                >Lyrics</button
-                            >
-                            <button
-                                onclick={() => (activeTab = "metadata")}
-                                class="pb-3 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors {activeTab ===
-                                'metadata'
-                                    ? 'text-[#d836ff] border-b-2 border-[#d836ff]'
-                                    : 'text-white/30 hover:text-white'}"
-                                >Metadata</button
-                            >
+                            <div class="flex gap-6">
+                                <button
+                                    onclick={() => (activeTab = "lyrics")}
+                                    class="pb-3 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors {activeTab ===
+                                    'lyrics'
+                                        ? 'text-[#d836ff] border-b-2 border-[#d836ff]'
+                                        : 'text-white/30 hover:text-white'}"
+                                    >Lyrics</button
+                                >
+                                <button
+                                    onclick={() => (activeTab = "metadata")}
+                                    class="pb-3 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors {activeTab ===
+                                    'metadata'
+                                        ? 'text-[#d836ff] border-b-2 border-[#d836ff]'
+                                        : 'text-white/30 hover:text-white'}"
+                                    >Metadata</button
+                                >
+                            </div>
+
+                            {#if activeTab === "lyrics"}
+                                <button
+                                    onclick={() => (autoScroll = !autoScroll)}
+                                    class="pb-3 px-2 text-[10px] font-bold transition-all {autoScroll
+                                        ? 'text-[#d836ff] drop-shadow-[0_0_8px_rgba(216,54,255,0.5)]'
+                                        : 'text-white/20 hover:text-white/50'}"
+                                    title={autoScroll
+                                        ? "Auto-scroll ON"
+                                        : "Auto-scroll OFF"}
+                                >
+                                    S
+                                </button>
+                            {/if}
                         </div>
 
                         <div class="flex-1 relative overflow-hidden group">
@@ -490,6 +513,23 @@
                                                 </div>
                                             </div>
                                         </div>
+
+                                        <!-- Tags moved here -->
+                                        <div>
+                                            <h4
+                                                class="text-[9px] uppercase tracking-widest text-white/20 mb-3"
+                                            >
+                                                Styles & Tags
+                                            </h4>
+                                            <div class="flex flex-wrap gap-2">
+                                                {#each data.kv_do?.lyrics?.style || [] as tag}
+                                                    <span
+                                                        class="px-2 py-1 rounded bg-[#d836ff]/5 text-[#d836ff]/50 text-[10px] border border-[#d836ff]/10"
+                                                        >#{tag}</span
+                                                    >
+                                                {/each}
+                                            </div>
+                                        </div>
                                     </div>
                                 {/if}
 
@@ -511,25 +551,7 @@
                                 <!-- Footer Info (Persistent) -->
                                 <div
                                     class="mt-12 pt-12 border-t border-white/5 space-y-6"
-                                >
-                                    {#if activeTab === "lyrics"}
-                                        <div>
-                                            <h4
-                                                class="text-[9px] uppercase tracking-widest text-white/20 mb-3"
-                                            >
-                                                Styles & Tags
-                                            </h4>
-                                            <div class="flex flex-wrap gap-2">
-                                                {#each data.kv_do?.lyrics?.style || [] as tag}
-                                                    <span
-                                                        class="px-2 py-1 rounded bg-[#d836ff]/5 text-[#d836ff]/50 text-[10px] border border-[#d836ff]/10"
-                                                        >#{tag}</span
-                                                    >
-                                                {/each}
-                                            </div>
-                                        </div>
-                                    {/if}
-                                </div>
+                                ></div>
                             </div>
 
                             <!-- Fade overlays -->
