@@ -27,13 +27,17 @@ snapshot.forEach(smol => {
     }
 });
 
-const sortedArtists = Object.values(artists).sort((a, b) => b.count - a.count);
+const sortedArtists = Object.values(artists);
 ---
 
 <Layout title="Smol – Artists">
 	<main class="min-h-screen bg-[#0d0d0d] text-white p-6 pt-24 max-w-7xl mx-auto">
-        <h1 class="text-3xl font-bold mb-2">Artists</h1>
-        <p class="text-white/50 mb-12">Browse all creators on Smol.</p>
+        <div class="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+            <div>
+                <h1 class="text-4xl font-bold mb-2 tracking-tighter">Artists</h1>
+                <p class="text-white/50 font-mono text-sm uppercase tracking-widest">Global Creator Network</p>
+            </div>
+        </div>
         
         <ArtistsIndex client:load initialArtists={sortedArtists} />
     </main>

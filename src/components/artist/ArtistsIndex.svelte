@@ -13,79 +13,79 @@
     }
 
     let { initialArtists }: Props = $props();
-    let artists = $state<Artist[]>(initialArtists);
+    let sortMode = $state<"fresh" | "top">("fresh");
+    let artistMap = $state(new Map<string, Artist>());
     let isSyncing = $state(false);
-
-    // Convert array to map for easy updates
-    let artistMap = new Map<string, Artist>();
 
     // Initialize map
     initialArtists.forEach((a) => artistMap.set(a.address, a));
+
+    const sortedArtists = $derived.by(() => {
+        const list = Array.from(artistMap.values());
+        if (sortMode === "fresh") {
+            return list.sort(
+                (a, b) =>
+                    new Date(b.latestSmol.Created_At).getTime() -
+                    new Date(a.latestSmol.Created_At).getTime(),
+            );
+        } else {
+            return list.sort((a, b) => b.count - a.count);
+        }
+    });
+
+    function timeAgo(dateString: string) {
+        const date = new Date(dateString);
+        const now = new Date();
+        const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+        if (seconds < 60) return "Just now";
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `${minutes}m ago`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `${hours}h ago`;
+        const days = Math.floor(hours / 24);
+        if (days < 7) return `${days}d ago`;
+        return date.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+        });
+    }
 
     async function checkRecentActivity() {
         isSyncing = true;
         try {
             const url = new URL(import.meta.env.PUBLIC_API_URL);
-            url.searchParams.set("limit", "100"); // Check last 100 items
+            url.searchParams.set("limit", "100");
 
             const res = await fetch(url);
             if (res.ok) {
                 const data = await res.json();
                 const recentSmols: Smol[] = data.smols || [];
 
-                let updated = false;
-
                 recentSmols.forEach((smol) => {
                     if (!smol.Address) return;
 
                     let entry = artistMap.get(smol.Address);
 
-                    // If new artist found (not in snapshot)
                     if (!entry) {
                         entry = {
                             address: smol.Address,
-                            count: 0,
+                            count: 1,
                             latestSmol: smol,
                         };
                         artistMap.set(smol.Address, entry);
-                        updated = true;
-                    }
-
-                    // We can't know if we already counted this specific smol without a set of IDs.
-                    // However, since we are aggregated from a static snapshot,
-                    // and we are fetching "recent", there is overlap.
-                    // To do this strictly correctly, we would need to know the ID of the 'latestSmol' from snapshot.
-                    // Or we accept that 'count' might be slightly off if we don't dedupe.
-
-                    // Better strategy:
-                    // The snapshot is static.
-                    // We shouldn't double count.
-                    // We'll just update the 'latestSmol' cover if this one is newer.
-                    // AND if we want to update count, we need to know if this smol is NEW relative to snapshot.
-                    // This is hard without the full list of IDs.
-
-                    // Compromise for "Stay up to date":
-                    // 1. Update cover art (visual freshness).
-                    // 2. Add NEW artists.
-                    // 3. Updating count is tricky without ID set.
-                    // Let's assume snapshot is reasonably fresh.
-                    // We will mostly prioritize updating the COVER ART.
-
-                    if (
+                    } else if (
                         new Date(smol.Created_At) >
                         new Date(entry.latestSmol.Created_At)
                     ) {
                         entry.latestSmol = smol;
-                        updated = true;
+                        // Note: count might be inaccurate without full scan,
+                        // but visual freshness is prioritized here.
                     }
                 });
 
-                if (updated) {
-                    // Re-sort
-                    artists = Array.from(artistMap.values()).sort(
-                        (a, b) => b.count - a.count,
-                    );
-                }
+                // Trigger state update
+                artistMap = new Map(artistMap);
             }
         } catch (e) {
             console.error("Failed to sync artists", e);
@@ -99,37 +99,91 @@
     });
 </script>
 
+<div class="mb-10 flex items-center gap-4">
+    <div class="flex bg-white/5 p-1 rounded-lg border border-white/10">
+        <button
+            onclick={() => (sortMode = "fresh")}
+            class="px-4 py-1.5 rounded-md text-xs font-mono uppercase tracking-widest transition-all {sortMode ===
+            'fresh'
+                ? 'bg-lime-500 text-black font-bold'
+                : 'text-white/40 hover:text-white'}"
+        >
+            Fresh Drops
+        </button>
+        <button
+            onclick={() => (sortMode = "top")}
+            class="px-4 py-1.5 rounded-md text-xs font-mono uppercase tracking-widest transition-all {sortMode ===
+            'top'
+                ? 'bg-lime-500 text-black font-bold'
+                : 'text-white/40 hover:text-white'}"
+        >
+            Top Artists
+        </button>
+    </div>
+
+    {#if isSyncing}
+        <span
+            class="text-[10px] text-lime-500/50 font-mono animate-pulse uppercase tracking-[0.2em]"
+            >Syncing live activity...</span
+        >
+    {/if}
+</div>
+
 <div
-    class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6"
+    class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8"
 >
-    {#each artists as artist (artist.address)}
+    {#each sortedArtists as artist (artist.address)}
         <a
             href={`/artist/${artist.address}`}
-            class="group bg-white/5 rounded-xl overflow-hidden hover:bg-white/10 transition-all hover:-translate-y-1 block"
+            class="group relative bg-[#1a1a1a] rounded-2xl overflow-hidden border border-white/5 hover:border-lime-500/30 transition-all duration-300 hover:shadow-[0_0_30px_rgba(132,204,22,0.1)] block"
         >
-            <div
-                class="aspect-square w-full overflow-hidden bg-black/50 relative"
-            >
+            <div class="aspect-square w-full overflow-hidden bg-black relative">
                 <img
                     src={`${import.meta.env.PUBLIC_API_URL}/image/${artist.latestSmol.Id}.png`}
-                    class="w-full h-full object-cover pixelated transition-transform duration-500 group-hover:scale-105"
+                    class="w-full h-full object-cover pixelated transition-transform duration-700 group-hover:scale-110 opacity-80 group-hover:opacity-100"
                     loading="lazy"
                     alt={`Artist ${artist.address}`}
                 />
-                {#if isSyncing}
-                    <div
-                        class="absolute top-2 right-2 w-2 h-2 rounded-full bg-lime-500 animate-pulse"
-                    ></div>
-                {/if}
-            </div>
-            <div class="p-4">
-                <h3
-                    class="font-mono text-sm font-bold truncate text-lime-400 group-hover:text-lime-300 mb-1"
+
+                <!-- Metadata Overlay -->
+                <div
+                    class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity"
+                ></div>
+
+                <div
+                    class="absolute bottom-2 left-3 right-3 flex justify-between items-end"
                 >
-                    {artist.address}
-                </h3>
-                <p class="text-xs text-white/50">{artist.count} Tracks</p>
+                    <div
+                        class="bg-black/60 backdrop-blur-md px-2 py-1 rounded text-[10px] text-white/70 font-mono border border-white/10 uppercase tracking-tighter"
+                    >
+                        {artist.count} Tracks
+                    </div>
+                </div>
             </div>
+
+            <div class="p-4 bg-gradient-to-b from-[#1a1a1a] to-[#111]">
+                <h3
+                    class="font-mono text-xs font-bold truncate text-white/90 group-hover:text-lime-400 transition-colors mb-2"
+                >
+                    {artist.address.slice(0, 6)}...{artist.address.slice(-4)}
+                </h3>
+
+                <div class="flex items-center justify-between">
+                    <span
+                        class="text-[9px] text-white/30 uppercase tracking-[0.15em] font-light"
+                        >Latest</span
+                    >
+                    <span
+                        class="text-[10px] text-lime-500/80 font-mono font-medium"
+                        >{timeAgo(artist.latestSmol.Created_At)}</span
+                    >
+                </div>
+            </div>
+
+            <!-- Glow effect on hover -->
+            <div
+                class="absolute inset-0 border border-lime-500/0 group-hover:border-lime-500/20 rounded-2xl transition-all pointer-events-none"
+            ></div>
         </a>
     {/each}
 </div>
