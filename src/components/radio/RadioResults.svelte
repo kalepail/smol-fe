@@ -336,7 +336,9 @@
                     </h3>
                 </div>
 
-                <div class="flex-1 relative min-h-0">
+                <div
+                    class="flex-1 relative min-h-0 h-[450px] lg:h-full overflow-y-auto dark-scrollbar pr-2"
+                >
                     <ul
                         class="divide-y divide-white/5 h-full overflow-y-auto dark-scrollbar"
                     >

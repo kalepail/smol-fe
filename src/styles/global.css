@@ -176,3 +176,24 @@
     background: #404040;
     /* Lighter Gray Hover */
 }
+
+/* Explicit Utility for Visible Dark Scroller */
+.dark-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    display: block;
+}
+
+.dark-scrollbar::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+}
+
+.dark-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.dark-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
