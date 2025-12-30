@@ -165,7 +165,7 @@
         if (state.isActiveGlobalShuffle !== undefined)
           isActiveGlobalShuffle = state.isActiveGlobalShuffle;
         if (state.currentIndex !== undefined) currentIndex = state.currentIndex;
-        if (state.showBuilder !== undefined) showBuilder = state.showBuilder;
+        if (state.currentIndex !== undefined) currentIndex = state.currentIndex;
 
         // Reset history set from loaded IDs
         if (state.generatedPlaylist) {
