@@ -23,9 +23,9 @@
     let data = $state<SmolDetailResponse | null>(null);
     let loading = $state(true);
     let error = $state<string | null>(null);
-    let tradeMintBalance = $state<bigint>(0n);
     let showTradeModal = $state(false);
     let minting = $state(false);
+    let activeTab = $state<"lyrics" | "metadata">("lyrics");
 
     const mintingHook = useSmolMinting();
 
@@ -169,13 +169,13 @@
 <div class="max-w-6xl mx-auto px-4 font-mono">
     {#if loading}
         <div class="flex items-center justify-center py-32">
-            <Loader classNames="w-12 h-12" textColor="text-lime-500" />
+            <Loader classNames="w-12 h-12" textColor="text-[#d836ff]" />
         </div>
     {:else if error}
         <div class="text-center py-32">
             <h2 class="text-2xl font-bold text-red-500 mb-4">Error</h2>
             <p class="text-white/40">{error}</p>
-            <a href="/" class="mt-8 inline-block text-lime-400 hover:underline"
+            <a href="/" class="mt-8 inline-block text-[#d836ff] hover:underline"
                 >Back Home</a
             >
         </div>
@@ -183,7 +183,7 @@
         <div class="animate-in fade-in slide-in-from-bottom-4 duration-700">
             <!-- Header -->
             <div
-                class="flex flex-col md:flex-row items-start md:items-end justify-between gap-4 mb-6"
+                class="flex flex-col md:flex-row items-start md:items-end justify-between gap-4 mb-3"
             >
                 <div>
                     <h1
@@ -195,11 +195,11 @@
                         {data.d1?.Title || "Untitled"}
                     </h2>
                     <p
-                        class="text-xs text-lime-400/60 mt-1 uppercase tracking-widest flex items-center gap-2"
+                        class="text-xs text-[#d836ff]/60 mt-1 uppercase tracking-widest flex items-center gap-2"
                     >
                         CREATED BY <a
                             href="/artist/{data.d1?.Address}"
-                            class="hover:underline text-lime-400"
+                            class="hover:underline text-[#d836ff]"
                             >{data.d1?.Address?.slice(0, 12)}...</a
                         >
                     </p>
@@ -208,7 +208,7 @@
                 <div class="flex gap-3">
                     {#if minted}
                         <span
-                            class="px-3 py-1 rounded bg-emerald-500/10 text-emerald-400 text-[10px] border border-emerald-500/20 uppercase font-bold tracking-widest"
+                            class="px-3 py-1 rounded bg-[#d836ff]/10 text-[#d836ff] text-[10px] border border-[#d836ff]/20 uppercase font-bold tracking-widest"
                             >MINTED</span
                         >
                     {/if}
@@ -231,7 +231,7 @@
                 >
                     <div class="flex items-center gap-4">
                         <div
-                            class="text-lime-500 drop-shadow-[0_0_8px_#84cc16]"
+                            class="text-[#d836ff] drop-shadow-[0_0_8px_#d836ff]"
                         >
                             <svg
                                 viewBox="0 0 24 24"
@@ -271,17 +271,18 @@
                 </div>
 
                 <div
-                    class="flex flex-col lg:flex-row gap-8 items-stretch p-6 h-auto lg:h-[600px]"
+                    class="flex flex-col lg:flex-row gap-6 items-stretch p-4 h-auto lg:h-[540px]"
                 >
                     <!-- Left: Player Column -->
                     <div class="w-full lg:w-1/2 flex flex-col">
                         <RadioPlayer
                             playlist={track ? [track] : []}
                             currentIndex={0}
+                            accentColor="#d836ff"
                             onSelect={() => {}}
                         />
 
-                        <div class="mt-6 flex gap-4">
+                        <div class="mt-2 flex gap-4">
                             {#if minted}
                                 {#if tradeReady}
                                     <button
@@ -297,11 +298,11 @@
                                 <button
                                     onclick={triggerMint}
                                     disabled={minting}
-                                    class="flex-1 py-3 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-emerald-950 font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
+                                    class="flex-1 py-3 bg-[#d836ff] hover:brightness-110 disabled:opacity-50 text-white font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
                                 >
                                     {#if minting}<Loader
                                             classNames="w-4 h-4"
-                                            textColor="text-emerald-950"
+                                            textColor="text-white"
                                         />{/if}
                                     {minting ? "Minting..." : "Mint Track"}
                                 </button>
@@ -323,11 +324,19 @@
                             class="flex px-4 pt-4 gap-6 border-b border-white/5 flex-shrink-0"
                         >
                             <button
-                                class="pb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-lime-400 border-b-2 border-lime-400"
+                                onclick={() => (activeTab = "lyrics")}
+                                class="pb-3 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors {activeTab ===
+                                'lyrics'
+                                    ? 'text-[#d836ff] border-b-2 border-[#d836ff]'
+                                    : 'text-white/30 hover:text-white'}"
                                 >Lyrics</button
                             >
                             <button
-                                class="pb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-white/30 hover:text-white transition-colors"
+                                onclick={() => (activeTab = "metadata")}
+                                class="pb-3 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors {activeTab ===
+                                'metadata'
+                                    ? 'text-[#d836ff] border-b-2 border-[#d836ff]'
+                                    : 'text-white/30 hover:text-white'}"
                                 >Metadata</button
                             >
                         </div>
@@ -337,7 +346,7 @@
                                 bind:this={lyricsContainerRef}
                                 class="h-full overflow-y-auto p-6 scroll-smooth dark-scrollbar"
                             >
-                                {#if lyricsLines.length > 0}
+                                {#if activeTab === "lyrics"}
                                     <div class="space-y-4">
                                         {#each lyricsLines as line}
                                             <p
@@ -349,7 +358,111 @@
                                     </div>
                                 {:else}
                                     <div
-                                        class="h-full flex flex-col items-center justify-center text-center"
+                                        class="space-y-8 animate-in fade-in duration-300"
+                                    >
+                                        <div>
+                                            <h4
+                                                class="text-[10px] uppercase tracking-[0.2em] text-white/20 mb-4 font-bold"
+                                            >
+                                                Technical Details
+                                            </h4>
+                                            <div
+                                                class="grid grid-cols-2 gap-4 text-[11px]"
+                                            >
+                                                <div
+                                                    class="p-3 rounded-lg bg-white/5 border border-white/5"
+                                                >
+                                                    <div
+                                                        class="text-white/40 mb-1 uppercase tracking-widest"
+                                                    >
+                                                        ID
+                                                    </div>
+                                                    <div
+                                                        class="text-white/80 font-mono truncate"
+                                                    >
+                                                        {id}
+                                                    </div>
+                                                </div>
+                                                <div
+                                                    class="p-3 rounded-lg bg-white/5 border border-white/5"
+                                                >
+                                                    <div
+                                                        class="text-white/40 mb-1 uppercase tracking-widest"
+                                                    >
+                                                        Address
+                                                    </div>
+                                                    <div
+                                                        class="text-[#d836ff] font-mono truncate"
+                                                    >
+                                                        {data.d1?.Address?.slice(
+                                                            0,
+                                                            16,
+                                                        )}...
+                                                    </div>
+                                                </div>
+                                                <div
+                                                    class="p-3 rounded-lg bg-white/5 border border-white/5"
+                                                >
+                                                    <div
+                                                        class="text-white/40 mb-1 uppercase tracking-widest"
+                                                    >
+                                                        Mint Token
+                                                    </div>
+                                                    <div
+                                                        class="text-sky-400 font-mono truncate"
+                                                    >
+                                                        {data.d1?.Mint_Token ||
+                                                            "N/A"}
+                                                    </div>
+                                                </div>
+                                                <div
+                                                    class="p-3 rounded-lg bg-white/5 border border-white/5"
+                                                >
+                                                    <div
+                                                        class="text-white/40 mb-1 uppercase tracking-widest"
+                                                    >
+                                                        Creator Share
+                                                    </div>
+                                                    <div
+                                                        class="text-emerald-400 font-mono uppercase"
+                                                    >
+                                                        10% Royalty
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <h4
+                                                class="text-[10px] uppercase tracking-[0.2em] text-white/20 mb-4 font-bold"
+                                            >
+                                                Model Metadata
+                                            </h4>
+                                            <div
+                                                class="p-4 rounded-xl bg-black/40 border border-white/5 space-y-4"
+                                            >
+                                                <div>
+                                                    <div
+                                                        class="text-[9px] text-white/30 uppercase tracking-[0.2em] mb-2"
+                                                    >
+                                                        Primary Prompt
+                                                    </div>
+                                                    <p
+                                                        class="text-xs text-white/70 italic leading-relaxed"
+                                                    >
+                                                        "{data.kv_do?.payload
+                                                            ?.prompt ||
+                                                            "No prompt stored"}"
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {/if}
+
+                                {#if activeTab === "lyrics" && lyricsLines.length === 0}
+                                    <div
+                                        class="h-full flex flex-col items-center justify-center text-center py-20"
                                     >
                                         <p
                                             class="text-white/20 italic text-sm mb-4"
@@ -362,37 +475,27 @@
                                     </div>
                                 {/if}
 
+                                <!-- Footer Info (Persistent) -->
                                 <div
                                     class="mt-12 pt-12 border-t border-white/5 space-y-6"
                                 >
-                                    <div>
-                                        <h4
-                                            class="text-[9px] uppercase tracking-widest text-white/20 mb-3"
-                                        >
-                                            Generation Prompt
-                                        </h4>
-                                        <p
-                                            class="text-xs text-white/60 leading-relaxed italic border-l-2 border-white/5 pl-4"
-                                        >
-                                            {data.kv_do?.payload?.prompt ||
-                                                "No prompt available"}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <h4
-                                            class="text-[9px] uppercase tracking-widest text-white/20 mb-3"
-                                        >
-                                            Styles & Tags
-                                        </h4>
-                                        <div class="flex flex-wrap gap-2">
-                                            {#each data.kv_do?.lyrics?.style || [] as tag}
-                                                <span
-                                                    class="px-2 py-1 rounded bg-lime-500/5 text-lime-400/50 text-[10px] border border-lime-500/10"
-                                                    >#{tag}</span
-                                                >
-                                            {/each}
+                                    {#if activeTab === "lyrics"}
+                                        <div>
+                                            <h4
+                                                class="text-[9px] uppercase tracking-widest text-white/20 mb-3"
+                                            >
+                                                Styles & Tags
+                                            </h4>
+                                            <div class="flex flex-wrap gap-2">
+                                                {#each data.kv_do?.lyrics?.style || [] as tag}
+                                                    <span
+                                                        class="px-2 py-1 rounded bg-[#d836ff]/5 text-[#d836ff]/50 text-[10px] border border-[#d836ff]/10"
+                                                        >#{tag}</span
+                                                    >
+                                                {/each}
+                                            </div>
                                         </div>
-                                    </div>
+                                    {/if}
                                 </div>
                             </div>
 

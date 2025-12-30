@@ -16,6 +16,7 @@
     onRegenerate,
     onSelect,
     currentIndex,
+    accentColor = "#9ae600",
   }: {
     playlist: Smol[];
     onNext?: () => void;
@@ -24,6 +25,7 @@
     onSelect?: (index: number) => void;
     onToggleLike?: (index: number, liked: boolean) => void;
     currentIndex?: number;
+    accentColor?: string;
   } = $props();
 
   const currentSong = $derived(audioState.currentSong);
@@ -195,7 +197,7 @@
 
       // Gradient for the line
       const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
-      gradient.addColorStop(0, "#9ae600");
+      gradient.addColorStop(0, accentColor);
       gradient.addColorStop(0.5, "#a855f7");
       gradient.addColorStop(1, "#f97316");
       ctx.strokeStyle = gradient;
@@ -274,7 +276,9 @@
 
 <div
   bind:this={containerRef}
-  class="w-full relative overflow-hidden group/fs {isFullscreen
+  class="w-full relative {isFullscreen
+    ? 'overflow-hidden'
+    : ''} group/fs {isFullscreen
     ? 'fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center'
     : ''}"
   onmousemove={handleMouseMove}
@@ -302,7 +306,7 @@
       <div
         class="relative w-full aspect-square {isFullscreen
           ? 'max-h-[60vh] max-w-[60vh]'
-          : 'max-h-[380px] max-w-[380px] sm:max-h-[400px] sm:max-w-[400px]'} rounded-2xl overflow-hidden bg-black/40 border border-white/10 shadow-2xl mx-auto transition-all duration-500 isolate"
+          : 'max-h-[320px] max-w-[320px] sm:max-h-[340px] sm:max-w-[340px]'} rounded-2xl overflow-hidden bg-black/40 border border-white/10 shadow-2xl mx-auto transition-all duration-500 isolate"
         style="clip-path: inset(0 round 1rem);"
       >
         <!-- Album Art Background (Blurred & Zoomed) -->
@@ -530,8 +534,8 @@
           class="h-1.5 bg-white/10 rounded-full overflow-hidden w-full backdrop-blur-sm"
         >
           <div
-            class="h-full bg-[#9ae600] shadow-[0_0_10px_#9ae600] transition-all duration-200 ease-linear"
-            style="width: {progress}%;"
+            class="h-full transition-all duration-200 ease-linear"
+            style="width: {progress}%; background-color: {accentColor}; box-shadow: 0 0 10px {accentColor};"
           ></div>
         </div>
       </div>
@@ -593,7 +597,11 @@
                 </div>
                 <a
                   href="/artist/{song.Address}"
-                  class="text-[10px] text-white/30 hover:text-[#9ae600] uppercase tracking-widest truncate mt-0.5 block transition-colors hover:underline"
+                  class="text-[10px] text-white/30 uppercase tracking-widest truncate mt-0.5 block transition-colors hover:underline"
+                  style="--accent-hover: {accentColor}"
+                  onmouseenter={(e) =>
+                    (e.currentTarget.style.color = accentColor)}
+                  onmouseleave={(e) => (e.currentTarget.style.color = "")}
                   onclick={(e) => e.stopPropagation()}
                 >
                   {song.Address.slice(0, 12)}...
