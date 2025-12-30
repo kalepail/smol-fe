@@ -422,7 +422,9 @@
                 class="flex flex-col lg:flex-row gap-4 h-full items-stretch p-4 pb-0"
             >
                 <!-- LEFT COLUMN: PLAYER -->
-                <div class="w-full lg:w-1/2 flex flex-col gap-4">
+                <div
+                    class="w-full lg:w-1/2 flex flex-col gap-4 overflow-y-auto min-h-0 dark-scrollbar pr-2"
+                >
                     <RadioPlayer
                         playlist={displayPlaylist}
                         onNext={handleNext}

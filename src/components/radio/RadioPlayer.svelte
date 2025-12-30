@@ -317,16 +317,16 @@
 
   <!-- MAIN PLAYER AREA -->
   <div
-    class="relative transition-all duration-700 ease-in-out z-10 {isFullscreen
-      ? 'w-full max-w-6xl px-8 flex flex-row items-center gap-12'
-      : 'w-full'}"
+    class="relative transition-all duration-700 ease-in-out z-10 flex flex-col justify-center min-h-0 {isFullscreen
+      ? 'w-full max-w-6xl px-8 flex-row items-center gap-12 h-screen'
+      : 'w-full h-full'}"
   >
     <div class="flex-1 flex flex-col items-center">
       <!-- MERGED ALBUM ART + VISUALIZER -->
       <div
-        class="relative w-full aspect-square {isFullscreen
-          ? 'max-h-[60vh] max-w-[60vh]'
-          : 'max-h-[320px] max-w-[320px] sm:max-h-[340px] sm:max-w-[340px]'} rounded-2xl overflow-hidden bg-black/40 border border-white/10 shadow-2xl mx-auto transition-all duration-500 isolate"
+        class="relative aspect-square shrink shadow-2xl mx-auto transition-all duration-500 isolate rounded-2xl overflow-hidden bg-black/40 border border-white/10 {isFullscreen
+          ? 'w-auto h-auto max-h-[60vh]'
+          : 'w-auto h-auto max-h-full'}"
         style="clip-path: inset(0 round 1rem);"
       >
         <!-- Album Art Background (Blurred & Zoomed) -->
