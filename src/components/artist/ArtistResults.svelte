@@ -358,6 +358,11 @@
                     onPrev={handlePrev}
                     onSelect={handleSelect}
                     onToggleLike={handleToggleLike}
+                    onTrade={isMinted
+                        ? () => (showTradeModal = true)
+                        : undefined}
+                    onMint={!isMinted ? triggerMint : undefined}
+                    isMinting={minting}
                     {currentIndex}
                 />
 

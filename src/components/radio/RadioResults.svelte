@@ -282,6 +282,11 @@
                     {onSelect}
                     {onToggleLike}
                     {currentIndex}
+                    onTrade={isMinted
+                        ? () => (showTradeModal = true)
+                        : undefined}
+                    onMint={!isMinted ? triggerMint : undefined}
+                    isMinting={minting}
                 />
 
                 <!-- Mint + Trade Buttons -->
