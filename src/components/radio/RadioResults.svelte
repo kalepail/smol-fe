@@ -77,39 +77,32 @@
     let lastGlobalState = $state(false);
     $effect(() => {
         if (isGlobalShuffle && !lastGlobalState) {
-            const hasFired = sessionStorage.getItem(
-                "smol_global_confetti_fired",
-            );
-            if (!hasFired) {
-                // Triple burst for maximum impact!
-                const count = 200;
-                const defaults = {
-                    origin: { y: 0.7 },
-                    colors: ["#F7931A", "#872ab0", "#1b8da0", "#ffffff"],
-                    zIndex: 999,
-                };
+            // Triple burst for maximum impact!
+            const count = 200;
+            const defaults = {
+                origin: { y: 0.7 },
+                colors: ["#F7931A", "#872ab0", "#1b8da0", "#ffffff"],
+                zIndex: 2000,
+            };
 
-                function fire(particleRatio: number, opts: any) {
-                    confetti({
-                        ...defaults,
-                        ...opts,
-                        particleCount: Math.floor(count * particleRatio),
-                    });
-                }
-
-                fire(0.25, { spread: 26, startVelocity: 55 });
-                fire(0.2, { spread: 60 });
-                fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
-                fire(0.1, {
-                    spread: 120,
-                    startVelocity: 25,
-                    decay: 0.92,
-                    scalar: 1.2,
+            function fire(particleRatio: number, opts: any) {
+                confetti({
+                    ...defaults,
+                    ...opts,
+                    particleCount: Math.floor(count * particleRatio),
                 });
-                fire(0.1, { spread: 120, startVelocity: 45 });
-
-                sessionStorage.setItem("smol_global_confetti_fired", "true");
             }
+
+            fire(0.25, { spread: 26, startVelocity: 55 });
+            fire(0.2, { spread: 60 });
+            fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
+            fire(0.1, {
+                spread: 120,
+                startVelocity: 25,
+                decay: 0.92,
+                scalar: 1.2,
+            });
+            fire(0.1, { spread: 120, startVelocity: 45 });
         }
         lastGlobalState = isGlobalShuffle;
     });
@@ -164,10 +157,10 @@
 </script>
 
 <div
-    class="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 font-mono"
+    class="h-full flex flex-col gap-2 p-2 lg:p-4 lg:gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 font-mono overflow-hidden"
 >
     <div
-        class="reactive-glass border border-white/5 bg-[#1d1d1d] max-w-6xl mx-auto overflow-hidden rounded-xl"
+        class="reactive-glass flex flex-col flex-1 min-h-0 border border-white/5 bg-[#1d1d1d] max-w-6xl mx-auto overflow-hidden rounded-[32px] lg:rounded-xl w-full"
         onmousemove={(e) => {
             const rect = e.currentTarget.getBoundingClientRect();
             e.currentTarget.style.setProperty(
@@ -271,9 +264,13 @@
             </div>
         </div>
 
-        <div class="flex flex-col lg:flex-row gap-8 h-auto lg:h-[560px] p-4">
+        <div
+            class="flex flex-col lg:flex-row gap-2 lg:gap-8 flex-1 min-h-0 overflow-hidden p-2 lg:p-4 w-full"
+        >
             <!-- LEFT COLUMN: PLAYER -->
-            <div class="w-full lg:w-1/2 flex flex-col gap-2 lg:self-start">
+            <div
+                class="w-full lg:w-1/2 flex flex-col gap-2 lg:self-start min-h-0 max-w-full"
+            >
                 <RadioPlayer
                     {playlist}
                     {onNext}
@@ -288,10 +285,13 @@
                     onMint={!isMinted ? triggerMint : undefined}
                     isMinting={minting}
                     isAuthenticated={isAuthenticated()}
+                    showMiniActions={false}
                 />
 
                 <!-- Mint + Trade Buttons -->
-                <div class="flex gap-3 -mt-2">
+                <div
+                    class="flex gap-3 mt-2 lg:mt-1 lg:max-w-md lg:w-full lg:mx-auto"
+                >
                     {#if isMinted}
                         {#if currentSong?.Mint_Amm && currentSong?.Mint_Token}
                             <button
@@ -330,7 +330,7 @@
 
             <!-- RIGHT COLUMN: PLAYLIST -->
             <div
-                class="w-full lg:w-1/2 flex flex-col min-h-0 bg-black/20 border border-white/5 rounded-2xl overflow-hidden"
+                class="w-full lg:w-1/2 flex flex-col bg-black/20 border border-white/5 rounded-[28px] lg:rounded-2xl overflow-hidden max-h-[40vh] lg:max-h-[calc(100vh-280px)]"
             >
                 <div
                     class="flex items-center justify-between p-4 border-b border-white/5 bg-white/5 flex-shrink-0"
@@ -342,9 +342,7 @@
                     </h3>
                 </div>
 
-                <div
-                    class="h-[380px] lg:h-full lg:flex-1 overflow-y-scroll dark-scrollbar pr-2"
-                >
+                <div class="flex-1 overflow-y-auto dark-scrollbar px-2 pb-16">
                     <ul class="divide-y divide-white/5">
                         {#each playlist as song, index}
                             <li>

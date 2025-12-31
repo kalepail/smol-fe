@@ -26,6 +26,7 @@
     currentVersionId,
     onVersionSelect,
     isAuthenticated,
+    showMiniActions = true,
   }: {
     playlist: Smol[];
     onNext?: () => void;
@@ -42,6 +43,7 @@
     onMint?: () => void;
     isMinting?: boolean;
     isAuthenticated?: boolean;
+    showMiniActions?: boolean;
   } = $props();
 
   const currentSong = $derived(audioState.currentSong);
@@ -326,7 +328,7 @@
       <div
         class="relative shrink-0 shadow-2xl mx-auto transition-all duration-500 isolate rounded-2xl overflow-hidden bg-black/40 border border-white/10 flex items-center justify-center {isFullscreen
           ? 'max-h-[60vh] max-w-[60vh]'
-          : 'max-w-full max-h-[240px] lg:max-h-[260px] aspect-square'}"
+          : 'max-w-full max-h-[35vh] lg:max-h-[800px] aspect-square'}"
         style="clip-path: inset(0 round 1rem);"
       >
         <!-- SPACER FOR ASPECT RATIO (Forces container to fit parent min dimension) -->
@@ -581,7 +583,7 @@
         </button>
 
         <!-- MINT BUTTON -->
-        {#if onMint}
+        {#if onMint && showMiniActions}
           <button
             class="tech-button w-10 h-10 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-[#d836ff] text-[#d836ff] bg-[#d836ff]/10 hover:bg-[#d836ff]/20 shadow-[0_0_15px_rgba(216,54,255,0.3)]"
             onclick={() => {
@@ -634,7 +636,7 @@
         {/if}
 
         <!-- TRADE BUTTON -->
-        {#if onTrade}
+        {#if onTrade && showMiniActions}
           <button
             class="tech-button w-10 h-10 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-blue-400 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.3)]"
             onclick={() => {

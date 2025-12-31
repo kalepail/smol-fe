@@ -680,7 +680,7 @@
 <div
   class="container mx-auto px-4 {isCompact
     ? 'pt-1 pb-2'
-    : 'py-1'} relative z-10 w-full h-full flex flex-col overflow-hidden"
+    : 'py-1'} relative z-10 w-full flex-1 min-h-0 flex flex-col overflow-hidden"
 >
   <!-- Eigengrau Void (Removed) -->
 
@@ -1000,7 +1000,9 @@
 
     <!-- PLAYLIST RESULTS (Intelligently Available) -->
     {#if generatedPlaylist.length > 0 && !showBuilder}
-      <div class="animate-in fade-in slide-in-from-bottom-8 duration-700">
+      <div
+        class="flex-1 min-h-0 h-full animate-in fade-in slide-in-from-bottom-8 duration-700"
+      >
         <RadioResults
           {generatedPlaylist}
           {selectedTags}
