@@ -319,6 +319,7 @@
                             showMiniActions={false}
                             onTogglePublish={isOwner ? togglePublic : undefined}
                             isPublished={data.d1?.Public}
+                            likeOnArt={true}
                         />
 
                         <div class="mt-auto flex gap-4 w-full">

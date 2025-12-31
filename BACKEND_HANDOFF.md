@@ -48,7 +48,7 @@ To help you navigate, these are the primary files involved in the features liste
 
 ### 1. Radio & Generation
 - **[`RadioBuilder.svelte`](file:///src/components/radio/RadioBuilder.svelte)**: Core logic for radio generation, tag management, AI-assisted "Dream Mode", and session state persistence.
-- **[`RadioResults.svelte`](file:///src/components/radio/RadioResults.svelte)**: The radio dashboard. Contains the "Trade" button logic, confetti triggers, and mobile scroller styling.
+- **[`RadioResults.svelte`](file:///src/components/radio/RadioResults.svelte)**: The radio dashboard. Contains the "Trade" button logic and mobile scroller styling.
 - **[`RadioPlayer.svelte`](file:///src/components/radio/RadioPlayer.svelte)**: High-fidelity audio player with integrated 'Like' and variant switching.
 
 ### 2. Blockchain & Trading

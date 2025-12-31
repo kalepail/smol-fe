@@ -28,10 +28,10 @@
     isAuthenticated,
     showMiniActions = true,
     overlayControlsOnMobile = false,
-    onShare,
     onShuffle,
     onTogglePublish,
     isPublished,
+    likeOnArt = false,
   }: {
     playlist: Smol[];
     onNext?: () => void;
@@ -54,6 +54,7 @@
     onShuffle?: () => void;
     onTogglePublish?: () => void;
     isPublished?: boolean;
+    likeOnArt?: boolean;
   } = $props();
 
   const currentSong = $derived(audioState.currentSong);
@@ -542,6 +543,30 @@
               {/each}
             </div>
           {/if}
+
+          <!-- LIKE BUTTON ON ART WRAPPER (Top right of artwork, or relative placement) -->
+          {#if likeOnArt && currentSong}
+            {@const currentIdx = playlist.findIndex(
+              (s) => s.Id === currentSong?.Id,
+            )}
+            {@const isLiked =
+              currentIdx !== -1 ? playlist[currentIdx].Liked : false}
+
+            <div class="absolute bottom-4 right-4 z-40">
+              <LikeButton
+                smolId={currentSong.Id}
+                liked={!!isLiked}
+                classNames="tech-button w-10 h-10 flex items-center justify-center active:scale-95 disabled:opacity-30 border rounded-full backdrop-blur-md transition-all duration-300 border-[#ff424c] shadow-[0_0_20px_rgba(255,66,76,0.3)] {isLiked
+                  ? 'bg-[#ff424c] text-white'
+                  : 'bg-[#ff424c]/10 text-[#ff424c] hover:bg-[#ff424c]/20'}"
+                on:likeChanged={(e) => {
+                  if (onToggleLike && currentIdx !== -1) {
+                    onToggleLike(currentIdx, e.detail.liked);
+                  }
+                }}
+              />
+            </div>
+          {/if}
         </div>
 
         <!-- Controls (below art in standard, absolute on art for overlayControlsOnMobile on mobile) -->
@@ -554,8 +579,8 @@
               : 'opacity-0 translate-y-4 pointer-events-none'
             : ''}"
         >
-          <!-- LIKE BUTTON (Left of controls) -->
-          {#if currentSong}
+          <!-- LIKE BUTTON (Left of controls) - HIDDEN IF ON ART -->
+          {#if currentSong && !likeOnArt}
             {@const currentIdx = playlist.findIndex(
               (s) => s.Id === currentSong?.Id,
             )}
