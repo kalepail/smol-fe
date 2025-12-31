@@ -141,6 +141,7 @@
                 <img
                     src={`${import.meta.env.PUBLIC_API_URL}/image/${artist.latestSmol.Id}.png`}
                     class="w-full h-full object-cover pixelated transition-transform duration-700 group-hover:scale-110 opacity-80 group-hover:opacity-100"
+                    style="transform: translateZ(0); -webkit-transform: translateZ(0);"
                     loading="lazy"
                     alt={`Artist ${artist.address}`}
                 />

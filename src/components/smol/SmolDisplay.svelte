@@ -1,13 +1,13 @@
 <script lang="ts">
-  import type { SmolDetailResponse } from '../../types/domain';
-  import Loader from '../ui/Loader.svelte';
-  import LikeButton from '../ui/LikeButton.svelte';
-  import TokenBalancePill from '../ui/TokenBalancePill.svelte';
+  import type { SmolDetailResponse } from "../../types/domain";
+  import Loader from "../ui/Loader.svelte";
+  import LikeButton from "../ui/LikeButton.svelte";
+  import TokenBalancePill from "../ui/TokenBalancePill.svelte";
 
   interface Props {
     id: string | null;
-    d1?: SmolDetailResponse['d1'];
-    kv_do?: SmolDetailResponse['kv_do'];
+    d1?: SmolDetailResponse["d1"];
+    kv_do?: SmolDetailResponse["kv_do"];
     liked?: boolean;
     bestSong?: string;
     interval: NodeJS.Timeout | null;
@@ -54,7 +54,9 @@
     <ul class="max-w-[512px] w-full [&>li]:mb-5 [&>li>h1]:font-bold">
       <li>
         <h1>Id:</h1>
-        <pre class="whitespace-pre-wrap break-all"><code class="text-xs">{id}</code></pre>
+        <pre class="whitespace-pre-wrap break-all"><code class="text-xs"
+            >{id}</code
+          ></pre>
 
         <div class="flex items-center">
           {#if kv_do && kv_do?.nsfw}
@@ -62,7 +64,7 @@
               <span
                 class="bg-rose-400 text-rose-900 uppercase text-xs font-mono px-2 py-1 rounded-full mr-2"
               >
-                unsafe — {kv_do.nsfw?.categories.join(', ')}
+                unsafe — {kv_do.nsfw?.categories.join(", ")}
               </span>
             {:else}
               <span
@@ -100,7 +102,10 @@
                   onclick={onOpenTradeModal}
                 >
                   <span>Trade</span>
-                  <TokenBalancePill balance={tradeMintBalance} classNames="ml-2" />
+                  <TokenBalancePill
+                    balance={tradeMintBalance}
+                    classNames="ml-2"
+                  />
                 </button>
               {/if}
             {:else}
@@ -110,7 +115,10 @@
                 onclick={onTriggerMint}
               >
                 {#if minting}
-                  <Loader classNames="w-4 h-4 mr-2" textColor="text-emerald-400" />
+                  <Loader
+                    classNames="w-4 h-4 mr-2"
+                    textColor="text-emerald-400"
+                  />
                   Minting...
                 {:else}
                   Mint
@@ -168,6 +176,7 @@
           <img
             class="aspect-square object-contain pixelated w-[256px]"
             src={`${import.meta.env.PUBLIC_API_URL}/image/${id}.png`}
+            style="transform: translateZ(0); -webkit-transform: translateZ(0);"
             onerror={(e) => {
               // @ts-ignore
               e.currentTarget.src = `data:image/png;base64,${kv_do.image_base64}`;
@@ -187,7 +196,9 @@
           Songs:
           {#if interval && kv_do?.songs?.some((song) => song.audio)}
             <Loader classNames="size-7 ml-2" />
-            <small class="ml-2 text-xs text-slate-400 font-normal">streaming...</small>
+            <small class="ml-2 text-xs text-slate-400 font-normal"
+              >streaming...</small
+            >
           {/if}
         </h1>
 
@@ -239,7 +250,7 @@
         <pre class="whitespace-pre-wrap break-words [&>code]:text-xs"><code
             >Title: <strong>{kv_do && kv_do?.lyrics?.title}</strong></code
           >
-<code>Tags: <em>{kv_do && kv_do?.lyrics?.style?.join(', ')}</em></code>
+<code>Tags: <em>{kv_do && kv_do?.lyrics?.style?.join(", ")}</em></code>
 
 {#if !kv_do?.payload?.instrumental && !d1?.Instrumental}<code
               >{kv_do && kv_do?.lyrics?.lyrics}</code

@@ -62,6 +62,7 @@
     <img
       class="aspect-square object-contain pixelated w-full shadow-md"
       src={`${import.meta.env.PUBLIC_API_URL}/image/${smol.Id}.png`}
+      style="transform: translateZ(0); -webkit-transform: translateZ(0);"
       alt={smol.Title}
       loading="lazy"
     />
@@ -124,6 +125,7 @@
     <img
       class="absolute inset-0 z-0 opacity-80 scale-y-[-1] w-full h-full blur-lg pointer-events-none"
       src={`${import.meta.env.PUBLIC_API_URL}/image/${smol.Id}.png`}
+      style="transform: translateZ(0); -webkit-transform: translateZ(0);"
       alt={smol.Title}
       loading="lazy"
     />

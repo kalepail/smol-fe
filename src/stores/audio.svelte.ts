@@ -219,7 +219,12 @@ export function initAudioContext(force = false) {
   }
 
   try {
-    const ctx = new AudioContext();
+    const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext);
+    if (!AudioContextClass) {
+      console.error("[AudioStore] Web Audio API not supported in this browser");
+      return;
+    }
+    const ctx = new AudioContextClass();
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 256;
 
@@ -241,8 +246,13 @@ export function initAudioContext(force = false) {
       source: source
     };
 
-    console.log("[AudioStore] Initialized Web Audio Context");
+    console.log("[AudioStore] Initialized Web Audio Context (iOS friendly)");
+
+    // Resume immediately if suspended (may fail without gesture, but worth a try)
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(e => console.warn("[AudioStore] Failed to auto-resume:", e));
+    }
   } catch (err) {
-    console.warn("Failed to init Audio Context (likely already connected):", err);
+    console.warn("Failed to init Audio Context:", err);
   }
 }
