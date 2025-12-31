@@ -394,9 +394,10 @@
                                     class="aspect-square rounded-lg bg-slate-800 overflow-hidden border border-white/10 group-hover:border-lime-500/50 transition-all shadow-lg relative"
                                 >
                                     <img
-                                        src="{API_URL}/image/{song.Id}.png?scale=8"
+                                        src="{API_URL}/image/{song.Id}.png"
                                         alt={song.Title}
                                         class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                        style="transform: translateZ(0); -webkit-transform: translateZ(0);"
                                     />
                                     {#if index === currentIndex}
                                         <div
@@ -556,9 +557,10 @@
                                             class="relative w-10 h-10 rounded-lg bg-slate-800 flex-shrink-0 overflow-hidden group/thumb border border-white/10 shadow-lg"
                                         >
                                             <img
-                                                src="{API_URL}/image/{song.Id}.png?scale=8"
+                                                src="{API_URL}/image/{song.Id}.png"
                                                 alt="Art"
                                                 class="w-full h-full object-cover transition-transform duration-500 group-hover/thumb:scale-110 group-hover:brightness-50"
+                                                style="transform: translateZ(0); -webkit-transform: translateZ(0);"
                                                 onerror={(e) => {
                                                     (
                                                         e.currentTarget as HTMLImageElement

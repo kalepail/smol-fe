@@ -63,6 +63,7 @@
   const progress = $derived(audioState.progress);
 
   function playPause() {
+    initAudioContext(); // ENSURE GESTURE UNLOCKS AUDIO CONTEXT FOR VISUALIZER
     if (!currentSong && playlist.length > 0) {
       selectSong(playlist[0]);
     } else {
@@ -88,7 +89,7 @@
 
   const API_URL = import.meta.env.PUBLIC_API_URL;
   const coverUrl = $derived(
-    currentSong ? `${API_URL}/image/${currentSong.Id}.png?scale=8` : null,
+    currentSong ? `${API_URL}/image/${currentSong.Id}.png` : null,
   );
   const songTitle = $derived(
     currentSong?.lyrics?.title || currentSong?.Title || "Select a song",
@@ -345,10 +346,10 @@
       >
         <!-- MERGED ALBUM ART + VISUALIZER -->
         <div
-          class="relative shrink-0 shadow-2xl mx-auto transition-all duration-500 isolate rounded-2xl overflow-hidden bg-black/40 border border-white/10 flex items-center justify-center {isFullscreen
+          class="relative shrink-0 shadow-2xl mx-auto transition-all duration-500 rounded-2xl overflow-hidden bg-black/40 border border-white/10 flex items-center justify-center {isFullscreen
             ? 'max-h-[60vh] max-w-[60vh]'
-            : 'max-w-full max-h-[35vh] lg:max-h-[400px] aspect-square'}"
-          style="clip-path: inset(0 round 1rem);"
+            : 'max-w-full max-h-[35vh] lg:max-h-[400px] aspect-square min-h-[320px]'}"
+          style="transform: translateZ(0); -webkit-transform: translateZ(0); -webkit-backdrop-filter: blur(10px);"
         >
           <!-- TOP SCRUBBER (mobile only when overlayControlsOnMobile) -->
           {#if overlayControlsOnMobile}
@@ -442,6 +443,7 @@
                 class="{isFullscreen
                   ? 'text-base mt-2'
                   : 'text-xs mt-1'} text-purple-400 font-medium uppercase tracking-[0.2em] truncate drop-shadow-md"
+                style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);"
               >
                 {songTags}
               </div>
