@@ -352,7 +352,7 @@
 
                 <button
                     onclick={toggleShuffle}
-                    class="flex items-center gap-2 px-3 py-1 rounded border transition-all {shuffleEnabled
+                    class="hidden lg:flex items-center gap-2 px-3 py-1 rounded border transition-all {shuffleEnabled
                         ? 'border-lime-500/50 bg-lime-500/10 text-lime-400'
                         : 'border-white/10 text-white/40 hover:text-white'}"
                 >
@@ -417,7 +417,7 @@
             {/if}
 
             <div
-                class="flex flex-col lg:flex-row gap-4 h-full items-stretch px-4 pt-1 pb-4"
+                class="flex flex-col lg:flex-row gap-4 h-full items-stretch px-4 pt-0 pb-4"
             >
                 <!-- LEFT COLUMN: PLAYER -->
                 <div class="w-full lg:w-1/2 flex flex-col gap-1 min-h-0 pb-1">

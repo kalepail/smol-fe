@@ -343,6 +343,18 @@
             : 'max-w-full max-h-[35vh] lg:max-h-[400px] aspect-square'}"
           style="clip-path: inset(0 round 1rem);"
         >
+          <!-- TOP SCRUBBER (mobile only when overlayControlsOnMobile) -->
+          {#if overlayControlsOnMobile}
+            <div
+              class="absolute top-0 left-0 right-0 h-1 z-50 bg-white/10 lg:hidden"
+            >
+              <div
+                class="h-full bg-white/60 transition-all duration-200 ease-linear"
+                style="width: {progress}%;"
+              ></div>
+            </div>
+          {/if}
+
           <!-- SPACER FOR ASPECT RATIO (Forces container to fit parent min dimension) -->
           <img
             src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"
@@ -754,8 +766,12 @@
         {/if}
       </div>
 
-      <!-- Scrubber (Bottom of Player) -->
-      <div class="px-8 pb-1 mt-5 w-full max-w-[400px] sm:max-w-[500px] mx-auto">
+      <!-- Scrubber (Bottom of Player - hidden on mobile when overlayControlsOnMobile) -->
+      <div
+        class="px-8 pb-1 mt-5 w-full max-w-[400px] sm:max-w-[500px] mx-auto {overlayControlsOnMobile
+          ? 'hidden lg:block'
+          : ''}"
+      >
         <div
           class="h-1.5 bg-white/10 rounded-full overflow-hidden w-full backdrop-blur-sm"
         >
