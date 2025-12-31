@@ -51,7 +51,7 @@ const topTags = Object.entries(tagCounts)
 ---
 
 <Layout title={`Artist ${address.substring(0, 6)}...`}>
-	<main class="min-h-screen bg-[#0d0d0d] text-white p-4 pt-4 md:pt-8 max-w-7xl mx-auto flex flex-col justify-center">
+	<main class="h-[calc(100vh-80px)] text-white px-4 pt-4 pb-0 max-w-7xl mx-auto">
         <ArtistResults 
             client:load 
             discography={discographySmols} 

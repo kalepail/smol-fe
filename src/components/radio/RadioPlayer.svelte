@@ -298,7 +298,7 @@
   bind:this={containerRef}
   class="w-full relative {isFullscreen
     ? 'overflow-hidden'
-    : 'h-full'} group/fs {isFullscreen
+    : 'w-full'} group/fs {isFullscreen
     ? 'fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center'
     : ''}"
   onmousemove={handleMouseMove}
@@ -317,16 +317,16 @@
 
   <!-- MAIN PLAYER AREA -->
   <div
-    class="relative transition-all duration-700 ease-in-out z-10 flex flex-col justify-center min-h-0 {isFullscreen
+    class="relative transition-all duration-700 ease-in-out z-10 flex flex-col min-h-0 {isFullscreen
       ? 'w-full max-w-6xl px-8 flex-row items-center gap-12 h-screen'
-      : 'w-full h-full'}"
+      : 'w-full'}"
   >
     <div class="flex-1 flex flex-col items-center">
       <!-- MERGED ALBUM ART + VISUALIZER -->
       <div
         class="relative shrink-0 shadow-2xl mx-auto transition-all duration-500 isolate rounded-2xl overflow-hidden bg-black/40 border border-white/10 flex items-center justify-center {isFullscreen
           ? 'max-h-[60vh] max-w-[60vh]'
-          : 'max-w-full max-h-full aspect-square'}"
+          : 'max-w-full max-h-[240px] lg:max-h-[260px] aspect-square'}"
         style="clip-path: inset(0 round 1rem);"
       >
         <!-- SPACER FOR ASPECT RATIO (Forces container to fit parent min dimension) -->
@@ -515,7 +515,7 @@
 
       <!-- Controls (below art in standard, bottom in fullscreen) -->
       <div
-        class="flex items-center justify-center gap-2 sm:gap-4 md:gap-6 mt-3 pb-0 transition-all duration-500 {isFullscreen
+        class="flex items-center justify-center gap-2 sm:gap-4 md:gap-6 mt-1 pb-0 transition-all duration-500 {isFullscreen
           ? showControls
             ? 'opacity-100 translate-y-0'
             : 'opacity-0 translate-y-4 pointer-events-none'
@@ -532,7 +532,7 @@
           <LikeButton
             smolId={currentSong.Id}
             liked={!!isLiked}
-            classNames="tech-button w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center active:scale-95 disabled:opacity-30 border rounded-full backdrop-blur-md transition-all duration-300 border-[#ff424c] shadow-[0_0_20px_rgba(255,66,76,0.3)] {isLiked
+            classNames="tech-button w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center active:scale-95 disabled:opacity-30 border rounded-full backdrop-blur-md transition-all duration-300 border-[#ff424c] shadow-[0_0_20px_rgba(255,66,76,0.3)] {isLiked
               ? 'bg-[#ff424c] text-white'
               : 'bg-[#ff424c]/10 text-[#ff424c] hover:bg-[#ff424c]/20'}"
             on:likeChanged={(e) => {
@@ -544,26 +544,26 @@
         {/if}
 
         <button
-          class="tech-button w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md"
+          class="tech-button w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md"
           onclick={handlePrev}
           title="Previous"
         >
-          <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
             <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
           </svg>
         </button>
 
         <button
-          class="tech-button w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center active:scale-95 transition-all relative overflow-hidden group rounded-full backdrop-blur-xl border border-[#089981] text-[#089981] bg-[#089981]/10 shadow-[0_0_30px_rgba(8,153,129,0.4)] hover:bg-[#089981]/20 hover:text-white hover:shadow-[0_0_40px_rgba(8,153,129,0.6)]"
+          class="tech-button w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center active:scale-95 transition-all relative overflow-hidden group rounded-full backdrop-blur-xl border border-[#089981] text-[#089981] bg-[#089981]/10 shadow-[0_0_30px_rgba(8,153,129,0.4)] hover:bg-[#089981]/20 hover:text-white hover:shadow-[0_0_40px_rgba(8,153,129,0.6)]"
           onclick={playPause}
           title={playing ? "Pause" : "Play"}
         >
           {#if playing}
-            <svg class="w-10 h-10" fill="currentColor" viewBox="0 0 24 24">
+            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
               <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
             </svg>
           {:else}
-            <svg class="w-10 h-10 ml-1" fill="currentColor" viewBox="0 0 24 24">
+            <svg class="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z" />
             </svg>
           {/if}
@@ -571,11 +571,11 @@
 
         <!-- NEXT BUTTON -->
         <button
-          class="tech-button w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md"
+          class="tech-button w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md"
           onclick={handleNext}
           title="Next"
         >
-          <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
             <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
           </svg>
         </button>
@@ -583,7 +583,7 @@
         <!-- MINT BUTTON -->
         {#if onMint}
           <button
-            class="tech-button w-12 h-12 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-[#d836ff] text-[#d836ff] bg-[#d836ff]/10 hover:bg-[#d836ff]/20 shadow-[0_0_15px_rgba(216,54,255,0.3)]"
+            class="tech-button w-10 h-10 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-[#d836ff] text-[#d836ff] bg-[#d836ff]/10 hover:bg-[#d836ff]/20 shadow-[0_0_15px_rgba(216,54,255,0.3)]"
             onclick={() => {
               if (!userState.contractId) {
                 triggerLogin();
@@ -596,7 +596,7 @@
           >
             {#if isMinting}
               <svg
-                class="w-5 h-5 animate-spin"
+                class="w-4 h-4 animate-spin"
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
                 viewBox="0 0 24 24"
@@ -636,7 +636,7 @@
         <!-- TRADE BUTTON -->
         {#if onTrade}
           <button
-            class="tech-button w-12 h-12 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-blue-400 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.3)]"
+            class="tech-button w-10 h-10 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-blue-400 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.3)]"
             onclick={() => {
               if (!userState.contractId) {
                 triggerLogin();
@@ -647,7 +647,7 @@
             title="Trade / Swap"
           >
             <svg
-              class="w-5 h-5"
+              class="w-4 h-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -664,7 +664,7 @@
 
         {#if onRegenerate}
           <button
-            class="tech-button w-12 h-12 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-[#F7931A] text-[#F7931A] bg-[#F7931A]/10 shadow-[0_0_20px_rgba(247,147,26,0.3)] hover:bg-[#F7931A]/20 hover:text-white"
+            class="tech-button w-10 h-10 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-[#F7931A] text-[#F7931A] bg-[#F7931A]/10 shadow-[0_0_20px_rgba(247,147,26,0.3)] hover:bg-[#F7931A]/20 hover:text-white"
             onclick={handleRegenerate}
             title="Regenerate Station"
           >
@@ -674,7 +674,7 @@
       </div>
 
       <!-- Scrubber (Bottom of Player) -->
-      <div class="px-8 pb-6 mt-6 w-full max-w-[400px] sm:max-w-[500px] mx-auto">
+      <div class="px-8 pb-1 mt-5 w-full max-w-[400px] sm:max-w-[500px] mx-auto">
         <div
           class="h-1.5 bg-white/10 rounded-full overflow-hidden w-full backdrop-blur-sm"
         >

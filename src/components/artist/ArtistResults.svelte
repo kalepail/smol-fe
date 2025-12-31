@@ -193,7 +193,7 @@
 >
     <!-- Artist Info Header (Windowed) -->
     <div
-        class="max-w-6xl mx-auto reactive-glass border border-white/5 bg-[#1a1a1a]/80 backdrop-blur-xl rounded-2xl shadow-xl overflow-hidden mb-2 p-2 px-4 flex flex-col md:flex-row items-center justify-between gap-4 relative group/header"
+        class="max-w-6xl mx-auto reactive-glass border border-white/5 bg-[#1d1d1d]/70 backdrop-blur-xl rounded-2xl shadow-xl overflow-hidden mb-2 p-2 px-4 flex flex-col md:flex-row items-center justify-between gap-4 relative group/header"
     >
         <div class="space-y-1 relative z-10">
             <h1
@@ -274,12 +274,10 @@
 
     <!-- Main Player Card -->
     <div
-        class="max-w-6xl mx-auto reactive-glass border border-white/5 bg-[#1a1a1a]/80 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden relative flex flex-col h-[calc(100vh-200px)] min-h-[400px]"
+        class="max-w-6xl mx-auto reactive-glass border border-white/5 bg-[#1d1d1d]/70 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden relative flex flex-col h-[calc(100vh-200px)] min-h-[400px]"
     >
         <!-- Control Bar -->
-        <div
-            class="flex items-center justify-between p-3 border-b border-white/5 bg-black/20 shrink-0"
-        >
+        <div class="flex items-center justify-between p-3 shrink-0">
             <div class="flex items-center gap-2 select-none">
                 <div
                     class="text-lime-500 drop-shadow-[0_0_8px_rgba(132,204,22,0.4)]"
@@ -419,11 +417,11 @@
             {/if}
 
             <div
-                class="flex flex-col lg:flex-row gap-4 h-full items-stretch p-4 pb-0"
+                class="flex flex-col lg:flex-row gap-4 h-full items-stretch px-4 pt-1 pb-0"
             >
                 <!-- LEFT COLUMN: PLAYER -->
                 <div
-                    class="w-full lg:w-1/2 flex flex-col gap-4 overflow-y-auto min-h-0 dark-scrollbar pr-2"
+                    class="w-full lg:w-1/2 flex flex-col gap-1 overflow-hidden min-h-0 pb-1"
                 >
                     <RadioPlayer
                         playlist={displayPlaylist}
@@ -447,7 +445,7 @@
                     />
 
                     <!-- Mint + Trade Buttons -->
-                    <div class="flex gap-3 -mt-2">
+                    <div class="flex gap-3 mt-3">
                         {#if isMinted}
                             {#if currentSong?.Mint_Amm && currentSong?.Mint_Token}
                                 <button
@@ -492,7 +490,7 @@
 
                 <!-- RIGHT COLUMN: PLAYLIST -->
                 <div
-                    class="w-full lg:w-1/2 flex flex-col min-h-0 border border-white/5 rounded-2xl overflow-hidden shadow-inner mb-4"
+                    class="w-full lg:w-1/2 flex flex-col min-h-0 bg-transparent rounded-2xl overflow-hidden mb-4"
                 >
                     <div
                         class="flex items-center justify-between p-3 border-b border-white/5 bg-white/5 flex-shrink-0"
