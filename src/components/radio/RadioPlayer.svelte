@@ -28,6 +28,7 @@
     isAuthenticated,
     showMiniActions = true,
     overlayControlsOnMobile = false,
+    onShare,
     onShuffle,
     onTogglePublish,
     isPublished,
@@ -390,7 +391,7 @@
                 ? 'opacity-100'
                 : 'opacity-100'}"
               onerror={(e) => {
-                e.currentTarget.style.display = "none";
+                (e.currentTarget as HTMLImageElement).style.display = "none";
               }}
             />
           {/if}
@@ -886,11 +887,13 @@
                   class="text-[10px] text-white/30 uppercase tracking-widest truncate mt-0.5 block transition-colors hover:underline"
                   style="--accent-hover: {accentColor}"
                   onmouseenter={(e) =>
-                    (e.currentTarget.style.color = accentColor)}
-                  onmouseleave={(e) => (e.currentTarget.style.color = "")}
+                    ((e.currentTarget as HTMLElement).style.color =
+                      accentColor)}
+                  onmouseleave={(e) =>
+                    ((e.currentTarget as HTMLElement).style.color = "")}
                   onclick={(e) => e.stopPropagation()}
                 >
-                  {song.Address.slice(0, 12)}...
+                  {song.Address?.slice(0, 12) || "Unknown"}...
                 </a>
               </div>
 

@@ -318,7 +318,7 @@
                             isAuthenticated={isAuthenticated()}
                             showMiniActions={false}
                             onTogglePublish={isOwner ? togglePublic : undefined}
-                            isPublished={data.d1?.Public}
+                            isPublished={!!data.d1?.Public}
                             likeOnArt={true}
                         />
 
