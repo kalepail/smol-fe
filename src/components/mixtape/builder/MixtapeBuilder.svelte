@@ -32,7 +32,10 @@
   const publishingHook = useMixtapePublishing();
   const dragDropHook = useMixtapeDragDrop();
 
-  const isEditing = $derived(mixtapeDraftState.draftId.length !== 36);
+  const isEditing = $derived(
+    mixtapeDraftState.draftId &&
+      !mixtapeDraftState.draftId.startsWith("draft-"),
+  );
 
   function resetStatus() {
     statusMessage = null;
