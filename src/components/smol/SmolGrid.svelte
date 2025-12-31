@@ -1,23 +1,37 @@
 <script lang="ts">
-  import { onMount, onDestroy, untrack } from 'svelte';
-  import type { Smol, MixtapeTrack } from '../../types/domain';
-  import SmolCard from './SmolCard.svelte';
-  import { audioState, selectSong, registerSongNextCallback } from '../../stores/audio.svelte';
-  import { mixtapeDraftState, mixtapeModeState, addTrack } from '../../stores/mixtape.svelte';
-  import { userState } from '../../stores/user.svelte';
-  import { fetchLikedSmols } from '../../services/api/smols';
-  import { useVisibilityTracking } from '../../hooks/useVisibilityTracking';
-  import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
-  import { useGridMediaSession } from '../../hooks/useGridMediaSession';
+  import { onMount, onDestroy, untrack } from "svelte";
+  import type { Smol, MixtapeTrack } from "../../types/domain";
+  import SmolCard from "./SmolCard.svelte";
+  import {
+    audioState,
+    selectSong,
+    registerSongNextCallback,
+  } from "../../stores/audio.svelte";
+  import {
+    mixtapeDraftState,
+    mixtapeModeState,
+    addTrack,
+  } from "../../stores/mixtape.svelte";
+  import { userState } from "../../stores/user.svelte";
+  import { fetchLikedSmols } from "../../services/api/smols";
+  import { useVisibilityTracking } from "../../hooks/useVisibilityTracking";
+  import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
+  import { useGridMediaSession } from "../../hooks/useGridMediaSession";
 
   interface Props {
     playlist?: string | null;
     endpoint?: string;
+    initialSmols?: Smol[];
+    profileMode?: boolean;
+    filterValue?: string;
   }
 
   let {
     playlist = null,
-    endpoint = ''
+    endpoint = "",
+    initialSmols = undefined,
+    profileMode = false,
+    filterValue = "",
   }: Props = $props();
 
   let results = $state<Smol[]>([]);
@@ -31,6 +45,47 @@
   let loadingMore = $state(false);
   let scrollTrigger = $state<HTMLDivElement | null>(null);
 
+  // Profile mode tab state
+  let activeTab = $state<"discography" | "minted" | "collection">(
+    "discography",
+  );
+
+  // Derived displayed results - filters based on profileMode and activeTab
+  let displayedResults = $derived.by(() => {
+    if (!profileMode || !filterValue) {
+      return results; // No filtering for homepage
+    }
+
+    const fv = filterValue.toLowerCase();
+
+    if (activeTab === "discography") {
+      // Songs I published (Creator/Address matches me)
+      return results.filter(
+        (s) =>
+          (s.Creator || "").toLowerCase() === fv ||
+          (s.Address || "").toLowerCase() === fv,
+      );
+    } else if (activeTab === "minted") {
+      // Songs I published AND are minted
+      return results.filter(
+        (s) =>
+          ((s.Creator || "").toLowerCase() === fv ||
+            (s.Address || "").toLowerCase() === fv) &&
+          !!s.Mint_Token,
+      );
+    } else if (activeTab === "collection") {
+      // Songs I own (minted by me) but didn't publish (Creator/Address != me)
+      return results.filter(
+        (s) =>
+          (s.Minted_By || "").toLowerCase() === fv &&
+          (s.Creator || "").toLowerCase() !== fv &&
+          (s.Address || "").toLowerCase() !== fv,
+      );
+    }
+
+    return results;
+  });
+
   const visibilityHook = useVisibilityTracking();
   const scrollHook = useInfiniteScroll();
   const mediaHook = useGridMediaSession();
@@ -41,7 +96,7 @@
     },
     (id) => {
       visibleCards[id] = false;
-    }
+    },
   );
 
   async function fetchInitialData() {
@@ -49,23 +104,30 @@
     error = null;
 
     try {
-      // Fetch smols
-      const baseUrl = endpoint
-        ? `${import.meta.env.PUBLIC_API_URL}/${endpoint}`
-        : import.meta.env.PUBLIC_API_URL;
-      const url = new URL(baseUrl, window.location.origin);
-      url.searchParams.set('limit', '100');
+      // If initialSmols provided (e.g., from Artist page), use them directly
+      if (initialSmols && initialSmols.length > 0) {
+        results = initialSmols;
+        hasMore = false;
+        cursor = null;
+      } else {
+        // Fetch smols from API
+        const baseUrl = endpoint
+          ? `${import.meta.env.PUBLIC_API_URL}/${endpoint}`
+          : import.meta.env.PUBLIC_API_URL;
+        const url = new URL(baseUrl, window.location.origin);
+        url.searchParams.set("limit", "100");
 
-      const response = await fetch(url, { credentials: 'include' });
+        const response = await fetch(url, { credentials: "include" });
 
-      if (!response.ok) {
-        throw new Error('Failed to load smols');
+        if (!response.ok) {
+          throw new Error("Failed to load smols");
+        }
+
+        const data = await response.json();
+        results = data.smols || [];
+        cursor = data.pagination?.nextCursor || null;
+        hasMore = data.pagination?.hasMore || false;
       }
-
-      const data = await response.json();
-      results = data.smols || [];
-      cursor = data.pagination?.nextCursor || null;
-      hasMore = data.pagination?.hasMore || false;
 
       // Fetch likes if user is authenticated
       if (userState.contractId) {
@@ -79,8 +141,8 @@
         }));
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to load';
-      console.error('Failed to fetch initial data:', err);
+      error = err instanceof Error ? err.message : "Failed to load";
+      console.error("Failed to fetch initial data:", err);
     } finally {
       loading = false;
     }
@@ -94,16 +156,19 @@
 
     const cleanupMedia = mediaHook.setupMediaSessionHandlers(
       () => {
-        const previous = mediaHook.findPreviousSong(results, audioState.currentSong?.Id);
+        const previous = mediaHook.findPreviousSong(
+          results,
+          audioState.currentSong?.Id,
+        );
         if (previous) selectSong(previous);
       },
       () => {
         songNext();
-      }
+      },
     );
 
     if (playlist) {
-      localStorage.setItem('smol:playlist', playlist);
+      localStorage.setItem("smol:playlist", playlist);
     }
 
     return () => {
@@ -146,8 +211,9 @@
   function buildTrackPayload(smol: Smol): MixtapeTrack {
     return {
       id: smol.Id,
-      title: smol.Title ?? 'Untitled Smol',
-      creator: smol.Creator ?? smol.Username ?? smol.artist ?? smol.author ?? null,
+      title: smol.Title ?? "Untitled Smol",
+      creator:
+        smol.Creator ?? smol.Username ?? smol.artist ?? smol.author ?? null,
       coverUrl: `${import.meta.env.PUBLIC_API_URL}/image/${smol.Id}.png`,
     };
   }
@@ -160,16 +226,16 @@
     if (!mixtapeModeState.active) return;
 
     const payload = {
-      type: 'smol' as const,
+      type: "smol" as const,
       track: buildTrackPayload(smol),
     };
 
     draggingId = smol.Id;
 
     if (event.dataTransfer) {
-      event.dataTransfer.effectAllowed = 'copy';
-      event.dataTransfer.setData('application/json', JSON.stringify(payload));
-      event.dataTransfer.setData('text/plain', payload.track.title);
+      event.dataTransfer.effectAllowed = "copy";
+      event.dataTransfer.setData("application/json", JSON.stringify(payload));
+      event.dataTransfer.setData("text/plain", payload.track.title);
     }
   }
 
@@ -194,11 +260,11 @@
         ? `${import.meta.env.PUBLIC_API_URL}/${endpoint}`
         : import.meta.env.PUBLIC_API_URL;
       const url = new URL(baseUrl, window.location.origin);
-      url.searchParams.set('limit', '100');
-      url.searchParams.set('cursor', cursor);
+      url.searchParams.set("limit", "100");
+      url.searchParams.set("cursor", cursor);
 
       const response = await fetch(url, {
-        credentials: 'include'
+        credentials: "include",
       });
 
       if (response.ok) {
@@ -208,7 +274,7 @@
         // Map likes to new smols
         const smolsWithLikes = newSmols.map((smol: Smol) => ({
           ...smol,
-          Liked: likes.some((id) => id === smol.Id)
+          Liked: likes.some((id) => id === smol.Id),
         }));
 
         results = [...results, ...smolsWithLikes];
@@ -216,7 +282,7 @@
         hasMore = data.pagination?.hasMore || false;
       }
     } catch (error) {
-      console.error('Failed to load more smols:', error);
+      console.error("Failed to load more smols:", error);
     } finally {
       loadingMore = false;
     }
@@ -232,10 +298,32 @@
     <div class="text-red-500">{error}</div>
   </div>
 {:else}
+  {#if profileMode}
+    <div class="flex gap-2 mb-4 mx-2">
+      <button
+        class={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "discography" ? "bg-lime-500 text-slate-950" : "bg-slate-700 text-white hover:bg-slate-600"}`}
+        onclick={() => (activeTab = "discography")}
+      >
+        DISCOGRAPHY
+      </button>
+      <button
+        class={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "minted" ? "bg-lime-500 text-slate-950" : "bg-slate-700 text-white hover:bg-slate-600"}`}
+        onclick={() => (activeTab = "minted")}
+      >
+        MINTED
+      </button>
+      <button
+        class={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === "collection" ? "bg-lime-500 text-slate-950" : "bg-slate-700 text-white hover:bg-slate-600"}`}
+        onclick={() => (activeTab = "collection")}
+      >
+        COLLECTION
+      </button>
+    </div>
+  {/if}
   <div
     class="relative grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2 m-2 pb-10"
   >
-    {#each results as smol (smol.Id)}
+    {#each displayedResults as smol (smol.Id)}
       <div use:observeVisibility={smol.Id}>
         <SmolCard
           {smol}

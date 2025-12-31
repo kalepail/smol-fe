@@ -140,6 +140,18 @@ export function touchMixtapeDraft() {
   persistDraft(mixtapeDraftState);
 }
 
+export function loadPublishedMixtape(mixtape: { id: string; title: string; description: string; tracks: MixtapeTrack[] }) {
+  // Populate draft with published data
+  // We use the published ID as the draftId to track what we are editing
+  mixtapeDraftState.draftId = mixtape.id;
+  mixtapeDraftState.title = mixtape.title;
+  mixtapeDraftState.description = mixtape.description;
+  mixtapeDraftState.tracks = dedupeTracks(mixtape.tracks); // Ensure no dupes
+  mixtapeDraftState.updatedAt = new Date().toISOString();
+
+  persistDraft(mixtapeDraftState);
+}
+
 export function getSnapshotDraft(): MixtapeDraft {
   return {
     draftId: mixtapeDraftState.draftId,

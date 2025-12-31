@@ -25,12 +25,25 @@ A decentralized web application for generating AI music powered by Stellar block
 - **Share mixtapes** - Publish your mixtapes for others to discover
 - **Browse collections** - Explore mixtapes created by the community
 
+### 👤 Artist Profiles
+- **Discography** - View all songs an artist has created/published
+- **Minted** - Songs the artist created AND minted on-chain
+- **Collection** - Songs the artist minted from other creators
+- **Published/Collected badges** - Quick stats on artist activity
+- **Genre tags** - Top genres derived from artist's discography
+
 ### 🎧 Playback & Discovery
 - **Audio player** - Built-in player with progress tracking
 - **Like system** - Save your favorite songs
 - **Leaderboard** - Discover trending and popular songs
 - **Filtered views** - Browse songs you've created or liked
 - **Playlist mode** - Generate songs tagged to specific playlists
+
+### 📻 AI Radio 2.0
+- **Smart Generation** - Multi-tag fusion with weighted scoring and lyric analysis
+- **Adaptive Vibe** - Order-based prioritization (e.g. "Jazz" + "Hip Hop" ≠ "Hip Hop" + "Jazz")
+- **Freshness Guarantee** - Deduplication logic ensures fresh tracks every spin
+- **Local Fallback** - Robust "fail-fast" local generation when AI is rate-limited
 
 ## Tech Stack
 

@@ -10,6 +10,7 @@ interface Props {
 	description?: string;
 	song_url?: string | null;
 	image_url?: string | null;
+	hideBottomBar?: boolean;
 }
 
 const {
@@ -17,6 +18,7 @@ const {
 	description = "Smol art onchain",
 	song_url = "https://cdn2.aisonggenerator.io/491bb94b-79df-41bb-b09b-2d295f1dfd05.mp3",
 	image_url,
+	hideBottomBar = false,
 } = Astro.props;
 
 let _kid = null
@@ -85,10 +87,11 @@ if (token) {
 		<meta name="twitter:player:width" content="760">
 		<meta name="twitter:player:height" content="240"> -->
 	</head>
-	<body class="bg-slate-950 text-white">
-		<Header {_kid} {_cid} client:only="svelte" transition:persist="header" />
-		<MixtapeBuilderOverlay client:only="svelte" transition:persist="mixtape-overlay" />
-		<BarAudioPlayer client:only="svelte" transition:persist="audio-player" />
+	<body class="bg-[#020618] text-white">
+		<Header _kid={_kid} _cid={_cid} client:load transition:persist="header" />
+		<div class={(hideBottomBar || Astro.url.pathname.startsWith('/radio') || Astro.url.pathname.startsWith('/artist')) ? 'hidden' : ''}>
+			<BarAudioPlayer client:only="svelte" transition:persist="audio-player" />
+		</div>
 		<slot />
 	</body>
 </html>

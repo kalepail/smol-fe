@@ -1,0 +1,15 @@
+---
+import Layout from "../layouts/Layout.astro";
+import TagExplorer from "../components/tags/TagExplorer.svelte";
+import snapshot from "../data/smols-snapshot.json";
+import type { Smol } from "../types/domain";
+
+// Cast snapshot to Smol array to ensure type safety, though JSON import is untyped by default
+const smols = snapshot as unknown as Smol[];
+---
+
+<Layout title="Tags Explorer">
+  <div class="mx-auto max-w-6xl px-4 pt-2 pb-8 overflow-x-hidden">
+    <TagExplorer client:load {smols} />
+  </div>
+</Layout>

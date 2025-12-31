@@ -2,6 +2,7 @@
 
 interface ImportMetaEnv {
   readonly PUBLIC_API_URL: string;
+  readonly PUBLIC_AUDIO_PROXY_URL?: string; // Optional - if set, audio streams through this for CORS visualizer
   readonly PUBLIC_KALE_SAC_ID: string;
   readonly PUBLIC_LAUNCHTUBE_JWT: string;
   readonly PUBLIC_LAUNCHTUBE_URL: string;

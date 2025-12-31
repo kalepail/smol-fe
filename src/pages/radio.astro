@@ -1,0 +1,14 @@
+---
+import Layout from "../layouts/Layout.astro";
+import RadioBuilder from "../components/radio/RadioBuilder.svelte";
+import snapshot from "../data/smols-snapshot.json";
+import type { Smol } from "../types/domain";
+
+const smols = snapshot as unknown as Smol[];
+---
+
+<Layout title="Radio Station">
+  <div class="h-[calc(100dvh-80px)] overflow-hidden flex flex-col">
+    <RadioBuilder client:load {smols} />
+  </div>
+</Layout>

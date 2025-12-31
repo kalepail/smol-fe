@@ -13,3 +13,187 @@
         image-rendering: pixelated;
     }
 }
+
+/* Cursor-Reactive Glass Theme (Deep Dark) */
+@layer components {
+    .reactive-glass {
+        position: relative;
+        background: rgba(13, 13, 15, 0.7);
+        /* Deep dark base */
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.03);
+        /* Subtle baseline border */
+        overflow: hidden;
+        backdrop-filter: blur(20px);
+        box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Spotlight Overlay (Background Glow) */
+    .reactive-glass::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(800px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+                rgba(255, 255, 255, 0.03),
+                transparent 40%);
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    /* Border Spotlight (High Fidelity) */
+    .reactive-glass::after {
+        content: "";
+        position: absolute;
+        inset: -1px;
+        /* Overlap border */
+        border-radius: inherit;
+        padding: 1px;
+        background: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+                rgba(255, 255, 255, 0.3),
+                transparent 40%);
+        -webkit-mask:
+            linear-gradient(#fff 0 0) content-box,
+            linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        pointer-events: none;
+        z-index: 10;
+        opacity: 0.6;
+    }
+
+    .reactive-input {
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #e5e5e5;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .reactive-input:focus {
+        border-color: rgba(34, 118, 203, 0.8);
+        background: rgba(0, 0, 0, 0.6);
+        box-shadow: 0 0 20px rgba(34, 118, 203, 0.25);
+        outline: none;
+    }
+
+    .reactive-pill {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        color: #a3a3a3;
+        transition: all 0.2s ease;
+        border-radius: 6px;
+    }
+
+    .reactive-pill:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.08);
+        color: white;
+        border-color: rgba(255, 255, 255, 0.2);
+        box-shadow: 0 0 15px rgba(255, 255, 255, 0.05);
+    }
+
+    .reactive-pill.selected {
+        background: rgba(168, 85, 247, 0.15);
+        border-color: rgba(168, 85, 247, 0.5);
+        color: #e9d5ff;
+        box-shadow: 0 0 15px rgba(168, 85, 247, 0.1);
+    }
+
+    .reactive-button {
+        background: linear-gradient(to bottom, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: white;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        border-radius: 8px;
+    }
+
+    .reactive-button:hover:not(:disabled) {
+        border-color: rgba(168, 85, 247, 0.4);
+        background: rgba(168, 85, 247, 0.05);
+        box-shadow: 0 0 20px rgba(168, 85, 247, 0.15);
+        text-shadow: 0 0 8px rgba(168, 85, 247, 0.5);
+    }
+
+    .reactive-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .reactive-button-ignite {
+        background: linear-gradient(to bottom, rgba(249, 115, 22, 0.1), rgba(249, 115, 22, 0.05));
+        border: 1px solid rgba(249, 115, 22, 0.3);
+        color: #fdba74;
+        position: relative;
+        overflow: hidden;
+        transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        /* Smooth liquid transition */
+        border-radius: 8px;
+    }
+
+    .reactive-button-ignite:hover:not(:disabled) {
+        background: #f97316;
+        /* Vivid Orange */
+        border-color: #f97316;
+        color: white;
+        box-shadow: 0 0 40px rgba(249, 115, 22, 0.6);
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        transform: translateY(-1px);
+    }
+
+    .reactive-button-ignite:active:not(:disabled) {
+        transform: translateY(0);
+        box-shadow: 0 0 20px rgba(249, 115, 22, 0.4);
+    }
+
+    .reactive-button-ignite:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        filter: grayscale(100%);
+    }
+}
+
+/* Custom Scrollbar (Dark Theme) */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #050505;
+    /* Deep Eigengrau Dark */
+}
+
+::-webkit-scrollbar-thumb {
+    background: #262626;
+    /* Neutral Dark Gray */
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #404040;
+    /* Lighter Gray Hover */
+}
+
+/* Explicit Utility for Visible Dark Scroller */
+.dark-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    display: block;
+}
+
+.dark-scrollbar::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 10px;
+}
+
+.dark-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 10px;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.dark-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.6);
+}
