@@ -193,7 +193,7 @@
 >
     <!-- Artist Info Header (Windowed) -->
     <div
-        class="max-w-6xl mx-auto reactive-glass border border-white/5 bg-[#1d1d1d]/70 backdrop-blur-xl rounded-2xl shadow-xl overflow-hidden mb-2 p-2 px-4 flex flex-col md:flex-row items-center justify-between gap-4 relative group/header"
+        class="max-w-6xl mx-auto reactive-glass border border-white/5 bg-[#1d1d1d]/70 backdrop-blur-xl rounded-xl shadow-xl overflow-hidden mb-1 py-1 px-3 md:px-4 flex flex-row items-center justify-between gap-2 md:gap-4 relative group/header"
     >
         <div class="space-y-1 relative z-10">
             <h1
@@ -204,7 +204,7 @@
             <div class="flex items-center gap-3">
                 <button
                     onclick={copyAddress}
-                    class="text-3xl md:text-4xl font-bold tracking-tighter text-white hover:text-[#d836ff] transition-colors flex items-center gap-3 group/address text-left"
+                    class="text-lg md:text-3xl lg:text-4xl font-bold tracking-tighter text-white hover:text-[#d836ff] transition-colors flex items-center gap-2 md:gap-3 group/address text-left"
                     title="Click to copy address"
                 >
                     {shortAddress}
@@ -241,7 +241,7 @@
             </div>
         </div>
 
-        <div class="flex flex-col items-end gap-3 relative z-10">
+        <div class="hidden md:flex flex-col items-end gap-3 relative z-10">
             <div class="flex flex-wrap gap-2 justify-end">
                 <span
                     class="px-3 py-1 rounded-md bg-lime-500/10 text-lime-400 text-[10px] border border-lime-500/20 uppercase tracking-widest font-bold shadow-[0_0_10px_rgba(132,204,22,0.1)]"
@@ -277,7 +277,7 @@
         class="max-w-6xl mx-auto reactive-glass border border-white/5 bg-[#1d1d1d]/70 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden relative flex flex-col h-[calc(100vh-200px)] min-h-[400px]"
     >
         <!-- Control Bar -->
-        <div class="flex items-center justify-between p-3 shrink-0">
+        <div class="flex items-center justify-between py-0.5 px-3 shrink-0">
             <div class="flex items-center gap-2 select-none">
                 <div
                     class="text-lime-500 drop-shadow-[0_0_8px_rgba(132,204,22,0.4)]"
@@ -417,12 +417,10 @@
             {/if}
 
             <div
-                class="flex flex-col lg:flex-row gap-4 h-full items-stretch px-4 pt-1 pb-0"
+                class="flex flex-col lg:flex-row gap-4 h-full items-stretch px-4 pt-1 pb-4"
             >
                 <!-- LEFT COLUMN: PLAYER -->
-                <div
-                    class="w-full lg:w-1/2 flex flex-col gap-1 overflow-hidden min-h-0 pb-1"
-                >
+                <div class="w-full lg:w-1/2 flex flex-col gap-1 min-h-0 pb-1">
                     <RadioPlayer
                         playlist={displayPlaylist}
                         onNext={handleNext}
@@ -442,10 +440,13 @@
                         isMinting={minting}
                         isAuthenticated={userState.contractId !== null}
                         {currentIndex}
+                        overlayControlsOnMobile={true}
+                        onShare={share}
+                        onShuffle={() => (shuffleEnabled = !shuffleEnabled)}
                     />
 
-                    <!-- Mint + Trade Buttons -->
-                    <div class="flex gap-3 mt-3">
+                    <!-- Mint + Trade Buttons (hidden on mobile, controls are in art) -->
+                    <div class="hidden lg:flex gap-3 mt-3">
                         {#if isMinted}
                             {#if currentSong?.Mint_Amm && currentSong?.Mint_Token}
                                 <button
@@ -490,7 +491,7 @@
 
                 <!-- RIGHT COLUMN: PLAYLIST -->
                 <div
-                    class="w-full lg:w-1/2 flex flex-col min-h-0 bg-transparent rounded-2xl overflow-hidden mb-4"
+                    class="w-full lg:w-1/2 flex flex-col min-h-0 bg-black/20 border border-white/5 rounded-2xl overflow-hidden max-h-[40vh] lg:max-h-[calc(100vh-280px)]"
                 >
                     <div
                         class="flex items-center justify-between p-3 border-b border-white/5 bg-white/5 flex-shrink-0"
@@ -511,7 +512,9 @@
                         </div>
                     </div>
 
-                    <div class="flex-1 overflow-y-scroll dark-scrollbar pr-2">
+                    <div
+                        class="flex-1 min-h-0 overflow-y-auto dark-scrollbar pr-2 pb-8"
+                    >
                         <ul class="divide-y divide-white/5">
                             {#each displayPlaylist as song, index}
                                 <li>

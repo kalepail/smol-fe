@@ -27,6 +27,9 @@
     onVersionSelect,
     isAuthenticated,
     showMiniActions = true,
+    overlayControlsOnMobile = false,
+    onShare,
+    onShuffle,
   }: {
     playlist: Smol[];
     onNext?: () => void;
@@ -44,6 +47,9 @@
     isMinting?: boolean;
     isAuthenticated?: boolean;
     showMiniActions?: boolean;
+    overlayControlsOnMobile?: boolean;
+    onShare?: () => void;
+    onShuffle?: () => void;
   } = $props();
 
   const currentSong = $derived(audioState.currentSong);
@@ -324,144 +330,359 @@
       : 'w-full'}"
   >
     <div class="flex-1 flex flex-col items-center">
-      <!-- MERGED ALBUM ART + VISUALIZER -->
+      <!-- ALBUM ART + CONTROLS WRAPPER (relative for absolute controls on mobile) -->
       <div
-        class="relative shrink-0 shadow-2xl mx-auto transition-all duration-500 isolate rounded-2xl overflow-hidden bg-black/40 border border-white/10 flex items-center justify-center {isFullscreen
-          ? 'max-h-[60vh] max-w-[60vh]'
-          : 'max-w-full max-h-[35vh] lg:max-h-[800px] aspect-square'}"
-        style="clip-path: inset(0 round 1rem);"
+        class="{overlayControlsOnMobile
+          ? 'relative'
+          : ''} w-full flex flex-col items-center"
       >
-        <!-- SPACER FOR ASPECT RATIO (Forces container to fit parent min dimension) -->
-        <img
-          src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"
-          alt=""
-          class="block w-full h-full object-contain opacity-0 pointer-events-none relative z-0 {isFullscreen
-            ? 'h-[60vh] w-[60vh]'
-            : ''}"
-          aria-hidden="true"
-        />
+        <!-- MERGED ALBUM ART + VISUALIZER -->
+        <div
+          class="relative shrink-0 shadow-2xl mx-auto transition-all duration-500 isolate rounded-2xl overflow-hidden bg-black/40 border border-white/10 flex items-center justify-center {isFullscreen
+            ? 'max-h-[60vh] max-w-[60vh]'
+            : 'max-w-full max-h-[35vh] lg:max-h-[400px] aspect-square'}"
+          style="clip-path: inset(0 round 1rem);"
+        >
+          <!-- SPACER FOR ASPECT RATIO (Forces container to fit parent min dimension) -->
+          <img
+            src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'%3E%3C/svg%3E"
+            alt=""
+            class="block w-full h-full object-contain opacity-0 pointer-events-none relative z-0 {isFullscreen
+              ? 'h-[60vh] w-[60vh]'
+              : ''}"
+            aria-hidden="true"
+          />
 
-        <!-- Album Art Background (Blurred & Zoomed) -->
-        {#if coverUrl}
-          <div class="absolute inset-0 z-0">
+          <!-- Album Art Background (Blurred & Zoomed) -->
+          {#if coverUrl}
+            <div class="absolute inset-0 z-0">
+              <img
+                src={coverUrl}
+                alt=""
+                class="w-full h-full object-cover opacity-50 blur-2xl scale-110"
+              />
+              <div class="absolute inset-0 bg-black/20"></div>
+            </div>
+
+            <!-- Main Art (Contained) -->
             <img
               src={coverUrl}
-              alt=""
-              class="w-full h-full object-cover opacity-50 blur-2xl scale-110"
+              alt={songTitle}
+              class="absolute inset-0 w-full h-full object-contain z-10 rounded-2xl transition-opacity duration-300 {isFullscreen
+                ? 'opacity-100'
+                : 'opacity-100'}"
+              onerror={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
             />
-            <div class="absolute inset-0 bg-black/20"></div>
-          </div>
+          {/if}
 
-          <!-- Main Art (Contained) -->
-          <img
-            src={coverUrl}
-            alt={songTitle}
-            class="absolute inset-0 w-full h-full object-contain z-10 rounded-2xl transition-opacity duration-300 {isFullscreen
-              ? 'opacity-100'
-              : 'opacity-100'}"
-            onerror={(e) => {
-              e.currentTarget.style.display = "none";
-            }}
-          />
-        {/if}
-
-        <!-- Gradient overlay for text readability (only at bottom) -->
-        <div
-          class="absolute inset-0 z-20 bg-gradient-to-t from-black/95 via-transparent to-transparent pointer-events-none"
-        ></div>
-        <!-- Top Gradient for Text Contrast -->
-        <div
-          class="absolute inset-0 z-20 bg-gradient-to-b from-black/40 via-transparent to-transparent pointer-events-none h-32"
-        ></div>
-
-        <!-- Fallback icon -->
-        <span
-          class="absolute inset-0 flex items-center justify-center text-6xl text-white/5 font-mono"
-          >📻</span
-        >
-
-        <!-- Visualizer Canvas (Bottom Bar) -->
-        <div
-          class="absolute bottom-4 left-0 right-0 h-24 z-30 pointer-events-none opacity-90"
-        >
-          <canvas
-            bind:this={canvasRef}
-            width="1024"
-            height="128"
-            class="w-full h-full"
-          ></canvas>
-        </div>
-
-        <!-- Song Info Overlay (Top Left) -->
-        <div class="absolute top-0 left-0 p-6 z-30">
+          <!-- Gradient overlay for text readability (only at bottom) -->
           <div
-            class="{isFullscreen
-              ? songTitle?.length > 25
-                ? 'text-2xl'
-                : 'text-4xl'
-              : songTitle?.length > 25
-                ? 'text-lg'
-                : 'text-2xl'} text-white font-bold tracking-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] leading-tight"
-            style="text-shadow: 0 0 2px rgba(0,0,0,0.5);"
+            class="absolute inset-0 z-20 bg-gradient-to-t from-black/95 via-transparent to-transparent pointer-events-none"
+          ></div>
+          <!-- Top Gradient for Text Contrast -->
+          <div
+            class="absolute inset-0 z-20 bg-gradient-to-b from-black/40 via-transparent to-transparent pointer-events-none h-32"
+          ></div>
+
+          <!-- Fallback icon -->
+          <span
+            class="absolute inset-0 flex items-center justify-center text-6xl text-white/5 font-mono"
+            >📻</span
           >
-            {songTitle}
+
+          <!-- Visualizer Canvas (Bottom Bar) -->
+          <div
+            class="absolute bottom-16 left-0 right-0 h-24 z-30 pointer-events-none opacity-90"
+          >
+            <canvas
+              bind:this={canvasRef}
+              width="1024"
+              height="128"
+              class="w-full h-full"
+            ></canvas>
           </div>
-          {#if songTags}
+
+          <!-- Song Info Overlay (Top Left) -->
+          <div class="absolute top-0 left-0 p-6 z-30">
             <div
               class="{isFullscreen
-                ? 'text-base mt-2'
-                : 'text-xs mt-1'} text-purple-400 font-medium uppercase tracking-[0.2em] truncate drop-shadow-md"
+                ? songTitle?.length > 25
+                  ? 'text-2xl'
+                  : 'text-4xl'
+                : songTitle?.length > 25
+                  ? 'text-lg'
+                  : 'text-2xl'} text-white font-bold tracking-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] leading-tight"
+              style="text-shadow: 0 0 2px rgba(0,0,0,0.5);"
             >
-              {songTags}
+              {songTitle}
+            </div>
+            {#if songTags}
+              <div
+                class="{isFullscreen
+                  ? 'text-base mt-2'
+                  : 'text-xs mt-1'} text-purple-400 font-medium uppercase tracking-[0.2em] truncate drop-shadow-md"
+              >
+                {songTags}
+              </div>
+            {/if}
+          </div>
+
+          <!-- FULLSCREEN TOGGLE BUTTONS (TOP RIGHT OF ART) -->
+          <div
+            class="absolute top-4 right-4 z-40 flex gap-2 {isFullscreen
+              ? 'opacity-0 group-hover/fs:opacity-100 transition-opacity'
+              : ''}"
+          >
+            <!-- Queue Toggle (Fullscreen Only) -->
+            {#if isFullscreen}
+              <button
+                class="tech-button p-2 text-white/40 hover:text-white transition-all bg-black/40 backdrop-blur-md rounded-lg border border-white/5 hover:border-white/20 {showQueue
+                  ? 'text-purple-400 border-purple-500/50 bg-purple-500/10'
+                  : ''}"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  showQueue = !showQueue;
+                }}
+                title="Toggle Queue"
+              >
+                <svg
+                  class="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
+                </svg>
+              </button>
+            {/if}
+
+            <button
+              class="tech-button p-2 text-white/40 hover:text-white transition-all bg-black/40 backdrop-blur-md rounded-lg border border-white/5 hover:border-white/20"
+              onclick={(e) => {
+                e.stopPropagation();
+                toggleFullscreen();
+              }}
+              title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Mode"}
+            >
+              {#if isFullscreen}
+                <svg
+                  class="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              {:else}
+                <svg
+                  class="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+                  />
+                </svg>
+              {/if}
+            </button>
+          </div>
+
+          <!-- VERSION SELECTOR (MOVED TO BOTTOM LEFT) -->
+          {#if versions && versions.length > 0}
+            <div class="absolute bottom-4 left-4 z-40 flex items-center gap-2">
+              {#each versions as v}
+                <button
+                  class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest rounded border transition-all {currentVersionId ===
+                  v.id
+                    ? 'bg-white text-black border-white'
+                    : 'bg-transparent text-white/40 border-white/20 hover:text-white hover:border-white/40'}"
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    onVersionSelect?.(v.id);
+                  }}
+                >
+                  {v.label}
+                  {#if v.isBest}
+                    <span class="ml-1 text-[#d836ff]">★</span>
+                  {/if}
+                </button>
+              {/each}
             </div>
           {/if}
         </div>
 
-        <!-- FULLSCREEN TOGGLE BUTTONS (TOP RIGHT OF ART) -->
+        <!-- Controls (below art in standard, absolute on art for overlayControlsOnMobile on mobile) -->
         <div
-          class="absolute bottom-4 right-4 z-40 flex gap-2 {isFullscreen
-            ? 'opacity-0 group-hover/fs:opacity-100 transition-opacity'
+          class="flex items-center justify-center gap-2 sm:gap-4 md:gap-6 transition-all duration-500 {overlayControlsOnMobile
+            ? 'absolute bottom-12 left-0 right-0 z-40 lg:relative lg:bottom-auto lg:mt-1 lg:pb-0'
+            : 'mt-1 pb-0'} {isFullscreen
+            ? showControls
+              ? 'opacity-100 translate-y-0'
+              : 'opacity-0 translate-y-4 pointer-events-none'
             : ''}"
         >
-          <!-- Queue Toggle (Fullscreen Only) -->
-          {#if isFullscreen}
-            <button
-              class="tech-button p-2 text-white/40 hover:text-white transition-all bg-black/40 backdrop-blur-md rounded-lg border border-white/5 hover:border-white/20 {showQueue
-                ? 'text-purple-400 border-purple-500/50 bg-purple-500/10'
-                : ''}"
-              onclick={(e) => {
-                e.stopPropagation();
-                showQueue = !showQueue;
+          <!-- LIKE BUTTON (Left of controls) -->
+          {#if currentSong}
+            {@const currentIdx = playlist.findIndex(
+              (s) => s.Id === currentSong?.Id,
+            )}
+            {@const isLiked =
+              currentIdx !== -1 ? playlist[currentIdx].Liked : false}
+
+            <LikeButton
+              smolId={currentSong.Id}
+              liked={!!isLiked}
+              classNames="tech-button w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center active:scale-95 disabled:opacity-30 border rounded-full backdrop-blur-md transition-all duration-300 border-[#ff424c] shadow-[0_0_20px_rgba(255,66,76,0.3)] {isLiked
+                ? 'bg-[#ff424c] text-white'
+                : 'bg-[#ff424c]/10 text-[#ff424c] hover:bg-[#ff424c]/20'}"
+              on:likeChanged={(e) => {
+                if (onToggleLike && currentIdx !== -1) {
+                  onToggleLike(currentIdx, e.detail.liked);
+                }
               }}
-              title="Toggle Queue"
+            />
+          {/if}
+
+          <button
+            class="tech-button w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md"
+            onclick={handlePrev}
+            title="Previous"
+          >
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+            </svg>
+          </button>
+
+          <button
+            class="tech-button w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center active:scale-95 transition-all relative overflow-hidden group rounded-full backdrop-blur-xl border border-[#089981] text-[#089981] bg-[#089981]/10 shadow-[0_0_30px_rgba(8,153,129,0.4)] hover:bg-[#089981]/20 hover:text-white hover:shadow-[0_0_40px_rgba(8,153,129,0.6)]"
+            onclick={playPause}
+            title={playing ? "Pause" : "Play"}
+          >
+            {#if playing}
+              <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+              </svg>
+            {:else}
+              <svg class="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            {/if}
+          </button>
+
+          <!-- NEXT BUTTON -->
+          <button
+            class="tech-button w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md"
+            onclick={handleNext}
+            title="Next"
+          >
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+            </svg>
+          </button>
+
+          <!-- SHUFFLE BUTTON (mobile only when overlayControlsOnMobile) -->
+          {#if onShuffle && overlayControlsOnMobile}
+            <button
+              class="tech-button w-8 h-8 sm:w-10 sm:h-10 flex lg:hidden items-center justify-center text-lime-400 hover:text-lime-300 active:scale-95 border border-lime-500/30 hover:border-lime-400/50 rounded-full bg-lime-500/10 backdrop-blur-md"
+              onclick={onShuffle}
+              title="Shuffle Playlist"
             >
-              <svg
-                class="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                 <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M4 6h16M4 12h16M4 18h16"
+                  d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"
                 />
               </svg>
             </button>
           {/if}
 
-          <button
-            class="tech-button p-2 text-white/40 hover:text-white transition-all bg-black/40 backdrop-blur-md rounded-lg border border-white/5 hover:border-white/20"
-            onclick={(e) => {
-              e.stopPropagation();
-              toggleFullscreen();
-            }}
-            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Mode"}
-          >
-            {#if isFullscreen}
+          <!-- MINT BUTTON (hidden on mobile when overlayControlsOnMobile) -->
+          {#if onMint && showMiniActions}
+            <button
+              class="tech-button w-10 h-10 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-[#d836ff] text-[#d836ff] bg-[#d836ff]/10 hover:bg-[#d836ff]/20 shadow-[0_0_15px_rgba(216,54,255,0.3)] {overlayControlsOnMobile
+                ? 'hidden lg:flex'
+                : ''}"
+              onclick={() => {
+                if (!userState.contractId) {
+                  triggerLogin();
+                  return;
+                }
+                onMint?.();
+              }}
+              title="Mint Track"
+              disabled={isMinting}
+            >
+              {#if isMinting}
+                <svg
+                  class="w-4 h-4 animate-spin"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  ></circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+              {:else}
+                <svg
+                  class="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
+                  />
+                </svg>
+              {/if}
+            </button>
+          {/if}
+
+          <!-- TRADE BUTTON (hidden on mobile when overlayControlsOnMobile) -->
+          {#if onTrade && showMiniActions}
+            <button
+              class="tech-button w-10 h-10 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-blue-400 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.3)] {overlayControlsOnMobile
+                ? 'hidden lg:flex'
+                : ''}"
+              onclick={() => {
+                if (!userState.contractId) {
+                  triggerLogin();
+                  return;
+                }
+                onTrade?.();
+              }}
+              title="Trade / Swap"
+            >
               <svg
-                class="w-5 h-5"
+                class="w-4 h-4"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -470,208 +691,66 @@
                   stroke-linecap="round"
                   stroke-linejoin="round"
                   stroke-width="2"
-                  d="M6 18L18 6M6 6l12 12"
+                  d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
                 />
               </svg>
-            {:else}
-              <svg
-                class="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
-                />
-              </svg>
-            {/if}
-          </button>
+            </button>
+          {/if}
+
+          {#if onRegenerate}
+            <button
+              class="tech-button w-10 h-10 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-[#F7931A] text-[#F7931A] bg-[#F7931A]/10 shadow-[0_0_20px_rgba(247,147,26,0.3)] hover:bg-[#F7931A]/20 hover:text-white"
+              onclick={handleRegenerate}
+              title="Regenerate Station"
+            >
+              <span class="text-xl">↻</span>
+            </button>
+          {/if}
         </div>
 
-        <!-- VERSION SELECTOR (MOVED TO BOTTOM LEFT) -->
-        {#if versions && versions.length > 0}
-          <div class="absolute bottom-4 left-4 z-40 flex items-center gap-2">
-            {#each versions as v}
+        <!-- Compact Mint/Share buttons for mobile (below controls when overlayControlsOnMobile) -->
+        {#if overlayControlsOnMobile}
+          <div
+            class="absolute bottom-2 left-0 right-0 z-40 flex justify-center gap-2 px-4 lg:hidden"
+          >
+            {#if onMint}
               <button
-                class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest rounded border transition-all {currentVersionId ===
-                v.id
-                  ? 'bg-white text-black border-white'
-                  : 'bg-transparent text-white/40 border-white/20 hover:text-white hover:border-white/40'}"
-                onclick={(e) => {
-                  e.stopPropagation();
-                  onVersionSelect?.(v.id);
+                onclick={() => {
+                  if (!userState.contractId) {
+                    triggerLogin();
+                    return;
+                  }
+                  onMint?.();
                 }}
+                disabled={isMinting}
+                class="flex-1 max-w-[140px] py-1.5 bg-[#d836ff]/80 backdrop-blur-md text-white text-[10px] font-bold rounded-lg uppercase tracking-wider"
               >
-                {v.label}
-                {#if v.isBest}
-                  <span class="ml-1 text-[#d836ff]">★</span>
-                {/if}
+                {isMinting ? "..." : "Mint"}
               </button>
-            {/each}
-          </div>
-        {/if}
-      </div>
-
-      <!-- Controls (below art in standard, bottom in fullscreen) -->
-      <div
-        class="flex items-center justify-center gap-2 sm:gap-4 md:gap-6 mt-1 pb-0 transition-all duration-500 {isFullscreen
-          ? showControls
-            ? 'opacity-100 translate-y-0'
-            : 'opacity-0 translate-y-4 pointer-events-none'
-          : ''}"
-      >
-        <!-- LIKE BUTTON (Left of controls) -->
-        {#if currentSong}
-          {@const currentIdx = playlist.findIndex(
-            (s) => s.Id === currentSong?.Id,
-          )}
-          {@const isLiked =
-            currentIdx !== -1 ? playlist[currentIdx].Liked : false}
-
-          <LikeButton
-            smolId={currentSong.Id}
-            liked={!!isLiked}
-            classNames="tech-button w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center active:scale-95 disabled:opacity-30 border rounded-full backdrop-blur-md transition-all duration-300 border-[#ff424c] shadow-[0_0_20px_rgba(255,66,76,0.3)] {isLiked
-              ? 'bg-[#ff424c] text-white'
-              : 'bg-[#ff424c]/10 text-[#ff424c] hover:bg-[#ff424c]/20'}"
-            on:likeChanged={(e) => {
-              if (onToggleLike && currentIdx !== -1) {
-                onToggleLike(currentIdx, e.detail.liked);
-              }
-            }}
-          />
-        {/if}
-
-        <button
-          class="tech-button w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md"
-          onclick={handlePrev}
-          title="Previous"
-        >
-          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
-          </svg>
-        </button>
-
-        <button
-          class="tech-button w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center active:scale-95 transition-all relative overflow-hidden group rounded-full backdrop-blur-xl border border-[#089981] text-[#089981] bg-[#089981]/10 shadow-[0_0_30px_rgba(8,153,129,0.4)] hover:bg-[#089981]/20 hover:text-white hover:shadow-[0_0_40px_rgba(8,153,129,0.6)]"
-          onclick={playPause}
-          title={playing ? "Pause" : "Play"}
-        >
-          {#if playing}
-            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
-            </svg>
-          {:else}
-            <svg class="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z" />
-            </svg>
-          {/if}
-        </button>
-
-        <!-- NEXT BUTTON -->
-        <button
-          class="tech-button w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md"
-          onclick={handleNext}
-          title="Next"
-        >
-          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
-          </svg>
-        </button>
-
-        <!-- MINT BUTTON -->
-        {#if onMint && showMiniActions}
-          <button
-            class="tech-button w-10 h-10 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-[#d836ff] text-[#d836ff] bg-[#d836ff]/10 hover:bg-[#d836ff]/20 shadow-[0_0_15px_rgba(216,54,255,0.3)]"
-            onclick={() => {
-              if (!userState.contractId) {
-                triggerLogin();
-                return;
-              }
-              onMint?.();
-            }}
-            title="Mint Track"
-            disabled={isMinting}
-          >
-            {#if isMinting}
-              <svg
-                class="w-4 h-4 animate-spin"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  class="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  stroke-width="4"
-                ></circle>
-                <path
-                  class="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
-            {:else}
-              <svg
-                class="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
-                />
-              </svg>
             {/if}
-          </button>
-        {/if}
-
-        <!-- TRADE BUTTON -->
-        {#if onTrade && showMiniActions}
-          <button
-            class="tech-button w-10 h-10 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-blue-400 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.3)]"
-            onclick={() => {
-              if (!userState.contractId) {
-                triggerLogin();
-                return;
-              }
-              onTrade?.();
-            }}
-            title="Trade / Swap"
-          >
-            <svg
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-              />
-            </svg>
-          </button>
-        {/if}
-
-        {#if onRegenerate}
-          <button
-            class="tech-button w-10 h-10 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-[#F7931A] text-[#F7931A] bg-[#F7931A]/10 shadow-[0_0_20px_rgba(247,147,26,0.3)] hover:bg-[#F7931A]/20 hover:text-white"
-            onclick={handleRegenerate}
-            title="Regenerate Station"
-          >
-            <span class="text-xl">↻</span>
-          </button>
+            {#if onTrade}
+              <button
+                onclick={() => {
+                  if (!userState.contractId) {
+                    triggerLogin();
+                    return;
+                  }
+                  onTrade?.();
+                }}
+                class="flex-1 max-w-[140px] py-1.5 bg-[#2775ca]/80 backdrop-blur-md text-white text-[10px] font-bold rounded-lg uppercase tracking-wider"
+              >
+                Trade
+              </button>
+            {/if}
+            {#if onShare}
+              <button
+                onclick={onShare}
+                class="px-4 py-1.5 bg-white/10 backdrop-blur-md text-white text-[10px] font-bold rounded-lg uppercase tracking-wider border border-white/10"
+              >
+                Share
+              </button>
+            {/if}
+          </div>
         {/if}
       </div>
 
