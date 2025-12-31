@@ -679,8 +679,8 @@
 
 <div
   class="container mx-auto px-4 {isCompact
-    ? 'pt-2 pb-4'
-    : 'py-4'} relative z-10 w-full flex flex-col justify-center"
+    ? 'pt-1 pb-2'
+    : 'py-1'} relative z-10 w-full h-full flex flex-col overflow-hidden"
 >
   <!-- Eigengrau Void (Removed) -->
 
@@ -788,21 +788,21 @@
           <!-- TAG CLOUD (Collapsible) -->
           {#if showCloud}
             <div
-              class="md:col-span-7 reactive-glass flex flex-col items-center p-4 md:p-6 border border-white/5 transition-all duration-500 relative z-40 rounded-xl overflow-hidden"
+              class="md:col-span-7 reactive-glass flex flex-col items-center p-2 border border-white/5 transition-all duration-500 relative z-40 rounded-xl overflow-hidden"
             >
               <!-- Title Bar -->
               <div
-                class="w-full flex items-center justify-between mb-3 pb-3 border-b border-white/10"
+                class="w-full flex items-center justify-between mb-2 border-b border-white/10 min-h-[32px]"
               >
                 <h3
-                  class="text-xs uppercase tracking-[0.2em] text-white/50 font-semibold"
+                  class="text-xs uppercase tracking-[0.2em] text-white/50 font-semibold -mt-2"
                 >
                   {isDreamMode ? "✨ Dream Mode" : "🎵 Vibe Builder"}
                 </h3>
 
                 {#if generatedPlaylist.length > 0}
                   <button
-                    class="flex items-center gap-2 px-3 py-1.5 text-[10px] font-bold text-[#1b8da0] border border-[#1b8da0]/30 rounded-full hover:bg-[#1b8da0]/10 transition-all uppercase tracking-widest bg-black/20"
+                    class="flex items-center gap-2 px-3 py-1.5 text-[10px] font-bold text-[#1b8da0] border border-[#1b8da0]/30 rounded-full hover:bg-[#1b8da0]/10 transition-all uppercase tracking-widest bg-black/20 -mt-2"
                     onclick={() => (showBuilder = false)}
                   >
                     Return to Player →
@@ -976,7 +976,7 @@
           <!-- MAIN IGNITE BUTTON (Only if not compact) -->
           {#if !isCompact}
             <div
-              class="flex justify-center mt-6 mb-8 md:mb-0 gap-6 items-center"
+              class="flex justify-center mt-0 mb-2 md:mb-0 gap-6 items-center"
             >
               <button
                 class="reactive-button-ignite w-full md:w-auto text-white font-bold py-4 px-8 md:py-4 md:px-12 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-[0.2em] text-lg md:text-lg border-2 border-[#F7931A] shadow-[0_0_30px_rgba(247,147,26,0.6)] hover:shadow-[0_0_40px_rgba(247,147,26,0.8)] hover:border-[#F7931A] md:shadow-[0_0_15px_rgba(247,147,26,0.4)] rounded-xl"
