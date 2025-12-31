@@ -181,7 +181,7 @@
 
     function copyAddress() {
         navigator.clipboard.writeText(address).then(() => {
-            alert("Address copied! Send XLM or USDC to tip this artist.");
+            alert("Address copied! Send $KALE to tip this artist.");
         });
     }
 
@@ -207,7 +207,7 @@
                 <button
                     onclick={copyAddress}
                     class="text-lg md:text-3xl lg:text-4xl font-bold tracking-tighter text-white hover:text-[#d836ff] transition-colors flex items-center gap-2 md:gap-3 group/address text-left"
-                    title="Click to copy address"
+                    title="Click to copy address (Send $KALE only!)"
                 >
                     {shortAddress}
                     <svg
