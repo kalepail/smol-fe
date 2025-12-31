@@ -1,5 +1,6 @@
 <script lang="ts">
   import { fade } from "svelte/transition";
+  import { onMount } from "svelte";
   import MiniAudioPlayer from "./MiniAudioPlayer.svelte";
   import LikeButton from "../ui/LikeButton.svelte";
   import { trackView } from "../../lib/analytics";
@@ -10,6 +11,8 @@
     togglePlayPause,
     playNextSong,
   } from "../../stores/audio.svelte";
+
+  const API_URL = import.meta.env.PUBLIC_API_URL;
 
   /**
    * Effect: Sync audio source with current song
@@ -26,7 +29,7 @@
       const audioProxyUrl = import.meta.env.PUBLIC_AUDIO_PROXY_URL;
       const songUrl = audioProxyUrl
         ? `${audioProxyUrl}/audio/${song.Song_1}`
-        : `${import.meta.env.PUBLIC_API_URL}/song/${song.Song_1}.mp3`;
+        : `${API_URL}/song/${song.Song_1}.mp3`;
 
       // Only update src if it's different to avoid reloading
       if (audio.src !== songUrl) {
@@ -67,6 +70,64 @@
       // Should be paused
       audio.pause();
     }
+  });
+
+  /**
+   * Effect: Media Session API for iOS lock-screen playback
+   * Keeps audio playing when phone is locked and shows controls on lock screen
+   */
+  $effect(() => {
+    const song = audioState.currentSong;
+    if (!("mediaSession" in navigator)) return;
+
+    if (song) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: song.Title || "Untitled",
+        artist: "SMOL",
+        album: "SMOL Radio",
+        artwork: [
+          {
+            src: `${API_URL}/image/${song.Id}.png`,
+            sizes: "512x512",
+            type: "image/png",
+          },
+        ],
+      });
+    } else {
+      navigator.mediaSession.metadata = null;
+    }
+  });
+
+  /**
+   * Register Media Session action handlers on mount
+   */
+  onMount(() => {
+    if (!("mediaSession" in navigator)) return;
+
+    navigator.mediaSession.setActionHandler("play", () => {
+      if (audioState.currentSong && !audioState.playingId) {
+        togglePlayPause();
+      }
+    });
+
+    navigator.mediaSession.setActionHandler("pause", () => {
+      if (audioState.playingId) {
+        togglePlayPause();
+      }
+    });
+
+    navigator.mediaSession.setActionHandler("nexttrack", () => {
+      playNextSong();
+    });
+
+    // Clean up on unmount
+    return () => {
+      if ("mediaSession" in navigator) {
+        navigator.mediaSession.setActionHandler("play", null);
+        navigator.mediaSession.setActionHandler("pause", null);
+        navigator.mediaSession.setActionHandler("nexttrack", null);
+      }
+    };
   });
 
   function handleTimeUpdate(event: Event) {
