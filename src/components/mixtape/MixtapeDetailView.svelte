@@ -67,6 +67,10 @@
       : false,
   );
 
+  const isCreator = $derived(
+    userState.contractId && mixtape && userState.contractId === mixtape.creator,
+  );
+
   const coverUrls = $derived(
     mixtape
       ? Array.from({ length: 4 }, (_, i) => {
@@ -610,7 +614,7 @@
       onPlayAll={playbackHook.handlePlayAll}
       onStopPlayAll={playbackHook.stopPlayAll}
       onPurchaseClick={handlePurchaseClick}
-      onEdit={handleEdit}
+      onEdit={isCreator ? handleEdit : undefined}
     />
 
     <MixtapeTracklist
