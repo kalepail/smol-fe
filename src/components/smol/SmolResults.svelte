@@ -284,15 +284,6 @@
                     <div class="flex items-center gap-4">
                         {#if isOwner}
                             <button
-                                onclick={togglePublic}
-                                class="text-[9px] font-bold uppercase tracking-widest transition-colors {data
-                                    .d1?.Public
-                                    ? 'text-amber-400'
-                                    : 'text-blue-400'} hover:brightness-125"
-                            >
-                                {data.d1?.Public ? "Unpublish" : "Publish"}
-                            </button>
-                            <button
                                 onclick={deleteSong}
                                 class="text-[9px] font-bold uppercase tracking-widest text-rose-500 hover:text-rose-400"
                             >
@@ -325,6 +316,9 @@
                             onMint={!minted ? triggerMint : undefined}
                             isMinting={minting}
                             isAuthenticated={isAuthenticated()}
+                            showMiniActions={false}
+                            onTogglePublish={isOwner ? togglePublic : undefined}
+                            isPublished={data.d1?.Public}
                         />
 
                         <div class="mt-auto flex gap-4 w-full">

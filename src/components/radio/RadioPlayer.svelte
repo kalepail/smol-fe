@@ -30,6 +30,8 @@
     overlayControlsOnMobile = false,
     onShare,
     onShuffle,
+    onTogglePublish,
+    isPublished,
   }: {
     playlist: Smol[];
     onNext?: () => void;
@@ -50,6 +52,8 @@
     overlayControlsOnMobile?: boolean;
     onShare?: () => void;
     onShuffle?: () => void;
+    onTogglePublish?: () => void;
+    isPublished?: boolean;
   } = $props();
 
   const currentSong = $derived(audioState.currentSong);
@@ -214,6 +218,7 @@
       }
 
       // 3. Draw Frame
+      if (!ctx) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       const isFs = !!document.fullscreenElement;
@@ -706,6 +711,20 @@
                   d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
                 />
               </svg>
+            </button>
+          {/if}
+
+          <!-- PUBLISH/UNPUBLISH BUTTON (Owner Only) -->
+          {#if onTogglePublish}
+            <button
+              class="px-3 h-10 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border text-[10px] font-bold uppercase tracking-widest {isPublished
+                ? 'border-amber-500/50 text-amber-500 bg-amber-500/10 hover:bg-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                : 'border-blue-500/50 text-blue-500 bg-blue-500/10 hover:bg-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.3)]'} {overlayControlsOnMobile
+                ? 'hidden lg:flex'
+                : ''}"
+              onclick={onTogglePublish}
+            >
+              {isPublished ? "Unpublish" : "Publish"}
             </button>
           {/if}
 

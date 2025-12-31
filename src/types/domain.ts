@@ -24,6 +24,7 @@ export interface Smol {
   // Client-side only fields for UI state
   balance?: bigint;
   minting?: boolean;
+  Created_At?: string;
 }
 
 export interface MixtapeTrack {

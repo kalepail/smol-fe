@@ -40,6 +40,7 @@ Hey Tyler, we've made significant progress on the Radio and Track Detail UI. We 
 - **Goal**: Verify:
     - **Likes**: Toggling likes on the Radio and Artist pages.
     - **Ownership Checks**: Ensuring only the original creator can "Publish/Unpublish" or "Delete" tracks on the detailed `/[id]` page.
+    - **Publish Button Login Gate**: The "Publish" button on `/[id]` is now located within the player controls (replaces the Mint button for owners) and MUST be login-gated. Verify that clicking it without a session triggers the login flow.
 
 ## 📚 Module Reference Syllabus
 

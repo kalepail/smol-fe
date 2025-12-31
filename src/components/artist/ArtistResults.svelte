@@ -9,6 +9,7 @@
     import MintTradeModal from "../MintTradeModal.svelte";
     import { getTokenBalance } from "../../utils/balance";
     import TipArtistModal from "./TipArtistModal.svelte";
+    import { sac } from "../../utils/passkey-kit";
 
     let {
         discography = [],
@@ -37,7 +38,7 @@
     let currentIndex = $state(0);
     let minting = $state(false);
     let showTradeModal = $state(false);
-    let tradeMintBalance = $state(0);
+    let tradeMintBalance = $state(0n);
     let showGridView = $state(false);
     let showTipModal = $state(false);
 
@@ -50,11 +51,12 @@
 
     $effect(() => {
         if (currentSong?.Mint_Token && userState.contractId) {
-            getTokenBalance(currentSong.Mint_Token, userState.contractId).then(
-                (b) => {
-                    tradeMintBalance = b;
-                },
-            );
+            getTokenBalance(
+                sac.getSACClient(currentSong.Mint_Token),
+                userState.contractId,
+            ).then((b) => {
+                tradeMintBalance = b;
+            });
         }
     });
 
@@ -151,7 +153,7 @@
                     creatorAddress: currentSong.Address || "",
                     kaleSacId: import.meta.env.PUBLIC_KALE_SAC_ID!,
                 },
-                () => {
+                async () => {
                     // Update the local state to match minted status if needed
                 },
             );
@@ -558,8 +560,9 @@
                                                 alt="Art"
                                                 class="w-full h-full object-cover transition-transform duration-500 group-hover/thumb:scale-110 group-hover:brightness-50"
                                                 onerror={(e) => {
-                                                    e.currentTarget.style.display =
-                                                        "none";
+                                                    (
+                                                        e.currentTarget as HTMLImageElement
+                                                    ).style.display = "none";
                                                 }}
                                             />
 
