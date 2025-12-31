@@ -27,6 +27,31 @@ export const audioState = $state<{
   sourceNode: null,
 });
 
+function isIOSDevice() {
+  if (typeof navigator === 'undefined') return false;
+  const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+  const isAppleMobile = /iPad|iPhone|iPod/.test(userAgent);
+  const isIPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+  return isAppleMobile || isIPadOS;
+}
+
+function teardownAudioContext() {
+  if (audioState.sourceNode) {
+    try {
+      audioState.sourceNode.disconnect();
+    } catch (e) { /* ignore */ }
+  }
+  if (audioState.audioContext) {
+    try {
+      audioState.audioContext.close();
+    } catch (e) { /* ignore */ }
+  }
+  audioState.audioContext = null;
+  audioState.analyser = null;
+  audioState.sourceNode = null;
+  (window as any).__SMOL_AUDIO_CONTEXT__ = null;
+}
+
 /**
  * Derived state function: Check if audio is currently playing
  */
@@ -43,6 +68,9 @@ export function isPlaying(): boolean {
  */
 export function setAudioElement(element: HTMLAudioElement | null) {
   audioState.audioElement = element;
+  if (element && isIOSDevice()) {
+    teardownAudioContext();
+  }
 }
 
 /**
@@ -123,18 +151,15 @@ export function initAudioContext(force = false) {
 
   if (!audioElement) return;
 
+  if (isIOSDevice()) {
+    teardownAudioContext();
+    return;
+  }
+
   // Force Reset Logic
   if (force) {
     console.warn("[AudioStore] Forcing AudioContext reset...");
-    if (audioState.audioContext) {
-      try {
-        audioState.audioContext.close();
-      } catch (e) { /* ignore */ }
-    }
-    audioState.audioContext = null;
-    audioState.analyser = null;
-    audioState.sourceNode = null;
-    (window as any).__SMOL_AUDIO_CONTEXT__ = null;
+    teardownAudioContext();
   }
 
   // Restore from global cache if available (HMR support)
