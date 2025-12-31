@@ -618,7 +618,8 @@
                                                 class="flex items-center gap-3 text-[9px] text-white/30 truncate uppercase tracking-widest mt-0.5 font-light"
                                             >
                                                 {new Date(
-                                                    song.Created_At,
+                                                    song.Created_At ||
+                                                        Date.now(),
                                                 ).toLocaleDateString(
                                                     undefined,
                                                     {
