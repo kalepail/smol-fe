@@ -203,6 +203,7 @@
 
 <audio
   preload="auto"
+  crossorigin="anonymous"
   bind:this={audioState.audioElement}
   ontimeupdate={handleTimeUpdate}
   onended={handleEnded}
