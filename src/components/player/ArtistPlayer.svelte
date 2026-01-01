@@ -365,7 +365,7 @@
       <!-- Album Art -->
       <div class="flex-shrink-0">
         <img
-          src={`https://api.smol.xyz/image/${currentSong.Id}.png`}
+          src={`${import.meta.env.PUBLIC_API_URL}/image/${currentSong.Id}.png?scale=8`}
           alt={currentSong.Title}
           class="w-24 h-24 rounded-lg object-cover shadow-lg"
         />

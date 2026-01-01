@@ -381,7 +381,7 @@
                                         class="relative w-10 h-10 rounded bg-slate-800 flex-shrink-0 overflow-hidden group"
                                     >
                                         <img
-                                            src="{API_URL}/image/{song.Id}.png"
+                                            src="{API_URL}/image/{song.Id}.png?scale=8"
                                             alt="Art"
                                             class="w-full h-full object-cover"
                                             onerror={(e) => {
@@ -471,7 +471,7 @@
         mintTokenId={currentSong.Mint_Token}
         songId={currentSong.Id}
         title={currentSong.Title || "Untitled"}
-        imageUrl="{API_URL}/image/{currentSong.Id}.png"
+        imageUrl="{API_URL}/image/{currentSong.Id}.png?scale=8"
         on:close={() => (showTradeModal = false)}
         on:complete={() => {
             // No simple way to trigger a full re-fetch of the single song in Radio

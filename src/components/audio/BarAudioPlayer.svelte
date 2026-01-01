@@ -57,6 +57,8 @@
     if (!audio || !audio.src) return;
 
     if (currentSong && playingId === currentSong.Id) {
+      // Prevent redundant play() calls that cause glitches on iOS
+      if (!audio.paused) return;
       // Should be playing
       const playPromise = audio.play();
       if (playPromise !== undefined) {
@@ -87,7 +89,7 @@
         album: "SMOL Radio",
         artwork: [
           {
-            src: `${API_URL}/image/${song.Id}.png`,
+            src: `${API_URL}/image/${song.Id}.png?scale=8`,
             sizes: "512x512",
             type: "image/png",
           },
@@ -154,7 +156,7 @@
     <div class="flex items-center justify-between max-w-7xl mx-auto">
       <div class="flex items-center gap-4 mr-4">
         <img
-          src={`${import.meta.env.PUBLIC_API_URL}/image/${audioState.currentSong.Id}.png`}
+          src={`${import.meta.env.PUBLIC_API_URL}/image/${audioState.currentSong.Id}.png?scale=8`}
           alt={audioState.currentSong.Title}
           class="w-12 h-12 rounded object-cover"
         />

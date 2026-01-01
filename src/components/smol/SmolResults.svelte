@@ -577,7 +577,7 @@
         mintTokenId={data.d1.Mint_Token!}
         songId={id}
         title={data.d1.Title}
-        imageUrl={`${import.meta.env.PUBLIC_API_URL}/image/${id}.png`}
+        imageUrl={`${import.meta.env.PUBLIC_API_URL}/image/${id}.png?scale=8`}
         on:close={() => (showTradeModal = false)}
         on:complete={() => {
             fetchData();
