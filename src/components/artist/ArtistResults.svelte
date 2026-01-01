@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { onMount } from "svelte";
     import type { Smol } from "../../types/domain";
     import { audioState, selectSong } from "../../stores/audio.svelte";
     import RadioPlayer from "../radio/RadioPlayer.svelte";
@@ -10,6 +11,7 @@
     import { getTokenBalance } from "../../utils/balance";
     import TipArtistModal from "./TipArtistModal.svelte";
     import { sac } from "../../utils/passkey-kit";
+    import { fetchSmols } from "../../services/api/smols";
 
     let {
         discography = [],
@@ -30,6 +32,13 @@
         mintedCount: number;
         topTags: string[];
     } = $props();
+
+    // Reactive state for hydration (starts with props, updates with live data)
+    let liveDiscography = $state<Smol[]>(discography);
+    let liveMinted = $state<Smol[]>(minted);
+    // Collected stays as snapshot for now since API lacks Minted_By support
+    let liveCollected = $state<Smol[]>(collected);
+    let isLoadingLive = $state(false);
 
     let activeModule = $state<"discography" | "minted" | "collected">(
         "discography",
@@ -60,11 +69,164 @@
         }
     });
 
+    // Hydrate with live data on mount or address change
+    $effect(() => {
+        if (address) {
+            hydrateArtistData(address);
+        }
+    });
+
+    async function hydrateArtistData(addr: string) {
+        if (isLoadingLive) return;
+        isLoadingLive = true;
+        console.log(`[ArtistResults] Hydrating live data for ${addr}...`);
+
+        try {
+            // Fetch live smols for this artist
+            // Note: Currently API uses ?address= to filter by creator
+            const url = new URL(`${import.meta.env.PUBLIC_API_URL}/`);
+            url.searchParams.set("address", addr);
+            url.searchParams.set("limit", "10000"); // Effectively unlimited
+
+            const res = await fetch(url);
+            if (res.ok) {
+                const data = await res.json();
+                const freshSmols: Smol[] = data.smols || [];
+
+                if (freshSmols.length > 0) {
+                    console.log(
+                        `[ArtistResults] Found ${freshSmols.length} live tracks`,
+                    );
+
+                    // 1. Identify "Known" tracks (Snapshot Matches) and "Unknown" candidates (Potential New Songs)
+                    const snapIds = new Set(discography.map((s) => s.Id));
+                    let knownLiveSmols: Smol[] = [];
+                    let unknownCandidates: Smol[] = [];
+
+                    freshSmols.forEach((s) => {
+                        if (s.Address && s.Address === address) {
+                            // If backend magically provided Address, it's valid (rare/future case)
+                            knownLiveSmols.push(s);
+                        } else if (snapIds.has(s.Id)) {
+                            // Verified via Snapshot
+                            knownLiveSmols.push(s);
+                        } else {
+                            // Not in snapshot, address missing. check it via Detail API
+                            unknownCandidates.push(s);
+                        }
+                    });
+
+                    // 2. Process Known items (Enrich with Snapshot Tags)
+                    let mergedSmols = knownLiveSmols.map((liveSmol) => {
+                        const snapSmol = discography.find(
+                            (s) => s.Id === liveSmol.Id,
+                        );
+                        return {
+                            ...liveSmol,
+                            Tags:
+                                liveSmol.Tags && liveSmol.Tags.length > 0
+                                    ? liveSmol.Tags
+                                    : snapSmol?.Tags || [],
+                        };
+                    });
+
+                    // 3. Process Unknowns: Background Fetch Details to Get Tags & Verify Address
+                    // (This solves "No Tags on New Songs" AND "Frontpage Contamination")
+                    if (unknownCandidates.length > 0) {
+                        console.log(
+                            `[ArtistResults] Deep verifying ${unknownCandidates.length} potential new tracks...`,
+                        );
+
+                        // We do this non-blocking to show known songs first, or we can await if we want perfection immediately.
+                        // Let's await it to ensure order and avoid popping in.
+                        const newVerifiedTracks = (
+                            await Promise.all(
+                                unknownCandidates.map(async (candidate) => {
+                                    try {
+                                        const detailRes = await fetch(
+                                            `${import.meta.env.PUBLIC_API_URL}/${candidate.Id}`,
+                                        );
+                                        if (!detailRes.ok) return null;
+                                        const detailedData =
+                                            await detailRes.json();
+                                        const detailedSmol =
+                                            detailedData.d1 ||
+                                            detailedData.kv_do; // Support both D1 and DO responses
+
+                                        // Check if it belongs to this artist
+                                        if (
+                                            detailedSmol &&
+                                            (detailedSmol.Address === address ||
+                                                detailedSmol.creator ===
+                                                    address)
+                                        ) {
+                                            // Return merged candidate with Tags!
+                                            return {
+                                                ...candidate,
+                                                Tags: detailedSmol.Tags || [], // Get the Tags!
+                                                Address: detailedSmol.Address,
+                                            };
+                                        }
+                                        return null;
+                                    } catch (e) {
+                                        return null;
+                                    }
+                                }),
+                            )
+                        ).filter((s): s is Smol => s !== null);
+
+                        if (newVerifiedTracks.length > 0) {
+                            console.log(
+                                `[ArtistResults] Verified ${newVerifiedTracks.length} NEW tracks with Tags!`,
+                            );
+                            mergedSmols.push(...newVerifiedTracks);
+                        }
+                    }
+
+                    // 2. Append Snapshot Items NOT in Live Data (Pagination/Limit Fallback)
+                    const liveIds = new Set(freshSmols.map((s) => s.Id));
+                    let appendedCount = 0;
+                    discography.forEach((snapSmol) => {
+                        if (!liveIds.has(snapSmol.Id)) {
+                            // Ensure it's not a duplicate
+                            mergedSmols.push(snapSmol);
+                            appendedCount++;
+                        }
+                    });
+
+                    if (appendedCount > 0) {
+                        console.log(
+                            `[ArtistResults] Appended ${appendedCount} tracks from snapshot`,
+                        );
+                        // Re-sort because appended items might be newer or older
+                        mergedSmols.sort(
+                            (a, b) =>
+                                new Date(b.Created_At).getTime() -
+                                new Date(a.Created_At).getTime(),
+                        );
+                    }
+
+                    liveDiscography = mergedSmols;
+
+                    // Re-calculate minted from live data
+                    liveMinted = mergedSmols.filter(
+                        (s) => s.Mint_Token !== null,
+                    );
+                }
+            }
+        } catch (e) {
+            console.error("[ArtistResults] Failed to hydrate live data:", e);
+            // Fallback: silently fail and keep using snapshot data (props)
+        } finally {
+            isLoadingLive = false;
+        }
+    }
+
     // Derived playlist based on module and shuffle
     const basePlaylist = $derived.by(() => {
-        if (activeModule === "minted") return minted;
-        if (activeModule === "collected") return collected;
-        return discography;
+        if (activeModule === "minted") return liveMinted;
+        if (activeModule === "collected") return liveCollected;
+        return liveDiscography;
     });
 
     let displayPlaylist = $state<Smol[]>([]);
@@ -89,7 +251,12 @@
             activeModule = "discography";
             shuffleEnabled = false;
 
-            // Auto-play the first song of the new artist
+            // Optimization: Reset live state to props immediately while fetching
+            liveDiscography = discography;
+            liveMinted = minted;
+            liveCollected = collected;
+
+            // Auto-play the first song of the new artist (from snapshot initially)
             if (discography.length > 0) {
                 selectSong(discography[0]);
             }

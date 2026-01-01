@@ -1,33 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import ArtistsIndex from '../components/artist/ArtistsIndex.svelte';
-import snapshot from '../data/smols-snapshot.json';
-
-// Aggregate artists
-const artists = {};
-
-snapshot.forEach(smol => {
-    if (!smol.Address) return;
-    
-    if (!artists[smol.Address]) {
-        artists[smol.Address] = {
-            address: smol.Address,
-            count: 0,
-            latestSmol: smol
-        };
-    }
-    
-    // update details
-    const entry = artists[smol.Address];
-    entry.count++;
-    
-    // keep latest for cover
-    if (new Date(smol.Created_At) > new Date(entry.latestSmol.Created_At)) {
-        entry.latestSmol = smol;
-    }
-});
-
-const sortedArtists = Object.values(artists);
+// LIVE DATA: ArtistsIndex now fetches smols on mount, no more snapshot needed!
 ---
 
 <Layout title="Smol – Artists">
@@ -39,6 +13,7 @@ const sortedArtists = Object.values(artists);
             </div>
         </div>
         
-        <ArtistsIndex client:load initialArtists={sortedArtists} />
+        <ArtistsIndex client:load />
     </main>
 </Layout>
+

@@ -5,6 +5,8 @@
     selectSong,
     togglePlayPause,
     isPlaying,
+    registerSongNextCallback,
+    seek,
   } from "../../stores/audio.svelte";
   import { likeSmol, unlikeSmol } from "../../services/api/smols";
   import { userState } from "../../stores/user.svelte";
@@ -20,6 +22,17 @@
     if (playlist.length > 0 && internalPlaylist.length === 0) {
       internalPlaylist = [...playlist];
     }
+  });
+
+  // Register next callback for global audio
+  $effect(() => {
+    registerSongNextCallback(() => {
+      playNext();
+    });
+
+    return () => {
+      registerSongNextCallback(null);
+    };
   });
 
   // Track current song from global state
@@ -256,6 +269,17 @@
       console.error("Failed to toggle like:", e);
     }
   }
+
+  function handleSeek(e: MouseEvent | PointerEvent) {
+    // Only handle primary button (left click/touch)
+    if ("button" in e && e.button !== 0) return;
+
+    const bar = e.currentTarget as HTMLDivElement;
+    const rect = bar.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const clickProgress = Math.max(0, Math.min(100, (x / rect.width) * 100));
+    seek(clickProgress);
+  }
 </script>
 
 <div
@@ -326,11 +350,24 @@
       </div>
 
       <!-- Progress Bar -->
-      <div class="mt-2 h-1 bg-white/10 rounded-full overflow-hidden">
+      <div
+        role="button"
+        tabindex="0"
+        class="group relative mt-2 h-4 cursor-pointer flex items-center z-50"
+        onpointerdown={handleSeek}
+        onkeydown={(e) => {
+          if (e.key === "Enter") handleSeek(e as unknown as MouseEvent);
+        }}
+      >
+        <!-- Visual Track -->
         <div
-          class="h-full bg-lime-500 transition-all duration-200"
-          style="width: {progress}%"
-        ></div>
+          class="w-full h-1 bg-white/10 rounded-full overflow-hidden transition-all group-hover:h-2"
+        >
+          <div
+            class="h-full bg-lime-500 transition-all duration-200 group-hover:bg-lime-400"
+            style="width: {progress}%"
+          ></div>
+        </div>
       </div>
     </div>
 

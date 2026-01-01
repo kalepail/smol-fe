@@ -85,6 +85,18 @@ export function updateProgress(currentTime: number, duration: number) {
 }
 
 /**
+ * Seek to a specific progress percentage (0-100)
+ */
+export function seek(progress: number) {
+  const audio = audioState.audioElement;
+  if (!audio || !audio.duration) return;
+
+  const newTime = (progress / 100) * audio.duration;
+  audio.currentTime = newTime;
+  audioState.progress = progress;
+}
+
+/**
  * Select a song and mark it to play
  */
 export function selectSong(songData: Smol | null) {

@@ -5,6 +5,8 @@
     selectSong,
     togglePlayPause,
     isPlaying,
+    registerSongNextCallback,
+    seek,
   } from "../../stores/audio.svelte";
 
   import LikeButton from "../ui/LikeButton.svelte";
@@ -166,6 +168,19 @@
     };
   });
 
+  // Register next callback for global audio
+  $effect(() => {
+    if (onNext) {
+      registerSongNextCallback(() => {
+        onNext && onNext();
+      });
+    }
+
+    return () => {
+      registerSongNextCallback(null);
+    };
+  });
+
   function startVis() {
     if (!canvasRef) return;
     const canvas = canvasRef;
@@ -308,6 +323,15 @@
 
     animationId = requestAnimationFrame(draw);
   }
+
+  function handleSeek(e: MouseEvent) {
+    e.stopPropagation(); // prevent closing fullscreen or other clicks
+    const bar = e.currentTarget as HTMLDivElement;
+    const rect = bar.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const clickProgress = Math.max(0, Math.min(100, (x / rect.width) * 100));
+    seek(clickProgress);
+  }
 </script>
 
 <div
@@ -354,10 +378,16 @@
           <!-- TOP SCRUBBER (mobile only when overlayControlsOnMobile) -->
           {#if overlayControlsOnMobile}
             <div
-              class="absolute top-0 left-0 right-0 h-1 z-50 bg-white/10 lg:hidden"
+              role="button"
+              tabindex="0"
+              class="absolute top-0 left-0 right-0 h-1 z-50 bg-white/10 lg:hidden cursor-pointer group hover:h-2 transition-all"
+              onclick={handleSeek}
+              onkeydown={(e) => {
+                if (e.key === "Enter") handleSeek(e as unknown as MouseEvent);
+              }}
             >
               <div
-                class="h-full bg-white/60 transition-all duration-200 ease-linear"
+                class="h-full bg-white/60 transition-all duration-200 ease-linear group-hover:bg-lime-400"
                 style="width: {progress}%;"
               ></div>
             </div>
@@ -568,6 +598,50 @@
                   }
                 }}
               />
+            </div>
+          {/if}
+
+          <!-- TOP SCRUBBER (mobile only when overlayControlsOnMobile) -->
+          {#if overlayControlsOnMobile}
+            <div
+              role="button"
+              tabindex="0"
+              class="absolute top-0 left-0 right-0 h-4 -mt-2 z-50 flex items-center lg:hidden cursor-pointer group"
+              onclick={handleSeek}
+              onkeydown={(e) => {
+                if (e.key === "Enter") handleSeek(e as unknown as MouseEvent);
+              }}
+            >
+              <div
+                class="w-full h-1 bg-white/10 transition-all group-hover:h-2"
+              >
+                <div
+                  class="h-full bg-white/60 transition-all duration-200 ease-linear group-hover:bg-lime-400"
+                  style="width: {progress}%;"
+                ></div>
+              </div>
+            </div>
+          {/if}
+
+          <!-- DESKTOP/STANDARD SCRUBBER (Top of art) -->
+          {#if !overlayControlsOnMobile}
+            <div
+              role="button"
+              tabindex="0"
+              class="absolute top-0 left-0 right-0 h-4 -mt-2 z-50 flex items-center cursor-pointer group"
+              onclick={handleSeek}
+              onkeydown={(e) => {
+                if (e.key === "Enter") handleSeek(e as unknown as MouseEvent);
+              }}
+            >
+              <div
+                class="w-full h-1 bg-white/10 transition-all group-hover:h-2"
+              >
+                <div
+                  class="h-full bg-white/80 transition-all duration-200 ease-linear group-hover:bg-white"
+                  style="width: {progress}%;"
+                ></div>
+              </div>
             </div>
           {/if}
         </div>

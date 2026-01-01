@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import type { Smol } from "../../types/domain";
+    import { fetchSmols } from "../../services/api/smols";
 
     interface Artist {
         address: string;
@@ -8,17 +9,10 @@
         latestSmol: Smol;
     }
 
-    interface Props {
-        initialArtists: Artist[];
-    }
-
-    let { initialArtists }: Props = $props();
+    // No more props - we fetch live data on mount!
     let sortMode = $state<"fresh" | "top">("fresh");
     let artistMap = $state(new Map<string, Artist>());
-    let isSyncing = $state(false);
-
-    // Initialize map
-    initialArtists.forEach((a) => artistMap.set(a.address, a));
+    let isLoading = $state(true);
 
     const sortedArtists = $derived.by(() => {
         const list = Array.from(artistMap.values());
@@ -51,51 +45,50 @@
         });
     }
 
-    async function checkRecentActivity() {
-        isSyncing = true;
-        try {
-            const url = new URL(import.meta.env.PUBLIC_API_URL);
-            url.searchParams.set("limit", "100");
+    // Build artist map from smols
+    function aggregateArtists(smols: Smol[]) {
+        const map = new Map<string, Artist>();
 
-            const res = await fetch(url);
-            if (res.ok) {
-                const data = await res.json();
-                const recentSmols: Smol[] = data.smols || [];
+        smols.forEach((smol) => {
+            if (!smol.Address) return;
 
-                recentSmols.forEach((smol) => {
-                    if (!smol.Address) return;
+            let entry = map.get(smol.Address);
 
-                    let entry = artistMap.get(smol.Address);
-
-                    if (!entry) {
-                        entry = {
-                            address: smol.Address,
-                            count: 1,
-                            latestSmol: smol,
-                        };
-                        artistMap.set(smol.Address, entry);
-                    } else if (
-                        new Date(smol.Created_At) >
-                        new Date(entry.latestSmol.Created_At)
-                    ) {
-                        entry.latestSmol = smol;
-                        // Note: count might be inaccurate without full scan,
-                        // but visual freshness is prioritized here.
-                    }
-                });
-
-                // Trigger state update
-                artistMap = new Map(artistMap);
+            if (!entry) {
+                entry = {
+                    address: smol.Address,
+                    count: 1,
+                    latestSmol: smol,
+                };
+                map.set(smol.Address, entry);
+            } else {
+                entry.count++;
+                if (
+                    new Date(smol.Created_At) >
+                    new Date(entry.latestSmol.Created_At)
+                ) {
+                    entry.latestSmol = smol;
+                }
             }
-        } catch (e) {
-            console.error("Failed to sync artists", e);
-        } finally {
-            isSyncing = false;
-        }
+        });
+
+        return map;
     }
 
-    onMount(() => {
-        checkRecentActivity();
+    onMount(async () => {
+        try {
+            console.log("[Artists] Fetching live smols data...");
+            const smols = await fetchSmols();
+            console.log(
+                `[Artists] Loaded ${smols.length} smols, aggregating artists...`,
+            );
+            artistMap = aggregateArtists(smols);
+            console.log(`[Artists] Found ${artistMap.size} unique artists`);
+        } catch (e) {
+            console.error("[Artists] Failed to fetch smols:", e);
+        } finally {
+            isLoading = false;
+        }
     });
 </script>
 
@@ -121,7 +114,7 @@
         </button>
     </div>
 
-    {#if isSyncing}
+    {#if isLoading}
         <span
             class="text-[10px] text-lime-500/50 font-mono animate-pulse uppercase tracking-[0.2em]"
             >Syncing live activity...</span
