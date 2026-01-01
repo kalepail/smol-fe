@@ -89,7 +89,7 @@
 
   const API_URL = import.meta.env.PUBLIC_API_URL;
   const coverUrl = $derived(
-    currentSong ? `${API_URL}/image/${currentSong.Id}.png` : null,
+    currentSong ? `${API_URL}/image/${currentSong.Id}.png?scale=8` : null,
   );
   const songTitle = $derived(
     currentSong?.lyrics?.title || currentSong?.Title || "Select a song",
@@ -862,7 +862,7 @@
                 class="relative w-10 h-10 rounded bg-white/5 flex-shrink-0 overflow-hidden"
               >
                 <img
-                  src="{API_URL}/image/{song.Id}.png"
+                  src="{API_URL}/image/{song.Id}.png?scale=8"
                   alt=""
                   class="w-full h-full object-cover group-hover/item:scale-110 transition-transform duration-500"
                 />
