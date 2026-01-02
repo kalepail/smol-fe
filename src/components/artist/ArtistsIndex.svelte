@@ -12,19 +12,7 @@
     // No more props - we fetch live data on mount!
     let sortMode = $state<"fresh" | "top">("fresh");
     let artistMap = $state(new Map<string, Artist>());
-<<<<<<< HEAD
     let isLoading = $state(true);
-=======
-    let isSyncing = $state(false);
-
-    // Initialize map
-    initialArtists.forEach((a) => artistMap.set(a.address, a));
-    if (import.meta.env.DEV) {
-        console.log(
-            `[ArtistsIndex] Initialized with ${initialArtists.length} artists`,
-        );
-    }
->>>>>>> ui/playnext-fix
 
     const sortedArtists = $derived.by(() => {
         const list = Array.from(artistMap.values());
