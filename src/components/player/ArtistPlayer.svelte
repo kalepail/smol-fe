@@ -6,10 +6,6 @@
     togglePlayPause,
     isPlaying,
     registerSongNextCallback,
-<<<<<<< HEAD
-    seek,
-=======
->>>>>>> ui/playnext-fix
   } from "../../stores/audio.svelte";
   import { likeSmol, unlikeSmol } from "../../services/api/smols";
   import { userState } from "../../stores/user.svelte";
@@ -402,27 +398,6 @@
         {currentSong?.Title ?? "No song selected"}
       </div>
 
-<<<<<<< HEAD
-      <!-- Progress Bar -->
-      <div
-        role="button"
-        tabindex="0"
-        class="group relative mt-2 h-4 cursor-pointer flex items-center z-50"
-        onpointerdown={handleSeek}
-        onkeydown={(e) => {
-          if (e.key === "Enter") handleSeek(e as unknown as MouseEvent);
-        }}
-      >
-        <!-- Visual Track -->
-        <div
-          class="w-full h-1 bg-white/10 rounded-full overflow-hidden transition-all group-hover:h-2"
-        >
-          <div
-            class="h-full bg-lime-500 transition-all duration-200 group-hover:bg-lime-400"
-            style="width: {progress}%"
-          ></div>
-        </div>
-=======
       <!-- Progress Bar (Scrubber) -->
       <div class="mt-2 relative h-4 flex items-center group">
         <!-- Background Track -->
@@ -447,7 +422,6 @@
           class="absolute inset-0 w-full h-full opacity-0 hover:opacity-100 cursor-pointer accent-lime-500 z-10"
           aria-label="Seek slider"
         />
->>>>>>> ui/playnext-fix
       </div>
     </div>
 
