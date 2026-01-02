@@ -224,11 +224,20 @@
   }
 
   function playNext() {
+    console.log(
+      "[ArtistPlayer] playNext called. Current:",
+      currentSong?.Id,
+      "Playlist Len:",
+      internalPlaylist.length,
+    );
     const nextSong = getNextTrack(internalPlaylist, currentSong?.Id ?? null);
     if (nextSong) {
+      console.log("[ArtistPlayer] Advancing to:", nextSong.Title);
       // Sync local index in case it drifted (e.g. initial load)
       currentIndex = internalPlaylist.findIndex((s) => s.Id === nextSong.Id);
       selectSong(nextSong);
+    } else {
+      console.warn("[ArtistPlayer] No next song found!");
     }
   }
 

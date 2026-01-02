@@ -1,6 +1,10 @@
 <script lang="ts">
     import type { Smol } from "../../types/domain";
-    import { audioState, selectSong } from "../../stores/audio.svelte";
+    import {
+        audioState,
+        selectSong,
+        registerSongNextCallback,
+    } from "../../stores/audio.svelte";
     import RadioPlayer from "../radio/RadioPlayer.svelte";
     import { isAuthenticated, userState } from "../../stores/user.svelte";
     import LikeButton from "../ui/LikeButton.svelte";
@@ -110,6 +114,11 @@
         const nextIndex = (currentIndex + 1) % displayPlaylist.length;
         handleSelect(nextIndex);
     }
+
+    $effect(() => {
+        registerSongNextCallback(handleNext);
+        return () => registerSongNextCallback(null);
+    });
 
     function handlePrev() {
         const prevIndex =
@@ -449,7 +458,7 @@
                     />
 
                     <!-- Mint + Trade Buttons (hidden on mobile, controls are in art) -->
-                    <div class="hidden lg:flex gap-3 mt-3">
+                    <div class="hidden lg:flex gap-3 mt-1">
                         {#if isMinted}
                             {#if currentSong?.Mint_Amm && currentSong?.Mint_Token}
                                 <button

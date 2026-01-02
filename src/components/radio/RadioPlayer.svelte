@@ -354,12 +354,27 @@
           <!-- TOP SCRUBBER (mobile only when overlayControlsOnMobile) -->
           {#if overlayControlsOnMobile}
             <div
-              class="absolute top-0 left-0 right-0 h-1 z-50 bg-white/10 lg:hidden"
+              class="absolute top-0 left-0 right-0 h-1 z-50 bg-white/10 group-hover/fs:h-2 transition-all cursor-pointer lg:hidden"
+              onpointerdown={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const p = x / rect.width;
+                if (
+                  audioState.audioElement &&
+                  Number.isFinite(audioState.duration)
+                ) {
+                  audioState.audioElement.currentTime = p * audioState.duration;
+                }
+              }}
             >
               <div
-                class="h-full bg-white/60 transition-all duration-200 ease-linear"
+                class="h-full bg-white/60 transition-all duration-200 ease-linear relative"
                 style="width: {progress}%;"
-              ></div>
+              >
+                <div
+                  class="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow opacity-0 group-hover/fs:opacity-100 transition-opacity"
+                ></div>
+              </div>
             </div>
           {/if}
 
@@ -815,9 +830,17 @@
 
       <!-- Scrubber (Bottom of Player - hidden on mobile when overlayControlsOnMobile) -->
       <div
-        class="px-8 pb-1 mt-5 w-full max-w-[400px] sm:max-w-[500px] mx-auto {overlayControlsOnMobile
+        class="px-8 pb-1 mt-2 w-full max-w-[400px] sm:max-w-[500px] mx-auto cursor-pointer {overlayControlsOnMobile
           ? 'hidden lg:block'
           : ''}"
+        onpointerdown={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const p = Math.max(0, Math.min(1, x / rect.width));
+          if (audioState.audioElement && Number.isFinite(audioState.duration)) {
+            audioState.audioElement.currentTime = p * audioState.duration;
+          }
+        }}
       >
         <div
           class="h-1.5 bg-white/10 rounded-full overflow-hidden w-full backdrop-blur-sm"
