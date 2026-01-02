@@ -7,9 +7,13 @@ const API_URL = import.meta.env.PUBLIC_API_URL;
 /**
  * Fetch all smols with Hybrid Strategy (Live + Snapshot Merge)
  */
-export async function fetchSmols(): Promise<Smol[]> {
+export async function fetchSmols(options?: { limit?: number }): Promise<Smol[]> {
   try {
-    const response = await fetch(`${API_URL}`);
+    const url = new URL(`${API_URL}`);
+    if (options?.limit) {
+      url.searchParams.set('limit', String(options.limit));
+    }
+    const response = await fetch(url.toString());
     if (!response.ok) {
       console.warn(`Failed to fetch live smols: ${response.statusText}, falling back to snapshot`);
       return snapshot as unknown as Smol[];
@@ -53,6 +57,13 @@ export async function fetchSmols(): Promise<Smol[]> {
     console.error('Fetch error, falling back to snapshot', e);
     return snapshot as unknown as Smol[];
   }
+}
+
+/**
+ * Get the full snapshot directly (for components needing all tags, like RadioBuilder)
+ */
+export function getFullSnapshot(): Smol[] {
+  return snapshot as unknown as Smol[];
 }
 
 /**

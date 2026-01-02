@@ -53,5 +53,10 @@
       class="ml-5 hover:underline {path === '/liked' ? 'underline' : ''}"
       href="/liked">Liked</a
     >
+
+    <a
+      class="ml-5 hover:underline {path === '/collected' ? 'underline' : ''}"
+      href="/collected">Collected</a
+    >
   {/if}
 </div>
