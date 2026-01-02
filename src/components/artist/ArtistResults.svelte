@@ -233,17 +233,28 @@
         return liveDiscography;
     });
 
-    let displayPlaylist = $state<Smol[]>([]);
+    // Store the shuffled order separately to avoid re-shuffling on every render
+    let shuffledOrder = $state<Smol[]>([]);
 
-    // Handle shuffle state changes or module changes
+    // When base playlist changes, reset shuffled order
     $effect(() => {
-        if (shuffleEnabled) {
-            displayPlaylist = [...basePlaylist].sort(() => Math.random() - 0.5);
-        } else {
-            displayPlaylist = [...basePlaylist];
+        // Only update shuffle order when base changes (not on every toggle)
+        if (basePlaylist.length > 0 && shuffleEnabled) {
+            // Only reshuffle if order is empty or base changed
+            if (shuffledOrder.length !== basePlaylist.length) {
+                shuffledOrder = [...basePlaylist].sort(
+                    () => Math.random() - 0.5,
+                );
+            }
         }
-        // When changing module or shuffle, reset index if current song not in new list
-        // For simplicity, just reset to 0 for now as requested for "new artist" feel
+    });
+
+    // Derived display playlist (no random calls here = stable)
+    const displayPlaylist = $derived.by(() => {
+        if (shuffleEnabled && shuffledOrder.length > 0) {
+            return shuffledOrder;
+        }
+        return basePlaylist;
     });
 
     // Reset playback on address change
@@ -302,6 +313,10 @@
 
     function toggleShuffle() {
         shuffleEnabled = !shuffleEnabled;
+        if (shuffleEnabled) {
+            // Generate new shuffle order immediately
+            shuffledOrder = [...basePlaylist].sort(() => Math.random() - 0.5);
+        }
     }
 
     function triggerLogin() {
