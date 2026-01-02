@@ -563,8 +563,8 @@
             </button>
           </div>
 
-          <!-- VERSION SELECTOR (MOVED TO BOTTOM LEFT) -->
-          {#if versions && versions.length > 0}
+          <!-- VERSION SELECTOR (BOTTOM LEFT OF ART) -->
+          {#if versions && versions.length > 1 && onVersionSelect}
             <div class="absolute bottom-4 left-4 z-40 flex items-center gap-2">
               {#each versions as v}
                 <button
@@ -847,29 +847,6 @@
             >
               <span class="text-xl">↻</span>
             </button>
-          {/if}
-
-          <!-- VERSION TOGGLE (V1/V2) -->
-          {#if versions && versions.length > 1 && onVersionSelect}
-            <div
-              class="flex items-center gap-1 bg-black/40 backdrop-blur-md rounded-full px-1 py-0.5 border border-white/10"
-            >
-              {#each versions as v}
-                <button
-                  class="px-2 py-1 text-[9px] font-bold uppercase tracking-wider rounded-full transition-all {currentVersionId ===
-                  v.id
-                    ? 'bg-white/20 text-white shadow-inner'
-                    : 'text-white/40 hover:text-white/70'}"
-                  onclick={() => onVersionSelect?.(v.id)}
-                  title={v.isBest ? `${v.label} (Best)` : v.label}
-                >
-                  {v.label}
-                  {#if v.isBest}
-                    <span class="text-[6px] text-lime-400">★</span>
-                  {/if}
-                </button>
-              {/each}
-            </div>
           {/if}
         </div>
 
