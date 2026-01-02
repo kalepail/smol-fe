@@ -5,9 +5,11 @@
     selectSong,
     togglePlayPause,
     isPlaying,
+    registerSongNextCallback,
   } from "../../stores/audio.svelte";
   import { likeSmol, unlikeSmol } from "../../services/api/smols";
   import { userState } from "../../stores/user.svelte";
+  import { getNextTrack } from "../../lib/audio/queue";
 
   let { playlist = [] }: { playlist: Smol[] } = $props();
 
@@ -26,6 +28,37 @@
   const currentSong = $derived(audioState.currentSong);
   const playing = $derived(isPlaying());
   const progress = $derived(audioState.progress);
+  const duration = $derived(audioState.duration);
+
+  // Local seek state to prevent jumping while dragging
+  let isSeeking = $state(false);
+  let seekValue = $state(0);
+
+  // Display value prefers local seek value while dragging
+  const displayProgress = $derived(isSeeking ? seekValue : progress);
+
+  function handleSeekInput(e: Event) {
+    const target = e.target as HTMLInputElement;
+    isSeeking = true;
+    seekValue = parseFloat(target.value);
+  }
+
+  function handleSeekEnd(e: Event) {
+    const target = e.target as HTMLInputElement;
+    const finalPercent = parseFloat(target.value);
+
+    // Strict safety Rule 4: Only set currentTime
+    if (audioState.audioElement && duration > 0) {
+      const newTime = (finalPercent / 100) * duration;
+      audioState.audioElement.currentTime = newTime;
+    }
+
+    // Reset seeking state after a tiny delay to let audio update catch up
+    // ensuring smooth transition back to 'progress' tracking
+    setTimeout(() => {
+      isSeeking = false;
+    }, 50);
+  }
 
   // Like state for current song
   let isLiked = $derived(currentSong?.Liked ?? false);
@@ -191,10 +224,19 @@
   }
 
   function playNext() {
-    if (internalPlaylist.length === 0) return;
-    currentIndex = (currentIndex + 1) % internalPlaylist.length;
-    selectSong(internalPlaylist[currentIndex]);
+    const nextSong = getNextTrack(internalPlaylist, currentSong?.Id ?? null);
+    if (nextSong) {
+      // Sync local index in case it drifted (e.g. initial load)
+      currentIndex = internalPlaylist.findIndex((s) => s.Id === nextSong.Id);
+      selectSong(nextSong);
+    }
   }
+
+  // Register the next song callback with the global store
+  $effect(() => {
+    registerSongNextCallback(playNext);
+    return () => registerSongNextCallback(null);
+  });
 
   function playPrevious() {
     if (internalPlaylist.length === 0) return;
@@ -325,12 +367,30 @@
         {currentSong?.Title ?? "No song selected"}
       </div>
 
-      <!-- Progress Bar -->
-      <div class="mt-2 h-1 bg-white/10 rounded-full overflow-hidden">
+      <!-- Progress Bar (Scrubber) -->
+      <div class="mt-2 relative h-4 flex items-center group">
+        <!-- Background Track -->
         <div
-          class="h-full bg-lime-500 transition-all duration-200"
-          style="width: {progress}%"
-        ></div>
+          class="absolute inset-x-0 h-1 bg-white/10 rounded-full overflow-hidden pointer-events-none"
+        >
+          <div
+            class="h-full bg-lime-500 transition-all duration-100 ease-out"
+            style="width: {displayProgress}%"
+          ></div>
+        </div>
+
+        <!-- Interactive Slider -->
+        <input
+          type="range"
+          min="0"
+          max="100"
+          step="0.1"
+          value={displayProgress}
+          oninput={handleSeekInput}
+          onchange={handleSeekEnd}
+          class="absolute inset-0 w-full h-full opacity-0 hover:opacity-100 cursor-pointer accent-lime-500 z-10"
+          aria-label="Seek slider"
+        />
       </div>
     </div>
 
