@@ -82,7 +82,22 @@ async function main() {
                 const dRes = await fetch(`${API_URL}/${s.Id}`);
                 if (dRes.ok) {
                     const detail = await dRes.json();
-                    merged = { ...merged, ...detail };
+
+                    // Important: The API returns { kv_do: {...}, d1: { Id, Address, ... } }
+                    // We must flatten 'd1' into the root object so the UI can find 'Address'.
+                    if (detail.d1) {
+                        merged = { ...merged, ...detail.d1 };
+                    }
+
+                    // Also keep other top-level keys like kv_do if needed
+                    // (Excluding d1 itself to avoid duplication if we want, but keeping it is harmless)
+                    merged = { ...merged, ...detail, ...merged }; // precedence: merged(d1) > detail > initial
+
+                    // Explicitly ensure critical fields are at root if d1 didn't cover them (redundant safety)
+                    if (!merged.Address && detail.kv_do?.payload?.address) {
+                        merged.Address = detail.kv_do.payload.address;
+                    }
+
                     hydratedCount++;
                 } else {
                     // console.error(`\nFailed to hydrate ${s.Id}: ${dRes.status}`);
