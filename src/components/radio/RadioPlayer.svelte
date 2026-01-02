@@ -739,59 +739,21 @@
             </button>
           {/if}
 
-          <!-- MINT BUTTON (hidden on mobile when overlayControlsOnMobile) -->
-          {#if onMint && showMiniActions}
-            <button
+          <!-- SONG DETAIL BUTTON (hidden on mobile when overlayControlsOnMobile) -->
+          {#if currentSong && showMiniActions}
+            <a
+              href={`/${currentSong.Id}`}
               class="tech-button w-10 h-10 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-[#d836ff] text-[#d836ff] bg-[#d836ff]/10 hover:bg-[#d836ff]/20 shadow-[0_0_15px_rgba(216,54,255,0.3)] {overlayControlsOnMobile
                 ? 'hidden lg:flex'
                 : ''}"
-              onclick={() => {
-                if (!userState.contractId) {
-                  triggerLogin();
-                  return;
-                }
-                onMint?.();
-              }}
-              title="Mint Track"
-              disabled={isMinting}
+              title="View Song Details"
             >
-              {#if isMinting}
-                <svg
-                  class="w-4 h-4 animate-spin"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    class="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    stroke-width="4"
-                  ></circle>
-                  <path
-                    class="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-              {:else}
-                <svg
-                  class="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
-                  />
-                </svg>
-              {/if}
-            </button>
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path
+                  d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"
+                />
+              </svg>
+            </a>
           {/if}
 
           <!-- TRADE BUTTON (hidden on mobile when overlayControlsOnMobile) -->
