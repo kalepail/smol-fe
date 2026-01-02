@@ -47,7 +47,7 @@
 
   // Profile mode tab state
   let activeTab = $state<"discography" | "minted" | "collection">(
-    "discography",
+    endpoint === "collected" ? "collection" : "discography",
   );
 
   // Derived displayed results - filters based on profileMode and activeTab
@@ -139,6 +139,17 @@
           ...smol,
           Liked: likedIds.some((id) => id === smol.Id),
         }));
+      }
+
+      // Handle local filtering for 'collected' since backend lacks Minted_By support
+      if (endpoint === "collected" && userState.contractId) {
+        const myAddr = userState.contractId.toLowerCase();
+        results = results.filter(
+          (s) =>
+            (s.Minted_By || "").toLowerCase() === myAddr &&
+            (s.Creator || "").toLowerCase() !== myAddr &&
+            (s.Address || "").toLowerCase() !== myAddr,
+        );
       }
     } catch (err) {
       error = err instanceof Error ? err.message : "Failed to load";

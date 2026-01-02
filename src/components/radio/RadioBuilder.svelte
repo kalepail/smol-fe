@@ -18,7 +18,7 @@
   import { publishMixtape } from "../../services/api/mixtapes";
   import { isAuthenticated } from "../../stores/user.svelte";
   import type { MixtapeDraft } from "../../types/domain";
-  import { fetchSmols } from "../../services/api/smols";
+  import { fetchSmols, getFullSnapshot } from "../../services/api/smols";
 
   // Smols are now fetched live on mount, not passed as prop
   let smols = $state<Smol[]>([]);
@@ -156,10 +156,13 @@
 
     // 0. FETCH LIVE SMOLS DATA (no more snapshot!)
     try {
-      smols = await fetchSmols();
-      console.log(`[Radio] Loaded ${smols.length} smols from live API`);
+      // Use full snapshot for tag aggregation (API caps at 100)
+      smols = getFullSnapshot();
+      console.log(
+        `[Radio] Loaded ${smols.length} smols from snapshot for tags`,
+      );
     } catch (e) {
-      console.error("[Radio] Failed to fetch smols:", e);
+      console.error("[Radio] Failed to load smols:", e);
     } finally {
       isLoadingSmols = false;
     }
@@ -274,6 +277,8 @@
     if (showAll || searchQuery) return filteredTags;
     return filteredTags.slice(0, INITIAL_TAG_LIMIT);
   });
+
+  const isLoadingTags = $derived(isLoadingSmols && processedTags.length === 0);
 
   const maxCount = $derived(
     processedTags.length > 0 ? processedTags[0].count : 1,
@@ -968,22 +973,41 @@
               <div
                 class="flex flex-wrap gap-x-2 gap-y-2 justify-center max-h-[35vh] md:max-h-64 overflow-y-auto dark-scrollbar w-full p-2"
               >
-                {#each displayedTags as { tag, count }}
-                  <button
-                    class="reactive-pill px-3 py-1 transition-all duration-200 disabled:opacity-20 whitespace-nowrap font-mono text-[10px] md:text-xs"
-                    class:selected={selectedTags.includes(tag)}
-                    class:text-white={!selectedTags.includes(tag)}
-                    class:opacity-60={!selectedTags.includes(tag)}
-                    style="font-size: {isCompact
-                      ? '0.75rem'
-                      : getFontSize(count, maxCount)};"
-                    onclick={() => toggleTag(tag)}
-                    disabled={!selectedTags.includes(tag) &&
-                      selectedTags.length >= MAX_TAGS}
+                {#if isLoadingTags}
+                  <div
+                    class="flex flex-col items-center justify-center py-12 text-white/20 animate-pulse w-full"
                   >
-                    {tag}
-                  </button>
-                {/each}
+                    <div class="text-2xl mb-2">📡</div>
+                    <div class="text-[10px] uppercase tracking-[0.2em]">
+                      Scanning Airwaves...
+                    </div>
+                  </div>
+                {:else if displayedTags.length === 0 && searchQuery}
+                  <div class="py-8 text-white/30 text-xs italic">
+                    No matching vibes found
+                  </div>
+                {:else}
+                  {#each displayedTags as { tag, count }}
+                    <button
+                      class="reactive-pill px-3 py-1 transition-all duration-200 disabled:opacity-20 whitespace-nowrap font-mono text-[10px] md:text-xs"
+                      class:selected={selectedTags.includes(tag)}
+                      class:text-white={!selectedTags.includes(tag)}
+                      class:opacity-60={!selectedTags.includes(tag)}
+                      style="font-size: {isCompact || searchQuery
+                        ? '0.8rem'
+                        : getFontSize(count, maxCount)};"
+                      onclick={() => toggleTag(tag)}
+                      disabled={!selectedTags.includes(tag) &&
+                        selectedTags.length >= MAX_TAGS}
+                    >
+                      {tag}
+                      {#if searchQuery && !selectedTags.includes(tag)}
+                        <span class="ml-1 text-[8px] opacity-40">({count})</span
+                        >
+                      {/if}
+                    </button>
+                  {/each}
+                {/if}
               </div>
 
               {#if !isCompact && !searchQuery && processedTags.length > INITIAL_TAG_LIMIT}
