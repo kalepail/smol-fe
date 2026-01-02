@@ -19,6 +19,11 @@
 
     // Initialize map
     initialArtists.forEach((a) => artistMap.set(a.address, a));
+    if (import.meta.env.DEV) {
+        console.log(
+            `[ArtistsIndex] Initialized with ${initialArtists.length} artists`,
+        );
+    }
 
     const sortedArtists = $derived.by(() => {
         const list = Array.from(artistMap.values());
