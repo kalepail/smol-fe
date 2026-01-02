@@ -280,10 +280,10 @@
                             {/if}
                         </div>
 
-                        <!-- ARTIST PAGE BUTTON -->
+                        <!-- ARTIST PAGE BUTTON (desktop only) -->
                         <a
                             href="/artist/{data.d1?.Address}"
-                            class="ml-auto px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-[#089981] hover:text-white bg-[#089981]/10 hover:bg-[#089981]/30 border border-[#089981]/40 hover:border-[#089981] rounded-full transition-all shadow-[0_0_12px_rgba(8,153,129,0.3)] hover:shadow-[0_0_20px_rgba(8,153,129,0.5)] flex items-center gap-1.5"
+                            class="hidden lg:flex ml-auto px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-[#089981] hover:text-white bg-[#089981]/10 hover:bg-[#089981]/30 border border-[#089981]/40 hover:border-[#089981] rounded-full transition-all shadow-[0_0_12px_rgba(8,153,129,0.3)] hover:shadow-[0_0_20px_rgba(8,153,129,0.5)] items-center gap-1.5"
                         >
                             <svg
                                 class="w-3 h-3"
