@@ -207,6 +207,12 @@
   bind:this={audioState.audioElement}
   ontimeupdate={handleTimeUpdate}
   onended={handleEnded}
+  onloadedmetadata={(e) => {
+    const audio = e.target as HTMLAudioElement;
+    if (audio.duration && audio.duration !== Infinity) {
+      updateProgress(audio.currentTime, audio.duration);
+    }
+  }}
   onloadeddata={() => {
     if (
       audioState.currentSong &&

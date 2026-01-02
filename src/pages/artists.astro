@@ -1,7 +1,39 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import ArtistsIndex from '../components/artist/ArtistsIndex.svelte';
-// LIVE DATA: ArtistsIndex now fetches smols on mount, no more snapshot needed!
+import snapshot from '../data/smols-snapshot.json';
+
+// Aggregate artists
+const artists = {};
+
+snapshot.forEach(smol => {
+    if (!smol.Address) return;
+    
+    if (!artists[smol.Address]) {
+        artists[smol.Address] = {
+            address: smol.Address,
+            count: 0,
+            latestSmol: smol
+        };
+    }
+    
+    // update details
+    const entry = artists[smol.Address];
+    entry.count++;
+    
+    // keep latest for cover
+    if (new Date(smol.Created_At) > new Date(entry.latestSmol.Created_At)) {
+        entry.latestSmol = smol;
+    }
+});
+
+const sortedArtists = Object.values(artists);
+
+if (import.meta.env.DEV) {
+    console.log(`[Artists Page] Loaded snapshot items: ${snapshot.length}`);
+    console.log(`[Artists Page] Unique artists found: ${sortedArtists.length}`);
+}
+
 ---
 
 <Layout title="Smol – Artists">
@@ -13,7 +45,6 @@ import ArtistsIndex from '../components/artist/ArtistsIndex.svelte';
             </div>
         </div>
         
-        <ArtistsIndex client:load />
+        <ArtistsIndex client:load initialArtists={sortedArtists} />
     </main>
 </Layout>
-
