@@ -18,8 +18,11 @@
   import { publishMixtape } from "../../services/api/mixtapes";
   import { isAuthenticated } from "../../stores/user.svelte";
   import type { MixtapeDraft } from "../../types/domain";
+  import { fetchSmols } from "../../services/api/smols";
 
-  let { smols = [] }: { smols: Smol[] } = $props();
+  // Smols are now fetched live on mount, not passed as prop
+  let smols = $state<Smol[]>([]);
+  let isLoadingSmols = $state(true);
 
   const GEMINI_API_KEY = import.meta.env.PUBLIC_GEMINI_API_KEY;
 
@@ -83,7 +86,7 @@
   let isGenerating = $state(false);
   let currentIndex = $state(0);
   let isShuffled = $state(true);
-  let sortMode = $state<"popularity" | "frequency" | "alphabetical">(
+  let sortMode = $state<"popularity" | "frequency" | "alphabetical" | "recent">(
     "popularity",
   );
 
@@ -148,10 +151,21 @@
   let recentlyGeneratedIds = $state<Set<string>>(new Set());
 
   // Handle URL params for "Send to Radio" feature from TagExplorer
-  onMount(() => {
+  onMount(async () => {
     if (typeof window === "undefined") return;
 
+    // 0. FETCH LIVE SMOLS DATA (no more snapshot!)
+    try {
+      smols = await fetchSmols();
+      console.log(`[Radio] Loaded ${smols.length} smols from live API`);
+    } catch (e) {
+      console.error("[Radio] Failed to fetch smols:", e);
+    } finally {
+      isLoadingSmols = false;
+    }
+
     // 1. Load persisted state
+
     const saved = localStorage.getItem("smol_radio_state");
     if (saved) {
       try {
@@ -217,9 +231,15 @@
   // Aggregate all tags with counts
   let processedTags = $derived.by(() => {
     const counts: Record<string, number> = {};
+    const latest: Record<string, string> = {};
+
     for (const smol of smols) {
+      const date = smol.Created_At || "1970-01-01";
       for (const tag of getTags(smol)) {
         counts[tag] = (counts[tag] || 0) + 1;
+        if (!latest[tag] || date > latest[tag]) {
+          latest[tag] = date;
+        }
       }
     }
 
@@ -227,6 +247,7 @@
       tag,
       count,
       popularity: GENRE_POPULARITY[tag] || 10 + count,
+      latest: latest[tag],
     }));
 
     // Sort based on mode
@@ -234,6 +255,8 @@
       allTags.sort((a, b) => b.popularity - a.popularity || b.count - a.count);
     } else if (sortMode === "alphabetical") {
       allTags.sort((a, b) => a.tag.localeCompare(b.tag));
+    } else if (sortMode === "recent") {
+      allTags.sort((a, b) => (b.latest || "").localeCompare(a.latest || ""));
     } else {
       allTags.sort((a, b) => b.count - a.count);
     }
@@ -935,6 +958,7 @@
                   <option value="popularity" class="bg-slate-900"
                     >Popularity</option
                   >
+                  <option value="recent" class="bg-slate-900">Recent</option>
                   <option value="frequency" class="bg-slate-900"
                     >Frequency</option
                   >

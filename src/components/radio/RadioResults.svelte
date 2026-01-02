@@ -1,6 +1,6 @@
 <script lang="ts">
     import type { Smol } from "../../types/domain";
-    import { audioState } from "../../stores/audio.svelte";
+    import { audioState, selectSong } from "../../stores/audio.svelte";
     import RadioPlayer from "./RadioPlayer.svelte";
     import { isAuthenticated, userState } from "../../stores/user.svelte";
     import LikeButton from "../ui/LikeButton.svelte";
@@ -58,6 +58,7 @@
     const currentSong = $derived(playlist[currentIndex]);
     let showTradeModal = $state(false);
     let tradeMintBalance = $state(0n);
+    let selectedVersionId = $state<string | null>(null);
 
     // Fetch mint balance for current track
     $effect(() => {
@@ -70,6 +71,23 @@
             );
         } else {
             tradeMintBalance = 0n;
+        }
+    });
+
+    // V1/V2 version toggle
+    const versions = $derived.by(() => {
+        if (!currentSong?.kv_do?.songs) return [];
+        return currentSong.kv_do.songs.map((s: any, i: number) => ({
+            id: s.music_id,
+            label: `V${i + 1}`,
+            isBest: s.music_id === currentSong.Song_1,
+        }));
+    });
+
+    // Reset version when song changes
+    $effect(() => {
+        if (currentSong?.Id) {
+            selectedVersionId = currentSong.Song_1 || null;
         }
     });
 
@@ -286,6 +304,16 @@
                     isMinting={minting}
                     isAuthenticated={isAuthenticated()}
                     showMiniActions={false}
+                    {versions}
+                    currentVersionId={selectedVersionId || ""}
+                    onVersionSelect={(id) => {
+                        selectedVersionId = id;
+                        // Update the audio source by re-selecting the song with new version
+                        if (currentSong) {
+                            const updatedSong = { ...currentSong, Song_1: id };
+                            selectSong(updatedSong);
+                        }
+                    }}
                 />
 
                 <!-- Mint + Trade Buttons -->

@@ -16,6 +16,7 @@ export const audioState = $state<{
   audioContext: AudioContext | null;
   analyser: AnalyserNode | null;
   sourceNode: MediaElementAudioSourceNode | null;
+  duration: number;
 }>({
   playingId: null,
   currentSong: null,
@@ -25,6 +26,7 @@ export const audioState = $state<{
   audioContext: null,
   analyser: null,
   sourceNode: null,
+  duration: 0,
 });
 
 function isIOSDevice() {
@@ -77,11 +79,24 @@ export function setAudioElement(element: HTMLAudioElement | null) {
  * Update progress (called from component's event handlers)
  */
 export function updateProgress(currentTime: number, duration: number) {
+  audioState.duration = duration;
   if (duration > 0) {
     audioState.progress = (currentTime / duration) * 100;
   } else {
     audioState.progress = 0;
   }
+}
+
+/**
+ * Seek to a specific progress percentage (0-100)
+ */
+export function seek(progress: number) {
+  const audio = audioState.audioElement;
+  if (!audio || !audio.duration) return;
+
+  const newTime = (progress / 100) * audio.duration;
+  audio.currentTime = newTime;
+  audioState.progress = progress;
 }
 
 /**

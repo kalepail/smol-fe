@@ -5,6 +5,8 @@
     selectSong,
     togglePlayPause,
     isPlaying,
+    registerSongNextCallback,
+    seek,
   } from "../../stores/audio.svelte";
 
   import LikeButton from "../ui/LikeButton.svelte";
@@ -166,6 +168,19 @@
     };
   });
 
+  // Register next callback for global audio
+  $effect(() => {
+    if (onNext) {
+      registerSongNextCallback(() => {
+        onNext && onNext();
+      });
+    }
+
+    return () => {
+      registerSongNextCallback(null);
+    };
+  });
+
   function startVis() {
     if (!canvasRef) return;
     const canvas = canvasRef;
@@ -308,6 +323,15 @@
 
     animationId = requestAnimationFrame(draw);
   }
+
+  function handleSeek(e: MouseEvent) {
+    e.stopPropagation(); // prevent closing fullscreen or other clicks
+    const bar = e.currentTarget as HTMLDivElement;
+    const rect = bar.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const clickProgress = Math.max(0, Math.min(100, (x / rect.width) * 100));
+    seek(clickProgress);
+  }
 </script>
 
 <div
@@ -354,12 +378,27 @@
           <!-- TOP SCRUBBER (mobile only when overlayControlsOnMobile) -->
           {#if overlayControlsOnMobile}
             <div
-              class="absolute top-0 left-0 right-0 h-1 z-50 bg-white/10 lg:hidden"
+              class="absolute top-0 left-0 right-0 h-1 z-50 bg-white/10 group-hover/fs:h-2 transition-all cursor-pointer lg:hidden"
+              onpointerdown={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const p = x / rect.width;
+                if (
+                  audioState.audioElement &&
+                  Number.isFinite(audioState.duration)
+                ) {
+                  audioState.audioElement.currentTime = p * audioState.duration;
+                }
+              }}
             >
               <div
-                class="h-full bg-white/60 transition-all duration-200 ease-linear"
+                class="h-full bg-white/60 transition-all duration-200 ease-linear relative"
                 style="width: {progress}%;"
-              ></div>
+              >
+                <div
+                  class="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow opacity-0 group-hover/fs:opacity-100 transition-opacity"
+                ></div>
+              </div>
             </div>
           {/if}
 
@@ -524,8 +563,8 @@
             </button>
           </div>
 
-          <!-- VERSION SELECTOR (MOVED TO BOTTOM LEFT) -->
-          {#if versions && versions.length > 0}
+          <!-- VERSION SELECTOR (BOTTOM LEFT OF ART) -->
+          {#if versions && versions.length > 1 && onVersionSelect}
             <div class="absolute bottom-4 left-4 z-40 flex items-center gap-2">
               {#each versions as v}
                 <button
@@ -568,6 +607,50 @@
                   }
                 }}
               />
+            </div>
+          {/if}
+
+          <!-- TOP SCRUBBER (mobile only when overlayControlsOnMobile) -->
+          {#if overlayControlsOnMobile}
+            <div
+              role="button"
+              tabindex="0"
+              class="absolute top-0 left-0 right-0 h-4 -mt-2 z-50 flex items-center lg:hidden cursor-pointer group"
+              onclick={handleSeek}
+              onkeydown={(e) => {
+                if (e.key === "Enter") handleSeek(e as unknown as MouseEvent);
+              }}
+            >
+              <div
+                class="w-full h-1 bg-white/10 transition-all group-hover:h-2"
+              >
+                <div
+                  class="h-full bg-white/60 transition-all duration-200 ease-linear group-hover:bg-lime-400"
+                  style="width: {progress}%;"
+                ></div>
+              </div>
+            </div>
+          {/if}
+
+          <!-- DESKTOP/STANDARD SCRUBBER (Top of art) -->
+          {#if !overlayControlsOnMobile}
+            <div
+              role="button"
+              tabindex="0"
+              class="absolute top-0 left-0 right-0 h-4 -mt-2 z-50 flex items-center cursor-pointer group"
+              onclick={handleSeek}
+              onkeydown={(e) => {
+                if (e.key === "Enter") handleSeek(e as unknown as MouseEvent);
+              }}
+            >
+              <div
+                class="w-full h-1 bg-white/10 transition-all group-hover:h-2"
+              >
+                <div
+                  class="h-full bg-white/80 transition-all duration-200 ease-linear group-hover:bg-white"
+                  style="width: {progress}%;"
+                ></div>
+              </div>
             </div>
           {/if}
         </div>
@@ -656,59 +739,21 @@
             </button>
           {/if}
 
-          <!-- MINT BUTTON (hidden on mobile when overlayControlsOnMobile) -->
-          {#if onMint && showMiniActions}
-            <button
+          <!-- SONG DETAIL BUTTON (hidden on mobile when overlayControlsOnMobile) -->
+          {#if currentSong && showMiniActions}
+            <a
+              href={`/${currentSong.Id}`}
               class="tech-button w-10 h-10 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-[#d836ff] text-[#d836ff] bg-[#d836ff]/10 hover:bg-[#d836ff]/20 shadow-[0_0_15px_rgba(216,54,255,0.3)] {overlayControlsOnMobile
                 ? 'hidden lg:flex'
                 : ''}"
-              onclick={() => {
-                if (!userState.contractId) {
-                  triggerLogin();
-                  return;
-                }
-                onMint?.();
-              }}
-              title="Mint Track"
-              disabled={isMinting}
+              title="View Song Details"
             >
-              {#if isMinting}
-                <svg
-                  class="w-4 h-4 animate-spin"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    class="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    stroke-width="4"
-                  ></circle>
-                  <path
-                    class="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
-                </svg>
-              {:else}
-                <svg
-                  class="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
-                  />
-                </svg>
-              {/if}
-            </button>
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path
+                  d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
+                />
+              </svg>
+            </a>
           {/if}
 
           <!-- TRADE BUTTON (hidden on mobile when overlayControlsOnMobile) -->
@@ -815,9 +860,17 @@
 
       <!-- Scrubber (Bottom of Player - hidden on mobile when overlayControlsOnMobile) -->
       <div
-        class="px-8 pb-1 mt-5 w-full max-w-[400px] sm:max-w-[500px] mx-auto {overlayControlsOnMobile
+        class="px-8 pb-1 mt-2 w-full max-w-[400px] sm:max-w-[500px] mx-auto cursor-pointer {overlayControlsOnMobile
           ? 'hidden lg:block'
           : ''}"
+        onpointerdown={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const p = Math.max(0, Math.min(1, x / rect.width));
+          if (audioState.audioElement && Number.isFinite(audioState.duration)) {
+            audioState.audioElement.currentTime = p * audioState.duration;
+          }
+        }}
       >
         <div
           class="h-1.5 bg-white/10 rounded-full overflow-hidden w-full backdrop-blur-sm"
