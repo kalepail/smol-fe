@@ -235,21 +235,6 @@
                         (s) => s.Mint_Token !== null,
                     );
 
-                    // Re-calculate collected from live data
-                    // Filter: Minted by this artist, but not created by them
-                    liveCollected = freshSmols.filter((s) => {
-                        const mintedBy = (s.Minted_By || "").toLowerCase();
-                        const creator = (s.Creator || "").toLowerCase();
-                        const addressField = (s.Address || "").toLowerCase();
-                        const target = addr.toLowerCase();
-
-                        return (
-                            mintedBy === target &&
-                            creator !== target &&
-                            addressField !== target
-                        );
-                    });
-
                     console.log(
                         `[ArtistResults] Live stats: ${liveDiscography.length} discog, ${liveMinted.length} minted, ${liveCollected.length} collected`,
                     );
