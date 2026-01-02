@@ -98,6 +98,9 @@ async function main() {
                         merged.Address = detail.kv_do.payload.address;
                     }
 
+                    // Extract Tags using robust logic
+                    merged.Tags = extractTags(merged);
+
                     hydratedCount++;
                 } else {
                     // console.error(`\nFailed to hydrate ${s.Id}: ${dRes.status}`);
@@ -126,6 +129,47 @@ async function main() {
     console.log(`\nSuccess! Wrote ${newSnapshot.length} items to ${SNAPSHOT_PATH}`);
     console.log(`Hydrated: ${hydratedCount}`);
     console.log(`Skipped (Cached): ${skippedCount}`);
+}
+
+/**
+ * Extracts tags from various sources with fallback priority:
+ * 1. DB Tags (d1.Tags) - usually JSON string
+ * 2. Lyrics Style (kv_do.lyrics.style) - Array
+ * 3. Prompt (kv_do.payload.prompt) - Parsed from [STYLE: ...]
+ */
+function extractTags(item) {
+    // 1. DB Tags (most authoritative/recent if present)
+    if (item.Tags) {
+        if (Array.isArray(item.Tags) && item.Tags.length > 0) return item.Tags;
+        if (typeof item.Tags === 'string') {
+            try {
+                const parsed = JSON.parse(item.Tags);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            } catch (e) {
+                // If not JSON, treat as comma/semicolon sep string? Rare in this DB schema but possible.
+                if (item.Tags.length > 0) return item.Tags.split(/[;,]/).map(t => t.trim()).filter(Boolean);
+            }
+        }
+    }
+
+    // 2. Lyrics Style
+    if (item.lyrics && Array.isArray(item.lyrics.style) && item.lyrics.style.length > 0) {
+        return item.lyrics.style;
+    }
+    // Check nested kv_do location
+    if (item.kv_do && item.kv_do.lyrics && Array.isArray(item.kv_do.lyrics.style) && item.kv_do.lyrics.style.length > 0) {
+        return item.kv_do.lyrics.style;
+    }
+
+    // 3. Prompt Fallback (extraction)
+    if (item.kv_do && item.kv_do.payload && item.kv_do.payload.prompt) {
+        const match = item.kv_do.payload.prompt.match(/\[STYLE:\s*(.*?)\]/i);
+        if (match) {
+            return match[1].split(/[;,]/).map(t => t.trim()).filter(Boolean);
+        }
+    }
+
+    return [];
 }
 
 main().catch(console.error);

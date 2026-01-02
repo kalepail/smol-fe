@@ -7,6 +7,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const SNAPSHOT_PATH = path.join(__dirname, '../src/data/smols-snapshot.json');
+const OUT_FILE = path.join(__dirname, '_snapshot_count_meta.json');
+const TARGET_PREFIX = 'CBNORBI';
 
 function audit() {
     if (!fs.existsSync(SNAPSHOT_PATH)) {
@@ -35,6 +37,13 @@ function audit() {
     }
 
     const artists = {};
+    const prefixStats = {
+        cbno_matched_items: 0,
+        matched_addresses: {},
+        created_at_min: null,
+        created_at_max: null
+    };
+
     let missingAddress = 0;
     let missingId = 0;
     let missingTitle = 0;
@@ -49,6 +58,20 @@ function audit() {
             missingAddress++;
         } else {
             artists[s.Address] = (artists[s.Address] || 0) + 1;
+
+            if (s.Address.startsWith(TARGET_PREFIX)) {
+                prefixStats.cbno_matched_items++;
+                prefixStats.matched_addresses[s.Address] = (prefixStats.matched_addresses[s.Address] || 0) + 1;
+
+                if (s.Created_At) {
+                    if (!prefixStats.created_at_min || s.Created_At < prefixStats.created_at_min) {
+                        prefixStats.created_at_min = s.Created_At;
+                    }
+                    if (!prefixStats.created_at_max || s.Created_At > prefixStats.created_at_max) {
+                        prefixStats.created_at_max = s.Created_At;
+                    }
+                }
+            }
         }
     });
 
@@ -69,6 +92,9 @@ function audit() {
     if (totalSongs > 0) {
         console.log('\nSample Item Keys:', Object.keys(data[0]));
     }
+
+    fs.writeFileSync(OUT_FILE, JSON.stringify(prefixStats, null, 2));
+    console.log(`\nPrefix stats written to ${OUT_FILE}`);
 }
 
 audit();
