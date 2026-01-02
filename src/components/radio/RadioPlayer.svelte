@@ -378,18 +378,6 @@
           <!-- TOP SCRUBBER (mobile only when overlayControlsOnMobile) -->
           {#if overlayControlsOnMobile}
             <div
-<<<<<<< HEAD
-              role="button"
-              tabindex="0"
-              class="absolute top-0 left-0 right-0 h-1 z-50 bg-white/10 lg:hidden cursor-pointer group hover:h-2 transition-all"
-              onclick={handleSeek}
-              onkeydown={(e) => {
-                if (e.key === "Enter") handleSeek(e as unknown as MouseEvent);
-              }}
-            >
-              <div
-                class="h-full bg-white/60 transition-all duration-200 ease-linear group-hover:bg-lime-400"
-=======
               class="absolute top-0 left-0 right-0 h-1 z-50 bg-white/10 group-hover/fs:h-2 transition-all cursor-pointer lg:hidden"
               onpointerdown={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
@@ -405,7 +393,6 @@
             >
               <div
                 class="h-full bg-white/60 transition-all duration-200 ease-linear relative"
->>>>>>> ui/playnext-fix
                 style="width: {progress}%;"
               >
                 <div
