@@ -54,6 +54,7 @@
     let tradeMintBalance = $state(0n);
     let showGridView = $state(false);
     let showTipModal = $state(false);
+    let selectedVersionId = $state<string | null>(null);
 
     const mintingHook = useSmolMinting();
     const currentSong = $derived(audioState.currentSong);
@@ -61,6 +62,23 @@
     const isMinted = $derived(
         Boolean(currentSong?.Mint_Token && currentSong?.Mint_Amm),
     );
+
+    // V1/V2 version toggle
+    const versions = $derived.by(() => {
+        if (!currentSong?.kv_do?.songs) return [];
+        return currentSong.kv_do.songs.map((s: any, i: number) => ({
+            id: s.music_id,
+            label: `V${i + 1}`,
+            isBest: s.music_id === currentSong.Song_1,
+        }));
+    });
+
+    // Reset version when song changes
+    $effect(() => {
+        if (currentSong?.Id) {
+            selectedVersionId = currentSong.Song_1 || null;
+        }
+    });
 
     $effect(() => {
         if (currentSong?.Mint_Token && userState.contractId) {
@@ -637,6 +655,19 @@
                         overlayControlsOnMobile={true}
                         onShare={share}
                         onShuffle={() => (shuffleEnabled = !shuffleEnabled)}
+                        {versions}
+                        currentVersionId={selectedVersionId || ""}
+                        onVersionSelect={(id) => {
+                            selectedVersionId = id;
+                            // Update the audio source by re-selecting the song with new version
+                            if (currentSong) {
+                                const updatedSong = {
+                                    ...currentSong,
+                                    Song_1: id,
+                                };
+                                selectSong(updatedSong);
+                            }
+                        }}
                     />
 
                     <!-- Mint + Trade Buttons (hidden on mobile, controls are in art) -->
