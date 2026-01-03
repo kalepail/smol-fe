@@ -2,16 +2,34 @@
     import { onMount } from "svelte";
     import type { Smol } from "../../types/domain";
     import SmolGrid from "../smol/SmolGrid.svelte";
-    import { safeFetchSmols } from "../../services/api/smols";
+    import { getFullSnapshot, safeFetchSmols } from "../../services/api/smols";
+    import {
+        getSnapshotTagStats,
+        getUnifiedTags,
+        shouldLogTagDiagnostics,
+        sortTagStats,
+    } from "../../services/tags/unifiedTags";
+    import type { TagMeta, TagStat } from "../../services/tags/unifiedTags";
 
     let smols = $state<Smol[]>([]);
+    let hasLoggedTags = $state(false);
     let isLoading = $state(true);
+
+    const snapshotTagData = getSnapshotTagStats();
+    let tagStats = $state<TagStat[]>(snapshotTagData.tags);
+    let tagMeta = $state<TagMeta>(snapshotTagData.meta);
 
     onMount(async () => {
         try {
-            console.log("[TagExplorer] Fetching live smols data...");
-            smols = await safeFetchSmols();
-            console.log(`[TagExplorer] Loaded ${smols.length} smols`);
+            smols = getFullSnapshot();
+            const liveSmols = await safeFetchSmols();
+            if (liveSmols.length > 0) {
+                smols = liveSmols;
+            }
+
+            const unified = await getUnifiedTags({ liveSmols: smols });
+            tagStats = unified.tags;
+            tagMeta = unified.meta;
         } catch (e) {
             console.error("[TagExplorer] Failed to fetch smols:", e);
         } finally {
@@ -26,33 +44,8 @@
 
     // Aggregate tags and counts (filtered by search)
     let processedTags = $derived.by(() => {
-        // 1. Calculate all counts first
-        const counts: Record<string, number> = {};
-        for (const smol of smols) {
-            // Check both top-level Tags and nested style array for robustness
-            const styles = new Set<string>();
+        let allTags = sortTagStats(tagStats, "frequency");
 
-            if (smol.Tags) {
-                smol.Tags.forEach((t) => styles.add(t));
-            }
-            if (smol.lyrics?.style) {
-                smol.lyrics.style.forEach((t) => styles.add(t));
-            }
-
-            for (const tag of styles) {
-                const normalized = tag.trim();
-                if (normalized) {
-                    counts[normalized] = (counts[normalized] || 0) + 1;
-                }
-            }
-        }
-
-        // 2. Convert to array and sort by count desc
-        let allTags = Object.entries(counts)
-            .map(([tag, count]) => ({ tag, count }))
-            .sort((a, b) => b.count - a.count);
-
-        // 3. Filter by search query
         if (searchQuery) {
             const q = searchQuery.toLowerCase();
             allTags = allTags.filter((t) => t.tag.toLowerCase().includes(q));
@@ -110,6 +103,16 @@
     const maxCount = $derived(
         processedTags.length > 0 ? processedTags[0].count : 1,
     );
+
+    $effect(() => {
+        if (hasLoggedTags || !shouldLogTagDiagnostics()) return;
+        if (tagMeta) {
+            console.log(
+                `[Tags] Tag counts (snapshot=${tagMeta.snapshotTagsCount}, live=${tagMeta.liveTagsCount}, final=${tagMeta.finalTagsCount}, source=${tagMeta.dataSourceUsed})`,
+            );
+            hasLoggedTags = true;
+        }
+    });
 </script>
 
 <div class="container mx-auto px-4 py-2 relative z-10">
