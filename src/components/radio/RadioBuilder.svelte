@@ -303,7 +303,7 @@
 
     if (sortMode === "popularity") {
       val = tagObj.popularity;
-      maxVal = max.popularity;
+      maxVal = Math.max(1, max.popularity);
     }
 
     // Log scaling to prevent outlier dominance
@@ -323,7 +323,7 @@
 
     if (sortMode === "popularity") {
       val = tagObj.popularity;
-      maxVal = max.popularity;
+      maxVal = Math.max(1, max.popularity);
     }
 
     return min + (1 - min) * (Math.log(val + 1) / Math.log(maxVal + 1));
@@ -1007,7 +1007,7 @@
                 {:else}
                   {#each displayedTags as tagObj}
                     <button
-                      class="transition-all duration-300 hover:scale-110 leading-none py-1 px-2 rounded-full {selectedTags.includes(
+                      class="tag-pill transition-all duration-300 hover:scale-110 leading-none py-1 px-2 rounded-full {selectedTags.includes(
                         tagObj.tag,
                       )
                         ? 'text-[#9ae600] drop-shadow-[0_0_8px_rgba(154,230,0,0.5)] bg-white/5'
@@ -1117,5 +1117,12 @@
   }
   .animate-fade-in-up {
     animation: fadeInUp 0.4s ease-out forwards;
+  }
+  .tag-pill {
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
   }
 </style>
