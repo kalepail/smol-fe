@@ -141,13 +141,27 @@
         const response = await fetch(url, { credentials: "include" });
 
         if (!response.ok) {
-          throw new Error("Failed to load smols");
-        }
+          console.warn(
+            `[SmolGrid] Live fetch failed (${response.status}), falling back to snapshot`,
+          );
+          results = getFullSnapshot();
+          cursor = null;
+          hasMore = false;
+        } else {
+          const data = await response.json();
+          results = data.smols || [];
+          cursor = data.pagination?.nextCursor || null;
+          hasMore = data.pagination?.hasMore || false;
 
-        const data = await response.json();
-        results = data.smols || [];
-        cursor = data.pagination?.nextCursor || null;
-        hasMore = data.pagination?.hasMore || false;
+          if (!results || results.length === 0) {
+            console.warn(
+              "[SmolGrid] Live results empty, falling back to snapshot",
+            );
+            results = getFullSnapshot();
+            cursor = null;
+            hasMore = false;
+          }
+        }
       }
 
       // Fetch likes if user is authenticated

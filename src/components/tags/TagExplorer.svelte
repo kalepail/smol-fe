@@ -2,7 +2,7 @@
     import { onMount } from "svelte";
     import type { Smol } from "../../types/domain";
     import SmolGrid from "../smol/SmolGrid.svelte";
-    import { fetchSmols } from "../../services/api/smols";
+    import { safeFetchSmols } from "../../services/api/smols";
 
     let smols = $state<Smol[]>([]);
     let isLoading = $state(true);
@@ -10,7 +10,7 @@
     onMount(async () => {
         try {
             console.log("[TagExplorer] Fetching live smols data...");
-            smols = await fetchSmols();
+            smols = await safeFetchSmols();
             console.log(`[TagExplorer] Loaded ${smols.length} smols`);
         } catch (e) {
             console.error("[TagExplorer] Failed to fetch smols:", e);

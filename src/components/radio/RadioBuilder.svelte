@@ -18,7 +18,7 @@
   import { publishMixtape } from "../../services/api/mixtapes";
   import { isAuthenticated } from "../../stores/user.svelte";
   import type { MixtapeDraft } from "../../types/domain";
-  import { fetchSmols, getFullSnapshot } from "../../services/api/smols";
+  import { getFullSnapshot, safeFetchSmols } from "../../services/api/smols";
 
   // Smols are now fetched live on mount, not passed as prop
   let smols = $state<Smol[]>([]);
@@ -71,6 +71,8 @@
   let isAiLoading = $state(false);
   let isDreamMode = $state(false);
   let isActiveGlobalShuffle = $state(false);
+  let hasLoggedCloud = $state(false);
+  let hasLoggedTags = $state(false);
 
   let isPlaying = $derived(getIsPlaying());
 
@@ -130,9 +132,21 @@
     try {
       isLoadingSmols = true;
       smols = getFullSnapshot();
-      console.log(
-        `[Radio] Loaded ${smols.length} smols from snapshot (backend-independent)`,
-      );
+      if (import.meta.env.DEV) {
+        console.log(
+          `[Radio] Loaded ${smols.length} smols from snapshot (backend-independent)`,
+        );
+      }
+
+      const liveSmols = await safeFetchSmols();
+      if (liveSmols.length > 0) {
+        smols = liveSmols;
+        if (import.meta.env.DEV) {
+          console.log(
+            `[Radio] Hydrated ${smols.length} smols with live data + snapshot merge`,
+          );
+        }
+      }
     } catch (e) {
       console.error("[Radio] Failed to load snapshot:", e);
       smols = [];
@@ -272,6 +286,27 @@
 
   let isCompact = $derived(generatedPlaylist.length > 0 && !showBuilder);
   let showCloud = $derived(!isCompact || showAll);
+
+  $effect(() => {
+    if (!import.meta.env.DEV || hasLoggedCloud) return;
+    if (showCloud) {
+      console.log("[Radio] Rendering NEW tag cloud (RadioBuilder)");
+      hasLoggedCloud = true;
+    }
+  });
+
+  $effect(() => {
+    if (!import.meta.env.DEV || hasLoggedTags) return;
+    if (!isLoadingSmols) {
+      console.log(
+        `[Radio] Tags loaded: ${processedTags.length} total (${processedTags
+          .slice(0, 10)
+          .map((t) => t.tag)
+          .join(", ")})`,
+      );
+      hasLoggedTags = true;
+    }
+  });
 
   function toggleTag(tag: string) {
     if (selectedTags.includes(tag)) {
