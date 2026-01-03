@@ -204,6 +204,30 @@
                 alert("Link copied!");
             });
     }
+
+    // Copy any value to clipboard with visual feedback
+    let copiedField = $state<string | null>(null);
+    async function copyToClipboard(
+        value: string | undefined | null,
+        fieldName: string,
+    ) {
+        if (!value) return;
+        try {
+            await navigator.clipboard.writeText(value);
+            copiedField = fieldName;
+            setTimeout(() => (copiedField = null), 1500);
+        } catch (e) {
+            // Fallback for older browsers
+            const textarea = document.createElement("textarea");
+            textarea.value = value;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand("copy");
+            document.body.removeChild(textarea);
+            copiedField = fieldName;
+            setTimeout(() => (copiedField = null), 1500);
+        }
+    }
 </script>
 
 <div class="max-w-6xl mx-auto px-4 font-mono overflow-x-hidden">
@@ -443,27 +467,73 @@
                                             <div
                                                 class="grid grid-cols-2 gap-4 text-[11px]"
                                             >
-                                                <div
-                                                    class="p-3 rounded-lg bg-white/5 border border-white/5"
+                                                <!-- ID Field - Copyable -->
+                                                <button
+                                                    onclick={() =>
+                                                        copyToClipboard(
+                                                            id,
+                                                            "id",
+                                                        )}
+                                                    class="p-3 rounded-lg bg-white/5 border border-white/5 text-left hover:bg-white/10 hover:border-white/20 transition-all cursor-copy group relative"
+                                                    title="Click to copy full ID"
                                                 >
                                                     <div
-                                                        class="text-white/40 mb-1 uppercase tracking-widest"
+                                                        class="text-white/40 mb-1 uppercase tracking-widest flex items-center gap-2"
                                                     >
                                                         ID
+                                                        {#if copiedField === "id"}
+                                                            <span
+                                                                class="text-emerald-400 text-[8px]"
+                                                                >✓ Copied!</span
+                                                            >
+                                                        {:else}
+                                                            <svg
+                                                                class="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity"
+                                                                fill="currentColor"
+                                                                viewBox="0 0 24 24"
+                                                                ><path
+                                                                    d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"
+                                                                /></svg
+                                                            >
+                                                        {/if}
                                                     </div>
                                                     <div
                                                         class="text-white/80 font-mono truncate"
                                                     >
                                                         {id}
                                                     </div>
-                                                </div>
-                                                <div
-                                                    class="p-3 rounded-lg bg-white/5 border border-white/5"
+                                                </button>
+
+                                                <!-- Address Field - Copyable -->
+                                                <button
+                                                    onclick={() =>
+                                                        copyToClipboard(
+                                                            data.d1?.Address,
+                                                            "address",
+                                                        )}
+                                                    class="p-3 rounded-lg bg-white/5 border border-white/5 text-left hover:bg-white/10 hover:border-white/20 transition-all cursor-copy group relative"
+                                                    title={data.d1?.Address ||
+                                                        "Click to copy"}
                                                 >
                                                     <div
-                                                        class="text-white/40 mb-1 uppercase tracking-widest"
+                                                        class="text-white/40 mb-1 uppercase tracking-widest flex items-center gap-2"
                                                     >
                                                         Address
+                                                        {#if copiedField === "address"}
+                                                            <span
+                                                                class="text-emerald-400 text-[8px]"
+                                                                >✓ Copied!</span
+                                                            >
+                                                        {:else}
+                                                            <svg
+                                                                class="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity"
+                                                                fill="currentColor"
+                                                                viewBox="0 0 24 24"
+                                                                ><path
+                                                                    d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"
+                                                                /></svg
+                                                            >
+                                                        {/if}
                                                     </div>
                                                     <div
                                                         class="text-[#d836ff] font-mono truncate"
@@ -473,22 +543,58 @@
                                                             16,
                                                         )}...
                                                     </div>
-                                                </div>
-                                                <div
-                                                    class="p-3 rounded-lg bg-white/5 border border-white/5"
+                                                </button>
+
+                                                <!-- Mint Token Field - Copyable -->
+                                                <button
+                                                    onclick={() =>
+                                                        copyToClipboard(
+                                                            data.d1?.Mint_Token,
+                                                            "mint_token",
+                                                        )}
+                                                    class="p-3 rounded-lg bg-white/5 border border-white/5 text-left hover:bg-white/10 hover:border-white/20 transition-all cursor-copy group relative"
+                                                    title={data.d1
+                                                        ?.Mint_Token ||
+                                                        "Not minted"}
+                                                    disabled={!data.d1
+                                                        ?.Mint_Token}
                                                 >
                                                     <div
-                                                        class="text-white/40 mb-1 uppercase tracking-widest"
+                                                        class="text-white/40 mb-1 uppercase tracking-widest flex items-center gap-2"
                                                     >
                                                         Mint Token
+                                                        {#if copiedField === "mint_token"}
+                                                            <span
+                                                                class="text-emerald-400 text-[8px]"
+                                                                >✓ Copied!</span
+                                                            >
+                                                        {:else if data.d1?.Mint_Token}
+                                                            <svg
+                                                                class="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity"
+                                                                fill="currentColor"
+                                                                viewBox="0 0 24 24"
+                                                                ><path
+                                                                    d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"
+                                                                /></svg
+                                                            >
+                                                        {/if}
                                                     </div>
                                                     <div
-                                                        class="text-sky-400 font-mono truncate"
+                                                        class="text-sky-400 font-mono truncate {!data
+                                                            .d1?.Mint_Token
+                                                            ? 'opacity-50'
+                                                            : ''}"
                                                     >
-                                                        {data.d1?.Mint_Token ||
-                                                            "N/A"}
+                                                        {data.d1?.Mint_Token?.slice(
+                                                            0,
+                                                            16,
+                                                        ) || "N/A"}{data.d1
+                                                            ?.Mint_Token
+                                                            ? "..."
+                                                            : ""}
                                                     </div>
-                                                </div>
+                                                </button>
+
                                                 <div
                                                     class="p-3 rounded-lg bg-white/5 border border-white/5"
                                                 >
