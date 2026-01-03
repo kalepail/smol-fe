@@ -60,7 +60,7 @@
         let audioUrl = "";
         if (selectedVersionId) {
             audioUrl = `${import.meta.env.PUBLIC_API_URL}/song/${selectedVersionId}.mp3`;
-        } else {
+        } else if (data?.d1?.Song_1) {
             audioUrl = `${import.meta.env.PUBLIC_API_URL}/song/${data.d1.Song_1}.mp3`;
         }
 
@@ -68,7 +68,7 @@
             ...data.d1,
             Liked: data.liked,
             Tags: data.kv_do?.lyrics?.style || [],
-            Song_1: selectedVersionId || data.d1.Song_1,
+            Song_1: selectedVersionId || data.d1?.Song_1 || "",
         } as Smol;
     });
 
@@ -284,7 +284,7 @@
                                 BY <a
                                     href="/artist/{data.d1?.Address}"
                                     class="hover:underline text-[#d836ff]"
-                                    >{data.d1?.Address?.slice(0, 8)}...</a
+                                    >{data.d1?.Address?.slice(0, 8) || "..."}</a
                                 >
                             </span>
                         </div>
@@ -508,7 +508,7 @@
                                                 <button
                                                     onclick={() =>
                                                         copyToClipboard(
-                                                            data.d1?.Address,
+                                                            data?.d1?.Address,
                                                             "address",
                                                         )}
                                                     class="p-3 rounded-lg bg-white/5 border border-white/5 text-left hover:bg-white/10 hover:border-white/20 transition-all cursor-copy group relative"
@@ -549,7 +549,8 @@
                                                 <button
                                                     onclick={() =>
                                                         copyToClipboard(
-                                                            data.d1?.Mint_Token,
+                                                            data?.d1
+                                                                ?.Mint_Token,
                                                             "mint_token",
                                                         )}
                                                     class="p-3 rounded-lg bg-white/5 border border-white/5 text-left hover:bg-white/10 hover:border-white/20 transition-all cursor-copy group relative"

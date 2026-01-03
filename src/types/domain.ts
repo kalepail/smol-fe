@@ -2,6 +2,25 @@
  * Core domain types for the Smol application
  */
 
+export interface SmolKV {
+  payload?: {
+    prompt?: string;
+    instrumental?: boolean;
+  };
+  description?: string;
+  image_base64?: string;
+  nsfw?: {
+    safe: boolean;
+    categories: string[];
+  };
+  lyrics?: {
+    title?: string;
+    style?: string[];
+    lyrics?: string;
+  };
+  songs?: SongData[];
+}
+
 export interface Smol {
   Id: string;
   Title: string;
@@ -10,7 +29,6 @@ export interface Smol {
   artist?: string;
   author?: string;
   Song_1?: string;
-  Liked?: boolean;
   Liked?: boolean;
   Address?: string;
   Plays?: number;
@@ -24,6 +42,7 @@ export interface Smol {
     style?: string[];
     lyrics?: string;
   };
+  kv_do?: SmolKV;
   // Client-side only fields for UI state
   balance?: bigint;
   minting?: boolean;
@@ -38,11 +57,11 @@ export interface MixtapeTrack {
 }
 
 export interface MixtapeDraft {
-  draftId: string;
+  draftId?: string;
   title: string;
   description: string;
   tracks: MixtapeTrack[];
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface PublishedMixtape {
@@ -85,24 +104,7 @@ export interface SmolDetailResponse {
     Mint_Amm?: string;
     Instrumental?: number;
   };
-  kv_do?: {
-    payload?: {
-      prompt?: string;
-      instrumental?: boolean;
-    };
-    description?: string;
-    image_base64?: string;
-    nsfw?: {
-      safe: boolean;
-      categories: string[];
-    };
-    lyrics?: {
-      title?: string;
-      style?: string[];
-      lyrics?: string;
-    };
-    songs?: SongData[];
-  };
+  kv_do?: SmolKV;
   wf?: {
     status: 'queued' | 'running' | 'paused' | 'errored' | 'terminated' | 'complete' | 'waiting' | 'waitingForPause' | 'unknown';
   };

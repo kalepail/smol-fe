@@ -50,8 +50,41 @@ export async function fetchSmols(options?: { limit?: number }): Promise<Smol[]> 
       }
     });
 
-    console.log(`[HybridData] Live: ${liveSmols.length}, Snapshot Appended: ${appendedCount}, Total: ${merged.length}`);
+    // 4. DEEP VERIFICATION: Hydrate missing metadata for "Live-Only" songs
+    // (Songs present in API but not in snapshot = New drops missing tags/address)
+    const newItems = merged.filter((s: any) =>
+      !snapshotMap.has(s.Id) && (!s.Tags || s.Tags.length === 0 || !s.Address)
+    );
 
+    if (newItems.length > 0) {
+      // console.log(`[HybridData] Found ${newItems.length} new live items. Hydrating tags...`);
+      // Fetch details in parallel chunks (Batched to prevent rate limits)
+      const chunkSize = 5;
+      for (let i = 0; i < newItems.length; i += chunkSize) {
+        const chunk = newItems.slice(i, i + chunkSize);
+        await Promise.all(chunk.map(async (song: any) => {
+          try {
+            const res = await fetch(`${API_URL}/${song.Id}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            const detail = data.d1 || data.kv_do;
+            if (detail) {
+              if (detail.Tags) song.Tags = detail.Tags;
+              if (detail.lyrics?.style) {
+                song.Tags = [...(song.Tags || []), ...detail.lyrics.style];
+              }
+              if (detail.d1?.Address) song.Address = detail.d1.Address;
+              if (detail.d1?.Creator) song.Creator = detail.d1.Creator;
+              if (detail.d1?.Mint_Token) song.Mint_Token = detail.d1.Mint_Token;
+            }
+          } catch (e) {
+            // console.warn(`Failed to hydrate ${song.Id}`, e);
+          }
+        }));
+      }
+    }
+
+    // console.log(`[HybridData] Live: ${liveSmols.length}, Snapshot Appended: ${appendedCount}, Total: ${merged.length}`);
     return merged as Smol[];
   } catch (e) {
     console.error('Fetch error, falling back to snapshot', e);

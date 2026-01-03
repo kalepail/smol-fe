@@ -318,17 +318,6 @@
       console.error("Failed to toggle like:", e);
     }
   }
-
-  function handleSeek(e: MouseEvent | PointerEvent) {
-    // Only handle primary button (left click/touch)
-    if ("button" in e && e.button !== 0) return;
-
-    const bar = e.currentTarget as HTMLDivElement;
-    const rect = bar.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const clickProgress = Math.max(0, Math.min(100, (x / rect.width) * 100));
-    seek(clickProgress);
-  }
 </script>
 
 <div

@@ -147,7 +147,7 @@
                     creatorAddress: currentSong.Address || "",
                     kaleSacId: import.meta.env.PUBLIC_KALE_SAC_ID!,
                 },
-                () => {
+                async () => {
                     // Refresh would go here if needed
                 },
             );
@@ -180,15 +180,10 @@
     <div
         class="reactive-glass flex flex-col flex-1 min-h-0 border border-white/5 bg-[#1d1d1d] max-w-6xl mx-auto overflow-hidden rounded-[32px] lg:rounded-xl w-full"
         onmousemove={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            e.currentTarget.style.setProperty(
-                "--mouse-x",
-                `${e.clientX - rect.left}px`,
-            );
-            e.currentTarget.style.setProperty(
-                "--mouse-y",
-                `${e.clientY - rect.top}px`,
-            );
+            const el = e.currentTarget as HTMLElement;
+            const rect = el.getBoundingClientRect();
+            el.style.setProperty("--mouse-x", `${e.clientX - rect.left}px`);
+            el.style.setProperty("--mouse-y", `${e.clientY - rect.top}px`);
         }}
     >
         <div
@@ -413,8 +408,9 @@
                                             alt="Art"
                                             class="w-full h-full object-cover"
                                             onerror={(e) => {
-                                                e.currentTarget.style.display =
-                                                    "none";
+                                                (
+                                                    e.currentTarget as HTMLElement
+                                                ).style.display = "none";
                                             }}
                                         />
                                         {#if index === currentIndex && audioState.playingId === song.Id}
@@ -454,7 +450,7 @@
                                             liked={song.Liked || false}
                                             classNames="p-2 text-slate-500 hover:text-[#ff424c] hover:bg-white/5 rounded-full transition-colors"
                                             on:likeChanged={(e) => {
-                                                onToggleLike(
+                                                onToggleLike?.(
                                                     index,
                                                     e.detail.liked,
                                                 );

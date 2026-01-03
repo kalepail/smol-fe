@@ -17,11 +17,11 @@
     const sortedArtists = $derived.by(() => {
         const list = Array.from(artistMap.values());
         if (sortMode === "fresh") {
-            return list.sort(
-                (a, b) =>
-                    new Date(b.latestSmol.Created_At).getTime() -
-                    new Date(a.latestSmol.Created_At).getTime(),
-            );
+            return list.sort((a, b) => {
+                const dateA = new Date(a.latestSmol.Created_At || 0).getTime();
+                const dateB = new Date(b.latestSmol.Created_At || 0).getTime();
+                return dateB - dateA;
+            });
         } else {
             return list.sort((a, b) => b.count - a.count);
         }
@@ -63,10 +63,11 @@
                 map.set(smol.Address, entry);
             } else {
                 entry.count++;
-                if (
-                    new Date(smol.Created_At) >
-                    new Date(entry.latestSmol.Created_At)
-                ) {
+                const songDate = new Date(smol.Created_At || 0).getTime();
+                const latestDate = new Date(
+                    entry.latestSmol.Created_At || 0,
+                ).getTime();
+                if (songDate > latestDate) {
                     entry.latestSmol = smol;
                 }
             }
@@ -169,7 +170,7 @@
                     >
                     <span
                         class="text-[10px] text-lime-500/80 font-mono font-medium"
-                        >{timeAgo(artist.latestSmol.Created_At)}</span
+                        >{timeAgo(artist.latestSmol.Created_At || "")}</span
                     >
                 </div>
             </div>

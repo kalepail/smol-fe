@@ -31,35 +31,6 @@
   const INITIAL_TAG_LIMIT = 50;
   const API_URL = import.meta.env.PUBLIC_API_URL;
 
-  // Genre popularity weights (based on streaming data patterns)
-  const GENRE_POPULARITY: Record<string, number> = {
-    Pop: 100,
-    "Hip Hop": 95,
-    Electronic: 90,
-    "R&B": 85,
-    Rock: 80,
-    Dance: 78,
-    Rap: 76,
-    Indie: 72,
-    House: 70,
-    "Lo-Fi": 68,
-    Soul: 65,
-    Funk: 62,
-    Jazz: 60,
-    Acoustic: 58,
-    Alternative: 55,
-    EDM: 52,
-    Trap: 50,
-    Chill: 48,
-    Ambient: 45,
-    Country: 42,
-    Reggae: 40,
-    Metal: 38,
-    Punk: 35,
-    Blues: 32,
-    Classical: 30,
-  };
-
   // Genealogies / Relationships for "Silent Merge"
   // If user selects key, we also look for values (Tier 3 match)
   const TAG_RELATIONSHIPS: Record<string, string[]> = {
@@ -155,14 +126,18 @@
     if (typeof window === "undefined") return;
 
     // 0. FETCH LIVE SMOLS DATA (no more snapshot!)
+    // 0. FETCH LIVE SMOLS DATA (Hybrid: Live + Snapshot)
     try {
-      // Use full snapshot for tag aggregation (API caps at 100)
-      smols = getFullSnapshot();
-      console.log(
-        `[Radio] Loaded ${smols.length} smols from snapshot for tags`,
-      );
+      isLoadingSmols = true;
+      // fetchSmols now handles merging and deep hydration internally
+      const liveSmols = await fetchSmols({ limit: 10000 });
+
+      smols = liveSmols;
+      console.log(`[Radio] Loaded ${smols.length} smols (Live + Hydrated)`);
     } catch (e) {
       console.error("[Radio] Failed to load smols:", e);
+      // Fallback
+      smols = getFullSnapshot();
     } finally {
       isLoadingSmols = false;
     }
@@ -231,15 +206,21 @@
     return [...new Set(tags.map((t) => t.trim()).filter((t) => t.length > 0))];
   }
 
-  // Aggregate all tags with counts
+  // Aggregate all tags with counts and real engagement metrics
   let processedTags = $derived.by(() => {
     const counts: Record<string, number> = {};
+    const popularity: Record<string, number> = {}; // Sum of Plays + Views
     const latest: Record<string, string> = {};
 
     for (const smol of smols) {
       const date = smol.Created_At || "1970-01-01";
+      // Weight: Plays = 1pt, Views = 0.1pt (Views are passive, Plays are active)
+      const weight = (smol.Plays || 0) + (smol.Views || 0) * 0.1;
+
       for (const tag of getTags(smol)) {
         counts[tag] = (counts[tag] || 0) + 1;
+        popularity[tag] = (popularity[tag] || 0) + weight;
+
         if (!latest[tag] || date > latest[tag]) {
           latest[tag] = date;
         }
@@ -248,19 +229,22 @@
 
     let allTags = Object.entries(counts).map(([tag, count]) => ({
       tag,
-      count,
-      popularity: GENRE_POPULARITY[tag] || 10 + count,
+      count, // Frequency
+      popularity: Math.round(popularity[tag] || 0), // Real Engagement
       latest: latest[tag],
     }));
 
     // Sort based on mode
     if (sortMode === "popularity") {
+      // Sort by Real Popularity desc
       allTags.sort((a, b) => b.popularity - a.popularity || b.count - a.count);
     } else if (sortMode === "alphabetical") {
       allTags.sort((a, b) => a.tag.localeCompare(b.tag));
     } else if (sortMode === "recent") {
+      // Sort by freshness (newest first)
       allTags.sort((a, b) => (b.latest || "").localeCompare(a.latest || ""));
     } else {
+      // Default: Frequency (Count)
       allTags.sort((a, b) => b.count - a.count);
     }
 
@@ -280,9 +264,13 @@
 
   const isLoadingTags = $derived(isLoadingSmols && processedTags.length === 0);
 
-  const maxCount = $derived(
-    processedTags.length > 0 ? processedTags[0].count : 1,
-  );
+  const maxMetrics = $derived.by(() => {
+    if (processedTags.length === 0) return { count: 1, popularity: 1 };
+    return {
+      count: Math.max(...processedTags.map((t) => t.count)),
+      popularity: Math.max(...processedTags.map((t) => t.popularity)),
+    };
+  });
 
   let isCompact = $derived(generatedPlaylist.length > 0 && !showBuilder);
   let showCloud = $derived(!isCompact || showAll);
@@ -303,16 +291,42 @@
     selectedTags = [];
   }
 
-  function getFontSize(count: number, max: number): string {
+  function getFontSize(
+    tagObj: { count: number; popularity: number },
+    max: { count: number; popularity: number },
+  ): string {
     const minSize = 0.75;
-    const maxSize = 1.6;
-    const normalized = Math.log(count + 1) / Math.log(max + 1);
-    return `${(minSize + (maxSize - minSize) * normalized).toFixed(2)}rem`;
+    const maxSize = 2.0; // Increased max size for impact
+
+    let val = tagObj.count;
+    let maxVal = max.count;
+
+    if (sortMode === "popularity") {
+      val = tagObj.popularity;
+      maxVal = max.popularity;
+    }
+
+    // Log scaling to prevent outlier dominance
+    const normalized = Math.log(val + 1) / Math.log(maxVal + 1);
+    const size = minSize + (maxSize - minSize) * normalized;
+    return `${size.toFixed(2)}rem`;
   }
 
-  function getOpacity(count: number, max: number): number {
+  function getOpacity(
+    tagObj: { count: number; popularity: number },
+    max: { count: number; popularity: number },
+  ): number {
     const min = 0.5;
-    return min + (1 - min) * (Math.log(count + 1) / Math.log(max + 1));
+
+    let val = tagObj.count;
+    let maxVal = max.count;
+
+    if (sortMode === "popularity") {
+      val = tagObj.popularity;
+      maxVal = max.popularity;
+    }
+
+    return min + (1 - min) * (Math.log(val + 1) / Math.log(maxVal + 1));
   }
 
   // Cache for AI responses to avoid repeating requests
@@ -324,7 +338,11 @@
 
     smols.forEach((smol) => {
       const title = (smol.Title || "").toLowerCase();
-      const lyrics = (smol.lyrics?.text || "").toLowerCase();
+      const lyrics = (
+        smol.lyrics?.lyrics ||
+        smol.kv_do?.lyrics?.lyrics ||
+        ""
+      ).toLowerCase();
 
       const hits = terms.filter(
         (t) => title.includes(t) || lyrics.includes(t),
@@ -513,7 +531,9 @@
         // Reduced to 25 to be a tie-breaker, not a primary driver
         const keywordBonus = normalizedSelected.some((term) => {
           const title = normalizeTag(smol.Title || "");
-          const lyrics = normalizeTag(smol.lyrics?.text || "");
+          const lyrics = normalizeTag(
+            smol.lyrics?.lyrics || smol.kv_do?.lyrics?.lyrics || "",
+          );
           return title.includes(term) || lyrics.includes(term);
         })
           ? 25
@@ -657,10 +677,8 @@
         tracks: generatedPlaylist.map((s) => ({
           id: s.Id,
           title: s.Title,
-          creator: s.Address,
+          creator: s.Address || null,
           coverUrl: null,
-          audioUrl: null,
-          lyrics: null,
         })),
       };
 
@@ -987,22 +1005,34 @@
                     No matching vibes found
                   </div>
                 {:else}
-                  {#each displayedTags as { tag, count }}
+                  {#each displayedTags as tagObj}
                     <button
-                      class="reactive-pill px-3 py-1 transition-all duration-200 disabled:opacity-20 whitespace-nowrap font-mono text-[10px] md:text-xs"
-                      class:selected={selectedTags.includes(tag)}
-                      class:text-white={!selectedTags.includes(tag)}
-                      class:opacity-60={!selectedTags.includes(tag)}
-                      style="font-size: {isCompact || searchQuery
-                        ? '0.8rem'
-                        : getFontSize(count, maxCount)};"
-                      onclick={() => toggleTag(tag)}
-                      disabled={!selectedTags.includes(tag) &&
-                        selectedTags.length >= MAX_TAGS}
+                      class="transition-all duration-300 hover:scale-110 leading-none py-1 px-2 rounded-full {selectedTags.includes(
+                        tagObj.tag,
+                      )
+                        ? 'text-[#9ae600] drop-shadow-[0_0_8px_rgba(154,230,0,0.5)] bg-white/5'
+                        : 'text-white'}"
+                      style="font-size: {getFontSize(
+                        tagObj,
+                        maxMetrics,
+                      )}; opacity: {selectedTags.includes(tagObj.tag)
+                        ? 1
+                        : getOpacity(tagObj, maxMetrics)}"
+                      onclick={() => toggleTag(tagObj.tag)}
                     >
-                      {tag}
-                      {#if searchQuery && !selectedTags.includes(tag)}
-                        <span class="ml-1 text-[8px] opacity-40">({count})</span
+                      {tagObj.tag}
+
+                      <!-- Count or New Indicator -->
+                      {#if selectedTags.includes(tagObj.tag)}
+                        <span
+                          class="text-[0.6em] align-top ml-0.5 text-white/40 font-mono tracking-tighter"
+                          >{tagObj.count}</span
+                        >
+                      {:else if tagObj.latest && new Date().getTime() - new Date(tagObj.latest).getTime() < 3 * 24 * 60 * 60 * 1000}
+                        <!-- NEW indicator if latest song is < 3 days old -->
+                        <span
+                          class="text-[0.4em] align-top ml-0.5 text-[#ff0099] font-black tracking-tighter animate-pulse"
+                          >new</span
                         >
                       {/if}
                     </button>

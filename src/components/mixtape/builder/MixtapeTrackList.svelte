@@ -82,8 +82,8 @@
             {track}
             {index}
             total={tracks.length}
-            on:move={({ detail }) => onMove(index, detail.direction)}
-            on:remove={() => onRemove(index)}
+            onMove={(direction) => onMove(index, direction)}
+            onRemove={() => onRemove(index)}
           />
         {/each}
       {/if}
