@@ -16,6 +16,9 @@
     import TipArtistModal from "./TipArtistModal.svelte";
     import { sac } from "../../utils/passkey-kit";
     import { fetchSmols } from "../../services/api/smols";
+    import { fly, fade, scale } from "svelte/transition";
+    import { flip } from "svelte/animate";
+    import { backOut } from "svelte/easing";
 
     let {
         discography = [],
@@ -44,9 +47,10 @@
     let liveCollected = $state<Smol[]>(collected);
     let isLoadingLive = $state(false);
 
-    let activeModule = $state<"discography" | "minted" | "collected">(
+    let activeModule = $state<"discography" | "minted" | "collected" | "tags">(
         "discography",
     );
+    let selectedArtistTags = $state<string[]>([]);
     let shuffleEnabled = $state(false);
     let currentIndex = $state(0);
     let minting = $state(false);
@@ -55,6 +59,14 @@
     let showGridView = $state(false);
     let showTipModal = $state(false);
     let selectedVersionId = $state<string | null>(null);
+    let isGeneratingMix = $state(false);
+
+    const playlistTitle = $derived.by(() => {
+        if (selectedArtistTags.length > 0) {
+            return `${selectedArtistTags.join(", ")} VIBES`;
+        }
+        return activeModule.charAt(0).toUpperCase() + activeModule.slice(1);
+    });
 
     const mintingHook = useSmolMinting();
     const currentSong = $derived(audioState.currentSong);
@@ -104,141 +116,35 @@
         console.log(`[ArtistResults] Hydrating live data for ${addr}...`);
 
         try {
-            // Fetch live smols for this artist
-            // Note: Currently API uses ?address= to filter by creator
-            const url = new URL(`${import.meta.env.PUBLIC_API_URL}/`);
-            url.searchParams.set("address", addr);
-            url.searchParams.set("limit", "10000"); // Effectively unlimited
+            // Fetch ALL smols (Hybrid: Live + Snapshot + Deep Verification)
+            // We fetch the global list and filter client-side to ensure we get hydrated tags
+            const allSmols = await fetchSmols();
 
-            const res = await fetch(url);
-            if (res.ok) {
-                const data = await res.json();
-                const freshSmols: Smol[] = data.smols || [];
+            // Filter for THIS artist
+            const artistSmols = allSmols.filter(
+                (s) => s.Address === addr || s.Creator === addr,
+            );
 
-                if (freshSmols.length > 0) {
-                    console.log(
-                        `[ArtistResults] Found ${freshSmols.length} live tracks`,
-                    );
+            if (artistSmols.length > 0) {
+                console.log(
+                    `[ArtistResults] Found ${artistSmols.length} live tracks`,
+                );
 
-                    // 1. Identify "Known" tracks (Snapshot Matches) and "Unknown" candidates (Potential New Songs)
-                    const snapIds = new Set(discography.map((s) => s.Id));
-                    let knownLiveSmols: Smol[] = [];
-                    let unknownCandidates: Smol[] = [];
+                // Sort by date desc
+                artistSmols.sort(
+                    (a, b) =>
+                        new Date(b.Created_At || 0).getTime() -
+                        new Date(a.Created_At || 0).getTime(),
+                );
 
-                    freshSmols.forEach((s) => {
-                        if (s.Address && s.Address === address) {
-                            // If backend magically provided Address, it's valid (rare/future case)
-                            knownLiveSmols.push(s);
-                        } else if (snapIds.has(s.Id)) {
-                            // Verified via Snapshot
-                            knownLiveSmols.push(s);
-                        } else {
-                            // Not in snapshot, address missing. check it via Detail API
-                            unknownCandidates.push(s);
-                        }
-                    });
+                liveDiscography = artistSmols;
 
-                    // 2. Process Known items (Enrich with Snapshot Tags)
-                    let mergedSmols = knownLiveSmols.map((liveSmol) => {
-                        const snapSmol = discography.find(
-                            (s) => s.Id === liveSmol.Id,
-                        );
-                        return {
-                            ...liveSmol,
-                            Tags:
-                                liveSmol.Tags && liveSmol.Tags.length > 0
-                                    ? liveSmol.Tags
-                                    : snapSmol?.Tags || [],
-                        };
-                    });
+                // Re-calculate minted from live data
+                liveMinted = artistSmols.filter((s) => s.Mint_Token !== null);
 
-                    // 3. Process Unknowns: Background Fetch Details to Get Tags & Verify Address
-                    // (This solves "No Tags on New Songs" AND "Frontpage Contamination")
-                    if (unknownCandidates.length > 0) {
-                        console.log(
-                            `[ArtistResults] Deep verifying ${unknownCandidates.length} potential new tracks...`,
-                        );
-
-                        // We do this non-blocking to show known songs first, or we can await if we want perfection immediately.
-                        // Let's await it to ensure order and avoid popping in.
-                        const newVerifiedTracks = (
-                            await Promise.all(
-                                unknownCandidates.map(async (candidate) => {
-                                    try {
-                                        const detailRes = await fetch(
-                                            `${import.meta.env.PUBLIC_API_URL}/${candidate.Id}`,
-                                        );
-                                        if (!detailRes.ok) return null;
-                                        const detailedData =
-                                            await detailRes.json();
-                                        const detailedSmol =
-                                            detailedData.d1 ||
-                                            detailedData.kv_do; // Support both D1 and DO responses
-
-                                        // Check if it belongs to this artist
-                                        if (
-                                            detailedSmol &&
-                                            (detailedSmol.Address === address ||
-                                                detailedSmol.creator ===
-                                                    address)
-                                        ) {
-                                            // Return merged candidate with Tags!
-                                            return {
-                                                ...candidate,
-                                                Tags: detailedSmol.Tags || [], // Get the Tags!
-                                                Address: detailedSmol.Address,
-                                            };
-                                        }
-                                        return null;
-                                    } catch (e) {
-                                        return null;
-                                    }
-                                }),
-                            )
-                        ).filter((s): s is Smol => s !== null);
-
-                        if (newVerifiedTracks.length > 0) {
-                            console.log(
-                                `[ArtistResults] Verified ${newVerifiedTracks.length} NEW tracks with Tags!`,
-                            );
-                            mergedSmols.push(...newVerifiedTracks);
-                        }
-                    }
-
-                    // 2. Append Snapshot Items NOT in Live Data (Pagination/Limit Fallback)
-                    const liveIds = new Set(freshSmols.map((s) => s.Id));
-                    let appendedCount = 0;
-                    discography.forEach((snapSmol) => {
-                        if (!liveIds.has(snapSmol.Id)) {
-                            // Ensure it's not a duplicate
-                            mergedSmols.push(snapSmol);
-                            appendedCount++;
-                        }
-                    });
-
-                    if (appendedCount > 0) {
-                        console.log(
-                            `[ArtistResults] Appended ${appendedCount} tracks from snapshot`,
-                        );
-                        // Re-sort because appended items might be newer or older
-                        mergedSmols.sort(
-                            (a, b) =>
-                                new Date(b.Created_At).getTime() -
-                                new Date(a.Created_At).getTime(),
-                        );
-                    }
-
-                    liveDiscography = mergedSmols;
-
-                    // Re-calculate minted from live data
-                    liveMinted = mergedSmols.filter(
-                        (s) => s.Mint_Token !== null,
-                    );
-
-                    console.log(
-                        `[ArtistResults] Live stats: ${liveDiscography.length} discog, ${liveMinted.length} minted, ${liveCollected.length} collected`,
-                    );
-                }
+                console.log(
+                    `[ArtistResults] Live stats: ${liveDiscography.length} discog, ${liveMinted.length} minted, ${liveCollected.length} collected`,
+                );
             }
         } catch (e) {
             console.error("[ArtistResults] Failed to hydrate live data:", e);
@@ -248,11 +154,67 @@
         }
     }
 
+    // Aggregate tags for the artist
+    const artistTags = $derived.by(() => {
+        const counts: Record<string, number> = {};
+        for (const smol of liveDiscography) {
+            if (!smol.Tags) continue;
+            for (const tag of smol.Tags) {
+                counts[tag] = (counts[tag] || 0) + 1;
+            }
+        }
+        return Object.entries(counts)
+            .map(([tag, count]) => ({ tag, count }))
+            .sort((a, b) => b.count - a.count);
+    });
+
+    const maxTagCount = $derived(
+        artistTags.length > 0 ? Math.max(...artistTags.map((t) => t.count)) : 1,
+    );
+
+    function toggleArtistTag(tag: string) {
+        if (selectedArtistTags.includes(tag)) {
+            selectedArtistTags = selectedArtistTags.filter((t) => t !== tag);
+        } else {
+            selectedArtistTags = [...selectedArtistTags, tag];
+        }
+    }
+
+    async function generateArtistMix() {
+        if (isGeneratingMix || basePlaylist.length === 0) return;
+
+        isGeneratingMix = true;
+
+        // AI Vibe Delay
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+
+        shuffleEnabled = true;
+        shuffledOrder = [...basePlaylist].sort(() => Math.random() - 0.5);
+
+        isGeneratingMix = false;
+
+        // Auto-play first song of the mix
+        if (shuffledOrder.length > 0) {
+            currentIndex = 0;
+            selectSong(shuffledOrder[0]);
+        }
+
+        // Slide out: transition back to discography and close grid
+        activeModule = "discography";
+        showGridView = false;
+    }
+
     // Derived playlist based on module and shuffle
     const basePlaylist = $derived.by(() => {
-        if (activeModule === "minted") return liveMinted;
-        if (activeModule === "collected") return liveCollected;
-        return liveDiscography;
+        let source = liveDiscography;
+        if (activeModule === "minted") source = liveMinted;
+        if (activeModule === "collected") source = liveCollected;
+
+        if (selectedArtistTags.length === 0) return source;
+
+        return source.filter((smol) =>
+            selectedArtistTags.some((t) => smol.Tags?.includes(t)),
+        );
     });
 
     // Store the shuffled order separately to avoid re-shuffling on every render
@@ -287,6 +249,7 @@
             currentIndex = 0;
             activeModule = "discography";
             shuffleEnabled = false;
+            selectedArtistTags = [];
 
             // Optimization: Reset live state to props immediately while fetching
             liveDiscography = discography;
@@ -510,7 +473,12 @@
                 <!-- Module Tabs -->
                 <div class="flex gap-4 ml-4">
                     <button
-                        onclick={() => (activeModule = "discography")}
+                        onclick={() => {
+                            activeModule = "discography";
+                            shuffleEnabled = false;
+                            selectedArtistTags = [];
+                            showGridView = false;
+                        }}
                         class="text-[10px] font-bold uppercase tracking-[0.2em] transition-colors {activeModule ===
                         'discography'
                             ? 'text-lime-400'
@@ -519,7 +487,12 @@
                         Discography
                     </button>
                     <button
-                        onclick={() => (activeModule = "minted")}
+                        onclick={() => {
+                            activeModule = "minted";
+                            shuffleEnabled = false;
+                            selectedArtistTags = [];
+                            showGridView = false;
+                        }}
                         class="text-[10px] font-bold uppercase tracking-[0.2em] transition-colors {activeModule ===
                         'minted'
                             ? 'text-lime-400'
@@ -528,7 +501,12 @@
                         Minted
                     </button>
                     <button
-                        onclick={() => (activeModule = "collected")}
+                        onclick={() => {
+                            activeModule = "collected";
+                            shuffleEnabled = false;
+                            selectedArtistTags = [];
+                            showGridView = false;
+                        }}
                         class="text-[10px] font-bold uppercase tracking-[0.2em] transition-colors {activeModule ===
                         'collected'
                             ? 'text-lime-400'
@@ -536,12 +514,27 @@
                     >
                         Collected
                     </button>
+                    <!-- Tags Tab - Desktop Only Per User Request -->
+                    <button
+                        onclick={() => (activeModule = "tags")}
+                        class="hidden md:block text-[10px] font-bold uppercase tracking-[0.2em] transition-colors {activeModule ===
+                        'tags'
+                            ? 'text-lime-400'
+                            : 'text-white/40 hover:text-white'}"
+                    >
+                        Tags
+                    </button>
                 </div>
             </div>
 
             <div class="flex items-center gap-2">
                 <button
-                    onclick={() => (showGridView = !showGridView)}
+                    onclick={() => {
+                        showGridView = !showGridView;
+                        if (showGridView && window.innerWidth < 768) {
+                            activeModule = "tags";
+                        }
+                    }}
                     class="flex items-center gap-2 px-3 py-1 rounded border transition-all {showGridView
                         ? 'border-purple-500/50 bg-purple-500/10 text-purple-400'
                         : 'border-white/10 text-white/40 hover:text-white'}"
@@ -592,12 +585,130 @@
                 <div
                     class="absolute inset-0 z-50 bg-[#121212] p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto dark-scrollbar"
                 >
+                    <!-- Grid View Tags Integration -->
+                    {#if activeModule === "tags"}
+                        <div
+                            class="mb-8 border-b border-white/10 pb-6 animate-in slide-in-from-top-4 duration-500"
+                        >
+                            <div class="flex items-center justify-between mb-4">
+                                <h3
+                                    class="text-[10px] font-bold text-lime-400 uppercase tracking-widest"
+                                >
+                                    Filter by Vibe
+                                </h3>
+                                {#if selectedArtistTags.length > 0}
+                                    <button
+                                        onclick={() =>
+                                            (selectedArtistTags = [])}
+                                        class="text-[8px] uppercase tracking-widest text-white/30 hover:text-white border-b border-white/10 hover:border-white transition-all"
+                                    >
+                                        Clear {selectedArtistTags.length} Filter{selectedArtistTags.length >
+                                        1
+                                            ? "s"
+                                            : ""}
+                                    </button>
+                                {/if}
+                            </div>
+                            <div
+                                class="max-h-[150px] overflow-y-auto pr-2 dark-scrollbar"
+                            >
+                                <div class="flex flex-wrap gap-2 items-center">
+                                    {#each artistTags as { tag, count }}
+                                        <button
+                                            onclick={() => toggleArtistTag(tag)}
+                                            class="px-3 py-1.5 rounded-full text-[10px] uppercase tracking-wider transition-all duration-300 {selectedArtistTags.includes(
+                                                tag,
+                                            )
+                                                ? 'bg-lime-500 text-black font-black scale-105'
+                                                : 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10 opacity-70 hover:opacity-100'}"
+                                            style="font-size: {0.7 +
+                                                (count / maxTagCount) *
+                                                    0.4}rem;"
+                                        >
+                                            {tag}
+                                            <span
+                                                class="ml-0.5 opacity-40 text-[0.8em]"
+                                                >{count}</span
+                                            >
+                                        </button>
+                                    {/each}
+                                </div>
+                            </div>
+                            {#if selectedArtistTags.length > 0}
+                                <div class="mt-6 flex justify-center">
+                                    <button
+                                        onclick={generateArtistMix}
+                                        disabled={isGeneratingMix}
+                                        class="group relative flex items-center gap-3 px-8 py-3 bg-lime-500 rounded-full text-black font-bold uppercase tracking-[0.2em] text-[11px] transition-all hover:scale-105 active:scale-95 disabled:opacity-50 {isGeneratingMix
+                                            ? 'animate-pulse bg-purple-500'
+                                            : 'shadow-[0_0_20px_rgba(132,204,22,0.4)] hover:shadow-[0_0_30px_rgba(132,204,22,0.6)]'}"
+                                    >
+                                        {#if isGeneratingMix}
+                                            <svg
+                                                class="animate-spin h-4 w-4 text-black"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <circle
+                                                    class="opacity-25"
+                                                    cx="12"
+                                                    cy="12"
+                                                    r="10"
+                                                    stroke="currentColor"
+                                                    stroke-width="4"
+                                                ></circle>
+                                                <path
+                                                    class="opacity-75"
+                                                    fill="currentColor"
+                                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                                ></path>
+                                            </svg>
+                                            <span>Mixing...</span>
+                                        {:else}
+                                            <svg
+                                                class="w-4 h-4 group-hover:rotate-12 transition-transform"
+                                                fill="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"
+                                                />
+                                            </svg>
+                                            <span>Generate Tag Mix</span>
+                                        {/if}
+                                    </button>
+                                </div>
+                            {:else}
+                                <!-- Mobile Only "Surprise Me" when no tags selected -->
+                                <div class="mt-6 flex justify-center md:hidden">
+                                    <button
+                                        onclick={generateArtistMix}
+                                        disabled={isGeneratingMix}
+                                        class="group relative flex items-center gap-2 px-8 py-3 bg-white/10 rounded-full text-white font-bold uppercase tracking-[0.2em] text-[10px] transition-all hover:bg-white/20 active:scale-95 border border-white/10"
+                                    >
+                                        <svg
+                                            class="w-3.5 h-3.5 opacity-60"
+                                            fill="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"
+                                            />
+                                        </svg>
+                                        <span>Surprise Me</span>
+                                    </button>
+                                </div>
+                            {/if}
+                        </div>
+                    {/if}
+
                     <div
                         class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 pb-20"
                     >
-                        {#each displayPlaylist as song, index}
+                        {#each displayPlaylist as song, index (song.Id)}
                             <button
-                                class="flex flex-col gap-2 group text-left"
+                                in:fade={{ duration: 200 }}
+                                class="flex flex-col gap-2 group text-left w-full"
                                 onclick={() => {
                                     handleSelect(index);
                                     showGridView = false;
@@ -726,9 +837,10 @@
                         class="flex items-center justify-between p-3 border-b border-white/5 bg-white/5 flex-shrink-0"
                     >
                         <h3
-                            class="text-white font-bold tracking-widest uppercase text-xs"
+                            class="text-white font-bold tracking-widest uppercase text-xs truncate max-w-[70%]"
+                            title={playlistTitle}
                         >
-                            {activeModule} ({displayPlaylist.length})
+                            {playlistTitle} ({displayPlaylist.length})
                         </h3>
                         <div class="flex items-center gap-2">
                             <span
@@ -741,177 +853,299 @@
                         </div>
                     </div>
 
-                    <div
-                        class="flex-1 min-h-0 overflow-y-auto dark-scrollbar pr-2 pb-8"
-                    >
-                        <ul class="divide-y divide-white/5">
-                            {#each displayPlaylist as song, index}
-                                <li>
-                                    <div
-                                        role="button"
-                                        tabindex="0"
-                                        class="w-full flex items-center gap-4 p-3 hover:bg-white/[0.07] active:bg-white/[0.1] transition-all duration-200 text-left cursor-pointer group {index ===
-                                        currentIndex
-                                            ? 'bg-lime-500/15 border-l-4 border-lime-500'
-                                            : 'border-l-4 border-transparent hover:border-white/10'}"
-                                        onclick={(e) => {
-                                            const target =
-                                                e.target as HTMLElement;
-                                            if (
-                                                target.closest("a") ||
-                                                target.closest("button")
+                    <!-- Tags Filter Cloud (Artist Scoped) -->
+                    {#if activeModule === "tags"}
+                        <div
+                            transition:fly={{
+                                y: -20,
+                                duration: 600,
+                                easing: backOut,
+                            }}
+                            class="px-4 py-4 border-b border-white/5 bg-white/5 overflow-hidden"
+                        >
+                            <div
+                                class="max-h-[200px] overflow-y-auto pr-2 dark-scrollbar"
+                            >
+                                <div class="flex flex-wrap gap-2 items-center">
+                                    {#each artistTags as { tag, count }}
+                                        <button
+                                            onclick={() => toggleArtistTag(tag)}
+                                            class="px-2.5 py-1 rounded-full text-[10px] uppercase tracking-wider transition-all duration-300 {selectedArtistTags.includes(
+                                                tag,
                                             )
-                                                return;
-                                            handleSelect(index);
-                                        }}
-                                        onkeydown={(e) => {
-                                            if (
-                                                e.key === "Enter" ||
-                                                e.key === " "
-                                            ) {
-                                                e.preventDefault();
-                                                handleSelect(index);
-                                            }
-                                        }}
+                                                ? 'bg-lime-500 text-black font-black scale-105'
+                                                : 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10 opacity-70 hover:opacity-100'}"
+                                            style="font-size: {0.7 +
+                                                (count / maxTagCount) *
+                                                    0.4}rem;"
+                                        >
+                                            {tag}
+                                            <span
+                                                class="ml-0.5 opacity-40 text-[0.8em]"
+                                                >{count}</span
+                                            >
+                                        </button>
+                                    {/each}
+                                </div>
+                            </div>
+                            {#if selectedArtistTags.length > 0}
+                                <div
+                                    class="mt-3 flex items-center justify-between"
+                                >
+                                    <span
+                                        class="text-[8px] text-lime-400/60 uppercase tracking-widest"
                                     >
-                                        <span
-                                            class="text-white/20 w-4 text-center text-xs font-mono"
-                                            >{index + 1}</span
+                                        Filtering by {selectedArtistTags.length}
+                                        vibe{selectedArtistTags.length > 1
+                                            ? "s"
+                                            : ""}
+                                    </span>
+                                    <div class="flex items-center gap-3">
+                                        <button
+                                            onclick={generateArtistMix}
+                                            disabled={isGeneratingMix}
+                                            class="group relative flex items-center gap-2 px-3 py-1 bg-lime-500 rounded text-black font-bold uppercase tracking-widest text-[9px] transition-all hover:scale-105 active:scale-95 disabled:opacity-50 {isGeneratingMix
+                                                ? 'animate-pulse bg-purple-500'
+                                                : 'shadow-[0_0_10px_rgba(132,204,22,0.3)] hover:shadow-[0_0_15px_rgba(132,204,22,0.6)]'}"
                                         >
-
-                                        <div
-                                            class="relative w-10 h-10 rounded-lg bg-slate-800 flex-shrink-0 overflow-hidden group/thumb border border-white/10 shadow-lg"
-                                        >
-                                            <img
-                                                src="{API_URL}/image/{song.Id}.png?scale=8"
-                                                alt="Art"
-                                                class="w-full h-full object-cover transition-transform duration-500 group-hover/thumb:scale-110 group-hover:brightness-50"
-                                                style="transform: translateZ(0); -webkit-transform: translateZ(0);"
-                                                onerror={(e) => {
-                                                    (
-                                                        e.currentTarget as HTMLImageElement
-                                                    ).style.display = "none";
-                                                }}
-                                            />
-
-                                            <!-- Play overlay on hover -->
-                                            <div
-                                                class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20"
-                                            >
+                                            {#if isGeneratingMix}
                                                 <svg
-                                                    class="w-5 h-5 text-lime-400"
-                                                    fill="currentColor"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <path d="M8 5v14l11-7z" />
-                                                </svg>
-                                            </div>
-
-                                            {#if index === currentIndex && audioState.playingId === song.Id}
-                                                <div
-                                                    class="absolute inset-0 bg-black/60 flex items-center justify-center"
-                                                >
-                                                    <div
-                                                        class="flex gap-0.5 items-end h-3"
-                                                    >
-                                                        <div
-                                                            class="w-1 bg-lime-500 animate-bounce"
-                                                            style="animation-delay: 0.1s; height: 100%;"
-                                                        ></div>
-                                                        <div
-                                                            class="w-1 bg-lime-500 animate-bounce"
-                                                            style="animation-delay: 0.2s; height: 60%;"
-                                                        ></div>
-                                                        <div
-                                                            class="w-1 bg-lime-500 animate-bounce"
-                                                            style="animation-delay: 0.3s; height: 80%;"
-                                                        ></div>
-                                                    </div>
-                                                </div>
-                                            {/if}
-                                        </div>
-
-                                        <div
-                                            class="overflow-hidden text-left flex-1 min-w-0"
-                                        >
-                                            <div
-                                                class="text-xs font-bold text-white/90 truncate {index ===
-                                                currentIndex
-                                                    ? 'text-lime-400'
-                                                    : ''}"
-                                            >
-                                                {song.Title || "Untitled"}
-                                            </div>
-                                            <div
-                                                class="flex items-center gap-3 text-[9px] text-white/30 truncate uppercase tracking-widest mt-0.5 font-light"
-                                            >
-                                                {new Date(
-                                                    song.Created_At ||
-                                                        Date.now(),
-                                                ).toLocaleDateString(
-                                                    undefined,
-                                                    {
-                                                        month: "short",
-                                                        day: "numeric",
-                                                    },
-                                                )}
-
-                                                {#if song.Tags && song.Tags.length > 0}
-                                                    <div
-                                                        class="flex gap-1.5 items-center ml-2 border-l border-white/10 pl-2"
-                                                    >
-                                                        {#each song.Tags.slice(0, 3) as tag}
-                                                            <span
-                                                                class="text-[9px] text-lime-400/50 hover:text-lime-400 transition-colors cursor-default"
-                                                                >#{tag}</span
-                                                            >
-                                                        {/each}
-                                                    </div>
-                                                {/if}
-                                            </div>
-                                        </div>
-
-                                        <div class="flex items-center gap-1">
-                                            <LikeButton
-                                                smolId={song.Id}
-                                                liked={song.Liked || false}
-                                                classNames="p-1.5 text-white/20 hover:text-[#ff424c] hover:bg-white/5 rounded-full transition-colors"
-                                                on:likeChanged={(e) => {
-                                                    handleToggleLike(
-                                                        index,
-                                                        e.detail.liked,
-                                                    );
-                                                }}
-                                            />
-
-                                            <a
-                                                href="/{song.Id}"
-                                                class="p-1.5 text-white/20 hover:text-white transition-colors"
-                                                title="View Details"
-                                                onclick={(e) =>
-                                                    e.stopPropagation()}
-                                            >
-                                                <svg
+                                                    class="animate-spin h-3 w-3 text-black"
                                                     xmlns="http://www.w3.org/2000/svg"
                                                     fill="none"
                                                     viewBox="0 0 24 24"
-                                                    stroke-width="1.5"
-                                                    stroke="currentColor"
-                                                    class="w-3.5 h-3.5"
+                                                >
+                                                    <circle
+                                                        class="opacity-25"
+                                                        cx="12"
+                                                        cy="12"
+                                                        r="10"
+                                                        stroke="currentColor"
+                                                        stroke-width="4"
+                                                    ></circle>
+                                                    <path
+                                                        class="opacity-75"
+                                                        fill="currentColor"
+                                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                                    ></path>
+                                                </svg>
+                                                <span>Generating...</span>
+                                            {:else}
+                                                <svg
+                                                    class="w-3 h-3 group-hover:rotate-12 transition-transform"
+                                                    fill="currentColor"
+                                                    viewBox="0 0 24 24"
                                                 >
                                                     <path
-                                                        stroke-linecap="round"
-                                                        stroke-linejoin="round"
-                                                        d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"
+                                                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"
                                                     />
                                                 </svg>
-                                            </a>
-                                        </div>
+                                                <span>Generate Mix</span>
+                                            {/if}
+
+                                            <!-- Glow Effect -->
+                                            <div
+                                                class="absolute inset-0 rounded bg-white/20 blur opacity-0 group-hover:opacity-100 transition-opacity"
+                                            ></div>
+                                        </button>
+
+                                        <button
+                                            onclick={() =>
+                                                (selectedArtistTags = [])}
+                                            class="text-[8px] uppercase tracking-widest text-white/30 hover:text-white border-b border-white/10 hover:border-white transition-all"
+                                        >
+                                            Clear Filter
+                                        </button>
                                     </div>
-                                </li>
-                            {/each}
-                        </ul>
-                    </div>
+                                </div>
+                            {/if}
+                        </div>
+                    {/if}
+
+                    {#key activeModule}
+                        <div
+                            in:fly={{
+                                y: 30,
+                                duration: 600,
+                                delay: 100,
+                                easing: backOut,
+                            }}
+                            class="flex-1 min-h-0 overflow-y-auto dark-scrollbar pr-2 pb-8"
+                        >
+                            <ul class="divide-y divide-white/5">
+                                {#each displayPlaylist as song, index}
+                                    <li>
+                                        <div
+                                            role="button"
+                                            tabindex="0"
+                                            class="w-full flex items-center gap-4 p-3 hover:bg-white/[0.07] active:bg-white/[0.1] transition-all duration-200 text-left cursor-pointer group {index ===
+                                            currentIndex
+                                                ? 'bg-lime-500/15 border-l-4 border-lime-500'
+                                                : 'border-l-4 border-transparent hover:border-white/10'}"
+                                            onclick={(e) => {
+                                                const target =
+                                                    e.target as HTMLElement;
+                                                if (
+                                                    target.closest("a") ||
+                                                    target.closest("button")
+                                                )
+                                                    return;
+                                                handleSelect(index);
+                                            }}
+                                            onkeydown={(e) => {
+                                                if (
+                                                    e.key === "Enter" ||
+                                                    e.key === " "
+                                                ) {
+                                                    e.preventDefault();
+                                                    handleSelect(index);
+                                                }
+                                            }}
+                                        >
+                                            <span
+                                                class="text-white/20 w-4 text-center text-xs font-mono"
+                                                >{index + 1}</span
+                                            >
+
+                                            <div
+                                                class="relative w-10 h-10 rounded-lg bg-slate-800 flex-shrink-0 overflow-hidden group/thumb border border-white/10 shadow-lg"
+                                            >
+                                                <img
+                                                    src="{API_URL}/image/{song.Id}.png?scale=8"
+                                                    alt="Art"
+                                                    class="w-full h-full object-cover transition-transform duration-500 group-hover/thumb:scale-110 group-hover:brightness-50"
+                                                    style="transform: translateZ(0); -webkit-transform: translateZ(0);"
+                                                    onerror={(e) => {
+                                                        (
+                                                            e.currentTarget as HTMLImageElement
+                                                        ).style.display =
+                                                            "none";
+                                                    }}
+                                                />
+
+                                                <!-- Play overlay on hover -->
+                                                <div
+                                                    class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20"
+                                                >
+                                                    <svg
+                                                        class="w-5 h-5 text-lime-400"
+                                                        fill="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path
+                                                            d="M8 5v14l11-7z"
+                                                        />
+                                                    </svg>
+                                                </div>
+
+                                                {#if index === currentIndex && audioState.playingId === song.Id}
+                                                    <div
+                                                        class="absolute inset-0 bg-black/60 flex items-center justify-center"
+                                                    >
+                                                        <div
+                                                            class="flex gap-0.5 items-end h-3"
+                                                        >
+                                                            <div
+                                                                class="w-1 bg-lime-500 animate-bounce"
+                                                                style="animation-delay: 0.1s; height: 100%;"
+                                                            ></div>
+                                                            <div
+                                                                class="w-1 bg-lime-500 animate-bounce"
+                                                                style="animation-delay: 0.2s; height: 60%;"
+                                                            ></div>
+                                                            <div
+                                                                class="w-1 bg-lime-500 animate-bounce"
+                                                                style="animation-delay: 0.3s; height: 80%;"
+                                                            ></div>
+                                                        </div>
+                                                    </div>
+                                                {/if}
+                                            </div>
+
+                                            <div
+                                                class="overflow-hidden text-left flex-1 min-w-0"
+                                            >
+                                                <div
+                                                    class="text-xs font-bold text-white/90 truncate {index ===
+                                                    currentIndex
+                                                        ? 'text-lime-400'
+                                                        : ''}"
+                                                >
+                                                    {song.Title || "Untitled"}
+                                                </div>
+                                                <div
+                                                    class="flex items-center gap-3 text-[9px] text-white/30 truncate uppercase tracking-widest mt-0.5 font-light"
+                                                >
+                                                    {new Date(
+                                                        song.Created_At ||
+                                                            Date.now(),
+                                                    ).toLocaleDateString(
+                                                        undefined,
+                                                        {
+                                                            month: "short",
+                                                            day: "numeric",
+                                                        },
+                                                    )}
+
+                                                    {#if song.Tags && song.Tags.length > 0}
+                                                        <div
+                                                            class="flex gap-1.5 items-center ml-2 border-l border-white/10 pl-2"
+                                                        >
+                                                            {#each song.Tags.slice(0, 3) as tag}
+                                                                <span
+                                                                    class="text-[9px] text-lime-400/50 hover:text-lime-400 transition-colors cursor-default"
+                                                                    >#{tag}</span
+                                                                >
+                                                            {/each}
+                                                        </div>
+                                                    {/if}
+                                                </div>
+                                            </div>
+
+                                            <div
+                                                class="flex items-center gap-1"
+                                            >
+                                                <LikeButton
+                                                    smolId={song.Id}
+                                                    liked={song.Liked || false}
+                                                    classNames="p-1.5 text-white/20 hover:text-[#ff424c] hover:bg-white/5 rounded-full transition-colors"
+                                                    on:likeChanged={(e) => {
+                                                        handleToggleLike(
+                                                            index,
+                                                            e.detail.liked,
+                                                        );
+                                                    }}
+                                                />
+
+                                                <a
+                                                    href="/{song.Id}"
+                                                    class="p-1.5 text-white/20 hover:text-white transition-colors"
+                                                    title="View Details"
+                                                    onclick={(e) =>
+                                                        e.stopPropagation()}
+                                                >
+                                                    <svg
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        fill="none"
+                                                        viewBox="0 0 24 24"
+                                                        stroke-width="1.5"
+                                                        stroke="currentColor"
+                                                        class="w-3.5 h-3.5"
+                                                    >
+                                                        <path
+                                                            stroke-linecap="round"
+                                                            stroke-linejoin="round"
+                                                            d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"
+                                                        />
+                                                    </svg>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </li>
+                                {/each}
+                            </ul>
+                        </div>
+                    {/key}
                 </div>
             </div>
         </div>
