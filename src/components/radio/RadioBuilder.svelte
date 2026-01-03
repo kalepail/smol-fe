@@ -19,6 +19,17 @@
   import { isAuthenticated } from "../../stores/user.svelte";
   import type { MixtapeDraft } from "../../types/domain";
   import { getFullSnapshot, safeFetchSmols } from "../../services/api/smols";
+  import {
+    getSnapshotTagStats,
+    getUnifiedTags,
+    shouldLogTagDiagnostics,
+    sortTagStats,
+  } from "../../services/tags/unifiedTags";
+  import type {
+    TagMeta,
+    TagSortMode,
+    TagStat,
+  } from "../../services/tags/unifiedTags";
 
   // Smols are now fetched live on mount, not passed as prop
   let smols = $state<Smol[]>([]);
@@ -57,9 +68,7 @@
   let isGenerating = $state(false);
   let currentIndex = $state(0);
   let isShuffled = $state(true);
-  let sortMode = $state<"popularity" | "frequency" | "alphabetical" | "recent">(
-    "popularity",
-  );
+  let sortMode = $state<TagSortMode>("popularity");
 
   // AI-powered features
   let showBuilder = $state(true);
@@ -73,6 +82,10 @@
   let isActiveGlobalShuffle = $state(false);
   let hasLoggedCloud = $state(false);
   let hasLoggedTags = $state(false);
+
+  const snapshotTagData = getSnapshotTagStats();
+  let tagStats = $state<TagStat[]>(snapshotTagData.tags);
+  let tagMeta = $state<TagMeta>(snapshotTagData.meta);
 
   let isPlaying = $derived(getIsPlaying());
 
@@ -129,6 +142,7 @@
 
     // 0. USE SNAPSHOT DIRECTLY (Backend-Independent)
     // This ensures Radio works even if backend is down or not updated
+    let liveSmols: Smol[] = [];
     try {
       isLoadingSmols = true;
       smols = getFullSnapshot();
@@ -138,7 +152,7 @@
         );
       }
 
-      const liveSmols = await safeFetchSmols();
+      liveSmols = await safeFetchSmols();
       if (liveSmols.length > 0) {
         smols = liveSmols;
         if (import.meta.env.DEV) {
@@ -152,6 +166,14 @@
       smols = [];
     } finally {
       isLoadingSmols = false;
+    }
+
+    try {
+      const unified = await getUnifiedTags({ liveSmols: smols });
+      tagStats = unified.tags;
+      tagMeta = unified.meta;
+    } catch (error) {
+      console.error("[Radio] Failed to load unified tags", error);
     }
 
     // 1. Load persisted state
@@ -219,49 +241,7 @@
   }
 
   // Aggregate all tags with counts and real engagement metrics
-  let processedTags = $derived.by(() => {
-    const counts: Record<string, number> = {};
-    const popularity: Record<string, number> = {}; // Sum of Plays + Views
-    const latest: Record<string, string> = {};
-
-    for (const smol of smols) {
-      const date = smol.Created_At || "1970-01-01";
-      // Weight: Plays = 1pt, Views = 0.1pt (Views are passive, Plays are active)
-      const weight = (smol.Plays || 0) + (smol.Views || 0) * 0.1;
-
-      for (const tag of getTags(smol)) {
-        counts[tag] = (counts[tag] || 0) + 1;
-        popularity[tag] = (popularity[tag] || 0) + weight;
-
-        if (!latest[tag] || date > latest[tag]) {
-          latest[tag] = date;
-        }
-      }
-    }
-
-    let allTags = Object.entries(counts).map(([tag, count]) => ({
-      tag,
-      count, // Frequency
-      popularity: Math.round(popularity[tag] || 0), // Real Engagement
-      latest: latest[tag],
-    }));
-
-    // Sort based on mode
-    if (sortMode === "popularity") {
-      // Sort by Real Popularity desc
-      allTags.sort((a, b) => b.popularity - a.popularity || b.count - a.count);
-    } else if (sortMode === "alphabetical") {
-      allTags.sort((a, b) => a.tag.localeCompare(b.tag));
-    } else if (sortMode === "recent") {
-      // Sort by freshness (newest first)
-      allTags.sort((a, b) => (b.latest || "").localeCompare(a.latest || ""));
-    } else {
-      // Default: Frequency (Count)
-      allTags.sort((a, b) => b.count - a.count);
-    }
-
-    return allTags;
-  });
+  let processedTags = $derived.by(() => sortTagStats(tagStats, sortMode));
 
   let filteredTags = $derived.by(() => {
     if (!searchQuery) return processedTags;
@@ -274,7 +254,7 @@
     return filteredTags.slice(0, INITIAL_TAG_LIMIT);
   });
 
-  const isLoadingTags = $derived(isLoadingSmols && processedTags.length === 0);
+  const isLoadingTags = $derived(isLoadingSmols && tagStats.length === 0);
 
   const maxMetrics = $derived.by(() => {
     if (processedTags.length === 0) return { count: 1, popularity: 1 };
@@ -296,14 +276,16 @@
   });
 
   $effect(() => {
-    if (!import.meta.env.DEV || hasLoggedTags) return;
-    if (!isLoadingSmols) {
+    if (hasLoggedTags || !shouldLogTagDiagnostics()) return;
+    if (tagMeta) {
       console.log(
-        `[Radio] Tags loaded: ${processedTags.length} total (${processedTags
-          .slice(0, 10)
-          .map((t) => t.tag)
-          .join(", ")})`,
+        `[Radio] Tag counts (snapshot=${tagMeta.snapshotTagsCount}, live=${tagMeta.liveTagsCount}, final=${tagMeta.finalTagsCount}, source=${tagMeta.dataSourceUsed})`,
       );
+      if (tagMeta.finalTagsCount < tagMeta.snapshotTagsCount) {
+        console.warn(
+          "[Radio] finalTagsCount < snapshotTagsCount (should never happen)",
+        );
+      }
       hasLoggedTags = true;
     }
   });
