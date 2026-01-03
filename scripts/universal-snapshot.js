@@ -11,7 +11,7 @@ const __dirname = path.dirname(__filename);
 const API_BASE = 'https://api.smol.xyz';
 const ISSUER = 'GBVJZCVQIKK7SL2K6NL4BO6ZYNXAGNVBTAQDDNOIJ5VPP3IXCSE2SMOL';
 const HORIZON_URL = 'https://horizon.stellar.org';
-const OUTPUT_FILE = 'universal-smols.json';
+const OUTPUT_FILE = path.join(__dirname, '../src/data/smols-snapshot.json');
 const CONCURRENCY = 20; // Parallel fetches
 
 // --- HELPERS ---

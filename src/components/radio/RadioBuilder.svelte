@@ -125,19 +125,17 @@
   onMount(async () => {
     if (typeof window === "undefined") return;
 
-    // 0. FETCH LIVE SMOLS DATA (no more snapshot!)
-    // 0. FETCH LIVE SMOLS DATA (Hybrid: Live + Snapshot)
+    // 0. USE SNAPSHOT DIRECTLY (Backend-Independent)
+    // This ensures Radio works even if backend is down or not updated
     try {
       isLoadingSmols = true;
-      // fetchSmols now handles merging and deep hydration internally
-      const liveSmols = await fetchSmols({ limit: 10000 });
-
-      smols = liveSmols;
-      console.log(`[Radio] Loaded ${smols.length} smols (Live + Hydrated)`);
-    } catch (e) {
-      console.error("[Radio] Failed to load smols:", e);
-      // Fallback
       smols = getFullSnapshot();
+      console.log(
+        `[Radio] Loaded ${smols.length} smols from snapshot (backend-independent)`,
+      );
+    } catch (e) {
+      console.error("[Radio] Failed to load snapshot:", e);
+      smols = [];
     } finally {
       isLoadingSmols = false;
     }
