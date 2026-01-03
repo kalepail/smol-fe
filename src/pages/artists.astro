@@ -1,7 +1,9 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import ArtistsIndex from '../components/artist/ArtistsIndex.svelte';
-import snapshot from '../data/smols-snapshot.json';
+import { getGlobalSnapshot } from '../services/api/snapshot';
+
+const snapshot = getGlobalSnapshot();
 
 // Aggregate artists
 const artists = {};

@@ -15,7 +15,7 @@
     import { getTokenBalance } from "../../utils/balance";
     import TipArtistModal from "./TipArtistModal.svelte";
     import { sac } from "../../utils/passkey-kit";
-    import { fetchSmols } from "../../services/api/smols";
+    import { safeFetchSmols } from "../../services/api/smols";
     import { fly, fade, scale } from "svelte/transition";
     import { flip } from "svelte/animate";
     import { backOut } from "svelte/easing";
@@ -118,7 +118,7 @@
         try {
             // Fetch ALL smols (Hybrid: Live + Snapshot + Deep Verification)
             // We fetch the global list and filter client-side to ensure we get hydrated tags
-            const allSmols = await fetchSmols();
+            const allSmols = await safeFetchSmols();
 
             // Filter for THIS artist
             const artistSmols = allSmols.filter(

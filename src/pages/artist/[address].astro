@@ -1,6 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import snapshot from '../../data/smols-snapshot.json';
+import { getGlobalSnapshot } from '../../services/api/snapshot';
 import ArtistResults from '../../components/artist/ArtistResults.svelte';
 import { getCollectedSmols } from '../../utils/artistCollected.js';
 
@@ -14,6 +14,7 @@ export function getStaticPaths() {
 }
 
 const { address } = Astro.params;
+const snapshot = getGlobalSnapshot();
 
 // Discography: Songs created or published by this artist
 const discographySmols = snapshot.filter(s => 
