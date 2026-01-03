@@ -2,6 +2,7 @@
 import Layout from '../../layouts/Layout.astro';
 import snapshot from '../../data/smols-snapshot.json';
 import ArtistResults from '../../components/artist/ArtistResults.svelte';
+import { getCollectedSmols } from '../../utils/artistCollected.js';
 
 export function getStaticPaths() {
   const addresses = new Set();
@@ -24,16 +25,23 @@ discographySmols.sort((a, b) => new Date(b.Created_At).getTime() - new Date(a.Cr
 const mintedSmols = discographySmols.filter(s => s.Mint_Token !== null);
 
 // Collected: Minted by this artist but NOT created by them
-const collectedSmols = snapshot.filter(s => 
-  s.Minted_By === address && 
-  s.Address !== address && 
-  s.Creator !== address
-);
+const { collectedSmols, collectedCandidates } = getCollectedSmols(snapshot, address);
 collectedSmols.sort((a, b) => new Date(b.Created_At).getTime() - new Date(a.Created_At).getTime());
 
 const publishedCount = discographySmols.length;
 const collectedCount = collectedSmols.length;
 const mintedCount = mintedSmols.length;
+
+if (import.meta.env.DEV) {
+  console.log("[ArtistCollected] Computed collected feed", {
+    address,
+    contractId: address,
+    snapshotCount: snapshot.length,
+    publishedCount: discographySmols.length,
+    collectedCandidateCount: collectedCandidates.length,
+    collectedCount,
+  });
+}
 
 // Top Tags (from Discography)
 const tagCounts = {};
