@@ -73,9 +73,9 @@ export async function fetchSmols(options?: { limit?: number }): Promise<Smol[]> 
               if (detail.lyrics?.style) {
                 song.Tags = [...(song.Tags || []), ...detail.lyrics.style];
               }
-              if (detail.d1?.Address) song.Address = detail.d1.Address;
-              if (detail.d1?.Creator) song.Creator = detail.d1.Creator;
-              if (detail.d1?.Mint_Token) song.Mint_Token = detail.d1.Mint_Token;
+              if (detail.Address) song.Address = detail.Address;
+              if (detail.Creator) song.Creator = detail.Creator;
+              if (detail.Mint_Token) song.Mint_Token = detail.Mint_Token;
             }
           } catch (e) {
             // console.warn(`Failed to hydrate ${song.Id}`, e);

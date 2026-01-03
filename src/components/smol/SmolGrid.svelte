@@ -13,7 +13,7 @@
     addTrack,
   } from "../../stores/mixtape.svelte";
   import { userState } from "../../stores/user.svelte";
-  import { fetchLikedSmols } from "../../services/api/smols";
+  import { fetchLikedSmols, getFullSnapshot } from "../../services/api/smols";
   import { useVisibilityTracking } from "../../hooks/useVisibilityTracking";
   import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
   import { useGridMediaSession } from "../../hooks/useGridMediaSession";
@@ -109,8 +109,29 @@
         results = initialSmols;
         hasMore = false;
         cursor = null;
+      } else if (endpoint === "collected") {
+        // COLLECTED: Use snapshot directly (backend-independent)
+        // This ensures Collected works even if backend /collected endpoint fails
+        const snapshot = getFullSnapshot();
+        const myAddr = userState.contractId?.toLowerCase() || "";
+
+        if (myAddr) {
+          results = snapshot.filter(
+            (s) =>
+              (s.Minted_By || "").toLowerCase() === myAddr &&
+              (s.Creator || "").toLowerCase() !== myAddr &&
+              (s.Address || "").toLowerCase() !== myAddr,
+          );
+        } else {
+          results = [];
+        }
+        hasMore = false;
+        cursor = null;
+        console.log(
+          `[SmolGrid] Loaded ${results.length} collected items from snapshot`,
+        );
       } else {
-        // Fetch smols from API
+        // Fetch smols from API for other endpoints
         const baseUrl = endpoint
           ? `${import.meta.env.PUBLIC_API_URL}/${endpoint}`
           : import.meta.env.PUBLIC_API_URL;
@@ -139,17 +160,6 @@
           ...smol,
           Liked: likedIds.some((id) => id === smol.Id),
         }));
-      }
-
-      // Handle local filtering for 'collected' since backend lacks Minted_By support
-      if (endpoint === "collected" && userState.contractId) {
-        const myAddr = userState.contractId.toLowerCase();
-        results = results.filter(
-          (s) =>
-            (s.Minted_By || "").toLowerCase() === myAddr &&
-            (s.Creator || "").toLowerCase() !== myAddr &&
-            (s.Address || "").toLowerCase() !== myAddr,
-        );
       }
     } catch (err) {
       error = err instanceof Error ? err.message : "Failed to load";
