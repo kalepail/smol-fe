@@ -82,7 +82,7 @@ async function main() {
 
     // Scan back through recent ledgers for events
     // Events are only available for ~7 days of history
-    const startLedger = latestLedger - 200000; // ~5-6 days
+    const startLedger = latestLedger - 2000; // Last 2-3 hours
     console.log(`Scanning from ledger ${startLedger} to ${latestLedger}...`);
 
     let allEvents = [];

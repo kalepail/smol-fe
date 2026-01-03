@@ -11,7 +11,10 @@ export interface Smol {
   author?: string;
   Song_1?: string;
   Liked?: boolean;
+  Liked?: boolean;
   Address?: string;
+  Plays?: number;
+  Views?: number;
   Mint_Token?: string;
   Mint_Amm?: string;
   Minted_By?: string; // Wallet address of who minted/owns the token
