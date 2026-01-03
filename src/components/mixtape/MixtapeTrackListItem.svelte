@@ -1,5 +1,4 @@
 <script lang="ts">
-    import { createEventDispatcher } from "svelte";
     import { SHADOW_PLACEHOLDER_ITEM_ID } from "svelte-dnd-action";
     import type { MixtapeTrack } from "../../types/domain";
 
@@ -7,25 +6,22 @@
         track: MixtapeTrack;
         index: number;
         total: number;
+        onMove: (direction: "up" | "down") => void;
+        onRemove: () => void;
     }
 
-    let { track, index, total }: Props = $props();
-
-    const dispatch = createEventDispatcher<{
-        move: { direction: "up" | "down" };
-        remove: void;
-    }>();
+    let { track, index, total, onMove, onRemove }: Props = $props();
 
     function moveUp() {
-        dispatch("move", { direction: "up" });
+        onMove("up");
     }
 
     function moveDown() {
-        dispatch("move", { direction: "down" });
+        onMove("down");
     }
 
     function remove() {
-        dispatch("remove");
+        onRemove();
     }
 
     const positionLabel = index + 1;

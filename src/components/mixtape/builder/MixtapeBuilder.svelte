@@ -33,8 +33,10 @@
   const dragDropHook = useMixtapeDragDrop();
 
   const isEditing = $derived(
-    mixtapeDraftState.draftId &&
-      !mixtapeDraftState.draftId.startsWith("draft-"),
+    !!(
+      mixtapeDraftState.draftId &&
+      !mixtapeDraftState.draftId.startsWith("draft-")
+    ),
   );
 
   function resetStatus() {
@@ -85,7 +87,7 @@
     try {
       let publishedId: string;
 
-      if (isEditing) {
+      if (isEditing && mixtapeDraftState.draftId) {
         const result = await publishingHook.update(
           mixtapeDraftState.draftId,
           getSnapshotDraft(),
