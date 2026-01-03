@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import type { Smol } from "../../types/domain";
-    import { fetchSmols } from "../../services/api/smols";
+    import { safeFetchSmols } from "../../services/api/smols";
 
     interface Artist {
         address: string;
@@ -79,7 +79,7 @@
     onMount(async () => {
         try {
             console.log("[Artists] Fetching live smols data...");
-            const smols = await fetchSmols();
+            const smols = await safeFetchSmols();
             console.log(
                 `[Artists] Loaded ${smols.length} smols, aggregating artists...`,
             );
