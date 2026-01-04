@@ -6,16 +6,27 @@ import type { Smol } from '../../types/domain';
 
 const snapshotUrl = new URL('/data/smols-snapshot.json', Astro.url);
 const snapshotGlobal = globalThis as typeof globalThis & {
+  __smolSnapshot?: Smol[];
   __smolSnapshotPromise?: Promise<Smol[]>;
 };
 const snapshotPromise =
   snapshotGlobal.__smolSnapshotPromise ??
-  (snapshotGlobal.__smolSnapshotPromise = fetch(snapshotUrl).then((response) => {
-    if (!response.ok) {
-      throw new Error(`Failed to fetch snapshot: ${response.statusText}`);
-    }
-    return response.json() as Promise<Smol[]>;
-  }));
+  (snapshotGlobal.__smolSnapshot
+    ? Promise.resolve(snapshotGlobal.__smolSnapshot)
+    : (snapshotGlobal.__smolSnapshotPromise = (async () => {
+        try {
+          const response = await fetch(snapshotUrl);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch snapshot: ${response.statusText}`);
+          }
+
+          const data = (await response.json()) as Smol[];
+          snapshotGlobal.__smolSnapshot = data;
+          return data;
+        } finally {
+          delete snapshotGlobal.__smolSnapshotPromise;
+        }
+      })()));
 
 const snapshot = await snapshotPromise;
 
