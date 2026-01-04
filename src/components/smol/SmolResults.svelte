@@ -344,6 +344,12 @@
                             currentIndex={0}
                             accentColor="#d836ff"
                             onSelect={() => {}}
+                            onNext={() => {
+                                // Navigate to artist page - audio state is global so playback continues
+                                if (data?.d1?.Address) {
+                                    window.location.href = `/artist/${data.d1.Address}`;
+                                }
+                            }}
                             onTrade={tradeReady
                                 ? () => (showTradeModal = true)
                                 : undefined}
