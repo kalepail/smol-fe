@@ -182,14 +182,47 @@
     const urlTags = params.getAll("tag");
 
     if (playId) {
-      // Sync UI with the currently playing song passed via URL
-      const idx = generatedPlaylist.findIndex((s) => s.Id === playId);
-      if (idx !== -1) {
-        currentIndex = idx;
+      // Find the song in our snapshot
+      const seedSong = smols.find((s) => s.Id === playId);
+
+      if (seedSong) {
+        // 1. Extract tags from the song to seed the station
+        const seedTags = getTags(seedSong).slice(0, 5); // Take top 5 tags
+
+        if (seedTags.length > 0) {
+          selectedTags = seedTags;
+          // 2. Generate new station based on these tags
+          // We use setTimeout to allow selectedTags to update
+          setTimeout(() => {
+            generateStation();
+
+            // 3. Ensure the seed song is officially the "Current" song in the new playlist
+            // generateStation is synchronous (mostly), but the state update might tick.
+            // We need to ensure seedSong is IN the playlist.
+            // Ideally, generateStation uses the tags, so seedSong SHOULD be scored high.
+            // But we can force-insert it at the top if we want to be sure.
+
+            // Wait for generation... act roughly here or modify generateStation return?
+            // Since generateStation updates generatedPlaylist global state, we can check it.
+
+            const newIdx = generatedPlaylist.findIndex((s) => s.Id === playId);
+            if (newIdx !== -1) {
+              currentIndex = newIdx;
+            } else {
+              // If for some reason it wasn't picked (e.g. history penalty?), force prepend
+              generatedPlaylist = [seedSong, ...generatedPlaylist];
+              currentIndex = 0;
+            }
+
+            // Force player view
+            showBuilder = false;
+          }, 50);
+        } else {
+          // Fallback if no tags: Global Shuffle?
+          // Just show player
+          showBuilder = false;
+        }
       }
-      showBuilder = false; // Force player view
-      // We do NOT call playSongAtIndex here to avoid audio stutter.
-      // The persistent player is already playing it.
 
       // Clean URL
       window.history.replaceState({}, "", window.location.pathname);
