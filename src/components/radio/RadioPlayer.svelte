@@ -584,7 +584,7 @@
             <!-- Desktop Radio Button (Orange Neon) -->
             {#if !isFullscreen}
               <button
-                class="tech-button w-9 h-9 items-center justify-center transition-all bg-black/20 backdrop-blur-md rounded-full border border-[#f97316]/50 text-[#f97316] hover:bg-[#f97316]/20 shadow-[0_0_15px_rgba(249,115,22,0.2)] hidden lg:flex"
+                class="tech-button w-9 h-9 items-center justify-center transition-all bg-black/20 backdrop-blur-md rounded-full border border-[#f97316]/50 text-[#f97316] hover:bg-[#f97316]/20 shadow-[0_0_15px_rgba(249,115,22,0.2)] flex"
                 onclick={(e) => {
                   e.stopPropagation();
                   const target = currentSong
