@@ -362,17 +362,6 @@
     });
 
     function handlePrev() {
-        // Mobile "Back to Song" Feature
-        // On mobile, the "back" button on the player should return to the song page
-        if (
-            typeof window !== "undefined" &&
-            window.innerWidth < 768 &&
-            currentSong?.Id
-        ) {
-            navigate(`/${currentSong.Id}`);
-            return;
-        }
-
         const prevIndex =
             (currentIndex - 1 + displayPlaylist.length) %
             displayPlaylist.length;

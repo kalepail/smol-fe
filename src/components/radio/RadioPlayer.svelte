@@ -8,6 +8,7 @@
     registerSongNextCallback,
     seek,
   } from "../../stores/audio.svelte";
+  import { navigate } from "astro:transitions/client";
 
   import LikeButton from "../ui/LikeButton.svelte";
   import { userState } from "../../stores/user.svelte";
@@ -518,6 +519,24 @@
                     stroke-linejoin="round"
                     stroke-width="2"
                     d="M4 6h16M4 12h16M4 18h16"
+                  />
+                </svg>
+              </button>
+            {/if}
+
+            <!-- Mobile Song Detail Button (Double Note) -->
+            {#if overlayControlsOnMobile && currentSong && !isFullscreen}
+              <button
+                class="tech-button p-2 transition-all bg-black/40 backdrop-blur-md rounded-lg border border-[#d836ff] text-[#d836ff] bg-[#d836ff]/10 hover:bg-[#d836ff]/20 shadow-[0_0_15px_rgba(216,54,255,0.3)]"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/${currentSong.Id}`);
+                }}
+                title="View Song Details"
+              >
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path
+                    d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
                   />
                 </svg>
               </button>
