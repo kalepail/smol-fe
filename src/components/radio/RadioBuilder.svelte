@@ -849,7 +849,7 @@
                 <div class="flex items-center gap-4">
                   <button
                     class="reactive-button-ignite h-10 w-10 flex items-center justify-center rounded-full transition-all hover:scale-105 active:scale-95 border border-[#F7931A] text-[#F7931A] bg-[#F7931A]/10 shadow-[0_0_20px_rgba(247,147,26,0.3)] hover:bg-[#F7931A]/20 hover:text-white"
-                    onclick={generateStation}
+                    onclick={() => generateStation()}
                     title="Regenerate Station"
                     disabled={isGenerating}
                   >
@@ -1162,19 +1162,6 @@
 </div>
 
 <style>
-  @keyframes fadeInUp {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  .animate-fade-in-up {
-    animation: fadeInUp 0.4s ease-out forwards;
-  }
   .tag-pill {
     max-width: 280px;
     overflow: hidden;

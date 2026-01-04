@@ -819,7 +819,7 @@
               if (backContext && enableContextBack) {
                 window.history.back();
               } else {
-                handlePrev && handlePrev(e);
+                handlePrev && handlePrev();
               }
             }}
             title={backContext && enableContextBack
