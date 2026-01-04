@@ -21,6 +21,21 @@
   $effect(() => {
     if (playlist.length > 0 && internalPlaylist.length === 0) {
       internalPlaylist = [...playlist];
+
+      // Check for ?play param to auto-continue playback from /[id] page
+      if (typeof window !== "undefined") {
+        const urlParams = new URLSearchParams(window.location.search);
+        const playId = urlParams.get("play");
+        if (playId) {
+          const songIndex = internalPlaylist.findIndex((s) => s.Id === playId);
+          if (songIndex >= 0) {
+            currentIndex = songIndex;
+            selectSong(internalPlaylist[songIndex]);
+            // Clean up URL without reload
+            window.history.replaceState({}, "", window.location.pathname);
+          }
+        }
+      }
     }
   });
 

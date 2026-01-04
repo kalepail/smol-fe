@@ -345,9 +345,9 @@
                             accentColor="#d836ff"
                             onSelect={() => {}}
                             onNext={() => {
-                                // Navigate to artist page - audio state is global so playback continues
-                                if (data?.d1?.Address) {
-                                    window.location.href = `/artist/${data.d1.Address}`;
+                                // Navigate to artist page with song ID to continue playback
+                                if (data?.d1?.Address && id) {
+                                    window.location.href = `/artist/${data.d1.Address}?play=${id}`;
                                 }
                             }}
                             onTrade={tradeReady
