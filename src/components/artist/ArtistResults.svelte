@@ -6,6 +6,7 @@
         selectSong,
         registerSongNextCallback,
     } from "../../stores/audio.svelte";
+    import { navigate } from "astro:transitions/client";
     import RadioPlayer from "../radio/RadioPlayer.svelte";
     import { isAuthenticated, userState } from "../../stores/user.svelte";
     import LikeButton from "../ui/LikeButton.svelte";
@@ -361,6 +362,17 @@
     });
 
     function handlePrev() {
+        // Mobile "Back to Song" Feature
+        // On mobile, the "back" button on the player should return to the song page
+        if (
+            typeof window !== "undefined" &&
+            window.innerWidth < 768 &&
+            currentSong?.Id
+        ) {
+            navigate(`/${currentSong.Id}`);
+            return;
+        }
+
         const prevIndex =
             (currentIndex - 1 + displayPlaylist.length) %
             displayPlaylist.length;
