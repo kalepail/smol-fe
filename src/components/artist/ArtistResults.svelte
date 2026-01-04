@@ -60,6 +60,36 @@
     let showTipModal = $state(false);
     let selectedVersionId = $state<string | null>(null);
     let isGeneratingMix = $state(false);
+    let initialPlayHandled = $state(false);
+
+    // Initial mount: Check for ?play param to continue playback from /[id] page
+    $effect(() => {
+        if (initialPlayHandled || discography.length === 0) return;
+
+        if (typeof window !== "undefined") {
+            const urlParams = new URLSearchParams(window.location.search);
+            const playId = urlParams.get("play");
+            if (playId) {
+                const songIndex = discography.findIndex((s) => s.Id === playId);
+                if (songIndex >= 0) {
+                    currentIndex = songIndex;
+                    selectSong(discography[songIndex]);
+                    initialPlayHandled = true;
+                    // Clean up URL without reload
+                    window.history.replaceState(
+                        {},
+                        "",
+                        window.location.pathname,
+                    );
+                    return;
+                }
+            }
+        }
+
+        // Fallback: play first song if no ?play param
+        selectSong(discography[0]);
+        initialPlayHandled = true;
+    });
 
     const playlistTitle = $derived.by(() => {
         if (selectedArtistTags.length > 0) {
@@ -256,8 +286,30 @@
             liveMinted = minted;
             liveCollected = collected;
 
-            // Auto-play the first song of the new artist (from snapshot initially)
-            if (discography.length > 0) {
+            // Auto-play: Check for ?play param first (continuing from /[id] page)
+            let playedFromParam = false;
+            if (typeof window !== "undefined") {
+                const urlParams = new URLSearchParams(window.location.search);
+                const playId = urlParams.get("play");
+                if (playId) {
+                    const songIndex = discography.findIndex(
+                        (s) => s.Id === playId,
+                    );
+                    if (songIndex >= 0) {
+                        currentIndex = songIndex;
+                        selectSong(discography[songIndex]);
+                        playedFromParam = true;
+                        // Clean up URL without reload
+                        window.history.replaceState(
+                            {},
+                            "",
+                            window.location.pathname,
+                        );
+                    }
+                }
+            }
+            // Fallback: play first song if no ?play param
+            if (!playedFromParam && discography.length > 0) {
                 selectSong(discography[0]);
             }
         }
