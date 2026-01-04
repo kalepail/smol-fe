@@ -492,7 +492,7 @@
 
           <!-- FULLSCREEN TOGGLE BUTTONS (TOP RIGHT OF ART) -->
           <div
-            class="absolute top-4 right-4 z-40 flex gap-2 {isFullscreen
+            class="absolute top-4 right-4 z-40 flex flex-col gap-2 {isFullscreen
               ? 'opacity-0 group-hover/fs:opacity-100 transition-opacity'
               : ''}"
           >
@@ -519,24 +519,6 @@
                     stroke-linejoin="round"
                     stroke-width="2"
                     d="M4 6h16M4 12h16M4 18h16"
-                  />
-                </svg>
-              </button>
-            {/if}
-
-            <!-- Mobile Song Detail Button (Double Note) -->
-            {#if overlayControlsOnMobile && currentSong && !isFullscreen}
-              <button
-                class="tech-button p-2 transition-all bg-black/40 backdrop-blur-md rounded-lg border border-[#d836ff] text-[#d836ff] bg-[#d836ff]/10 hover:bg-[#d836ff]/20 shadow-[0_0_15px_rgba(216,54,255,0.3)]"
-                onclick={(e) => {
-                  e.stopPropagation();
-                  navigate(`/${currentSong.Id}`);
-                }}
-                title="View Song Details"
-              >
-                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path
-                    d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
                   />
                 </svg>
               </button>
@@ -580,17 +562,37 @@
                 </svg>
               {/if}
             </button>
+
+            <!-- Mobile Song Detail Button (Double Note) - Under Fullscreen -->
+            {#if overlayControlsOnMobile && currentSong && !isFullscreen}
+              <button
+                class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/20 backdrop-blur-md rounded-full border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 shadow-[0_0_15px_rgba(216,54,255,0.2)] lg:hidden"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/${currentSong.Id}`);
+                }}
+                title="View Song Details"
+              >
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path
+                    d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
+                  />
+                </svg>
+              </button>
+            {/if}
           </div>
 
-          <!-- VERSION SELECTOR (BOTTOM LEFT OF ART) -->
+          <!-- VERSION SELECTOR (BOTTOM CENTER OF ART - ABOVE PLAY BUTTON) -->
           {#if versions && versions.length > 1 && onVersionSelect}
-            <div class="absolute bottom-4 left-4 z-40 flex items-center gap-2">
+            <div
+              class="absolute bottom-24 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2"
+            >
               {#each versions as v}
                 <button
-                  class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest rounded border transition-all {currentVersionId ===
+                  class="px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-full border transition-all backdrop-blur-sm {currentVersionId ===
                   v.id
-                    ? 'bg-white text-black border-white'
-                    : 'bg-transparent text-white/40 border-white/20 hover:text-white hover:border-white/40'}"
+                    ? 'bg-white/20 text-white border-white/40'
+                    : 'bg-black/20 text-white/30 border-white/10 hover:text-white hover:border-white/30'}"
                   onclick={(e) => {
                     e.stopPropagation();
                     onVersionSelect?.(v.id);
