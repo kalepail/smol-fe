@@ -156,6 +156,15 @@
           isActiveGlobalShuffle = state.isActiveGlobalShuffle;
         if (state.currentIndex !== undefined) currentIndex = state.currentIndex;
 
+        if (state.showBuilder !== undefined) {
+          showBuilder = state.showBuilder;
+        } else if (
+          state.generatedPlaylist &&
+          state.generatedPlaylist.length > 0
+        ) {
+          showBuilder = false;
+        }
+
         // Reset history set from loaded IDs
         if (state.generatedPlaylist) {
           recentlyGeneratedIds = new Set(
@@ -178,6 +187,7 @@
       if (idx !== -1) {
         currentIndex = idx;
       }
+      showBuilder = false; // Force player view
       // We do NOT call playSongAtIndex here to avoid audio stutter.
       // The persistent player is already playing it.
 
