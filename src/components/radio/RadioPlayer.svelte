@@ -587,7 +587,10 @@
                 class="tech-button w-9 h-9 items-center justify-center transition-all bg-black/20 backdrop-blur-md rounded-full border border-[#f97316]/50 text-[#f97316] hover:bg-[#f97316]/20 shadow-[0_0_15px_rgba(249,115,22,0.2)] hidden lg:flex"
                 onclick={(e) => {
                   e.stopPropagation();
-                  navigate("/radio");
+                  const target = currentSong
+                    ? `/radio?play=${currentSong.Id}`
+                    : "/radio";
+                  navigate(target);
                 }}
                 title="Go to Radio"
               >

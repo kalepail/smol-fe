@@ -169,7 +169,21 @@
 
     // 2. Handle URL params (overrides persisted state if present)
     const params = new URLSearchParams(window.location.search);
+    const playId = params.get("play");
     const urlTags = params.getAll("tag");
+
+    if (playId) {
+      // Sync UI with the currently playing song passed via URL
+      const idx = generatedPlaylist.findIndex((s) => s.Id === playId);
+      if (idx !== -1) {
+        currentIndex = idx;
+      }
+      // We do NOT call playSongAtIndex here to avoid audio stutter.
+      // The persistent player is already playing it.
+
+      // Clean URL
+      window.history.replaceState({}, "", window.location.pathname);
+    }
 
     if (urlTags.length > 0) {
       selectedTags = urlTags.slice(0, MAX_TAGS);
