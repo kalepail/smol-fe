@@ -194,25 +194,7 @@
           // 2. Generate new station based on these tags
           // We use setTimeout to allow selectedTags to update
           setTimeout(() => {
-            generateStation();
-
-            // 3. Ensure the seed song is officially the "Current" song in the new playlist
-            // generateStation is synchronous (mostly), but the state update might tick.
-            // We need to ensure seedSong is IN the playlist.
-            // Ideally, generateStation uses the tags, so seedSong SHOULD be scored high.
-            // But we can force-insert it at the top if we want to be sure.
-
-            // Wait for generation... act roughly here or modify generateStation return?
-            // Since generateStation updates generatedPlaylist global state, we can check it.
-
-            const newIdx = generatedPlaylist.findIndex((s) => s.Id === playId);
-            if (newIdx !== -1) {
-              currentIndex = newIdx;
-            } else {
-              // If for some reason it wasn't picked (e.g. history penalty?), force prepend
-              generatedPlaylist = [seedSong, ...generatedPlaylist];
-              currentIndex = 0;
-            }
+            generateStation(seedSong);
 
             // Force player view
             showBuilder = false;
@@ -525,7 +507,7 @@
     return tag.toLowerCase().replace(/[^a-z0-9]/g, "");
   }
 
-  async function generateStation() {
+  async function generateStation(seedSong?: Smol) {
     isGenerating = true;
     stationName =
       selectedTags.length > 0 ? "Generating..." : "Global Shuffle...";
@@ -641,6 +623,12 @@
     // Smart Shuffle: Prevent artist clustering (always apply for spacing)
     selected = smartShuffle(selected);
 
+    // Force Seed Song to front (Seamless Playback)
+    if (seedSong) {
+      selected = selected.filter((s) => s.Id !== seedSong.Id);
+      selected = [seedSong, ...selected];
+    }
+
     generatedPlaylist = selected;
     currentIndex = 0;
     isGenerating = false;
@@ -750,7 +738,21 @@
   function playSongAtIndex(index: number) {
     if (index >= 0 && index < generatedPlaylist.length) {
       currentIndex = index;
-      selectSong(generatedPlaylist[index]);
+      const song = generatedPlaylist[index];
+
+      // Prevent audio reset if song is already loaded
+      if (audioState.currentSong?.Id !== song.Id) {
+        selectSong(song);
+      } else {
+        // If it's the same song but we are "paused", we might want to ensure playing?
+        // But "seamless" usually means respecting current state (even if paused).
+        // If the user clicked "Radio", they might expect it to start if paused?
+        // But for now, preserving state is safest for "seamless".
+        // If we want to force play:
+        if (!audioState.playingId) {
+          selectSong(song);
+        }
+      }
     }
   }
 
