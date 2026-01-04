@@ -587,7 +587,7 @@
             <!-- Mobile Song Detail Button (Double Note) - Under Radio -->
             {#if overlayControlsOnMobile && currentSong && !isFullscreen}
               <button
-                class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/20 backdrop-blur-md rounded-full border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 shadow-[0_0_15px_rgba(216,54,255,0.2)] lg:hidden"
+                class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/20 backdrop-blur-md rounded-full border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 shadow-[0_0_15px_rgba(216,54,255,0.2)]"
                 onclick={(e) => {
                   e.stopPropagation();
                   navigate(`/${currentSong.Id}`);

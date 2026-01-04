@@ -286,6 +286,7 @@
             >
                 <RadioPlayer
                     {playlist}
+                    overlayControlsOnMobile={true}
                     {onNext}
                     {onPrev}
                     {onRegenerate}
