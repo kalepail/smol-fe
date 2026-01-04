@@ -563,25 +563,7 @@
               {/if}
             </button>
 
-            <!-- Mobile Song Detail Button (Double Note) - Under Fullscreen -->
-            {#if overlayControlsOnMobile && currentSong && !isFullscreen}
-              <button
-                class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/20 backdrop-blur-md rounded-full border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 shadow-[0_0_15px_rgba(216,54,255,0.2)] lg:hidden"
-                onclick={(e) => {
-                  e.stopPropagation();
-                  navigate(`/${currentSong.Id}`);
-                }}
-                title="View Song Details"
-              >
-                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path
-                    d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
-                  />
-                </svg>
-              </button>
-            {/if}
-
-            <!-- Desktop Radio Button (Orange Neon) -->
+            <!-- Radio Button (Orange Neon) -->
             {#if !isFullscreen}
               <button
                 class="tech-button w-9 h-9 items-center justify-center transition-all bg-black/20 backdrop-blur-md rounded-full border border-[#f97316]/50 text-[#f97316] hover:bg-[#f97316]/20 shadow-[0_0_15px_rgba(249,115,22,0.2)] flex"
@@ -597,6 +579,24 @@
                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                   <path
                     d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"
+                  />
+                </svg>
+              </button>
+            {/if}
+
+            <!-- Mobile Song Detail Button (Double Note) - Under Radio -->
+            {#if overlayControlsOnMobile && currentSong && !isFullscreen}
+              <button
+                class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/20 backdrop-blur-md rounded-full border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 shadow-[0_0_15px_rgba(216,54,255,0.2)] lg:hidden"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/${currentSong.Id}`);
+                }}
+                title="View Song Details"
+              >
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path
+                    d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
                   />
                 </svg>
               </button>
