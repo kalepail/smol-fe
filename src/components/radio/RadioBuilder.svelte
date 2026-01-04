@@ -192,6 +192,15 @@
           isActiveGlobalShuffle = state.isActiveGlobalShuffle;
         if (state.currentIndex !== undefined) currentIndex = state.currentIndex;
 
+        if (state.showBuilder !== undefined) {
+          showBuilder = state.showBuilder;
+        } else if (
+          state.generatedPlaylist &&
+          state.generatedPlaylist.length > 0
+        ) {
+          showBuilder = false;
+        }
+
         // Reset history set from loaded IDs
         if (state.generatedPlaylist) {
           recentlyGeneratedIds = new Set(
@@ -205,7 +214,37 @@
 
     // 2. Handle URL params (overrides persisted state if present)
     const params = new URLSearchParams(window.location.search);
+    const playId = params.get("play");
     const urlTags = params.getAll("tag");
+
+    if (playId) {
+      // Find the song in our snapshot
+      const seedSong = smols.find((s) => s.Id === playId);
+
+      if (seedSong) {
+        // 1. Extract tags from the song to seed the station
+        const seedTags = getTags(seedSong).slice(0, 5); // Take top 5 tags
+
+        if (seedTags.length > 0) {
+          selectedTags = seedTags;
+          // 2. Generate new station based on these tags
+          // We use setTimeout to allow selectedTags to update
+          setTimeout(() => {
+            generateStation(seedSong);
+
+            // Force player view
+            showBuilder = false;
+          }, 50);
+        } else {
+          // Fallback if no tags: Global Shuffle?
+          // Just show player
+          showBuilder = false;
+        }
+      }
+
+      // Clean URL
+      window.history.replaceState({}, "", window.location.pathname);
+    }
 
     if (urlTags.length > 0) {
       selectedTags = urlTags.slice(0, MAX_TAGS);
@@ -485,7 +524,7 @@
     return tag.toLowerCase().replace(/[^a-z0-9]/g, "");
   }
 
-  async function generateStation() {
+  async function generateStation(seedSong?: Smol) {
     isGenerating = true;
     stationName =
       selectedTags.length > 0 ? "Generating..." : "Global Shuffle...";
@@ -601,6 +640,12 @@
     // Smart Shuffle: Prevent artist clustering (always apply for spacing)
     selected = smartShuffle(selected);
 
+    // Force Seed Song to front (Seamless Playback)
+    if (seedSong) {
+      selected = selected.filter((s) => s.Id !== seedSong.Id);
+      selected = [seedSong, ...selected];
+    }
+
     generatedPlaylist = selected;
     currentIndex = 0;
     isGenerating = false;
@@ -710,7 +755,21 @@
   function playSongAtIndex(index: number) {
     if (index >= 0 && index < generatedPlaylist.length) {
       currentIndex = index;
-      selectSong(generatedPlaylist[index]);
+      const song = generatedPlaylist[index];
+
+      // Prevent audio reset if song is already loaded
+      if (audioState.currentSong?.Id !== song.Id) {
+        selectSong(song);
+      } else {
+        // If it's the same song but we are "paused", we might want to ensure playing?
+        // But "seamless" usually means respecting current state (even if paused).
+        // If the user clicked "Radio", they might expect it to start if paused?
+        // But for now, preserving state is safest for "seamless".
+        // If we want to force play:
+        if (!audioState.playingId) {
+          selectSong(song);
+        }
+      }
     }
   }
 

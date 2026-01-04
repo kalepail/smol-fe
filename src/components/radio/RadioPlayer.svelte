@@ -8,6 +8,7 @@
     registerSongNextCallback,
     seek,
   } from "../../stores/audio.svelte";
+  import { navigate } from "astro:transitions/client";
 
   import LikeButton from "../ui/LikeButton.svelte";
   import { userState } from "../../stores/user.svelte";
@@ -35,6 +36,7 @@
     onTogglePublish,
     isPublished,
     likeOnArt = false,
+    enableContextBack = false,
   }: {
     playlist: Smol[];
     onNext?: () => void;
@@ -58,7 +60,35 @@
     onTogglePublish?: () => void;
     isPublished?: boolean;
     likeOnArt?: boolean;
+    enableContextBack?: boolean;
   } = $props();
+
+  // Context-aware back navigation
+  let backContext = $state<{
+    type: "radio" | "artist" | "home";
+    label: string;
+    url: string;
+  } | null>(null);
+
+  $effect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const from = params.get("from");
+      if (from === "radio") {
+        backContext = { type: "radio", label: "Back to Radio", url: "back" };
+      } else if (from === "artist") {
+        backContext = { type: "artist", label: "Back to Artist", url: "back" };
+      }
+    }
+  });
+
+  function handleContextBack() {
+    if (backContext && backContext.url === "back") {
+      window.history.back();
+    } else {
+      window.history.back();
+    }
+  }
 
   const currentSong = $derived(audioState.currentSong);
   const playing = $derived(isPlaying());
@@ -463,8 +493,43 @@
             ></canvas>
           </div>
 
+          <!-- CONTEXT AWARE BACK BUTTON (BOTTOM LEFT) -->
+          {#if backContext && !isFullscreen}
+            <div
+              class="absolute bottom-4 left-4 z-40 animate-in fade-in zoom-in duration-300"
+            >
+              <button
+                class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/40 backdrop-blur-md rounded-full border shadow-[0_0_15px_rgba(0,0,0,0.3)] hover:scale-105 active:scale-95 group/back {backContext.type ===
+                'radio'
+                  ? 'border-[#f97316]/50 text-[#f97316] hover:bg-[#f97316]/20 shadow-[0_0_15px_rgba(249,115,22,0.2)]'
+                  : 'border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.2)]'}"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  handleContextBack();
+                }}
+                title={backContext.label}
+              >
+                {#if backContext.type === "radio"}
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"
+                    ><path
+                      d="M3.24 6.15C2.51 6.43 2 7.17 2 8v12a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V8c0-.83-.51-1.57-1.24-1.85L13.24.47a1 1 0 0 0-.7.01L3.24 6.15zM4 8l8-4.66L20 8v12H4V8zm10 4a2 2 0 1 1-4 0 2 2 0 0 1 4 0z"
+                    /></svg
+                  >
+                {:else}
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"
+                    ><path
+                      d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                    /></svg
+                  >
+                {/if}
+              </button>
+            </div>
+          {/if}
+
           <!-- Song Info Overlay (Top Left) -->
-          <div class="absolute top-0 left-0 p-6 z-30">
+          <div
+            class="absolute top-0 left-0 right-16 p-6 z-30 pointer-events-none"
+          >
             <div
               class="{isFullscreen
                 ? songTitle?.length > 25
@@ -491,7 +556,7 @@
 
           <!-- FULLSCREEN TOGGLE BUTTONS (TOP RIGHT OF ART) -->
           <div
-            class="absolute top-4 right-4 z-40 flex gap-2 {isFullscreen
+            class="absolute top-4 right-4 z-40 flex flex-col gap-2 {isFullscreen
               ? 'opacity-0 group-hover/fs:opacity-100 transition-opacity'
               : ''}"
           >
@@ -561,17 +626,78 @@
                 </svg>
               {/if}
             </button>
+
+            <!-- Radio Button (Orange Neon) -->
+            {#if !isFullscreen}
+              <button
+                class="tech-button w-9 h-9 items-center justify-center transition-all bg-black/20 backdrop-blur-md rounded-full border border-[#f97316]/50 text-[#f97316] hover:bg-[#f97316]/20 shadow-[0_0_15px_rgba(249,115,22,0.2)] flex"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  const target = currentSong
+                    ? `/radio?play=${currentSong.Id}`
+                    : "/radio";
+                  navigate(target);
+                }}
+                title="Go to Radio"
+              >
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path
+                    d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"
+                  />
+                </svg>
+              </button>
+            {/if}
+
+            <!-- Mobile Song Detail Button (Double Note) - Under Radio -->
+            {#if overlayControlsOnMobile && currentSong && !isFullscreen}
+              <button
+                class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/20 backdrop-blur-md rounded-full border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 shadow-[0_0_15px_rgba(216,54,255,0.2)]"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  let from = "";
+                  const path = window.location.pathname;
+                  if (path.includes("/radio")) from = "?from=radio";
+                  else if (path.includes("/artist")) from = "?from=artist";
+                  navigate(`/${currentSong.Id}${from}`);
+                }}
+                title="View Song Details"
+              >
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path
+                    d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
+                  />
+                </svg>
+              </button>
+
+              <!-- Artist Link Button (Under Song Detail) -->
+              <button
+                class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/20 backdrop-blur-md rounded-full border border-[#9ae600]/50 text-[#9ae600] hover:bg-[#9ae600]/20 shadow-[0_0_15px_rgba(154,230,0,0.2)]"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/artist/${currentSong.Address}`);
+                }}
+                title="View Artist Page"
+              >
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path
+                    d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                  />
+                </svg>
+              </button>
+            {/if}
           </div>
 
-          <!-- VERSION SELECTOR (BOTTOM LEFT OF ART) -->
+          <!-- VERSION SELECTOR (BOTTOM CENTER OF ART - ABOVE PLAY BUTTON) -->
           {#if versions && versions.length > 1 && onVersionSelect}
-            <div class="absolute bottom-4 left-4 z-40 flex items-center gap-2">
+            <div
+              class="absolute bottom-24 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2"
+            >
               {#each versions as v}
                 <button
-                  class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest rounded border transition-all {currentVersionId ===
+                  class="px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-full border transition-all backdrop-blur-sm {currentVersionId ===
                   v.id
-                    ? 'bg-white text-black border-white'
-                    : 'bg-transparent text-white/40 border-white/20 hover:text-white hover:border-white/40'}"
+                    ? 'bg-white/20 text-white border-white/40'
+                    : 'bg-black/20 text-white/30 border-white/10 hover:text-white hover:border-white/30'}"
                   onclick={(e) => {
                     e.stopPropagation();
                     onVersionSelect?.(v.id);
@@ -689,8 +815,16 @@
 
           <button
             class="tech-button w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md"
-            onclick={handlePrev}
-            title="Previous"
+            onclick={(e) => {
+              if (backContext && enableContextBack) {
+                window.history.back();
+              } else {
+                handlePrev && handlePrev(e);
+              }
+            }}
+            title={backContext && enableContextBack
+              ? backContext.label
+              : "Previous"}
           >
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
