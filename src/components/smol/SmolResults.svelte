@@ -30,6 +30,24 @@
     let autoScroll = $state(false); // Enable auto-scroll (Default OFF)
     let tradeMintBalance = $state(0n); // Restored missing state
 
+    // Context-aware back navigation
+    let backContext = $state<{
+        type: "radio" | "artist";
+        label: string;
+    } | null>(null);
+
+    $effect(() => {
+        if (typeof window !== "undefined") {
+            const params = new URLSearchParams(window.location.search);
+            const from = params.get("from");
+            if (from === "radio") {
+                backContext = { type: "radio", label: "Back to Radio" };
+            } else if (from === "artist") {
+                backContext = { type: "artist", label: "Back to Artist" };
+            }
+        }
+    });
+
     const mintingHook = useSmolMinting();
 
     // Version Handling
@@ -370,6 +388,7 @@
                             onTogglePublish={isOwner ? togglePublic : undefined}
                             isPublished={!!data.d1?.Public}
                             likeOnArt={true}
+                            enableContextBack={true}
                         />
 
                         <div class="mt-auto flex gap-4 w-full">

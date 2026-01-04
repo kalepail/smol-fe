@@ -36,6 +36,7 @@
     onTogglePublish,
     isPublished,
     likeOnArt = false,
+    enableContextBack = false,
   }: {
     playlist: Smol[];
     onNext?: () => void;
@@ -59,7 +60,35 @@
     onTogglePublish?: () => void;
     isPublished?: boolean;
     likeOnArt?: boolean;
+    enableContextBack?: boolean;
   } = $props();
+
+  // Context-aware back navigation
+  let backContext = $state<{
+    type: "radio" | "artist" | "home";
+    label: string;
+    url: string;
+  } | null>(null);
+
+  $effect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const from = params.get("from");
+      if (from === "radio") {
+        backContext = { type: "radio", label: "Back to Radio", url: "back" };
+      } else if (from === "artist") {
+        backContext = { type: "artist", label: "Back to Artist", url: "back" };
+      }
+    }
+  });
+
+  function handleContextBack() {
+    if (backContext && backContext.url === "back") {
+      window.history.back();
+    } else {
+      window.history.back();
+    }
+  }
 
   const currentSong = $derived(audioState.currentSong);
   const playing = $derived(isPlaying());
@@ -464,8 +493,43 @@
             ></canvas>
           </div>
 
+          <!-- CONTEXT AWARE BACK BUTTON (BOTTOM LEFT) -->
+          {#if backContext && !isFullscreen}
+            <div
+              class="absolute bottom-4 left-4 z-40 animate-in fade-in zoom-in duration-300"
+            >
+              <button
+                class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/40 backdrop-blur-md rounded-full border shadow-[0_0_15px_rgba(0,0,0,0.3)] hover:scale-105 active:scale-95 group/back {backContext.type ===
+                'radio'
+                  ? 'border-[#f97316]/50 text-[#f97316] hover:bg-[#f97316]/20 shadow-[0_0_15px_rgba(249,115,22,0.2)]'
+                  : 'border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.2)]'}"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  handleContextBack();
+                }}
+                title={backContext.label}
+              >
+                {#if backContext.type === "radio"}
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"
+                    ><path
+                      d="M3.24 6.15C2.51 6.43 2 7.17 2 8v12a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V8c0-.83-.51-1.57-1.24-1.85L13.24.47a1 1 0 0 0-.7.01L3.24 6.15zM4 8l8-4.66L20 8v12H4V8zm10 4a2 2 0 1 1-4 0 2 2 0 0 1 4 0z"
+                    /></svg
+                  >
+                {:else}
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"
+                    ><path
+                      d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                    /></svg
+                  >
+                {/if}
+              </button>
+            </div>
+          {/if}
+
           <!-- Song Info Overlay (Top Left) -->
-          <div class="absolute top-0 left-0 p-6 z-30">
+          <div
+            class="absolute top-0 left-0 right-16 p-6 z-30 pointer-events-none"
+          >
             <div
               class="{isFullscreen
                 ? songTitle?.length > 25
@@ -590,13 +654,33 @@
                 class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/20 backdrop-blur-md rounded-full border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 shadow-[0_0_15px_rgba(216,54,255,0.2)]"
                 onclick={(e) => {
                   e.stopPropagation();
-                  navigate(`/${currentSong.Id}`);
+                  let from = "";
+                  const path = window.location.pathname;
+                  if (path.includes("/radio")) from = "?from=radio";
+                  else if (path.includes("/artist")) from = "?from=artist";
+                  navigate(`/${currentSong.Id}${from}`);
                 }}
                 title="View Song Details"
               >
                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                   <path
                     d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
+                  />
+                </svg>
+              </button>
+
+              <!-- Artist Link Button (Under Song Detail) -->
+              <button
+                class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/20 backdrop-blur-md rounded-full border border-[#9ae600]/50 text-[#9ae600] hover:bg-[#9ae600]/20 shadow-[0_0_15px_rgba(154,230,0,0.2)]"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/artist/${currentSong.Address}`);
+                }}
+                title="View Artist Page"
+              >
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path
+                    d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
                   />
                 </svg>
               </button>
@@ -731,8 +815,16 @@
 
           <button
             class="tech-button w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md"
-            onclick={handlePrev}
-            title="Previous"
+            onclick={(e) => {
+              if (backContext && enableContextBack) {
+                window.history.back();
+              } else {
+                handlePrev && handlePrev(e);
+              }
+            }}
+            title={backContext && enableContextBack
+              ? backContext.label
+              : "Previous"}
           >
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />

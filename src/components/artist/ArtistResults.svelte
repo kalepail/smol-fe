@@ -62,59 +62,182 @@
     let selectedVersionId = $state<string | null>(null);
     let isGeneratingMix = $state(false);
     let initialPlayHandled = $state(false);
+    let isUrlStateLoaded = $state(false);
+    let initialScrollHandled = $state(false);
+    let shuffleSeed = $state(Date.now());
 
-    // Initial mount: Check for ?play param to continue playback from /[id] page
+    // Deterministic Hash for Seeded Shuffle (Stable Random)
+    function getShuffleVal(id: string, seed: number) {
+        let h = 0xdeadbeef;
+        for (let i = 0; i < id.length; i++)
+            h = Math.imul(h ^ id.charCodeAt(i), 2654435761);
+        h = Math.imul(h ^ seed, 1597334677);
+        return (h >>> 0) / 4294967296;
+    }
+
+    // Initial mount: Check for ?play param AND restore state from URL
     $effect(() => {
         if (initialPlayHandled) return;
-        console.log(
-            "[ArtistResults] Initial mount effect. Discography length:",
-            discography.length,
-        );
-
-        if (discography.length === 0) return;
 
         if (typeof window !== "undefined") {
             const urlParams = new URLSearchParams(window.location.search);
+
+            // Restore State (Tab, Tags, Shuffle)
+            const tabParam = urlParams.get("tab");
+            if (
+                tabParam &&
+                ["discography", "minted", "collected", "tags"].includes(
+                    tabParam,
+                )
+            ) {
+                activeModule = tabParam as any;
+            }
+
+            const tagsParam = urlParams.get("tags");
+            if (tagsParam) {
+                selectedArtistTags = tagsParam.split(",").filter(Boolean);
+            }
+
+            const shuffleParam = urlParams.get("shuffle");
+            if (shuffleParam === "true") {
+                shuffleEnabled = true;
+            }
+
+            const seedParam = urlParams.get("seed");
+            if (seedParam) {
+                shuffleSeed = parseInt(seedParam, 10);
+            }
+
+            // Handle Auto-Play (?play=id)
             const playId = urlParams.get("play");
-            console.log("[ArtistResults] Found playId:", playId);
-
-            if (playId) {
+            if (playId && discography.length > 0) {
                 const songIndex = discography.findIndex((s) => s.Id === playId);
-                console.log(
-                    "[ArtistResults] Song index in discography:",
-                    songIndex,
-                );
-
                 if (songIndex >= 0) {
                     currentIndex = songIndex;
-                    console.log(
-                        "[ArtistResults] Auto-playing song from param:",
-                        playId,
-                    );
-                    // Only select if not already playing (prevents stutter)
                     if (currentSong?.Id !== playId) {
                         selectSong(discography[songIndex]);
-                    } else {
-                        console.log(
-                            "[ArtistResults] Song already playing, skipping selection",
+                    }
+                }
+            } else if (discography.length > 0) {
+                // If NO play param:
+                // Check if we are already playing a song from this artist (Seamless Return)
+                const playingId = currentSong?.Id;
+
+                if (playingId) {
+                    // Determine what the playlist WILL look like after hydration
+                    let targetList = [...discography];
+                    if (activeModule === "minted") targetList = [...minted];
+                    if (activeModule === "collected")
+                        targetList = [...collected];
+
+                    // Apply Tag Filter
+                    if (selectedArtistTags.length > 0) {
+                        targetList = targetList.filter((s) =>
+                            selectedArtistTags.some((t) => s.Tags?.includes(t)),
                         );
                     }
-                    initialPlayHandled = true;
-                    // Clean up URL without reload
-                    window.history.replaceState(
-                        {},
-                        "",
-                        window.location.pathname,
+
+                    // Apply Shuffle
+                    if (shuffleEnabled) {
+                        targetList.sort(
+                            (a, b) =>
+                                getShuffleVal(a.Id, shuffleSeed) -
+                                getShuffleVal(b.Id, shuffleSeed),
+                        );
+                    }
+
+                    const matchIndex = targetList.findIndex(
+                        (s) => s.Id === playingId,
                     );
-                    return;
+
+                    if (matchIndex >= 0) {
+                        console.log(
+                            "[ArtistResults] Seamless return detected. Syncing index to",
+                            matchIndex,
+                            "Tab:",
+                            activeModule,
+                        );
+                        currentIndex = matchIndex;
+                    } else {
+                        // Song not in current view? Select first of view if exists
+                        if (targetList.length > 0) {
+                            selectSong(targetList[0]);
+                            currentIndex = 0;
+                        } else {
+                            selectSong(discography[0]); // Fallback
+                        }
+                    }
+                } else {
+                    // Not playing anything? Standard start.
+                    selectSong(discography[0]);
                 }
             }
+
+            isUrlStateLoaded = true;
+            initialPlayHandled = true;
+        }
+    });
+
+    // Valid tabs for type safety
+    const VALID_TABS = ["discography", "minted", "collected", "tags"];
+
+    // Sync State to URL (Seamless Back Button Support)
+    $effect(() => {
+        if (!isUrlStateLoaded || typeof window === "undefined") return;
+
+        const url = new URL(window.location.href);
+        const params = url.searchParams;
+
+        // Sync Tab
+        if (
+            activeModule !== "discography" &&
+            VALID_TABS.includes(activeModule)
+        ) {
+            params.set("tab", activeModule);
+        } else {
+            params.delete("tab");
         }
 
-        // Fallback: play first song if no ?play param
-        // console.log("[ArtistResults] No play param, selecting first song");
-        selectSong(discography[0]);
-        initialPlayHandled = true;
+        // Sync Tags
+        if (selectedArtistTags.length > 0) {
+            params.set("tags", selectedArtistTags.join(","));
+        } else {
+            params.delete("tags");
+        }
+
+        // Sync Shuffle
+        if (shuffleEnabled) {
+            params.set("shuffle", "true");
+            params.set("seed", shuffleSeed.toString());
+        } else {
+            params.delete("shuffle");
+            params.delete("seed");
+        }
+
+        // Preserve 'from' if it exists (though not typically used on Artist page)
+        // Clean up 'play' param if it exists (one-time use)
+        params.delete("play");
+
+        window.history.replaceState(history.state, "", url.toString());
+    });
+
+    // Auto-Scroll to Active Song on Mount
+    $effect(() => {
+        if (
+            !initialScrollHandled &&
+            isUrlStateLoaded &&
+            currentSong &&
+            displayPlaylist.length > 0 &&
+            !isLoadingLive
+        ) {
+            const el = document.getElementById(`song-row-${currentSong.Id}`);
+            if (el) {
+                // Determine if song is in view or needs scrolling
+                // We use 'center' to make it obvious
+                el.scrollIntoView({ block: "center", behavior: "smooth" });
+                initialScrollHandled = true;
+            }
+        }
     });
 
     const playlistTitle = $derived.by(() => {
@@ -245,7 +368,13 @@
         await new Promise((resolve) => setTimeout(resolve, 1500));
 
         shuffleEnabled = true;
-        shuffledOrder = [...basePlaylist].sort(() => Math.random() - 0.5);
+        shuffleSeed = Date.now();
+        // shuffledOrder will update automatically via effect
+        // But we wait for next tick? No, derived 'displayPlaylist' uses 'shuffledOrder' which updates in effect?
+        // Wait, shuffledOrder is updated in an effect below.
+        // We just updated shuffleEnabled and shuffleSeed.
+        // The effect at line 322 dependencies: basePlaylist, shuffleEnabled.
+        // We need to trigger it.
 
         isGeneratingMix = false;
 
@@ -279,13 +408,14 @@
     // When base playlist changes, reset shuffled order
     $effect(() => {
         // Only update shuffle order when base changes (not on every toggle)
+        // Only update shuffle order when base changes or seed/shuffle changes
         if (basePlaylist.length > 0 && shuffleEnabled) {
-            // Only reshuffle if order is empty or base changed
-            if (shuffledOrder.length !== basePlaylist.length) {
-                shuffledOrder = [...basePlaylist].sort(
-                    () => Math.random() - 0.5,
-                );
-            }
+            // Sort deterministically using Seed
+            shuffledOrder = [...basePlaylist].sort(
+                (a, b) =>
+                    getShuffleVal(a.Id, shuffleSeed) -
+                    getShuffleVal(b.Id, shuffleSeed),
+            );
         }
     });
 
@@ -884,7 +1014,7 @@
                             {:else}
                                 <button
                                     onclick={() =>
-                                        (window.location.href = `/${currentSong?.Id}`)}
+                                        (window.location.href = `/${currentSong?.Id}?from=artist`)}
                                     class="flex-1 py-3 bg-emerald-500/20 text-emerald-300 font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2 border border-emerald-500/30"
                                 >
                                     ✓ Minted
@@ -1056,6 +1186,7 @@
                                         <div
                                             role="button"
                                             tabindex="0"
+                                            id={`song-row-${song.Id}`}
                                             class="w-full flex items-center gap-4 p-3 hover:bg-white/[0.07] active:bg-white/[0.1] transition-all duration-200 text-left cursor-pointer group {index ===
                                             currentIndex
                                                 ? 'bg-lime-500/15 border-l-4 border-lime-500'
@@ -1196,7 +1327,7 @@
                                                 />
 
                                                 <a
-                                                    href="/{song.Id}"
+                                                    href="/{song.Id}?from=artist"
                                                     class="p-1.5 text-white/20 hover:text-white transition-colors"
                                                     title="View Details"
                                                     onclick={(e) =>
