@@ -17,7 +17,7 @@ const __dirname = path.dirname(__filename);
 
 const RPC_URL = 'https://rpc.lightsail.network/';
 const SMOL_CONTRACT = 'CBRNUVLGFM5OYWAGZVGU7CTMP2UJLKZCLFY2ANUCK5UGKND6BBAA5PLA';
-const SNAPSHOT_PATH = path.join(__dirname, '../src/data/smols-snapshot.json');
+const SNAPSHOT_PATH = path.join(__dirname, '../public/data/smols-snapshot.json');
 
 async function rpcCall(method, params = {}) {
     const res = await fetch(RPC_URL, {

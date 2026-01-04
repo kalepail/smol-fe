@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const API_BASE = 'https://api.smol.xyz';
-const SNAPSHOT_PATH = path.join(__dirname, '../src/data/smols-snapshot.json');
+const SNAPSHOT_PATH = path.join(__dirname, '../public/data/smols-snapshot.json');
 
 // Helper to base64 encode for cursor
 function encodeCursor(params) {

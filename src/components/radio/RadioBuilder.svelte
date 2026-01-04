@@ -129,7 +129,7 @@
     // This ensures Radio works even if backend is down or not updated
     try {
       isLoadingSmols = true;
-      smols = getFullSnapshot();
+      smols = await getFullSnapshot();
       console.log(
         `[Radio] Loaded ${smols.length} smols from snapshot (backend-independent)`,
       );

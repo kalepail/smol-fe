@@ -1,17 +1,23 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import snapshot from '../../data/smols-snapshot.json';
 import ArtistResults from '../../components/artist/ArtistResults.svelte';
 import { getCollectedSmols } from '../../utils/artistCollected.js';
+import type { Smol } from '../../types/domain';
 
-export function getStaticPaths() {
-  const addresses = new Set();
-  snapshot.forEach(smol => {
-    if (smol.Address) addresses.add(smol.Address);
-  });
-  
-  return Array.from(addresses).map(addr => ({ params: { address: addr } }));
-}
+const snapshotUrl = new URL('/data/smols-snapshot.json', Astro.url);
+const snapshotGlobal = globalThis as typeof globalThis & {
+  __smolSnapshotPromise?: Promise<Smol[]>;
+};
+const snapshotPromise =
+  snapshotGlobal.__smolSnapshotPromise ??
+  (snapshotGlobal.__smolSnapshotPromise = fetch(snapshotUrl).then((response) => {
+    if (!response.ok) {
+      throw new Error(`Failed to fetch snapshot: ${response.statusText}`);
+    }
+    return response.json() as Promise<Smol[]>;
+  }));
+
+const snapshot = await snapshotPromise;
 
 const { address } = Astro.params;
 

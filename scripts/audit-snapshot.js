@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const SNAPSHOT_PATH = path.join(__dirname, '../src/data/smols-snapshot.json');
+const SNAPSHOT_PATH = path.join(__dirname, '../public/data/smols-snapshot.json');
 const OUT_FILE = path.join(__dirname, '_snapshot_count_meta.json');
 const TARGET_PREFIX = 'CBNORBI';
 
