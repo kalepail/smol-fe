@@ -18,7 +18,7 @@ const __dirname = path.dirname(__filename);
 
 const HORIZON_URL = 'https://horizon.stellar.org';
 const SMOL_CONTRACT = 'CBRNUVLGFM5OYWAGZVGU7CTMP2UJLKZCLFY2ANUCK5UGKND6BBAA5PLA';
-const SNAPSHOT_PATH = path.join(__dirname, '../src/data/smols-snapshot.json');
+const SNAPSHOT_PATH = path.join(__dirname, '../public/data/smols-snapshot.json');
 
 /**
  * Get operations for an account (the Mint_Token contract)

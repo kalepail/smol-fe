@@ -112,7 +112,7 @@
       } else if (endpoint === "collected") {
         // COLLECTED: Use snapshot directly (backend-independent)
         // This ensures Collected works even if backend /collected endpoint fails
-        const snapshot = getFullSnapshot();
+        const snapshot = await getFullSnapshot();
         const myAddr = userState.contractId?.toLowerCase() || "";
 
         if (myAddr) {

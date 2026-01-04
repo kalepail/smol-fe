@@ -1,14 +1,45 @@
 import type { Smol } from '../../types/domain';
-// @ts-ignore
-import snapshot from '../../data/smols-snapshot.json';
 
 const API_URL = import.meta.env.PUBLIC_API_URL;
+const SNAPSHOT_URL = '/data/smols-snapshot.json';
+let snapshotCache: Smol[] | null = null;
+let snapshotPromise: Promise<Smol[]> | null = null;
+
+async function loadSnapshot(): Promise<Smol[]> {
+  if (snapshotCache) return snapshotCache;
+  if (snapshotPromise) return snapshotPromise;
+
+  snapshotPromise = fetch(SNAPSHOT_URL)
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`Failed to fetch snapshot: ${response.statusText}`);
+      }
+      return response.json();
+    })
+    .then((data) => {
+      snapshotCache = data as Smol[];
+      return snapshotCache;
+    })
+    .catch((error) => {
+      snapshotPromise = null;
+      throw error;
+    });
+
+  return snapshotPromise;
+}
 
 /**
  * Fetch all smols with Hybrid Strategy (Live + Snapshot Merge)
  */
 export async function fetchSmols(options?: { limit?: number }): Promise<Smol[]> {
   try {
+    let snapshot: Smol[] = [];
+    try {
+      snapshot = await loadSnapshot();
+    } catch (e) {
+      console.warn('Failed to load snapshot, continuing with live data only', e);
+    }
+
     const url = new URL(`${API_URL}`);
     if (options?.limit) {
       url.searchParams.set('limit', String(options.limit));
@@ -16,14 +47,14 @@ export async function fetchSmols(options?: { limit?: number }): Promise<Smol[]> 
     const response = await fetch(url.toString());
     if (!response.ok) {
       console.warn(`Failed to fetch live smols: ${response.statusText}, falling back to snapshot`);
-      return snapshot as unknown as Smol[];
+      return snapshot;
     }
 
     const data = await response.json();
     const liveSmols = data.smols || data;
 
     // Merge: Prefer Live, but fallback to Snapshot for missing critical fields (Tags, Address)
-    const snapshotMap = new Map((snapshot as any[]).map(s => [s.Id, s]));
+    const snapshotMap = new Map(snapshot.map(s => [s.Id, s]));
 
     const merged = liveSmols.map((newSmol: any) => {
       const oldSmol = snapshotMap.get(newSmol.Id);
@@ -43,7 +74,7 @@ export async function fetchSmols(options?: { limit?: number }): Promise<Smol[]> 
     const liveIds = new Set(liveSmols.map((s: any) => s.Id));
     let appendedCount = 0;
 
-    (snapshot as any[]).forEach(oldSmol => {
+    snapshot.forEach(oldSmol => {
       if (!liveIds.has(oldSmol.Id)) {
         merged.push(oldSmol);
         appendedCount++;
@@ -88,15 +119,20 @@ export async function fetchSmols(options?: { limit?: number }): Promise<Smol[]> 
     return merged as Smol[];
   } catch (e) {
     console.error('Fetch error, falling back to snapshot', e);
-    return snapshot as unknown as Smol[];
+    try {
+      return await loadSnapshot();
+    } catch (snapshotError) {
+      console.error('Failed to load snapshot fallback', snapshotError);
+      return [];
+    }
   }
 }
 
 /**
  * Get the full snapshot directly (for components needing all tags, like RadioBuilder)
  */
-export function getFullSnapshot(): Smol[] {
-  return snapshot as unknown as Smol[];
+export async function getFullSnapshot(): Promise<Smol[]> {
+  return loadSnapshot();
 }
 
 /**

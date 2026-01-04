@@ -23,7 +23,7 @@ const __dirname = path.dirname(__filename);
 
 const SMOL_ISSUER = 'GBVJZCVQIKK7SL2K6NL4BO6ZYNXAGNVBTAQDDNOIJ5VPP3IXCSE2SMOL';
 const HORIZON_URL = 'https://horizon.stellar.org';
-const SNAPSHOT_PATH = path.join(__dirname, '../src/data/smols-snapshot.json');
+const SNAPSHOT_PATH = path.join(__dirname, '../public/data/smols-snapshot.json');
 const CACHE_PATH = path.join(__dirname, '../src/data/minter-cache.json');
 
 /**

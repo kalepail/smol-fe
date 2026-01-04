@@ -24,7 +24,7 @@ const __dirname = path.dirname(__filename);
 
 const HORIZON_URL = 'https://horizon.stellar.org';
 const LAUNCHTUBE_SOURCE = 'GAALXAZVF6GW764VDOAD336OFCSW3HTQVPXGNAHXPJWWUO4PQ7D6VWBG';
-const SNAPSHOT_PATH = path.join(__dirname, '../src/data/smols-snapshot.json');
+const SNAPSHOT_PATH = path.join(__dirname, '../public/data/smols-snapshot.json');
 
 async function fetchAllTransactions() {
     const allTxs = [];
