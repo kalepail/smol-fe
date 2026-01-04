@@ -64,16 +64,40 @@
 
     // Initial mount: Check for ?play param to continue playback from /[id] page
     $effect(() => {
-        if (initialPlayHandled || discography.length === 0) return;
+        if (initialPlayHandled) return;
+        console.log(
+            "[ArtistResults] Initial mount effect. Discography length:",
+            discography.length,
+        );
+
+        if (discography.length === 0) return;
 
         if (typeof window !== "undefined") {
             const urlParams = new URLSearchParams(window.location.search);
             const playId = urlParams.get("play");
+            console.log("[ArtistResults] Found playId:", playId);
+
             if (playId) {
                 const songIndex = discography.findIndex((s) => s.Id === playId);
+                console.log(
+                    "[ArtistResults] Song index in discography:",
+                    songIndex,
+                );
+
                 if (songIndex >= 0) {
                     currentIndex = songIndex;
-                    selectSong(discography[songIndex]);
+                    console.log(
+                        "[ArtistResults] Auto-playing song from param:",
+                        playId,
+                    );
+                    // Only select if not already playing (prevents stutter)
+                    if (currentSong?.Id !== playId) {
+                        selectSong(discography[songIndex]);
+                    } else {
+                        console.log(
+                            "[ArtistResults] Song already playing, skipping selection",
+                        );
+                    }
                     initialPlayHandled = true;
                     // Clean up URL without reload
                     window.history.replaceState(
@@ -87,6 +111,7 @@
         }
 
         // Fallback: play first song if no ?play param
+        // console.log("[ArtistResults] No play param, selecting first song");
         selectSong(discography[0]);
         initialPlayHandled = true;
     });

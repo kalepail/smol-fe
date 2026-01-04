@@ -6,6 +6,7 @@
         togglePlayPause,
         isPlaying,
     } from "../../stores/audio.svelte";
+    import { navigate } from "astro:transitions/client";
     import RadioPlayer from "../radio/RadioPlayer.svelte";
     import LikeButton from "../ui/LikeButton.svelte";
     import Loader from "../ui/Loader.svelte";
@@ -347,7 +348,9 @@
                             onNext={() => {
                                 // Navigate to artist page with song ID to continue playback
                                 if (data?.d1?.Address && id) {
-                                    window.location.href = `/artist/${data.d1.Address}?play=${id}`;
+                                    navigate(
+                                        `/artist/${data.d1.Address}?play=${id}`,
+                                    );
                                 }
                             }}
                             onTrade={tradeReady
