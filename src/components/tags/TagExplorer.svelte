@@ -15,12 +15,20 @@
     let hasLoggedTags = $state(false);
     let isLoading = $state(true);
 
-    const snapshotTagData = getSnapshotTagStats();
-    let tagStats = $state<TagStat[]>(snapshotTagData.tags);
-    let tagMeta = $state<TagMeta>(snapshotTagData.meta);
+    let tagStats = $state<TagStat[]>([]);
+    let tagMeta = $state<TagMeta>({
+        snapshotTagsCount: 0,
+        liveTagsCount: 0,
+        finalTagsCount: 0,
+        dataSourceUsed: "snapshot",
+    });
 
     onMount(async () => {
         try {
+            const snap = await getSnapshotTagStats();
+            tagStats = snap.tags;
+            tagMeta = snap.meta;
+
             smols = await getFullSnapshot();
             const liveSmols = await safeFetchSmols();
             if (liveSmols.length > 0) {

@@ -7,7 +7,7 @@ import {
 const API_URL = import.meta.env.PUBLIC_API_URL;
 
 /**
- * Fetch all smols with Hybrid Strategy (Live + Snapshot Merge)
+ * Fetch all smols with Hybrid Strategy (Live + GalacticSnapshot Merge)
  */
 export async function fetchSmols(options?: { limit?: number }): Promise<Smol[]> {
   try {

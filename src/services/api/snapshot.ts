@@ -10,7 +10,7 @@ export async function getSnapshotAsync(): Promise<Smol[]> {
   if (cachedSnapshot) return cachedSnapshot;
 
   try {
-    const res = await fetch('/data/smols-snapshot.json');
+    const res = await fetch('/data/GalacticSnapshot.json');
     if (!res.ok) throw new Error(`Snapshot load failed: ${res.status}`);
     const data = await res.json();
     cachedSnapshot = Array.isArray(data) ? data : [];

@@ -83,9 +83,14 @@
   let hasLoggedCloud = $state(false);
   let hasLoggedTags = $state(false);
 
-  const snapshotTagData = getSnapshotTagStats();
-  let tagStats = $state<TagStat[]>(snapshotTagData.tags);
-  let tagMeta = $state<TagMeta>(snapshotTagData.meta);
+  // Initialize empty, load on mount
+  let tagStats = $state<TagStat[]>([]);
+  let tagMeta = $state<TagMeta>({
+    snapshotTagsCount: 0,
+    liveTagsCount: 0,
+    finalTagsCount: 0,
+    dataSourceUsed: "snapshot",
+  });
 
   let isPlaying = $derived(getIsPlaying());
 
@@ -138,7 +143,14 @@
 
   // Handle URL params for "Send to Radio" feature from TagExplorer
   onMount(async () => {
-    if (typeof window === "undefined") return;
+    // Load snapshot tags immediately
+    try {
+        const snap = await getSnapshotTagStats();
+        tagStats = snap.tags;
+        tagMeta = snap.meta;
+    } catch (e) {
+        console.error("Failed to load snapshot tags:", e);
+    }
 
     // 0. USE SNAPSHOT DIRECTLY (Backend-Independent)
     // This ensures Radio works even if backend is down or not updated
