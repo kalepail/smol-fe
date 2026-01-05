@@ -1,0 +1,79 @@
+
+> smol-fe@1.5.4 build C:\Users\Jeff\Mixtape Auto\smol-fe
+> node --max-old-space-size=4096 ./node_modules/astro/astro.js build
+
+00:25:09 [@astrojs/cloudflare] Enabling sessions with Cloudflare KV with the "SESSION" KV binding.
+00:25:09 [@astrojs/cloudflare] If you see the error "Invalid binding `SESSION`" in your build output, you need to add the binding to your wrangler config file.
+00:25:09 [WARN] [adapter] Cloudflare does not support sharp at runtime. However, you can configure `imageService: "compile"` to optimize images with sharp on prerendered pages during build time.
+00:25:09 [content] Syncing content
+00:25:09 [content] Synced content
+00:25:09 [types] Generated 113ms
+00:25:09 [build] output: "server"
+00:25:09 [build] mode: "server"
+00:25:09 [build] directory: C:\Users\Jeff\Mixtape Auto\smol-fe\dist\
+00:25:09 [build] adapter: @astrojs/cloudflare
+00:25:09 [build] Collecting build info...
+00:25:09 [build] Γ£ô Completed in 173ms.
+00:25:09 [build] Building server entrypoints...
+00:25:21 [vite] [32mΓ£ô built in 11.27s[39m
+00:25:21 [build] Γ£ô Completed in 11.37s.
+
+ building client (vite) 
+00:25:21 [vite] transforming...
+00:25:34 [vite] [32mΓ£ô[39m 315 modules transformed.
+00:25:35 [vite] rendering chunks...
+00:25:35 [vite] computing gzip size...
+00:25:35 [vite] [2mdist/[22m[35m_astro/radio.Blse0_7T.css                                             [39m[1m[2m    0.23 kB[22m[1m[22m[2m Γöé gzip:   0.18 kB[22m
+00:25:35 [vite] [2mdist/[22m[35m_astro/tags.DEaRjpiq.css                                              [39m[1m[2m    0.52 kB[22m[1m[22m[2m Γöé gzip:   0.24 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/base.B0jLrURI.js                                               [39m[1m[2m    0.22 kB[22m[1m[22m[2m Γöé gzip:   0.20 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/style.Bz74uivf.js                                              [39m[1m[2m    0.27 kB[22m[1m[22m[2m Γöé gzip:   0.22 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/this.JHSwYwav.js                                               [39m[1m[2m    0.32 kB[22m[1m[22m[2m Γöé gzip:   0.23 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/balance.svelte.D1lYsKpJ.js                                     [39m[1m[2m    0.38 kB[22m[1m[22m[2m Γöé gzip:   0.26 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/key.CUUzgL74.js                                                [39m[1m[2m    0.40 kB[22m[1m[22m[2m Γöé gzip:   0.30 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/Home.CDaUePGS.js                                               [39m[1m[2m    0.55 kB[22m[1m[22m[2m Γöé gzip:   0.34 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/attributes.Bukaqlho.js                                         [39m[1m[2m    1.07 kB[22m[1m[22m[2m Γöé gzip:   0.61 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/client.svelte.B84pfnNv.js                                      [39m[1m[2m    1.13 kB[22m[1m[22m[2m Γöé gzip:   0.63 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/Loader.DUGvjoJL.js                                             [39m[1m[2m    1.45 kB[22m[1m[22m[2m Γöé gzip:   0.89 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/input.PMCDJYVr.js                                              [39m[1m[2m    1.67 kB[22m[1m[22m[2m Γöé gzip:   0.87 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/smols.Dt5EAVPb.js                                              [39m[1m[2m    1.87 kB[22m[1m[22m[2m Γöé gzip:   0.89 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/MiniAudioPlayer.DM1HuLab.js                                    [39m[1m[2m    1.93 kB[22m[1m[22m[2m Γöé gzip:   1.03 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/mixtapes.DKoyC4Sg.js                                           [39m[1m[2m    1.95 kB[22m[1m[22m[2m Γöé gzip:   0.92 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/state.svelte.DPkEJ-AT.js                                       [39m[1m[2m    2.14 kB[22m[1m[22m[2m Γöé gzip:   0.92 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/unifiedTags.mAme5MAS.js                                        [39m[1m[2m    2.22 kB[22m[1m[22m[2m Γöé gzip:   1.01 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/class.BdYugBTA.js                                              [39m[1m[2m    2.58 kB[22m[1m[22m[2m Γöé gzip:   1.38 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/TokenBalancePill.CW9TaU2f.js                                   [39m[1m[2m    2.60 kB[22m[1m[22m[2m Γöé gzip:   1.31 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/MixtapesIndex.CiJ19W1H.js                                      [39m[1m[2m    3.30 kB[22m[1m[22m[2m Γöé gzip:   1.62 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/index.D83769BP.js                                              [39m[1m[2m    3.67 kB[22m[1m[22m[2m Γöé gzip:   1.80 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/each.BsrtEVUs.js                                               [39m[1m[2m    3.77 kB[22m[1m[22m[2m Γöé gzip:   1.90 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/ClientRouter.astro_astro_type_script_index_0_lang.Dz5-Q1WM.js  [39m[1m[2m    3.81 kB[22m[1m[22m[2m Γöé gzip:   1.64 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/BarAudioPlayer.u8vH3SM1.js                                     [39m[1m[2m    4.35 kB[22m[1m[22m[2m Γöé gzip:   2.03 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/ArtistsIndex.D_jgQQCh.js                                       [39m[1m[2m    4.56 kB[22m[1m[22m[2m Γöé gzip:   2.07 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/LikeButton.Bowk9HZb.js                                         [39m[1m[2m    5.10 kB[22m[1m[22m[2m Γöé gzip:   2.31 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/Leaderboard.2EoyMGBL.js                                        [39m[1m[2m    5.62 kB[22m[1m[22m[2m Γöé gzip:   2.21 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/TagExplorer.DBT5iuDA.js                                        [39m[1m[2m    7.62 kB[22m[1m[22m[2m Γöé gzip:   3.26 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/Account.C_zV2YcL.js                                            [39m[1m[2m    8.62 kB[22m[1m[22m[2m Γöé gzip:   3.37 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/Header.JilJtavF.js                                             [39m[1m[2m   11.30 kB[22m[1m[22m[2m Γöé gzip:   4.68 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/router.C5v59Ra5.js                                             [39m[1m[2m   11.34 kB[22m[1m[22m[2m Γöé gzip:   3.95 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/SmolGrid.6RCm97C_.js                                           [39m[1m[2m   11.71 kB[22m[1m[22m[2m Γöé gzip:   4.74 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/SmolResults.lHGytklf.js                                        [39m[1m[2m   16.69 kB[22m[1m[22m[2m Γöé gzip:   6.04 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/Smol.Duvv5MGS.js                                               [39m[1m[2m   19.04 kB[22m[1m[22m[2m Γöé gzip:   7.16 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/RadioPlayer.GdeOZr5U.js                                        [39m[1m[2m   25.51 kB[22m[1m[22m[2m Γöé gzip:   8.29 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/MintTradeModal.BnfLzV0Z.js                                     [39m[1m[2m   26.29 kB[22m[1m[22m[2m Γöé gzip:   9.45 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/render.D57gU3Z_.js                                             [39m[1m[2m   27.36 kB[22m[1m[22m[2m Γöé gzip:  10.74 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/ArtistResults.YlKryLu_.js                                      [39m[1m[2m   34.78 kB[22m[1m[22m[2m Γöé gzip:  11.85 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/RadioBuilder.CB-i4Ub8.js                                       [39m[1m[2m   41.42 kB[22m[1m[22m[2m Γöé gzip:  16.53 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/MixtapeDetailView.Dvo_Loqo.js                                  [39m[1m[33m  996.36 kB[39m[22m[2m Γöé gzip: 277.43 kB[22m
+00:25:35 [vite] [2mdist/[22m[36m_astro/user.svelte.CaoINFAc.js                                        [39m[1m[33m1,594.91 kB[39m[22m[2m Γöé gzip: 436.95 kB[22m
+00:25:35 [WARN] [vite] [33m
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+00:25:35 [vite] [32mΓ£ô built in 14.53s[39m
+
+ prerendering static routes 
+00:25:35 Γ£ô Completed in 65ms.
+
+00:25:35 [build] Rearranging server assets...
+00:25:36 [build] Server built in 26.21s
+00:25:36 [build] Complete!

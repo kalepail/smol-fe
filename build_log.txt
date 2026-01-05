@@ -1,0 +1,34 @@
+
+> smol-fe@1.5.4 build C:\Users\Jeff\Mixtape Auto\smol-fe
+> node --max-old-space-size=4096 ./node_modules/astro/astro.js build
+
+00:23:01 [@astrojs/cloudflare] Enabling sessions with Cloudflare KV with the "SESSION" KV binding.
+00:23:01 [@astrojs/cloudflare] If you see the error "Invalid binding `SESSION`" in your build output, you need to add the binding to your wrangler config file.
+00:23:01 [WARN] [adapter] Cloudflare does not support sharp at runtime. However, you can configure `imageService: "compile"` to optimize images with sharp on prerendered pages during build time.
+00:23:01 [content] Syncing content
+00:23:01 [content] Synced content
+00:23:01 [types] Generated 164ms
+00:23:01 [build] output: "server"
+00:23:01 [build] mode: "server"
+00:23:01 [build] directory: C:\Users\Jeff\Mixtape Auto\smol-fe\dist\
+00:23:01 [build] adapter: @astrojs/cloudflare
+00:23:01 [build] Collecting build info...
+00:23:01 [build] Γ£ô Completed in 224ms.
+00:23:01 [build] Building server entrypoints...
+00:23:04 [ERROR] [vite] Γ£ù Build failed in 3.04s
+[vite-plugin-svelte] [plugin vite-plugin-svelte] src/components/smol/SmolGrid.svelte (47:6): C:/Users/Jeff/Mixtape Auto/smol-fe/src/components/smol/SmolGrid.svelte:47:6 Identifier 'results' has already been declared
+https://svelte.dev/e/js_parse_error
+file: C:/Users/Jeff/Mixtape Auto/smol-fe/src/components/smol/SmolGrid.svelte:47:6
+
+ 45 |    // Actually, I can use multi-replace.
+ 46 |  
+ 47 |    let results = $state<Smol[]>([]);
+             ^
+ 48 |    let cursor = $state<string | null>(null);
+ 49 |    let hasMore = $state(false);
+
+  Location:
+    C:/Users/Jeff/Mixtape Auto/smol-fe/src/components/smol/SmolGrid.svelte:47:6
+  Stack trace:
+
+ΓÇëELIFECYCLEΓÇë Command failed with exit code 1.

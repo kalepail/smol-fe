@@ -1,76 +1,18 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import { getGlobalSnapshot } from '../../services/api/snapshot';
 import ArtistResults from '../../components/artist/ArtistResults.svelte';
-import { getCollectedSmols } from '../../utils/artistCollected.js';
 
-export function getStaticPaths() {
-  const addresses = new Set();
-  snapshot.forEach(smol => {
-    if (smol.Address) addresses.add(smol.Address);
-  });
-  
-  return Array.from(addresses).map(addr => ({ params: { address: addr } }));
-}
+// OOM FIX: Removed static snapshot import and getStaticPaths
+// ArtistResults now fetches data client-side based on address
 
 const { address } = Astro.params;
-const snapshot = getGlobalSnapshot();
-
-// Discography: Songs created or published by this artist
-const discographySmols = snapshot.filter(s => 
-  s.Address === address || s.Creator === address
-);
-discographySmols.sort((a, b) => new Date(b.Created_At).getTime() - new Date(a.Created_At).getTime());
-
-// Minted: Created by them AND has been minted (by anyone)
-const mintedSmols = discographySmols.filter(s => s.Mint_Token !== null);
-
-// Collected: Minted by this artist but NOT created by them
-const { collectedSmols, collectedCandidates } = getCollectedSmols(snapshot, address);
-collectedSmols.sort((a, b) => new Date(b.Created_At).getTime() - new Date(a.Created_At).getTime());
-
-const publishedCount = discographySmols.length;
-const collectedCount = collectedSmols.length;
-const mintedCount = mintedSmols.length;
-
-if (import.meta.env.DEV) {
-  console.log("[ArtistCollected] Computed collected feed", {
-    address,
-    contractId: address,
-    snapshotCount: snapshot.length,
-    publishedCount: discographySmols.length,
-    collectedCandidateCount: collectedCandidates.length,
-    collectedCount,
-  });
-}
-
-// Top Tags (from Discography)
-const tagCounts = {};
-discographySmols.forEach(smol => {
-    if (smol.Tags && Array.isArray(smol.Tags)) {
-        smol.Tags.forEach(tag => {
-            tagCounts[tag] = (tagCounts[tag] || 0) + 1;
-        });
-    }
-});
-const topTags = Object.entries(tagCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 4)
-    .map(t => t[0]);
 ---
 
-<Layout title={`Artist ${address.substring(0, 6)}...`}>
+<Layout title={`Artist ${address?.substring(0, 6) || 'Unknown'}...`}>
 	<main class="h-[calc(100vh-80px)] text-white px-4 pt-4 pb-0 max-w-7xl mx-auto">
         <ArtistResults 
             client:load 
-            discography={discographySmols} 
-            minted={mintedSmols} 
-            collected={collectedSmols}
             address={address} 
-            publishedCount={publishedCount}
-            collectedCount={collectedCount}
-            mintedCount={mintedCount}
-            topTags={topTags}
         />
 	</main>
 </Layout>

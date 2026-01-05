@@ -1,5 +1,5 @@
 import type { Smol } from "../../types/domain";
-import { getGlobalSnapshot, mergeSmolsWithSnapshot } from "../api/snapshot";
+import { getSnapshotAsync } from "../api/snapshot";
 import { safeFetchSmols } from "../api/smols";
 import {
   buildTagStats,
@@ -39,8 +39,9 @@ async function fetchLiveSmols(): Promise<Smol[]> {
   }
 }
 
-export function getSnapshotTagStats(): { tags: TagStat[]; meta: TagMeta } {
-  const snapshotSmols = getGlobalSnapshot();
+// OOM FIX: Made async to use getSnapshotAsync
+export async function getSnapshotTagStats(): Promise<{ tags: TagStat[]; meta: TagMeta }> {
+  const snapshotSmols = await getSnapshotAsync();
   const snapshotTags = buildTagStats(snapshotSmols) as TagStat[];
 
   return {
@@ -60,7 +61,7 @@ export async function getUnifiedTags(options?: {
   tags: TagStat[];
   meta: TagMeta;
 }> {
-  const snapshotSmols = getGlobalSnapshot();
+  const snapshotSmols = await getSnapshotAsync();
   const snapshotTags = buildTagStats(snapshotSmols) as TagStat[];
 
   const liveSmols =
@@ -73,7 +74,23 @@ export async function getUnifiedTags(options?: {
   let dataSourceUsed: TagDataSource = "snapshot";
 
   if (liveSmols.length > 0) {
-    mergedSmols = mergeSmolsWithSnapshot(liveSmols);
+    // Merge live data with snapshot (no longer async after snapshot is loaded)
+    const snapshotMap = new Map(snapshotSmols.map((s) => [s.Id, s]));
+    mergedSmols = liveSmols.map((newSmol) => {
+      const oldSmol = snapshotMap.get(newSmol.Id);
+      return {
+        ...newSmol,
+        Tags: newSmol.Tags && newSmol.Tags.length > 0 ? newSmol.Tags : oldSmol?.Tags || [],
+        Address: newSmol.Address || oldSmol?.Address || null,
+        Minted_By: newSmol.Minted_By || oldSmol?.Minted_By || null,
+      };
+    });
+    const liveIds = new Set(liveSmols.map((s) => s.Id));
+    snapshotSmols.forEach((oldSmol) => {
+      if (!liveIds.has(oldSmol.Id)) {
+        mergedSmols.push(oldSmol);
+      }
+    });
     dataSourceUsed = "snapshot+live";
   }
 

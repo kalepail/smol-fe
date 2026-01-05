@@ -1,10 +1,12 @@
 <script lang="ts">
-    import { onMount } from "svelte";
+    import { onMount, untrack, tick } from "svelte";
     import type { Smol } from "../../types/domain";
     import {
         audioState,
         selectSong,
         registerSongNextCallback,
+        isPlaying,
+        togglePlayPause,
     } from "../../stores/audio.svelte";
     import { navigate } from "astro:transitions/client";
     import RadioPlayer from "../radio/RadioPlayer.svelte";
@@ -18,6 +20,7 @@
     import { sac } from "../../utils/passkey-kit";
     import { safeFetchSmols } from "../../services/api/smols";
     import { fly, fade, scale } from "svelte/transition";
+    import MiniVisualizer from "../ui/MiniVisualizer.svelte";
     import { flip } from "svelte/animate";
     import { backOut } from "svelte/easing";
 
@@ -26,19 +29,19 @@
         minted = [],
         collected = [],
         address,
-        publishedCount,
-        collectedCount,
-        mintedCount,
+        publishedCount = 0,
+        collectedCount = 0,
+        mintedCount = 0,
         topTags = [],
     }: {
-        discography: Smol[];
-        minted: Smol[];
-        collected: Smol[];
+        discography?: Smol[];
+        minted?: Smol[];
+        collected?: Smol[];
         address: string;
-        publishedCount: number;
-        collectedCount: number;
-        mintedCount: number;
-        topTags: string[];
+        publishedCount?: number;
+        collectedCount?: number;
+        mintedCount?: number;
+        topTags?: string[];
     } = $props();
 
     // Reactive state for hydration (starts with props, updates with live data)
@@ -47,6 +50,73 @@
     // Collected stays as snapshot for now since API lacks Minted_By support
     let liveCollected = $state<Smol[]>(collected);
     let isLoadingLive = $state(false);
+    let livePublishedCount = $state(publishedCount);
+    let liveCollectedCount = $state(collectedCount);
+    let liveMintedCount = $state(mintedCount);
+    let liveTopTags = $state<string[]>(topTags);
+
+    // OOM FIX: If no props provided (SSR mode), fetch on mount
+    onMount(async () => {
+        if (liveDiscography.length === 0 && address) {
+            isLoadingLive = true;
+            try {
+                const smols = await safeFetchSmols();
+
+                // Discography: Songs created or published by this artist
+                const disco = smols.filter(
+                    (s) => s.Address === address || s.Creator === address,
+                );
+                disco.sort(
+                    (a, b) =>
+                        new Date(b.Created_At).getTime() -
+                        new Date(a.Created_At).getTime(),
+                );
+                liveDiscography = disco;
+                livePublishedCount = disco.length;
+
+                // Minted: Created by them AND has been minted
+                liveMinted = disco.filter((s) => s.Mint_Token !== null);
+                liveMintedCount = liveMinted.length;
+
+                // Collected: Minted by this artist but NOT created by them
+                const collectedItems = smols.filter(
+                    (s) =>
+                        s.Minted_By === address &&
+                        s.Address !== address &&
+                        s.Creator !== address,
+                );
+                collectedItems.sort(
+                    (a, b) =>
+                        new Date(b.Created_At).getTime() -
+                        new Date(a.Created_At).getTime(),
+                );
+                liveCollected = collectedItems;
+                liveCollectedCount = collectedItems.length;
+
+                // Top Tags
+                const tagCounts: Record<string, number> = {};
+                disco.forEach((smol) => {
+                    if (smol.Tags && Array.isArray(smol.Tags)) {
+                        smol.Tags.forEach((tag) => {
+                            tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+                        });
+                    }
+                });
+                liveTopTags = Object.entries(tagCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 4)
+                    .map((t) => t[0]);
+
+                console.log(
+                    `[ArtistResults] Loaded artist data: ${disco.length} discography, ${liveCollected.length} collected`,
+                );
+            } catch (e) {
+                console.error("[ArtistResults] Failed to load data:", e);
+            } finally {
+                isLoadingLive = false;
+            }
+        }
+    });
 
     let activeModule = $state<"discography" | "minted" | "collected" | "tags">(
         "discography",
@@ -369,25 +439,43 @@
 
         shuffleEnabled = true;
         shuffleSeed = Date.now();
-        // shuffledOrder will update automatically via effect
-        // But we wait for next tick? No, derived 'displayPlaylist' uses 'shuffledOrder' which updates in effect?
-        // Wait, shuffledOrder is updated in an effect below.
-        // We just updated shuffleEnabled and shuffleSeed.
-        // The effect at line 322 dependencies: basePlaylist, shuffleEnabled.
-        // We need to trigger it.
+
+        // Wait for shuffledOrder to update via effect
+        await tick();
 
         isGeneratingMix = false;
 
         // Auto-play first song of the mix
         if (shuffledOrder.length > 0) {
-            currentIndex = 0;
-            selectSong(shuffledOrder[0]);
+            let nextIndex = 0;
+            // If the first song is the one currently playing (due to pinning), skip to the next
+            // to satisfy "Change the song" requirement
+            if (
+                currentSong &&
+                shuffledOrder[0].Id === currentSong.Id &&
+                shuffledOrder.length > 1
+            ) {
+                nextIndex = 1;
+            }
+            currentIndex = nextIndex;
+            selectSong(shuffledOrder[nextIndex]);
         }
 
-        // Slide out: transition back to discography and close grid
-        activeModule = "discography";
-        showGridView = false;
+        // Keep current view state
+        // activeModule and showGridView should persist
     }
+
+    // Auto-scroll to current song when Grid View opens
+    $effect(() => {
+        if (showGridView && currentSong) {
+            tick().then(() => {
+                const el = document.getElementById(`song-${currentSong.Id}`);
+                if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                }
+            });
+        }
+    });
 
     // Derived playlist based on module and shuffle
     const basePlaylist = $derived.by(() => {
@@ -406,16 +494,34 @@
     let shuffledOrder = $state<Smol[]>([]);
 
     // When base playlist changes, reset shuffled order
+    // When base playlist changes, reset shuffled order
     $effect(() => {
-        // Only update shuffle order when base changes (not on every toggle)
         // Only update shuffle order when base changes or seed/shuffle changes
         if (basePlaylist.length > 0 && shuffleEnabled) {
+            const playing = untrack(() => currentSong);
+            let listToShuffle = [...basePlaylist];
+            let head: Smol[] = [];
+
+            // If a song is playing and is in this list, pin it to the top
+            // BUT only doing this in List View (per user request) so Grid View is pure random
+            if (playing && !showGridView) {
+                const matchIndex = listToShuffle.findIndex(
+                    (s) => s.Id === playing.Id,
+                );
+                if (matchIndex !== -1) {
+                    // Remove it from the pool to be shuffled
+                    head = listToShuffle.splice(matchIndex, 1);
+                }
+            }
+
             // Sort deterministically using Seed
-            shuffledOrder = [...basePlaylist].sort(
+            listToShuffle.sort(
                 (a, b) =>
                     getShuffleVal(a.Id, shuffleSeed) -
                     getShuffleVal(b.Id, shuffleSeed),
             );
+
+            shuffledOrder = [...head, ...listToShuffle];
         }
     });
 
@@ -425,6 +531,42 @@
             return shuffledOrder;
         }
         return basePlaylist;
+    });
+
+    // Playlist Sync: Find current song in new playlist when tab/filter changes
+    $effect(() => {
+        if (displayPlaylist.length > 0 && currentSong) {
+            const foundIndex = displayPlaylist.findIndex(
+                (s) => s.Id === currentSong.Id,
+            );
+
+            // Always sync index if found
+            if (foundIndex !== -1 && foundIndex !== currentIndex) {
+                console.log(
+                    "[ArtistResults] Syncing playlist index to",
+                    foundIndex,
+                    "for song",
+                    currentSong.Title,
+                );
+                currentIndex = foundIndex;
+            }
+
+            // Always attempt to scroll if we have a match (even if index didn't change, the view might have)
+            if (foundIndex !== -1) {
+                // Wait for the fly transition (delay: 100 + duration: 600 slightly overlapping)
+                setTimeout(() => {
+                    const el = document.getElementById(
+                        `song-row-${currentSong.Id}`,
+                    );
+                    if (el) {
+                        el.scrollIntoView({
+                            block: "center",
+                            behavior: "smooth",
+                        });
+                    }
+                }, 250); // Small delay to allow DOM to settle/start transition
+            }
+        }
     });
 
     // Reset playback on address change
@@ -627,24 +769,94 @@
             </div>
         </div>
 
+        <!-- Center Mini Player (Grid View Only) -->
+        {#if showGridView && currentSong}
+            <div
+                class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:flex items-center gap-4 bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 shadow-xl animate-in fade-in zoom-in-95 duration-300 z-50"
+            >
+                <div class="flex flex-col items-center mr-2">
+                    <span
+                        class="text-[10px] font-bold text-white max-w-[120px] truncate"
+                        >{currentSong.Title || "Untitled"}</span
+                    >
+                    <span
+                        class="text-[8px] uppercase tracking-widest text-white/50"
+                        >{currentSong.Address.slice(
+                            0,
+                            4,
+                        )}...{currentSong.Address.slice(-4)}</span
+                    >
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button
+                        class="p-1.5 text-white/60 hover:text-white transition-colors"
+                        onclick={handlePrev}
+                    >
+                        <svg
+                            class="w-4 h-4"
+                            fill="currentColor"
+                            viewBox="0 0 24 24"
+                            ><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" /></svg
+                        >
+                    </button>
+
+                    <button
+                        class="p-2 rounded-full hover:scale-105 active:scale-95 transition-all bg-gradient-to-br from-zinc-100 via-zinc-300 to-zinc-400 text-zinc-900 border border-white/50 shadow-[0_2px_5px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.8)]"
+                        onclick={togglePlayPause}
+                    >
+                        {#if isPlaying(currentSong?.Id)}
+                            <svg
+                                class="w-4 h-4"
+                                fill="currentColor"
+                                viewBox="0 0 24 24"
+                                ><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" /></svg
+                            >
+                        {:else}
+                            <svg
+                                class="w-4 h-4 ml-0.5"
+                                fill="currentColor"
+                                viewBox="0 0 24 24"
+                                ><path d="M8 5v14l11-7z" /></svg
+                            >
+                        {/if}
+                    </button>
+
+                    <button
+                        class="p-1.5 text-white/60 hover:text-white transition-colors"
+                        onclick={handleNext}
+                    >
+                        <svg
+                            class="w-4 h-4"
+                            fill="currentColor"
+                            viewBox="0 0 24 24"
+                            ><path
+                                d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"
+                            /></svg
+                        >
+                    </button>
+                </div>
+            </div>
+        {/if}
+
         <div class="hidden md:flex flex-col items-end gap-3 relative z-10">
             <div class="flex flex-wrap gap-2 justify-end">
                 <span
                     class="px-3 py-1 rounded-md bg-lime-500/10 text-lime-400 text-[10px] border border-lime-500/20 uppercase tracking-widest font-bold shadow-[0_0_10px_rgba(132,204,22,0.1)]"
                 >
-                    {publishedCount} Published
+                    {livePublishedCount} Published
                 </span>
                 <span
                     class="px-3 py-1 rounded-md bg-purple-500/10 text-purple-400 text-[10px] border border-purple-500/20 uppercase tracking-widest font-bold shadow-[0_0_10px_rgba(216,54,255,0.1)]"
                 >
-                    {mintedCount} Minted
+                    {liveMintedCount} Minted
                 </span>
             </div>
             <div class="flex gap-2">
                 <span
                     class="px-3 py-1 rounded-md bg-blue-500/10 text-blue-400 text-[10px] border border-blue-500/20 uppercase tracking-widest font-bold shadow-[0_0_10px_rgba(59,130,246,0.1)]"
                 >
-                    {collectedCount} Collected
+                    {liveCollectedCount} Collected
                 </span>
             </div>
         </div>
@@ -685,7 +897,6 @@
                             activeModule = "discography";
                             shuffleEnabled = false;
                             selectedArtistTags = [];
-                            showGridView = false;
                         }}
                         class="text-[10px] font-bold uppercase tracking-[0.2em] transition-colors {activeModule ===
                         'discography'
@@ -699,7 +910,6 @@
                             activeModule = "minted";
                             shuffleEnabled = false;
                             selectedArtistTags = [];
-                            showGridView = false;
                         }}
                         class="text-[10px] font-bold uppercase tracking-[0.2em] transition-colors {activeModule ===
                         'minted'
@@ -713,7 +923,6 @@
                             activeModule = "collected";
                             shuffleEnabled = false;
                             selectedArtistTags = [];
-                            showGridView = false;
                         }}
                         class="text-[10px] font-bold uppercase tracking-[0.2em] transition-colors {activeModule ===
                         'collected'
@@ -724,7 +933,13 @@
                     </button>
                     <!-- Tags Tab - Desktop Only Per User Request -->
                     <button
-                        onclick={() => (activeModule = "tags")}
+                        onclick={() => {
+                            if (activeModule === "tags") {
+                                activeModule = "discography";
+                            } else {
+                                activeModule = "tags";
+                            }
+                        }}
                         class="hidden md:block text-[10px] font-bold uppercase tracking-[0.2em] transition-colors {activeModule ===
                         'tags'
                             ? 'text-lime-400'
@@ -736,6 +951,31 @@
             </div>
 
             <div class="flex items-center gap-2">
+                <!-- Regenerate Button (Left of Grid View) -->
+                <button
+                    onclick={generateArtistMix}
+                    disabled={isGeneratingMix}
+                    class="hidden md:flex items-center gap-2 px-3 py-1 rounded border transition-all {isGeneratingMix
+                        ? 'border-purple-500/50 bg-purple-500/10 text-purple-400'
+                        : 'border-white/10 text-white/40 hover:text-white'}"
+                    title="Regenerate & Shuffle Mix"
+                >
+                    <svg
+                        class="w-3 h-3 {isGeneratingMix ? 'animate-spin' : ''}"
+                        fill="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"
+                        />
+                    </svg>
+                    <span class="text-[9px] font-bold uppercase tracking-widest"
+                        >{isGeneratingMix
+                            ? "Generating..."
+                            : "Regenerate"}</span
+                    >
+                </button>
+
                 <button
                     onclick={() => {
                         showGridView = !showGridView;
@@ -767,7 +1007,26 @@
                 </button>
 
                 <button
-                    onclick={toggleShuffle}
+                    onclick={async () => {
+                        shuffleEnabled = !shuffleEnabled;
+                        if (shuffleEnabled) {
+                            shuffleSeed = Date.now();
+                        }
+
+                        // "Visually warp" to the song in the new order
+                        if (currentSong && showGridView) {
+                            await tick(); // Wait for DOM layout update
+                            const el = document.getElementById(
+                                `song-${currentSong.Id}`,
+                            );
+                            if (el) {
+                                el.scrollIntoView({
+                                    behavior: "smooth",
+                                    block: "center",
+                                });
+                            }
+                        }
+                    }}
                     class="hidden lg:flex items-center gap-2 px-3 py-1 rounded border transition-all {shuffleEnabled
                         ? 'border-lime-500/50 bg-lime-500/10 text-lime-400'
                         : 'border-white/10 text-white/40 hover:text-white'}"
@@ -886,27 +1145,7 @@
                                         {/if}
                                     </button>
                                 </div>
-                            {:else}
-                                <!-- Mobile Only "Surprise Me" when no tags selected -->
-                                <div class="mt-6 flex justify-center md:hidden">
-                                    <button
-                                        onclick={generateArtistMix}
-                                        disabled={isGeneratingMix}
-                                        class="group relative flex items-center gap-2 px-8 py-3 bg-white/10 rounded-full text-white font-bold uppercase tracking-[0.2em] text-[10px] transition-all hover:bg-white/20 active:scale-95 border border-white/10"
-                                    >
-                                        <svg
-                                            class="w-3.5 h-3.5 opacity-60"
-                                            fill="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"
-                                            />
-                                        </svg>
-                                        <span>Surprise Me</span>
-                                    </button>
-                                </div>
-                            {/if}
+                            {:else}{/if}
                         </div>
                     {/if}
 
@@ -915,31 +1154,73 @@
                     >
                         {#each displayPlaylist as song, index (song.Id)}
                             <button
+                                id="song-{song.Id}"
                                 in:fade={{ duration: 200 }}
-                                class="flex flex-col gap-2 group text-left w-full"
+                                class="flex flex-col gap-2 group text-left w-full relative"
                                 onclick={() => {
-                                    handleSelect(index);
-                                    showGridView = false;
+                                    if (
+                                        currentSong &&
+                                        currentSong.Id === song.Id
+                                    ) {
+                                        togglePlayPause();
+                                    } else {
+                                        currentIndex = index;
+                                        selectSong(song);
+                                    }
+                                    // Keep grid view open
                                 }}
                             >
+                                {#if currentSong && song.Id === currentSong.Id}
+                                    <!-- Outer Ambient Glow -->
+                                    <!-- Outer Ambient Glow -->
+                                    <div
+                                        class="absolute -inset-2 rounded-2xl blur-xl transition-opacity duration-500 animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_0deg,#10b981,#a855f7,#f97316,#10b981)] {isPlaying(
+                                            song.Id,
+                                        )
+                                            ? 'opacity-50'
+                                            : 'opacity-30'}"
+                                    ></div>
+                                {/if}
+
+                                <!-- Main Container (Defines Shape) -->
                                 <div
-                                    class="aspect-square rounded-lg bg-slate-800 overflow-hidden border border-white/10 group-hover:border-lime-500/50 transition-all shadow-lg relative"
+                                    class="aspect-square rounded-xl relative overflow-hidden z-10 shadow-2xl"
                                 >
-                                    <img
-                                        src="{API_URL}/image/{song.Id}.png?scale=8"
-                                        alt={song.Title}
-                                        class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                                        style="transform: translateZ(0); -webkit-transform: translateZ(0);"
-                                    />
-                                    {#if index === currentIndex}
+                                    {#if currentSong && song.Id === currentSong.Id}
+                                        <!-- Spinning Lightwire Background for Border -->
+                                        <!-- Spinning Lightwire Background for Border -->
                                         <div
-                                            class="absolute inset-0 bg-lime-500/20 flex items-center justify-center"
-                                        >
-                                            <div
-                                                class="w-2 h-2 rounded-full bg-lime-500 shadow-[0_0_12px_#84cc16]"
-                                            ></div>
-                                        </div>
+                                            class="absolute inset-[-100%] bg-[conic-gradient(from_0deg,#10b981,#a855f7,#f97316,#10b981)] transition-opacity duration-500 animate-[spin_4s_linear_infinite] {isPlaying(
+                                                song.Id,
+                                            )
+                                                ? 'opacity-100'
+                                                : 'opacity-50'}"
+                                        ></div>
                                     {/if}
+
+                                    <!-- Content Mask (Inset to reveal wire) -->
+                                    <div
+                                        class="absolute bg-slate-800 overflow-hidden transition-all duration-300 {currentSong &&
+                                        song.Id === currentSong.Id
+                                            ? 'inset-[2px] rounded-[10px]'
+                                            : 'inset-0 rounded-xl border border-white/10 group-hover:border-lime-500/50'}"
+                                    >
+                                        <img
+                                            src="{API_URL}/image/{song.Id}.png?scale=8"
+                                            alt={song.Title}
+                                            class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                            style="transform: translateZ(0); -webkit-transform: translateZ(0);"
+                                        />
+                                        {#if currentSong && song.Id === currentSong.Id}
+                                            <div
+                                                class="absolute inset-0 flex items-center justify-center z-10"
+                                            >
+                                                <div class="w-full h-full">
+                                                    <MiniVisualizer />
+                                                </div>
+                                            </div>
+                                        {/if}
+                                    </div>
                                 </div>
                                 <span
                                     class="text-[10px] font-bold text-white/60 truncate group-hover:text-white transition-colors"
@@ -958,6 +1239,8 @@
                 <div class="w-full lg:w-1/2 flex flex-col gap-1 min-h-0 pb-1">
                     <RadioPlayer
                         playlist={displayPlaylist}
+                        replaceDetailWithRegenerate={true}
+                        onRegenerate={generateArtistMix}
                         onNext={handleNext}
                         onPrev={handlePrev}
                         onSelect={handleSelect}
@@ -977,7 +1260,11 @@
                         {currentIndex}
                         overlayControlsOnMobile={true}
                         onShare={share}
-                        onShuffle={() => (shuffleEnabled = !shuffleEnabled)}
+                        onShuffle={() => {
+                            // Always re-shuffle ("Re-roll") instead of toggle
+                            shuffleEnabled = true;
+                            shuffleSeed = Date.now();
+                        }}
                         {versions}
                         currentVersionId={selectedVersionId || ""}
                         onVersionSelect={(id) => {
