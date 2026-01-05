@@ -37,6 +37,7 @@
     isPublished,
     likeOnArt = false,
     enableContextBack = false,
+    replaceDetailWithRegenerate = false,
   }: {
     playlist: Smol[];
     onNext?: () => void;
@@ -61,6 +62,7 @@
     isPublished?: boolean;
     likeOnArt?: boolean;
     enableContextBack?: boolean;
+    replaceDetailWithRegenerate?: boolean;
   } = $props();
 
   // Context-aware back navigation
@@ -648,26 +650,39 @@
               </button>
             {/if}
 
-            <!-- Mobile Song Detail Button (Double Note) - Under Radio -->
+            <!-- Mobile Song Detail Button (Double Note) OR Regenerate - Under Radio -->
             {#if overlayControlsOnMobile && currentSong && !isFullscreen}
-              <button
-                class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/20 backdrop-blur-md rounded-full border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 shadow-[0_0_15px_rgba(216,54,255,0.2)]"
-                onclick={(e) => {
-                  e.stopPropagation();
-                  let from = "";
-                  const path = window.location.pathname;
-                  if (path.includes("/radio")) from = "?from=radio";
-                  else if (path.includes("/artist")) from = "?from=artist";
-                  navigate(`/${currentSong.Id}${from}`);
-                }}
-                title="View Song Details"
-              >
-                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path
-                    d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
-                  />
-                </svg>
-              </button>
+              {#if replaceDetailWithRegenerate && onRegenerate}
+                <button
+                  class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/20 backdrop-blur-md rounded-full border border-[#F7931A]/50 text-[#F7931A] hover:bg-[#F7931A]/20 shadow-[0_0_15px_rgba(247,147,26,0.2)]"
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    handleRegenerate(e);
+                  }}
+                  title="Regenerate"
+                >
+                  <span class="text-lg">↻</span>
+                </button>
+              {:else}
+                <button
+                  class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/20 backdrop-blur-md rounded-full border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 shadow-[0_0_15px_rgba(216,54,255,0.2)]"
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    let from = "";
+                    const path = window.location.pathname;
+                    if (path.includes("/radio")) from = "?from=radio";
+                    else if (path.includes("/artist")) from = "?from=artist";
+                    navigate(`/${currentSong.Id}${from}`);
+                  }}
+                  title="View Song Details"
+                >
+                  <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                      d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
+                    />
+                  </svg>
+                </button>
+              {/if}
 
               <!-- Artist Link Button (Under Song Detail) -->
               <button
@@ -875,50 +890,31 @@
 
           <!-- SONG DETAIL BUTTON (hidden on mobile when overlayControlsOnMobile) -->
           {#if currentSong && showMiniActions}
-            <a
-              href={`/${currentSong.Id}`}
-              class="tech-button w-10 h-10 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-[#d836ff] text-[#d836ff] bg-[#d836ff]/10 hover:bg-[#d836ff]/20 shadow-[0_0_15px_rgba(216,54,255,0.3)] {overlayControlsOnMobile
-                ? 'hidden lg:flex'
-                : ''}"
-              title="View Song Details"
-            >
-              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path
-                  d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
-                />
-              </svg>
-            </a>
-          {/if}
-
-          <!-- TRADE BUTTON (hidden on mobile when overlayControlsOnMobile) -->
-          {#if onTrade && showMiniActions}
-            <button
-              class="tech-button w-10 h-10 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-blue-400 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.3)] {overlayControlsOnMobile
-                ? 'hidden lg:flex'
-                : ''}"
-              onclick={() => {
-                if (!userState.contractId) {
-                  triggerLogin();
-                  return;
-                }
-                onTrade?.();
-              }}
-              title="Trade / Swap"
-            >
-              <svg
-                class="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            {#if replaceDetailWithRegenerate && onRegenerate}
+              <button
+                class="tech-button w-10 h-10 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-[#F7931A] text-[#F7931A] bg-[#F7931A]/10 shadow-[0_0_20px_rgba(247,147,26,0.3)] hover:bg-[#F7931A]/20 hover:text-white {overlayControlsOnMobile
+                  ? 'hidden lg:flex'
+                  : ''}"
+                onclick={handleRegenerate}
+                title="Regenerate"
               >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
-                />
-              </svg>
-            </button>
+                <span class="text-xl">↻</span>
+              </button>
+            {:else}
+              <a
+                href={`/${currentSong.Id}`}
+                class="tech-button w-10 h-10 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-[#d836ff] text-[#d836ff] bg-[#d836ff]/10 hover:bg-[#d836ff]/20 shadow-[0_0_15px_rgba(216,54,255,0.3)] {overlayControlsOnMobile
+                  ? 'hidden lg:flex'
+                  : ''}"
+                title="View Song Details"
+              >
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path
+                    d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
+                  />
+                </svg>
+              </a>
+            {/if}
           {/if}
 
           <!-- PUBLISH/UNPUBLISH BUTTON (Owner Only) -->
@@ -935,7 +931,7 @@
             </button>
           {/if}
 
-          {#if onRegenerate}
+          {#if onRegenerate && !replaceDetailWithRegenerate}
             <button
               class="tech-button w-10 h-10 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-[#F7931A] text-[#F7931A] bg-[#F7931A]/10 shadow-[0_0_20px_rgba(247,147,26,0.3)] hover:bg-[#F7931A]/20 hover:text-white"
               onclick={handleRegenerate}

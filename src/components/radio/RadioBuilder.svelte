@@ -145,11 +145,11 @@
   onMount(async () => {
     // Load snapshot tags immediately
     try {
-        const snap = await getSnapshotTagStats();
-        tagStats = snap.tags;
-        tagMeta = snap.meta;
+      const snap = await getSnapshotTagStats();
+      tagStats = snap.tags;
+      tagMeta = snap.meta;
     } catch (e) {
-        console.error("Failed to load snapshot tags:", e);
+      console.error("Failed to load snapshot tags:", e);
     }
 
     // 0. USE SNAPSHOT DIRECTLY (Backend-Independent)
@@ -609,6 +609,17 @@
         // This prevents pop songs from crashing a niche playlist just because they have 10k plays
         const popularity = (smol.Plays || 0) * 0.01 + (smol.Views || 0) * 0.005;
 
+        // Recency Bonus: Boost for new uploads (0-30 days)
+        // Max 50 points, decays to 0 over 30 days
+        const daysOld =
+          (Date.now() - new Date(smol.Created_At || 0).getTime()) /
+          (1000 * 3600 * 24);
+        const recencyBonus = Math.max(0, 50 - daysOld * (50 / 30));
+
+        // Random Jitter: Add variety (0-15 points)
+        // Ensures identical tag matches don't always sort in same order
+        const jitter = Math.random() * 15;
+
         // Deduplication Penalty
         // Strict Mode: If song was in previous batch, Score = 0 (Excluded completely)
         // This prevents repeats even if we run out of songs (shorter playlist = verified fresh)
@@ -625,6 +636,8 @@
               ? (matchScore +
                   keywordBonus +
                   popularity +
+                  recencyBonus +
+                  jitter +
                   (isGlobalShuffle ? 1 : 0)) *
                 historyPenalty
               : 0,

@@ -24,6 +24,7 @@
     initialSmols?: Smol[];
     profileMode?: boolean;
     filterValue?: string;
+    onSmolClick?: (smol: Smol) => void;
   }
 
   let {
@@ -32,6 +33,7 @@
     initialSmols = undefined,
     profileMode = false,
     filterValue = "",
+    onSmolClick,
   }: Props = $props();
 
   let results = $state<Smol[]>([]);
@@ -368,6 +370,7 @@
           onDragStart={(e) => handleDragStart(e, smol)}
           onDragEnd={handleDragEnd}
           isDragging={draggingId === smol.Id}
+          {onSmolClick}
         />
       </div>
     {/each}

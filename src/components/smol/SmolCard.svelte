@@ -20,6 +20,7 @@
     onDragStart?: (event: DragEvent) => void;
     onDragEnd?: () => void;
     isDragging?: boolean;
+    onSmolClick?: (smol: Smol) => void;
   }
 
   let {
@@ -30,9 +31,15 @@
     onDragStart,
     onDragEnd,
     isDragging = false,
+    onSmolClick,
   }: Props = $props();
 
   function toggleSongSelection() {
+    if (onSmolClick) {
+      onSmolClick(smol);
+      return;
+    }
+
     if (audioState.currentSong?.Id === smol.Id) {
       togglePlayPause();
     } else {
@@ -112,6 +119,12 @@
       class={`absolute inset-0 ${mixtapeModeState.active ? "pointer-events-none" : ""}`}
       href={`/${smol.Id}`}
       aria-label={smol.Title}
+      onclick={(e) => {
+        if (onSmolClick) {
+          e.preventDefault();
+          onSmolClick(smol);
+        }
+      }}
     ></a>
   </div>
 

@@ -281,7 +281,15 @@
             </div>
 
             {#key selectedTags.join(",")}
-                <SmolGrid initialSmols={filteredSmols} />
+                <SmolGrid
+                    initialSmols={filteredSmols}
+                    onSmolClick={(smol) => {
+                        const tagsParam = selectedTags
+                            .map((t) => `tag=${encodeURIComponent(t)}`)
+                            .join("&");
+                        window.location.href = `/radio?play=${smol.Id}&${tagsParam}`;
+                    }}
+                />
             {/key}
         </div>
     {:else}
