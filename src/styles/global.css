@@ -28,6 +28,11 @@
         box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.5);
     }
 
+    /* Variant that allows internal scrolling */
+    .reactive-glass.allow-scroll {
+        overflow: visible !important;
+    }
+
     /* Spotlight Overlay (Background Glow) */
     .reactive-glass::before {
         content: "";

@@ -50,6 +50,7 @@
     // Collected stays as snapshot for now since API lacks Minted_By support
     let liveCollected = $state<Smol[]>(collected);
     let isLoadingLive = $state(false);
+    let lastHydratedAddress = $state("");
     let livePublishedCount = $state(publishedCount);
     let liveCollectedCount = $state(collectedCount);
     let liveMintedCount = $state(mintedCount);
@@ -128,6 +129,9 @@
     let showTradeModal = $state(false);
     let tradeMintBalance = $state(0n);
     let showGridView = $state(false);
+    let tagsExpanded = $state(false); // Collapsible tags section
+    let sortMode = $state<"latest" | "canon" | "shuffle">("latest");
+    let showSortDropdown = $state(false);
     let showTipModal = $state(false);
     let selectedVersionId = $state<string | null>(null);
     let isGeneratingMix = $state(false);
@@ -353,8 +357,10 @@
     });
 
     // Hydrate with live data on mount or address change
+    // Hydrate with live data on mount or address change
     $effect(() => {
-        if (address) {
+        if (address && address !== lastHydratedAddress) {
+            lastHydratedAddress = address;
             hydrateArtistData(address);
         }
     });
@@ -375,10 +381,6 @@
             );
 
             if (artistSmols.length > 0) {
-                console.log(
-                    `[ArtistResults] Found ${artistSmols.length} live tracks`,
-                );
-
                 // Sort by date desc
                 artistSmols.sort(
                     (a, b) =>
@@ -391,9 +393,7 @@
                 // Re-calculate minted from live data
                 liveMinted = artistSmols.filter((s) => s.Mint_Token !== null);
 
-                console.log(
-                    `[ArtistResults] Live stats: ${liveDiscography.length} discog, ${liveMinted.length} minted, ${liveCollected.length} collected`,
-                );
+                liveMinted = artistSmols.filter((s) => s.Mint_Token !== null);
             }
         } catch (e) {
             console.error("[ArtistResults] Failed to hydrate live data:", e);
@@ -403,10 +403,16 @@
         }
     }
 
-    // Aggregate tags for the artist
+    // Aggregate tags based on CURRENT view (Discography, Minted, Collected)
+    const currentTabSongs = $derived.by(() => {
+        if (activeModule === "minted") return liveMinted;
+        if (activeModule === "collected") return liveCollected;
+        return liveDiscography;
+    });
+
     const artistTags = $derived.by(() => {
         const counts: Record<string, number> = {};
-        for (const smol of liveDiscography) {
+        for (const smol of currentTabSongs) {
             if (!smol.Tags) continue;
             for (const tag of smol.Tags) {
                 counts[tag] = (counts[tag] || 0) + 1;
@@ -438,6 +444,7 @@
         await new Promise((resolve) => setTimeout(resolve, 1500));
 
         shuffleEnabled = true;
+        sortMode = "shuffle";
         shuffleSeed = Date.now();
 
         // Wait for shuffledOrder to update via effect
@@ -445,29 +452,29 @@
 
         isGeneratingMix = false;
 
-        // Auto-play first song of the mix
+        // Auto-play logic: if nothing is playing OR if the current song is not in the active tab
         if (shuffledOrder.length > 0) {
-            let nextIndex = 0;
-            // If the first song is the one currently playing (due to pinning), skip to the next
-            // to satisfy "Change the song" requirement
-            if (
-                currentSong &&
-                shuffledOrder[0].Id === currentSong.Id &&
-                shuffledOrder.length > 1
-            ) {
-                nextIndex = 1;
+            const isPlayingInThisTab = basePlaylist.some(
+                (s) => s.Id === currentSong?.Id,
+            );
+
+            if (!currentSong || !isPlayingInThisTab) {
+                // Select a random song from the new shuffled list
+                const nextIdx = Math.floor(
+                    Math.random() * shuffledOrder.length,
+                );
+                currentIndex = nextIdx;
+                selectSong(shuffledOrder[nextIdx]);
             }
-            currentIndex = nextIndex;
-            selectSong(shuffledOrder[nextIndex]);
         }
 
         // Keep current view state
         // activeModule and showGridView should persist
     }
 
-    // Auto-scroll to current song when Grid View opens
+    // Auto-scroll to current song when Grid View opens or Sort/Tab changes
     $effect(() => {
-        if (showGridView && currentSong) {
+        if (showGridView && currentSong && (sortMode || activeModule)) {
             tick().then(() => {
                 const el = document.getElementById(`song-${currentSong.Id}`);
                 if (el) {
@@ -479,49 +486,122 @@
 
     // Derived playlist based on module and shuffle
     const basePlaylist = $derived.by(() => {
-        let source = liveDiscography;
-        if (activeModule === "minted") source = liveMinted;
-        if (activeModule === "collected") source = liveCollected;
+        let source = [...liveDiscography];
+        if (activeModule === "minted") source = [...liveMinted];
+        if (activeModule === "collected") source = [...liveCollected];
 
-        if (selectedArtistTags.length === 0) return source;
+        // Filter by Tags if any
+        if (selectedArtistTags.length > 0) {
+            source = source.filter((smol) =>
+                selectedArtistTags.some((t) => smol.Tags?.includes(t)),
+            );
+        }
 
-        return source.filter((smol) =>
-            selectedArtistTags.some((t) => smol.Tags?.includes(t)),
-        );
+        // Apply Sorting
+        if (sortMode === "canon") {
+            // Oldest to Newest
+            source.sort((a, b) => {
+                const dateA = a.Created_At
+                    ? new Date(a.Created_At).getTime()
+                    : 0;
+                const dateB = b.Created_At
+                    ? new Date(b.Created_At).getTime()
+                    : 0;
+                return dateA - dateB;
+            });
+        } else if (sortMode === "latest") {
+            // Newest to Oldest (Standard)
+            source.sort((a, b) => {
+                const dateA = a.Created_At
+                    ? new Date(a.Created_At).getTime()
+                    : 0;
+                const dateB = b.Created_At
+                    ? new Date(b.Created_At).getTime()
+                    : 0;
+                return dateB - dateA;
+            });
+        }
+
+        return source;
     });
+
+    // Handle sortMode changes
+    $effect(() => {
+        if (sortMode === "shuffle") {
+            shuffleEnabled = true;
+            shuffleSeed = Date.now();
+            // Reset sortMode back to latest/canon?
+            // Better to keep it on shuffle and just let the shuffle effect handle it.
+        } else {
+            shuffleEnabled = false;
+        }
+    });
+
+    // Helper to toggle sort modes
+    function cycleSortMode() {
+        if (sortMode === "latest") sortMode = "canon";
+        else if (sortMode === "canon") sortMode = "shuffle";
+        else sortMode = "latest";
+    }
 
     // Store the shuffled order separately to avoid re-shuffling on every render
     let shuffledOrder = $state<Smol[]>([]);
 
     // When base playlist changes, reset shuffled order
-    // When base playlist changes, reset shuffled order
     $effect(() => {
         // Only update shuffle order when base changes or seed/shuffle changes
-        if (basePlaylist.length > 0 && shuffleEnabled) {
+        if (basePlaylist.length > 0 && (shuffleEnabled || shuffleSeed)) {
             const playing = untrack(() => currentSong);
-            let listToShuffle = [...basePlaylist];
-            let head: Smol[] = [];
+            const currentDisp = untrack(() => displayPlaylist);
+            let target = untrack(() => currentIndex);
 
-            // If a song is playing and is in this list, pin it to the top
-            // BUT only doing this in List View (per user request) so Grid View is pure random
-            if (playing && !showGridView) {
+            // Robust target capture: find where it actually is in the grid right now
+            if (playing && currentDisp.length > 0) {
+                const actualIdx = currentDisp.findIndex(
+                    (s) => s.Id === playing.Id,
+                );
+                if (actualIdx !== -1) target = actualIdx;
+            }
+
+            let listToShuffle = [...basePlaylist];
+
+            if (playing) {
                 const matchIndex = listToShuffle.findIndex(
                     (s) => s.Id === playing.Id,
                 );
+
                 if (matchIndex !== -1) {
-                    // Remove it from the pool to be shuffled
-                    head = listToShuffle.splice(matchIndex, 1);
+                    const [song] = listToShuffle.splice(matchIndex, 1);
+
+                    // Shuffle the remaining pool
+                    listToShuffle.sort(
+                        (a, b) =>
+                            getShuffleVal(a.Id, shuffleSeed) -
+                            getShuffleVal(b.Id, shuffleSeed),
+                    );
+
+                    if (
+                        showGridView &&
+                        target >= 0 &&
+                        target <= listToShuffle.length
+                    ) {
+                        listToShuffle.splice(target, 0, song);
+                        shuffledOrder = listToShuffle;
+                    } else {
+                        shuffledOrder = [song, ...listToShuffle];
+                    }
+                    return;
                 }
             }
 
-            // Sort deterministically using Seed
+            console.log("[ArtistResults] Regular Shuffle: No song pinned");
+            // Default shuffle if no song playing or not found
             listToShuffle.sort(
                 (a, b) =>
                     getShuffleVal(a.Id, shuffleSeed) -
                     getShuffleVal(b.Id, shuffleSeed),
             );
-
-            shuffledOrder = [...head, ...listToShuffle];
+            shuffledOrder = listToShuffle;
         }
     });
 
@@ -717,19 +797,20 @@
 </script>
 
 <div
-    class="space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-700 font-mono"
+    class="space-y-4 md:space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-700 font-mono pb-10"
 >
     <!-- Artist Info Header (Windowed) -->
     <div
-        class="max-w-6xl mx-auto reactive-glass border border-white/5 bg-[#1d1d1d]/70 backdrop-blur-xl rounded-xl shadow-xl overflow-hidden mb-1 py-1 px-3 md:px-4 flex flex-row items-center justify-between gap-2 md:gap-4 relative group/header"
+        class="max-w-6xl mx-auto reactive-glass border border-white/5 bg-[#1d1d1d]/70 backdrop-blur-xl rounded-xl shadow-xl overflow-hidden mb-1 py-3 md:py-4 px-3 md:px-4 flex flex-row items-center justify-between gap-1.5 md:gap-4 relative group/header"
     >
-        <div class="space-y-1 relative z-10">
+        <!-- Left Section: Artist Info & Tip Button -->
+        <div class="space-y-2 relative z-10 flex-1 min-w-0">
             <h1
                 class="text-[9px] font-mono text-white/40 uppercase tracking-[0.3em]"
             >
                 Artist Profile
             </h1>
-            <div class="flex items-center gap-3">
+            <div class="flex flex-col gap-3">
                 <button
                     onclick={copyAddress}
                     class="text-lg md:text-3xl lg:text-4xl font-bold tracking-tighter text-white hover:text-[#d836ff] transition-colors flex items-center gap-2 md:gap-3 group/address text-left"
@@ -751,8 +832,7 @@
                         />
                     </svg>
                 </button>
-            </div>
-            <div class="flex items-center gap-2 mt-2">
+
                 <button
                     onclick={() => {
                         if (!userState.contractId) {
@@ -761,7 +841,7 @@
                         }
                         showTipModal = true;
                     }}
-                    class="px-3 py-1 bg-gradient-to-r from-green-600/20 to-green-500/10 border border-green-500/30 rounded-full text-green-400 text-[10px] font-bold uppercase tracking-widest hover:bg-green-500/20 transition-all flex items-center gap-1.5"
+                    class="w-fit px-4 py-1.5 bg-gradient-to-r from-green-600/20 to-green-500/10 border border-green-500/30 rounded-full text-green-400 text-[10px] font-bold uppercase tracking-widest hover:bg-green-500/20 transition-all flex items-center gap-1.5"
                 >
                     <span class="text-base leading-none">🥬</span>
                     Tip Artist
@@ -769,116 +849,154 @@
             </div>
         </div>
 
-        <!-- Center Mini Player (Grid View Only) -->
-        {#if showGridView && currentSong}
-            <div
-                class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:flex items-center gap-4 bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 shadow-xl animate-in fade-in zoom-in-95 duration-300 z-50"
-            >
-                <div class="flex flex-col items-center mr-2">
-                    <span
-                        class="text-[10px] font-bold text-white max-w-[120px] truncate"
-                        >{currentSong.Title || "Untitled"}</span
-                    >
-                    <span
-                        class="text-[8px] uppercase tracking-widest text-white/50"
-                        >{currentSong.Address.slice(
-                            0,
-                            4,
-                        )}...{currentSong.Address.slice(-4)}</span
-                    >
-                </div>
+        <!-- Right Section: Player Controls (Mobile) or Stats (Desktop) -->
+        <div class="flex items-center gap-4 relative z-10 shrink-0">
+            {#if showGridView && currentSong}
+                {@const currentIdx = displayPlaylist.findIndex(
+                    (s) => s.Id === currentSong?.Id,
+                )}
+                {@const isLiked =
+                    currentIdx !== -1
+                        ? displayPlaylist[currentIdx]?.Liked
+                        : false}
+                <!-- Mobile Mini Player (RadioPlayer Style) -->
+                <div
+                    class="flex items-center gap-1.5 sm:gap-2 bg-black/40 backdrop-blur-md p-1.5 rounded-full border border-white/10 shadow-xl"
+                >
+                    <!-- Like Button -->
+                    <LikeButton
+                        smolId={currentSong.Id}
+                        liked={!!isLiked}
+                        classNames="tech-button w-7 h-7 flex items-center justify-center active:scale-95 disabled:opacity-30 border rounded-full backdrop-blur-md transition-all duration-300 border-[#ff424c] shadow-[0_0_15px_rgba(255,66,76,0.3)] {isLiked
+                            ? 'bg-[#ff424c] text-white'
+                            : 'bg-[#ff424c]/10 text-[#ff424c] hover:bg-[#ff424c]/20'}"
+                        iconSize="size-3"
+                        on:likeChanged={(e) => {
+                            if (currentIdx !== -1) {
+                                handleToggleLike(currentIdx, e.detail.liked);
+                            }
+                        }}
+                    />
 
-                <div class="flex items-center gap-2">
+                    <!-- Prev Button -->
                     <button
-                        class="p-1.5 text-white/60 hover:text-white transition-colors"
+                        class="tech-button w-7 h-7 flex items-center justify-center text-white/60 hover:text-white active:scale-95 border border-white/5 hover:border-white/20 rounded-full bg-white/5"
                         onclick={handlePrev}
+                        title="Previous"
                     >
                         <svg
-                            class="w-4 h-4"
+                            class="w-3.5 h-3.5"
                             fill="currentColor"
                             viewBox="0 0 24 24"
-                            ><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" /></svg
                         >
+                            <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+                        </svg>
                     </button>
 
+                    <!-- Play/Pause Button -->
                     <button
-                        class="p-2 rounded-full hover:scale-105 active:scale-95 transition-all bg-gradient-to-br from-zinc-100 via-zinc-300 to-zinc-400 text-zinc-900 border border-white/50 shadow-[0_2px_5px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.8)]"
+                        class="tech-button w-9 h-9 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-xl border border-[#089981] text-[#089981] bg-[#089981]/10 shadow-[0_0_20px_rgba(8,153,129,0.4)] hover:bg-[#089981]/20 hover:text-white"
                         onclick={togglePlayPause}
+                        title={isPlaying(currentSong?.Id) ? "Pause" : "Play"}
                     >
                         {#if isPlaying(currentSong?.Id)}
                             <svg
                                 class="w-4 h-4"
                                 fill="currentColor"
                                 viewBox="0 0 24 24"
-                                ><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" /></svg
                             >
+                                <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                            </svg>
                         {:else}
                             <svg
                                 class="w-4 h-4 ml-0.5"
                                 fill="currentColor"
                                 viewBox="0 0 24 24"
-                                ><path d="M8 5v14l11-7z" /></svg
                             >
+                                <path d="M8 5v14l11-7z" />
+                            </svg>
                         {/if}
                     </button>
 
+                    <!-- Next Button -->
                     <button
-                        class="p-1.5 text-white/60 hover:text-white transition-colors"
+                        class="tech-button w-7 h-7 flex items-center justify-center text-white/60 hover:text-white active:scale-95 border border-white/5 hover:border-white/20 rounded-full bg-white/5"
                         onclick={handleNext}
+                        title="Next"
                     >
                         <svg
-                            class="w-4 h-4"
+                            class="w-3.5 h-3.5"
                             fill="currentColor"
                             viewBox="0 0 24 24"
-                            ><path
-                                d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"
-                            /></svg
                         >
+                            <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+                        </svg>
+                    </button>
+
+                    <!-- Regenerate/Shuffle Button (Orange) - Reshuffles playlist -->
+                    <button
+                        class="tech-button w-7 h-7 flex items-center justify-center active:scale-95 border rounded-full transition-all border-[#f7931a] bg-[#f7931a]/10 text-[#f7931a] hover:bg-[#f7931a]/20 shadow-[0_0_15px_rgba(247,147,26,0.2)]"
+                        onclick={generateArtistMix}
+                        disabled={isGeneratingMix}
+                        title="Regenerate Shuffle"
+                    >
+                        <svg
+                            class="w-3.5 h-3.5 {isGeneratingMix
+                                ? 'animate-spin'
+                                : ''}"
+                            fill="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"
+                            />
+                        </svg>
                     </button>
                 </div>
-            </div>
-        {/if}
+            {/if}
 
-        <div class="hidden md:flex flex-col items-end gap-3 relative z-10">
-            <div class="flex flex-wrap gap-2 justify-end">
-                <span
-                    class="px-3 py-1 rounded-md bg-lime-500/10 text-lime-400 text-[10px] border border-lime-500/20 uppercase tracking-widest font-bold shadow-[0_0_10px_rgba(132,204,22,0.1)]"
-                >
-                    {livePublishedCount} Published
-                </span>
-                <span
-                    class="px-3 py-1 rounded-md bg-purple-500/10 text-purple-400 text-[10px] border border-purple-500/20 uppercase tracking-widest font-bold shadow-[0_0_10px_rgba(216,54,255,0.1)]"
-                >
-                    {liveMintedCount} Minted
-                </span>
-            </div>
-            <div class="flex gap-2">
-                <span
-                    class="px-3 py-1 rounded-md bg-blue-500/10 text-blue-400 text-[10px] border border-blue-500/20 uppercase tracking-widest font-bold shadow-[0_0_10px_rgba(59,130,246,0.1)]"
-                >
-                    {liveCollectedCount} Collected
-                </span>
+            <!-- Desktop Stats -->
+            <div class="hidden md:flex flex-col items-end gap-3">
+                <div class="flex flex-wrap gap-2 justify-end">
+                    <span
+                        class="px-3 py-1 rounded-md bg-lime-500/10 text-lime-400 text-[10px] border border-lime-500/20 uppercase tracking-widest font-bold shadow-[0_0_10px_rgba(132,204,22,0.1)]"
+                    >
+                        {livePublishedCount} Published
+                    </span>
+                    <span
+                        class="px-3 py-1 rounded-md bg-purple-500/10 text-purple-400 text-[10px] border border-purple-500/20 uppercase tracking-widest font-bold shadow-[0_0_10px_rgba(216,54,255,0.1)]"
+                    >
+                        {liveMintedCount} Minted
+                    </span>
+                </div>
+                <div class="flex gap-2">
+                    <span
+                        class="px-3 py-1 rounded-md bg-blue-500/10 text-blue-400 text-[10px] border border-blue-500/20 uppercase tracking-widest font-bold shadow-[0_0_10px_rgba(59,130,246,0.1)]"
+                    >
+                        {liveCollectedCount} Collected
+                    </span>
+                </div>
             </div>
         </div>
-
-        <!-- Decorative Background Glow -->
-        <div
-            class="absolute -top-24 -right-24 w-64 h-64 bg-[#d836ff]/5 rounded-full blur-[80px] pointer-events-none"
-        ></div>
-        <div
-            class="absolute -bottom-24 -left-24 w-64 h-64 bg-lime-500/5 rounded-full blur-[80px] pointer-events-none"
-        ></div>
     </div>
 
     <!-- Main Player Card -->
     <div
-        class="max-w-6xl mx-auto reactive-glass border border-white/5 bg-[#1d1d1d]/70 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden relative flex flex-col h-[calc(100vh-200px)] min-h-[400px]"
+        class="max-w-6xl mx-auto reactive-glass allow-scroll border border-white/5 bg-[#1d1d1d]/70 backdrop-blur-xl rounded-2xl shadow-2xl relative flex flex-col h-[calc(100vh-180px)] md:h-[calc(100vh-200px)] min-h-[400px]"
     >
-        <!-- Control Bar -->
-        <div class="flex items-center justify-between py-0.5 px-3 shrink-0">
-            <div class="flex items-center gap-2 select-none">
-                <div
-                    class="text-lime-500 drop-shadow-[0_0_8px_rgba(132,204,22,0.4)]"
+        <!-- Control Bar (Tabs & View Controls) -->
+        <div
+            class="flex items-center border-b border-white/5 bg-black/5 shrink-0 min-w-0 py-2 px-3 gap-2"
+        >
+            <div class="flex items-center gap-2 select-none shrink-0">
+                <button
+                    onclick={() => {
+                        if (showGridView) showGridView = false;
+                    }}
+                    class="shrink-0 p-1 text-lime-500 drop-shadow-[0_0_8px_rgba(132,204,22,0.4)] transition-all {showGridView
+                        ? 'cursor-pointer hover:scale-110 hover:text-white'
+                        : 'cursor-default'}"
+                    title={showGridView ? "Back to Player" : ""}
                 >
                     <svg
                         viewBox="0 0 24 24"
@@ -889,103 +1007,202 @@
                             d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
                         />
                     </svg>
-                </div>
-                <!-- Module Tabs -->
-                <div class="flex gap-4 ml-4">
-                    <button
-                        onclick={() => {
-                            activeModule = "discography";
-                            shuffleEnabled = false;
-                            selectedArtistTags = [];
-                        }}
-                        class="text-[10px] font-bold uppercase tracking-[0.2em] transition-colors {activeModule ===
-                        'discography'
-                            ? 'text-lime-400'
-                            : 'text-white/40 hover:text-white'}"
-                    >
-                        Discography
-                    </button>
-                    <button
-                        onclick={() => {
-                            activeModule = "minted";
-                            shuffleEnabled = false;
-                            selectedArtistTags = [];
-                        }}
-                        class="text-[10px] font-bold uppercase tracking-[0.2em] transition-colors {activeModule ===
-                        'minted'
-                            ? 'text-lime-400'
-                            : 'text-white/40 hover:text-white'}"
-                    >
-                        Minted
-                    </button>
-                    <button
-                        onclick={() => {
-                            activeModule = "collected";
-                            shuffleEnabled = false;
-                            selectedArtistTags = [];
-                        }}
-                        class="text-[10px] font-bold uppercase tracking-[0.2em] transition-colors {activeModule ===
-                        'collected'
-                            ? 'text-lime-400'
-                            : 'text-white/40 hover:text-white'}"
-                    >
-                        Collected
-                    </button>
-                    <!-- Tags Tab - Desktop Only Per User Request -->
-                    <button
-                        onclick={() => {
-                            if (activeModule === "tags") {
-                                activeModule = "discography";
-                            } else {
-                                activeModule = "tags";
-                            }
-                        }}
-                        class="hidden md:block text-[10px] font-bold uppercase tracking-[0.2em] transition-colors {activeModule ===
-                        'tags'
-                            ? 'text-lime-400'
-                            : 'text-white/40 hover:text-white'}"
-                    >
-                        Tags
-                    </button>
-                </div>
+                </button>
             </div>
 
-            <div class="flex items-center gap-2">
-                <!-- Regenerate Button (Left of Grid View) -->
+            <!-- Module Tabs (Visible on all devices) -->
+            <div
+                class="flex flex-1 items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar min-w-0 mask-fade-right"
+            >
                 <button
-                    onclick={generateArtistMix}
-                    disabled={isGeneratingMix}
-                    class="hidden md:flex items-center gap-2 px-3 py-1 rounded border transition-all {isGeneratingMix
-                        ? 'border-purple-500/50 bg-purple-500/10 text-purple-400'
-                        : 'border-white/10 text-white/40 hover:text-white'}"
-                    title="Regenerate & Shuffle Mix"
+                    onclick={() => {
+                        activeModule = "discography";
+                        shuffleEnabled = false;
+                        selectedArtistTags = [];
+                    }}
+                    class="text-[10px] font-bold uppercase tracking-[0.15em] md:tracking-[0.2em] transition-colors {activeModule ===
+                    'discography'
+                        ? 'text-lime-400'
+                        : 'text-white/40 hover:text-white'} whitespace-nowrap"
                 >
-                    <svg
-                        class="w-3 h-3 {isGeneratingMix ? 'animate-spin' : ''}"
-                        fill="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-                        <path
-                            d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"
-                        />
-                    </svg>
-                    <span class="text-[9px] font-bold uppercase tracking-widest"
-                        >{isGeneratingMix
-                            ? "Generating..."
-                            : "Regenerate"}</span
-                    >
+                    Discography
                 </button>
+                <button
+                    onclick={() => {
+                        activeModule = "minted";
+                        shuffleEnabled = false;
+                        selectedArtistTags = [];
+                    }}
+                    class="text-[10px] font-bold uppercase tracking-[0.15em] md:tracking-[0.2em] transition-colors {activeModule ===
+                    'minted'
+                        ? 'text-lime-400'
+                        : 'text-white/40 hover:text-white'} whitespace-nowrap"
+                >
+                    Minted
+                </button>
+                <button
+                    onclick={() => {
+                        activeModule = "collected";
+                        shuffleEnabled = false;
+                        selectedArtistTags = [];
+                    }}
+                    class="text-[10px] font-bold uppercase tracking-[0.15em] md:tracking-[0.2em] transition-colors {activeModule ===
+                    'collected'
+                        ? 'text-lime-400'
+                        : 'text-white/40 hover:text-white'} whitespace-nowrap"
+                >
+                    Collected
+                </button>
+            </div>
 
+            <div class="flex items-center gap-1.5 md:gap-2 shrink-0">
+                <!-- Tags Mini Button (Grid View only) - Green style, toggles tagsExpanded -->
+                {#if showGridView}
+                    <button
+                        onclick={() => {
+                            tagsExpanded = !tagsExpanded;
+                        }}
+                        class="w-8 h-8 flex items-center justify-center rounded-full transition-all {tagsExpanded
+                            ? 'text-lime-400 bg-lime-500/20 border border-lime-500'
+                            : 'text-lime-500 hover:text-white hover:bg-lime-500/20 border border-lime-500/30 hover:border-lime-500 bg-lime-500/5'}"
+                        title="Filter by Tags ({activeModule})"
+                    >
+                        <svg
+                            class="w-4 h-4"
+                            fill="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"
+                            />
+                        </svg>
+                    </button>
+                {/if}
+
+                <!-- Sort Dropdown (Available in both Player and Grid modes) -->
+                <div class="relative">
+                    <button
+                        onclick={() => (showSortDropdown = !showSortDropdown)}
+                        class="w-8 h-8 flex items-center justify-center rounded-full transition-all active:scale-95 {showSortDropdown
+                            ? 'text-blue-400 bg-blue-500/20 border border-blue-500'
+                            : 'text-blue-400 bg-blue-500/10 border border-blue-500/30 hover:border-blue-500 bg-blue-500/5'}"
+                        title="Sort Options"
+                    >
+                        {#if sortMode === "latest"}
+                            <svg
+                                class="w-4 h-4"
+                                fill="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    d="M3 18h6v-2H3v2zM3 13h12v-2H3v2zm0-7v2h18V6H3z"
+                                />
+                            </svg>
+                        {:else if sortMode === "canon"}
+                            <svg
+                                class="w-4 h-4"
+                                fill="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    d="M3 13h12v-2H3v2zm0 5h6v-2H3v2zm0-12v2h18V6H3z"
+                                />
+                            </svg>
+                        {:else}
+                            <svg
+                                class="w-4 h-4"
+                                fill="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"
+                                />
+                            </svg>
+                        {/if}
+                    </button>
+
+                    {#if showSortDropdown}
+                        <div
+                            class="absolute right-0 top-10 z-[100] bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl p-1 min-w-[130px] overflow-hidden backdrop-blur-xl"
+                        >
+                            <button
+                                onclick={() => {
+                                    sortMode = "latest";
+                                    showSortDropdown = false;
+                                }}
+                                class="w-full text-left px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider rounded-lg flex items-center gap-3 {sortMode ===
+                                'latest'
+                                    ? 'text-lime-400 bg-white/10'
+                                    : 'text-white/60 hover:text-white hover:bg-white/5'}"
+                            >
+                                <svg
+                                    class="w-3.5 h-3.5"
+                                    fill="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        d="M3 18h6v-2H3v2zM3 13h12v-2H3v2zm0-7v2h18V6H3z"
+                                    />
+                                </svg>
+                                Latest
+                            </button>
+                            <button
+                                onclick={() => {
+                                    sortMode = "canon";
+                                    showSortDropdown = false;
+                                }}
+                                class="w-full text-left px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider rounded-lg flex items-center gap-3 {sortMode ===
+                                'canon'
+                                    ? 'text-lime-400 bg-white/10'
+                                    : 'text-white/60 hover:text-white hover:bg-white/5'}"
+                            >
+                                <svg
+                                    class="w-3.5 h-3.5"
+                                    fill="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        d="M3 13h12v-2H3v2zm0 5h6v-2H3v2zm0-12v2h18V6H3z"
+                                    />
+                                </svg>
+                                Canon
+                            </button>
+                            <div class="h-px bg-white/5 my-1"></div>
+                            <button
+                                onclick={() => {
+                                    sortMode = "shuffle";
+                                    showSortDropdown = false;
+                                    shuffleSeed = Date.now(); // Reshuffle
+                                }}
+                                class="w-full text-left px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider rounded-lg flex items-center gap-3 {sortMode ===
+                                'shuffle'
+                                    ? 'text-lime-400 bg-white/10'
+                                    : 'text-white/60 hover:text-white hover:bg-white/5'}"
+                            >
+                                <svg
+                                    class="w-3.5 h-3.5"
+                                    fill="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"
+                                    />
+                                </svg>
+                                Shuffle
+                            </button>
+                        </div>
+                    {/if}
+                </div>
+
+                <!-- Grid View Toggle Button -->
                 <button
                     onclick={() => {
                         showGridView = !showGridView;
-                        if (showGridView && window.innerWidth < 768) {
-                            activeModule = "tags";
-                        }
                     }}
-                    class="flex items-center gap-2 px-3 py-1 rounded border transition-all {showGridView
-                        ? 'border-purple-500/50 bg-purple-500/10 text-purple-400'
-                        : 'border-white/10 text-white/40 hover:text-white'}"
+                    class="w-8 h-8 flex items-center justify-center rounded-full transition-all active:scale-95 {showGridView
+                        ? 'text-purple-400 bg-purple-500/20 border border-purple-500'
+                        : 'text-white/40 hover:text-white hover:bg-white/10 border border-white/10 hover:border-white/30'}"
+                    title={showGridView ? "Close Grid View" : "Open Grid View"}
                 >
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -993,7 +1210,7 @@
                         viewBox="0 0 24 24"
                         stroke-width="1.5"
                         stroke="currentColor"
-                        class="w-3 h-3"
+                        class="w-4 h-4"
                     >
                         <path
                             stroke-linecap="round"
@@ -1001,59 +1218,17 @@
                             d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H18A2.25 2.25 0 0 1 13.5 18v-2.25Z"
                         />
                     </svg>
-                    <span class="text-[9px] font-bold uppercase tracking-widest"
-                        >Grid View</span
-                    >
-                </button>
-
-                <button
-                    onclick={async () => {
-                        shuffleEnabled = !shuffleEnabled;
-                        if (shuffleEnabled) {
-                            shuffleSeed = Date.now();
-                        }
-
-                        // "Visually warp" to the song in the new order
-                        if (currentSong && showGridView) {
-                            await tick(); // Wait for DOM layout update
-                            const el = document.getElementById(
-                                `song-${currentSong.Id}`,
-                            );
-                            if (el) {
-                                el.scrollIntoView({
-                                    behavior: "smooth",
-                                    block: "center",
-                                });
-                            }
-                        }
-                    }}
-                    class="hidden lg:flex items-center gap-2 px-3 py-1 rounded border transition-all {shuffleEnabled
-                        ? 'border-lime-500/50 bg-lime-500/10 text-lime-400'
-                        : 'border-white/10 text-white/40 hover:text-white'}"
-                >
-                    <svg
-                        class="w-3 h-3"
-                        fill="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-                        <path
-                            d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"
-                        />
-                    </svg>
-                    <span class="text-[9px] font-bold uppercase tracking-widest"
-                        >{shuffleEnabled ? "Shuffle On" : "Shuffle Off"}</span
-                    >
                 </button>
             </div>
         </div>
 
-        <div class="relative flex-1 min-h-0">
+        <div class="relative flex-1 min-h-0 flex flex-col overflow-y-auto">
             {#if showGridView}
                 <div
                     class="absolute inset-0 z-50 bg-[#121212] p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto dark-scrollbar"
                 >
-                    <!-- Grid View Tags Integration -->
-                    {#if activeModule === "tags"}
+                    <!-- Grid View Tags Integration (shows when tagsExpanded is true) -->
+                    {#if tagsExpanded}
                         <div
                             class="mb-8 border-b border-white/10 pb-6 animate-in slide-in-from-top-4 duration-500"
                         >
@@ -1061,7 +1236,7 @@
                                 <h3
                                     class="text-[10px] font-bold text-lime-400 uppercase tracking-widest"
                                 >
-                                    Filter by Vibe
+                                    Filter {activeModule} by Vibe
                                 </h3>
                                 {#if selectedArtistTags.length > 0}
                                     <button
@@ -1219,6 +1394,42 @@
                                                     <MiniVisualizer />
                                                 </div>
                                             </div>
+
+                                            <!-- Bottom Left: Like Button -->
+                                            <div
+                                                class="absolute bottom-2 left-2 z-20"
+                                                onclick={(e) =>
+                                                    e.stopPropagation()}
+                                            >
+                                                <LikeButton
+                                                    smolId={song.Id}
+                                                    liked={song.Liked}
+                                                    classNames="p-1.5 rounded-full bg-black/40 backdrop-blur-md border border-[#FF424C]/50 text-[#FF424C] hover:bg-[#FF424C]/20 transition-all shadow-[0_0_10px_rgba(255,66,76,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(255,66,76,0.5)]"
+                                                    iconSize="size-4"
+                                                />
+                                            </div>
+
+                                            <!-- Bottom Right: Song Detail -->
+                                            <button
+                                                class="absolute bottom-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 transition-all shadow-[0_0_10px_rgba(216,54,255,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(216,54,255,0.5)]"
+                                                onclick={(e) => {
+                                                    e.stopPropagation();
+                                                    navigate(
+                                                        `/${song.Id}?from=artist`,
+                                                    );
+                                                }}
+                                                title="View Song Details"
+                                            >
+                                                <svg
+                                                    class="w-4 h-4"
+                                                    fill="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
+                                                    />
+                                                </svg>
+                                            </button>
                                         {/if}
                                     </div>
                                 </div>
@@ -1233,13 +1444,15 @@
             {/if}
 
             <div
-                class="flex flex-col lg:flex-row gap-4 h-full items-stretch px-4 pt-0 pb-4"
+                class="flex flex-col lg:flex-row gap-0 lg:gap-4 h-auto lg:h-full items-stretch px-4 pt-0 pb-4"
             >
                 <!-- LEFT COLUMN: PLAYER -->
-                <div class="w-full lg:w-1/2 flex flex-col gap-1 min-h-0 pb-1">
+                <div class="w-full lg:w-1/2 flex flex-col gap-1 min-h-0">
                     <RadioPlayer
                         playlist={displayPlaylist}
-                        replaceDetailWithRegenerate={true}
+                        replaceDetailWithRegenerate={false}
+                        showSongDetailButton={false}
+                        playButtonVariant={showGridView ? "silver" : "default"}
                         onRegenerate={generateArtistMix}
                         onNext={handleNext}
                         onPrev={handlePrev}
@@ -1260,11 +1473,6 @@
                         {currentIndex}
                         overlayControlsOnMobile={true}
                         onShare={share}
-                        onShuffle={() => {
-                            // Always re-shuffle ("Re-roll") instead of toggle
-                            shuffleEnabled = true;
-                            shuffleSeed = Date.now();
-                        }}
                         {versions}
                         currentVersionId={selectedVersionId || ""}
                         onVersionSelect={(id) => {
@@ -1301,7 +1509,9 @@
                             {:else}
                                 <button
                                     onclick={() =>
-                                        (window.location.href = `/${currentSong?.Id}?from=artist`)}
+                                        navigate(
+                                            `/${currentSong?.Id}?from=artist`,
+                                        )}
                                     class="flex-1 py-3 bg-emerald-500/20 text-emerald-300 font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2 border border-emerald-500/30"
                                 >
                                     ✓ Minted
@@ -1326,7 +1536,7 @@
 
                 <!-- RIGHT COLUMN: PLAYLIST -->
                 <div
-                    class="w-full lg:w-1/2 flex flex-col min-h-0 bg-black/20 border border-white/5 rounded-2xl overflow-hidden max-h-[40vh] lg:max-h-[calc(100vh-280px)]"
+                    class="w-full lg:w-1/2 flex flex-col min-h-0 mt-1 lg:mt-0 bg-black/20 border border-white/5 rounded-2xl max-h-[40vh] lg:max-h-[calc(100vh-280px)]"
                 >
                     <div
                         class="flex items-center justify-between p-3 border-b border-white/5 bg-white/5 flex-shrink-0"
@@ -1337,52 +1547,51 @@
                         >
                             {playlistTitle} ({displayPlaylist.length})
                         </h3>
-                        <div class="flex items-center gap-2">
+                        <button
+                            onclick={() => (tagsExpanded = !tagsExpanded)}
+                            class="flex items-center gap-1.5 px-2 py-1 rounded bg-white/10 hover:bg-lime-500/20 border border-white/10 hover:border-lime-500/50 transition-all"
+                        >
                             <span
-                                class="w-2 h-2 rounded-full bg-lime-500 shadow-[0_0_8px_#84cc16]"
-                            ></span>
-                            <span
-                                class="text-[9px] text-white/30 font-mono uppercase"
-                                >Live</span
+                                class="text-[9px] text-lime-400 font-bold uppercase tracking-widest"
+                                >{tagsExpanded ? "▼" : "▶"} Tags</span
                             >
-                        </div>
+                        </button>
                     </div>
 
                     <!-- Tags Filter Cloud (Artist Scoped) -->
-                    {#if activeModule === "tags"}
+                    {#if tagsExpanded}
                         <div
                             transition:fly={{
                                 y: -20,
                                 duration: 600,
                                 easing: backOut,
                             }}
-                            class="px-4 py-4 border-b border-white/5 bg-white/5 overflow-hidden"
+                            class="px-3 py-2 lg:mt-0 border-b border-white/5 bg-white/5 overflow-hidden"
                         >
                             <div
-                                class="max-h-[200px] overflow-y-auto pr-2 dark-scrollbar"
+                                transition:fly={{ y: -10, duration: 200 }}
+                                class="max-h-[120px] overflow-y-auto mt-2 dark-scrollbar"
                             >
-                                <div class="flex flex-wrap gap-2 items-center">
-                                    {#each artistTags as { tag, count }}
+                                <div class="flex flex-wrap gap-1 items-center">
+                                    {#each artistTags.slice(0, 50) as { tag, count }}
                                         <button
                                             onclick={() => toggleArtistTag(tag)}
-                                            class="px-2.5 py-1 rounded-full text-[10px] uppercase tracking-wider transition-all duration-300 {selectedArtistTags.includes(
+                                            class="px-2.5 py-1 rounded-full text-[11px] uppercase tracking-wide transition-all duration-200 {selectedArtistTags.includes(
                                                 tag,
                                             )
                                                 ? 'bg-lime-500 text-black font-black scale-105'
                                                 : 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10 opacity-70 hover:opacity-100'}"
-                                            style="font-size: {0.7 +
-                                                (count / maxTagCount) *
-                                                    0.4}rem;"
                                         >
                                             {tag}
                                             <span
-                                                class="ml-0.5 opacity-40 text-[0.8em]"
+                                                class="ml-0.5 opacity-40 text-[0.7em]"
                                                 >{count}</span
                                             >
                                         </button>
                                     {/each}
                                 </div>
                             </div>
+
                             {#if selectedArtistTags.length > 0}
                                 <div
                                     class="mt-3 flex items-center justify-between"
@@ -1465,7 +1674,7 @@
                                 delay: 100,
                                 easing: backOut,
                             }}
-                            class="flex-1 min-h-0 overflow-y-auto dark-scrollbar pr-2 pb-8"
+                            class="flex-1 min-h-0 overflow-y-scroll dark-scrollbar pr-2 pb-8"
                         >
                             <ul class="divide-y divide-white/5">
                                 {#each displayPlaylist as song, index}
@@ -1583,7 +1792,7 @@
                                                         },
                                                     )}
 
-                                                    {#if song.Tags && song.Tags.length > 0}
+                                                    {#if song.Tags && Array.isArray(song.Tags) && song.Tags.length > 0}
                                                         <div
                                                             class="flex gap-1.5 items-center ml-2 border-l border-white/10 pl-2"
                                                         >
@@ -1617,8 +1826,13 @@
                                                     href="/{song.Id}?from=artist"
                                                     class="p-1.5 text-white/20 hover:text-white transition-colors"
                                                     title="View Details"
-                                                    onclick={(e) =>
-                                                        e.stopPropagation()}
+                                                    onclick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        navigate(
+                                                            `/${song.Id}?from=artist`,
+                                                        );
+                                                    }}
                                                 >
                                                     <svg
                                                         xmlns="http://www.w3.org/2000/svg"

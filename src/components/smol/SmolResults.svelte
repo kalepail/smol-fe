@@ -88,6 +88,7 @@
             Liked: data.liked,
             Tags: data.kv_do?.lyrics?.style || [],
             Song_1: selectedVersionId || data.d1?.Song_1 || "",
+            kv_do: data.kv_do,
         } as Smol;
     });
 
@@ -302,6 +303,14 @@
                             >
                                 BY <a
                                     href="/artist/{data.d1?.Address}"
+                                    onclick={(e) => {
+                                        e.preventDefault();
+                                        if (data?.d1?.Address) {
+                                            navigate(
+                                                `/artist/${data.d1.Address}?play=${id}`,
+                                            );
+                                        }
+                                    }}
                                     class="hover:underline text-[#d836ff]"
                                     >{data.d1?.Address?.slice(0, 8) || "..."}</a
                                 >
@@ -326,6 +335,14 @@
                         <!-- ARTIST PAGE BUTTON (desktop only) -->
                         <a
                             href="/artist/{data.d1?.Address}"
+                            onclick={(e) => {
+                                e.preventDefault();
+                                if (data?.d1?.Address) {
+                                    navigate(
+                                        `/artist/${data.d1.Address}?play=${id}`,
+                                    );
+                                }
+                            }}
                             class="hidden lg:flex ml-auto px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-[#089981] hover:text-white bg-[#089981]/10 hover:bg-[#089981]/30 border border-[#089981]/40 hover:border-[#089981] rounded-full transition-all shadow-[0_0_12px_rgba(8,153,129,0.3)] hover:shadow-[0_0_20px_rgba(8,153,129,0.5)] items-center gap-1.5"
                         >
                             <svg
