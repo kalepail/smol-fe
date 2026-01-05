@@ -38,6 +38,8 @@
     likeOnArt = false,
     enableContextBack = false,
     replaceDetailWithRegenerate = false,
+    showSongDetailButton = true,
+    playButtonVariant = "default",
   }: {
     playlist: Smol[];
     onNext?: () => void;
@@ -55,14 +57,16 @@
     isMinting?: boolean;
     isAuthenticated?: boolean;
     showMiniActions?: boolean;
-    overlayControlsOnMobile?: boolean;
     onShare?: () => void;
     onShuffle?: () => void;
     onTogglePublish?: () => void;
     isPublished?: boolean;
     likeOnArt?: boolean;
     enableContextBack?: boolean;
+    backContext?: { label: string; type: "radio" | "default" };
     replaceDetailWithRegenerate?: boolean;
+    showSongDetailButton?: boolean;
+    playButtonVariant?: "default" | "silver";
   } = $props();
 
   // Context-aware back navigation
@@ -705,7 +709,7 @@
           <!-- VERSION SELECTOR (BOTTOM CENTER OF ART - ABOVE PLAY BUTTON) -->
           {#if versions && versions.length > 1 && onVersionSelect}
             <div
-              class="absolute bottom-24 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2"
+              class="absolute bottom-24 lg:bottom-2 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2"
             >
               {#each versions as v}
                 <button
@@ -847,7 +851,10 @@
           </button>
 
           <button
-            class="tech-button w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center active:scale-95 transition-all relative overflow-hidden group rounded-full backdrop-blur-xl border border-[#089981] text-[#089981] bg-[#089981]/10 shadow-[0_0_30px_rgba(8,153,129,0.4)] hover:bg-[#089981]/20 hover:text-white hover:shadow-[0_0_40px_rgba(8,153,129,0.6)]"
+            class="tech-button w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center active:scale-95 transition-all relative overflow-hidden group rounded-full backdrop-blur-xl {playButtonVariant ===
+            'silver'
+              ? 'bg-gradient-to-br from-white via-neutral-300 to-neutral-500 border-[2px] border-white text-neutral-800 shadow-[inset_0_2px_4px_rgba(255,255,255,0.9),inset_0_-4px_6px_rgba(0,0,0,0.2),0_4px_15px_rgba(0,0,0,0.5),0_0_25px_rgba(255,255,255,0.5)] hover:brightness-110'
+              : 'border border-[#089981] text-[#089981] bg-[#089981]/10 shadow-[0_0_30px_rgba(8,153,129,0.4)] hover:bg-[#089981]/20 hover:text-white hover:shadow-[0_0_40px_rgba(8,153,129,0.6)]'}"
             onclick={playPause}
             title={playing ? "Pause" : "Play"}
           >
@@ -900,7 +907,7 @@
               >
                 <span class="text-xl">↻</span>
               </button>
-            {:else}
+            {:else if showSongDetailButton}
               <a
                 href={`/${currentSong.Id}`}
                 class="tech-button w-10 h-10 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-[#d836ff] text-[#d836ff] bg-[#d836ff]/10 hover:bg-[#d836ff]/20 shadow-[0_0_15px_rgba(216,54,255,0.3)] {overlayControlsOnMobile

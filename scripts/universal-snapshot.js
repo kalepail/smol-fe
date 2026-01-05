@@ -172,6 +172,11 @@ async function hydrateDetails(smolList, minterMap, previousState) {
                 smol.Lyrics = lyricData.lyrics || '';
                 smol.Tags = lyricData.style || smol.Tags || []; // API list has Tags too
                 smol.Prompt = detail.kv_do?.payload?.prompt || '';
+
+                // STRIP IMAGES (Loaded from API now)
+                if (smol.kv_do?.payload?.image) delete smol.kv_do.payload.image;
+                if (smol.kv_do?.image_base64) delete smol.kv_do.image_base64;
+                if (smol.Image) delete smol.Image;
             }
             // Merge Core Metadata (Address/Creator) from D1 if available
             if (detail.d1) {
