@@ -58,15 +58,9 @@
     // OOM FIX: If no props provided (SSR mode), fetch on mount
     onMount(async () => {
         if (liveDiscography.length === 0 && address) {
-            console.log(
-                `[ArtistResults] Hydrating for address: ${address} (initial: ${liveDiscography.length})`,
-            );
             isLoadingLive = true;
             try {
                 const smols = await safeFetchSmols();
-                console.log(
-                    `[ArtistResults] Fetched ${smols.length} total smols from API/Snapshot`,
-                );
 
                 // Discography: Songs created or published by this artist
                 const disco = smols.filter(
