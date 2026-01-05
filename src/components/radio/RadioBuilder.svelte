@@ -145,7 +145,7 @@
     let liveSmols: Smol[] = [];
     try {
       isLoadingSmols = true;
-      smols = getFullSnapshot();
+      smols = await getFullSnapshot();
       if (import.meta.env.DEV) {
         console.log(
           `[Radio] Loaded ${smols.length} smols from snapshot (backend-independent)`,

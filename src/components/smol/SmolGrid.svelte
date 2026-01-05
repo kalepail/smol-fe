@@ -112,7 +112,7 @@
       } else if (endpoint === "collected") {
         // COLLECTED: Use snapshot directly (backend-independent)
         // This ensures Collected works even if backend /collected endpoint fails
-        const snapshot = getFullSnapshot();
+        const snapshot = await getFullSnapshot();
         const myAddr = userState.contractId?.toLowerCase() || "";
 
         if (myAddr) {
@@ -144,7 +144,7 @@
           console.warn(
             `[SmolGrid] Live fetch failed (${response.status}), falling back to snapshot`,
           );
-          results = getFullSnapshot();
+          results = await getFullSnapshot();
           cursor = null;
           hasMore = false;
         } else {
@@ -157,7 +157,7 @@
             console.warn(
               "[SmolGrid] Live results empty, falling back to snapshot",
             );
-            results = getFullSnapshot();
+            results = await getFullSnapshot();
             cursor = null;
             hasMore = false;
           }

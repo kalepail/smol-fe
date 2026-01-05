@@ -21,7 +21,7 @@
 
     onMount(async () => {
         try {
-            smols = getFullSnapshot();
+            smols = await getFullSnapshot();
             const liveSmols = await safeFetchSmols();
             if (liveSmols.length > 0) {
                 smols = liveSmols;
