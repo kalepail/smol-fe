@@ -26,19 +26,19 @@
         minted = [],
         collected = [],
         address,
-        publishedCount,
-        collectedCount,
-        mintedCount,
+        publishedCount = 0,
+        collectedCount = 0,
+        mintedCount = 0,
         topTags = [],
     }: {
-        discography: Smol[];
-        minted: Smol[];
-        collected: Smol[];
+        discography?: Smol[];
+        minted?: Smol[];
+        collected?: Smol[];
         address: string;
-        publishedCount: number;
-        collectedCount: number;
-        mintedCount: number;
-        topTags: string[];
+        publishedCount?: number;
+        collectedCount?: number;
+        mintedCount?: number;
+        topTags?: string[];
     } = $props();
 
     // Reactive state for hydration (starts with props, updates with live data)
@@ -47,6 +47,73 @@
     // Collected stays as snapshot for now since API lacks Minted_By support
     let liveCollected = $state<Smol[]>(collected);
     let isLoadingLive = $state(false);
+    let livePublishedCount = $state(publishedCount);
+    let liveCollectedCount = $state(collectedCount);
+    let liveMintedCount = $state(mintedCount);
+    let liveTopTags = $state<string[]>(topTags);
+
+    // OOM FIX: If no props provided (SSR mode), fetch on mount
+    onMount(async () => {
+        if (liveDiscography.length === 0 && address) {
+            isLoadingLive = true;
+            try {
+                const smols = await safeFetchSmols();
+
+                // Discography: Songs created or published by this artist
+                const disco = smols.filter(
+                    (s) => s.Address === address || s.Creator === address,
+                );
+                disco.sort(
+                    (a, b) =>
+                        new Date(b.Created_At).getTime() -
+                        new Date(a.Created_At).getTime(),
+                );
+                liveDiscography = disco;
+                livePublishedCount = disco.length;
+
+                // Minted: Created by them AND has been minted
+                liveMinted = disco.filter((s) => s.Mint_Token !== null);
+                liveMintedCount = liveMinted.length;
+
+                // Collected: Minted by this artist but NOT created by them
+                const collectedItems = smols.filter(
+                    (s) =>
+                        s.Minted_By === address &&
+                        s.Address !== address &&
+                        s.Creator !== address,
+                );
+                collectedItems.sort(
+                    (a, b) =>
+                        new Date(b.Created_At).getTime() -
+                        new Date(a.Created_At).getTime(),
+                );
+                liveCollected = collectedItems;
+                liveCollectedCount = collectedItems.length;
+
+                // Top Tags
+                const tagCounts: Record<string, number> = {};
+                disco.forEach((smol) => {
+                    if (smol.Tags && Array.isArray(smol.Tags)) {
+                        smol.Tags.forEach((tag) => {
+                            tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+                        });
+                    }
+                });
+                liveTopTags = Object.entries(tagCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 4)
+                    .map((t) => t[0]);
+
+                console.log(
+                    `[ArtistResults] Loaded artist data: ${disco.length} discography, ${liveCollected.length} collected`,
+                );
+            } catch (e) {
+                console.error("[ArtistResults] Failed to load data:", e);
+            } finally {
+                isLoadingLive = false;
+            }
+        }
+    });
 
     let activeModule = $state<"discography" | "minted" | "collected" | "tags">(
         "discography",

@@ -1,6 +1,6 @@
 import type { Smol } from "../../types/domain";
 import {
-  getGlobalSnapshot,
+  getSnapshotAsync,
   mergeSmolsWithSnapshot,
 } from "./snapshot";
 
@@ -20,19 +20,19 @@ export async function fetchSmols(options?: { limit?: number }): Promise<Smol[]> 
       console.warn(
         `Failed to fetch live smols: ${response.statusText}, falling back to snapshot`,
       );
-      return getGlobalSnapshot();
+      return getSnapshotAsync();
     }
 
     const data = await response.json();
     const liveSmols = data.smols || data;
     if (!Array.isArray(liveSmols) || liveSmols.length === 0) {
       console.warn("Live smols response empty, falling back to snapshot");
-      return getGlobalSnapshot();
+      return getSnapshotAsync();
     }
 
     // Merge: Prefer Live, but fallback to Snapshot for missing critical fields (Tags, Address)
-    const merged = mergeSmolsWithSnapshot(liveSmols as Smol[]);
-    const snapshotMap = new Map(getGlobalSnapshot().map((s) => [s.Id, s]));
+    const merged = await mergeSmolsWithSnapshot(liveSmols as Smol[]);
+    const snapshotMap = new Map((await getSnapshotAsync()).map((s) => [s.Id, s]));
 
     // 4. DEEP VERIFICATION: Hydrate missing metadata for "Live-Only" songs
     // (Songs present in API but not in snapshot = New drops missing tags/address)
@@ -75,15 +75,15 @@ export async function fetchSmols(options?: { limit?: number }): Promise<Smol[]> 
     return merged as Smol[];
   } catch (e) {
     console.error("Fetch error, falling back to snapshot", e);
-    return getGlobalSnapshot();
+    return getSnapshotAsync();
   }
 }
 
 /**
  * Get the full snapshot directly (for components needing all tags, like RadioBuilder)
  */
-export function getFullSnapshot(): Smol[] {
-  return getGlobalSnapshot();
+export async function getFullSnapshot(): Promise<Smol[]> {
+  return getSnapshotAsync();
 }
 
 /**
@@ -94,7 +94,7 @@ export async function safeFetchSmols(
 ): Promise<Smol[]> {
   const smols = await fetchSmols(options);
   if (!Array.isArray(smols) || smols.length === 0) {
-    return getGlobalSnapshot();
+    return getSnapshotAsync();
   }
   return smols;
 }

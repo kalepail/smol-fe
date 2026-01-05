@@ -1,19 +1,38 @@
 import type { Smol } from "../../types/domain";
-// @ts-ignore
-import universalSnapshot from "../../../universal-smols.json";
-import legacySnapshot from "../../data/smols-snapshot.json";
 
-const globalSnapshot =
-  (universalSnapshot as unknown as Smol[])?.length > 0
-    ? (universalSnapshot as unknown as Smol[])
-    : (legacySnapshot as unknown as Smol[]);
+// OOM FIX: Removed static JSON imports - data fetched at runtime
+let cachedSnapshot: Smol[] | null = null;
 
-export function getGlobalSnapshot(): Smol[] {
-  return globalSnapshot;
+/**
+ * Fetch snapshot at runtime instead of bundling at build time
+ */
+export async function getSnapshotAsync(): Promise<Smol[]> {
+  if (cachedSnapshot) return cachedSnapshot;
+
+  try {
+    const res = await fetch('/data/smols-snapshot.json');
+    if (!res.ok) throw new Error(`Snapshot load failed: ${res.status}`);
+    const data = await res.json();
+    cachedSnapshot = Array.isArray(data) ? data : [];
+    return cachedSnapshot;
+  } catch (e) {
+    console.error('[getSnapshotAsync] Failed to load snapshot:', e);
+    return [];
+  }
 }
 
-export function mergeSmolsWithSnapshot(liveSmols: Smol[]): Smol[] {
-  const snapshotMap = new Map(globalSnapshot.map((s) => [s.Id, s]));
+/**
+ * Synchronous version for SSR compatibility - returns cached data or empty array
+ * Components should use getSnapshotAsync() in onMount for full data
+ */
+export function getGlobalSnapshot(): Smol[] {
+  // Return cached if available, otherwise empty (data will be fetched client-side)
+  return cachedSnapshot || [];
+}
+
+export async function mergeSmolsWithSnapshot(liveSmols: Smol[]): Promise<Smol[]> {
+  const snapshot = await getSnapshotAsync();
+  const snapshotMap = new Map(snapshot.map((s) => [s.Id, s]));
 
   const merged = liveSmols.map((newSmol) => {
     const oldSmol = snapshotMap.get(newSmol.Id);
@@ -29,7 +48,7 @@ export function mergeSmolsWithSnapshot(liveSmols: Smol[]): Smol[] {
   });
 
   const liveIds = new Set(liveSmols.map((s) => s.Id));
-  globalSnapshot.forEach((oldSmol) => {
+  snapshot.forEach((oldSmol) => {
     if (!liveIds.has(oldSmol.Id)) {
       merged.push(oldSmol);
     }
