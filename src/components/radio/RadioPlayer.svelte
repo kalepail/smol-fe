@@ -954,21 +954,6 @@
           <div
             class="absolute bottom-2 left-0 right-0 z-40 flex justify-center gap-2 px-4 lg:hidden"
           >
-            {#if onMint}
-              <button
-                onclick={() => {
-                  if (!userState.contractId) {
-                    triggerLogin();
-                    return;
-                  }
-                  onMint?.();
-                }}
-                disabled={isMinting}
-                class="flex-1 max-w-[140px] py-1.5 bg-[#d836ff]/80 backdrop-blur-md text-white text-[10px] font-bold rounded-lg uppercase tracking-wider"
-              >
-                {isMinting ? "..." : "Mint"}
-              </button>
-            {/if}
             {#if onTrade}
               <button
                 onclick={() => {
