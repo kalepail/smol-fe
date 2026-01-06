@@ -4,6 +4,7 @@
     import { account, kale, server } from "../../utils/passkey-kit";
     import { rpc, truncate } from "../../utils/base";
     import { userState } from "../../stores/user.svelte";
+    import { unlockUpgrade } from "../../stores/upgrades.svelte";
     import {
         balanceState,
         updateContractBalance,
@@ -46,15 +47,33 @@
     });
 
     function parseAmount(value: string | number): bigint | null {
-        const sanitized = String(value).trim();
+        const sanitized = String(value).trim().replace(/,/g, "");
         if (!sanitized) return null;
-        if (!/^\d+$/.test(sanitized)) {
-            return null;
-        }
+
         try {
-            const baseUnits = BigInt(sanitized);
-            if (baseUnits <= 0n) return null;
-            return baseUnits * decimalsFactor;
+            // Handle decimals by splitting and padding
+            const [integerPart, fractionalPart = ""] = sanitized.split(".");
+            if (
+                !/^\d+$/.test(integerPart) ||
+                (fractionalPart && !/^\d+$/.test(fractionalPart))
+            ) {
+                return null;
+            }
+
+            const integerBig = BigInt(integerPart) * decimalsFactor;
+
+            // Pad or truncate fractional part to match decimals
+            let fractionBig = 0n;
+            if (fractionalPart) {
+                const paddedFraction = fractionalPart
+                    .padEnd(kaleDecimals, "0")
+                    .slice(0, kaleDecimals);
+                fractionBig = BigInt(paddedFraction);
+            }
+
+            const total = integerBig + fractionBig;
+            if (total <= 0n) return null;
+            return total;
         } catch (err) {
             return null;
         }
@@ -102,7 +121,24 @@
             await server.send(tx);
             await updateContractBalance(userState.contractId);
 
-            success = `Sent ${amount} KALE to ${artistName}!`;
+            // Secret Store Unlock Logic
+            const amountNum = parseFloat(amount.replace(/,/g, ""));
+            const adminAddress =
+                "CBS5Z6IVHGLFUGLYJ6TA4URP4VD67QRXKJ4ZBRH63RBMQ5PO7TC6GJU5";
+
+            if (artistAddress === adminAddress) {
+                if (amountNum === 100000) {
+                    unlockUpgrade("premiumHeader");
+                    success = `Sent ${amount} KALE! Premium Profile Header Unlocked! 🥬✨`;
+                } else if (amountNum === 69420.67) {
+                    unlockUpgrade("goldenKale");
+                    success = `Sent ${amount} KALE! The Golden Kale Unlocked! 🪙🥬`;
+                } else {
+                    success = `Sent ${amount} KALE to ${artistName}!`;
+                }
+            } else {
+                success = `Sent ${amount} KALE to ${artistName}!`;
+            }
             amount = "";
         } catch (err: any) {
             console.error("Tip failed", err);
@@ -175,11 +211,9 @@
                     <div class="relative">
                         <input
                             id="tip-amount"
-                            type="number"
-                            min="1"
-                            step="1"
+                            type="text"
                             bind:value={amount}
-                            placeholder="100"
+                            placeholder="100,000"
                             class="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-green-500/50 transition-colors font-mono text-lg"
                             disabled={submitting}
                         />

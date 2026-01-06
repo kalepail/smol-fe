@@ -1,43 +1,84 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import { upgradesState } from '../stores/upgrades.svelte';
+import PremiumHeaderPreview from '../components/store/PremiumHeaderPreview.svelte';
+import UpgradeToggles from '../components/store/UpgradeToggles.svelte';
+import StorePolicyButton from '../components/store/StorePolicyButton.svelte';
 ---
 
 <Layout title="Smol – Store">
-	<main class="min-h-screen text-white p-6 pt-24 max-w-7xl mx-auto">
-        <div class="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+	<main class="min-h-screen text-white p-6 pt-24 pb-32 max-w-7xl mx-auto font-pixel selection:bg-[#4ade80] selection:text-black">
+        <div class="flex flex-col items-center justify-center mb-16 gap-6 uppercase tracking-widest text-center">
             <div>
-                <h1 class="text-4xl font-bold mb-2 tracking-tighter">Store</h1>
-                <p class="text-white/50 font-mono text-sm uppercase tracking-widest">Premium Upgrades & Assets</p>
+                <h1 class="text-4xl md:text-7xl font-black mb-4 tracking-tighter" style="image-rendering: pixelated; text-shadow: 4px 4px 0px #000000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000;">
+                    <span class="text-[#9ae600]">SMOL</span><span class="relative text-white">MART<span class="absolute -top-3 md:-top-5 right-0 text-[8px] md:text-[10px] text-[#FDDA24] font-bold uppercase tracking-widest">pre-alpha</span></span>
+                </h1>
+                <p class="text-white/70 text-xs md:text-sm tracking-[0.2em]">UPGRADES & ASSETS</p>
+                <p class="text-white/40 text-[8px] md:text-[10px] uppercase tracking-widest font-mono mt-2">
+                    Issues? Contact <a href="https://noot.smol.xyz/artist/CBNORBI4DCE7LIC42FWMCIWQRULWAUGF2MH2Z7X2RNTFAYNXIACJ33IM" target="_blank" class="text-[#9ae600] underline hover:text-white transition-colors">noot.xlm</a> on <a href="https://discord.com/invite/stellar-global-761985725453303838" target="_blank" class="underline hover:text-white transition-colors">Stellar Global Discord</a>
+                </p>
             </div>
         </div>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="flex flex-wrap justify-center gap-8 max-w-5xl mx-auto">
              <!-- Premium Profile Header Card -->
-             <div class="bg-[#1d1d1d]/70 backdrop-blur-xl rounded-xl border border-white/10 p-6 flex flex-col gap-4 group hover:border-[#4ade80]/50 transition-all">
-                <div class="aspect-video bg-black/50 rounded-lg overflow-hidden relative border border-white/5 group-hover:border-[#4ade80]/30 transition-colors">
-                    <!-- Preview of scrolling header -->
-                    <div class="absolute inset-0 opacity-50">
-                        <div class="w-full h-full bg-gradient-to-br from-green-500/20 to-transparent"></div>
-                        <!-- Simple visual represenation of scroll -->
-                         <div class="absolute inset-0 flex flex-wrap content-start opacity-30">
-                            {[...Array(12)].map((_, i) => (
-                                <div class="w-1/4 aspect-square bg-white/10 border border-white/5 m-0.5"></div>
-                            ))}
-                         </div>
+             <div class="w-full md:w-96 bg-black border-4 border-white p-4 flex flex-col gap-4 group hover:border-[#9ae600] transition-none relative shadow-[8px_8px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[8px_8px_0px_0px_#9ae600] hover:-translate-y-1">
+                <PremiumHeaderPreview client:only="svelte" />
+                <div>
+                    <h3 class="text-xl font-black text-white group-hover:text-[#9ae600] uppercase tracking-wider mb-2 text-center">[PREMIUM_HEADER]</h3>
+                    <p class="text-xs text-white/60 leading-relaxed uppercase text-center">Unlock the scrolling artist collage for your profile.</p>
+                </div>
+                <div class="mt-auto pt-4 border-t-4 border-white/20 flex items-center justify-center group-hover:border-[#9ae600]/50">
+                     <span class="text-[#9ae600] text-lg font-black tracking-tight">100,000 KALE</span>
+                </div>
+             </div>
+
+             <!-- Golden Kale Badge Card -->
+             <div class="w-full md:w-96 bg-black border-4 border-white p-4 flex flex-col gap-4 group hover:border-amber-500 transition-none relative shadow-[8px_8px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[8px_8px_0px_0px_#f59e0b] hover:-translate-y-1">
+                <div class="aspect-video bg-[#111] border-4 border-white/20 relative overflow-hidden group-hover:border-amber-500 transition-none flex items-center justify-center">
+                    <div class="relative group-hover:scale-125 transition-transform duration-0 steps-2" style="image-rendering: pixelated;">
+                        <img
+                            src="https://em-content.zobj.net/source/apple/354/leafy-green_1f96c.png"
+                            class="w-16 h-16 filter sepia-[100%] saturate-[400%] brightness-[1.2] contrast-[1.2] hue-rotate-[5deg]"
+                            style="image-rendering: pixelated;"
+                            alt="Golden Kale"
+                        />
+                         <!-- Three Sparkles like ✨ -->
+                        <div
+                            class="absolute -top-4 -right-4 text-[24px] text-[#FCF6BA] animate-ping opacity-90 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]"
+                            style="animation-duration: 2s;"
+                        >
+                            ✦
+                        </div>
+                        <div
+                            class="absolute bottom-0 -left-4 text-[18px] text-[#FCF6BA] animate-ping delay-300 opacity-80"
+                            style="animation-duration: 2.2s;"
+                        >
+                            ✦
+                        </div>
+                        <div
+                            class="absolute -top-2 -left-2 text-[12px] text-[#FCF6BA] animate-pulse delay-700 opacity-70"
+                        >
+                            ✦
+                        </div>
                     </div>
-                     <span class="absolute top-2 right-2 px-2 py-0.5 bg-[#4ade80] text-black text-[10px] font-bold uppercase rounded-full">New</span>
                 </div>
                 <div>
-                    <h3 class="text-xl font-bold text-white group-hover:text-[#4ade80] transition-colors">Premium Profile Header</h3>
-                    <p class="text-sm text-white/50 mt-1">Unlock the scrolling artist collage and glowing kale border for your profile.</p>
+                    <h3 class="text-xl font-black text-white group-hover:text-amber-500 uppercase tracking-wider mb-2 text-center">[GOLDEN_KALE]</h3>
+                    <p class="text-xs text-white/60 leading-relaxed uppercase text-center">The ultimate early adopter badge.</p>
                 </div>
-                <div class="mt-auto pt-4 flex items-center justify-between border-t border-white/5">
-                     <span class="text-[#4ade80] font-mono">100 KALE</span>
-                     <button class="px-4 py-1.5 bg-[#4ade80]/20 hover:bg-[#4ade80]/30 text-[#4ade80] text-xs font-bold uppercase tracking-widest rounded-lg transition-colors border border-[#4ade80]/20 cursor-pointer">
-                        Purchase
-                     </button>
+                <div class="mt-auto pt-4 border-t-4 border-white/20 flex items-center justify-center group-hover:border-amber-500/50">
+                     <span class="text-amber-500 text-lg font-black tracking-tight">69,420.67 KALE</span>
                 </div>
              </div>
         </div>
+
+        <!-- Upgrade Toggles (only shows if user has unlocks) -->
+        <UpgradeToggles client:only="svelte" />
+
+        <!-- Policy Modal Button -->
+        <StorePolicyButton client:only="svelte" />
+
     </main>
 </Layout>
+

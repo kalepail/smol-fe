@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@font-face {
+    font-family: 'Press Start 2P';
+    src: url('/fonts/PressStart2P.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
 @layer base {
 
     /* Remove 300ms tap delay on mobile */
@@ -18,6 +26,10 @@
 @layer components {
     .pixelated {
         image-rendering: pixelated;
+    }
+
+    .font-pixel {
+        font-family: 'Press Start 2P', monospace;
     }
 }
 

@@ -264,7 +264,7 @@
         </div>
 
         <div
-            class="flex flex-col lg:flex-row gap-2 lg:gap-8 flex-1 min-h-0 overflow-hidden p-2 lg:p-4 w-full"
+            class="flex flex-col lg:flex-row gap-2 lg:gap-4 flex-1 min-h-0 overflow-hidden p-2 lg:p-4 w-full"
         >
             <!-- LEFT COLUMN: PLAYER -->
             <div
@@ -272,7 +272,7 @@
             >
                 <RadioPlayer
                     {playlist}
-                    overlayControlsOnMobile={true}
+                    overlayControls={true}
                     {onNext}
                     {onPrev}
                     {onRegenerate}
@@ -297,45 +297,6 @@
                         }
                     }}
                 />
-
-                <!-- Mint + Trade Buttons -->
-                <div
-                    class="flex gap-3 mt-2 lg:mt-1 lg:max-w-md lg:w-full lg:mx-auto"
-                >
-                    {#if isMinted}
-                        {#if currentSong?.Mint_Amm && currentSong?.Mint_Token}
-                            <button
-                                onclick={() => (showTradeModal = true)}
-                                class="flex-1 py-3 bg-[#2775ca] hover:brightness-110 text-white font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
-                            >
-                                Trade <TokenBalancePill
-                                    balance={tradeMintBalance}
-                                />
-                            </button>
-                        {:else}
-                            <button
-                                onclick={() =>
-                                    (window.location.href = `/${currentSong?.Id}`)}
-                                class="flex-1 py-3 bg-emerald-500/20 text-emerald-300 font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2 border border-emerald-500/30"
-                            >
-                                ✓ Minted
-                            </button>
-                        {/if}
-                    {:else}
-                        <button
-                            onclick={triggerMint}
-                            disabled={minting}
-                            class="flex-1 py-3 bg-[#d836ff] hover:brightness-110 disabled:opacity-50 text-white font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
-                        >
-                            {minting ? "Minting..." : "Mint Track"}
-                        </button>
-                    {/if}
-                    <button
-                        onclick={share}
-                        class="px-6 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl border border-white/5 transition-all text-xs uppercase tracking-widest"
-                        >Share</button
-                    >
-                </div>
             </div>
 
             <!-- RIGHT COLUMN: PLAYLIST -->

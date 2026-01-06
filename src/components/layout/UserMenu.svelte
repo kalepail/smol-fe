@@ -11,6 +11,7 @@
     enterMixtapeMode,
     exitMixtapeMode,
   } from "../../stores/mixtape.svelte";
+  import { uiState, toggleMenu } from "../../stores/ui.svelte";
   import { useAuthentication } from "../../hooks/useAuthentication";
   import { useCurrentPath } from "../../hooks/useCurrentPath.svelte";
   import AuthButtons from "./AuthButtons.svelte";
@@ -122,39 +123,25 @@
   const isAuthenticated = true; // $derived(userState.contractId !== null);
 </script>
 
-{#if isAuthenticated}
-  <div class="flex items-center gap-3">
-    <MixtapeModeToggle
-      active={mixtapeModeState.active}
-      hasDraft={mixtapeDraftHasContent.current}
-      onClick={handleMixtapeClick}
-    />
-
-    <a
-      class="hover:underline {path === '/create' ? 'underline' : ''}"
-      href="/create">+ Create</a
-    >
-    <a
-      class="hover:underline {path === '/created' ? 'underline' : ''}"
-      href="/created">My Profile</a
-    >
-  </div>
-{/if}
-
-<div class="flex items-center gap-3 ml-auto">
-  {#if isAuthenticated && userState.contractId}
-    <UserBalance
-      contractId={userState.contractId}
-      balance={balanceState.balance}
-      loading={balanceState.loading}
-    />
+<!-- Mixtape Mode Toggle stays outside if requested, otherwise it can move too. 
+     User said "keep mixtapes button outside". 
+     The MixtapeModeToggle is for the builder mode. 
+     The Mixtapes link is already in Navigation. -->
+<div class="flex items-center gap-4">
+  {#if isAuthenticated}
+    <div class="hidden md:block">
+      <MixtapeModeToggle
+        active={mixtapeModeState.active}
+        hasDraft={mixtapeDraftHasContent.current}
+        onClick={handleMixtapeClick}
+      />
+    </div>
   {/if}
 
-  <AuthButtons
-    {isAuthenticated}
-    {creating}
-    onLogin={handleLogin}
-    onSignUp={handleSignUp}
-    onLogout={handleLogout}
-  />
+  <button
+    class="text-[#9ae600] hover:text-white transition-colors font-pixel uppercase tracking-wider text-[10px] md:text-xs border border-transparent hover:border-[#9ae600]/30 px-2 py-1"
+    onclick={toggleMenu}
+  >
+    {uiState.isMenuOpen ? "[CLOSE]" : "+MENU"}
+  </button>
 </div>

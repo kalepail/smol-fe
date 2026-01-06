@@ -23,7 +23,6 @@
     import MiniVisualizer from "../ui/MiniVisualizer.svelte";
     import { flip } from "svelte/animate";
     import { backOut } from "svelte/easing";
-    import KaleWreath from "./KaleWreath.svelte";
 
     let {
         discography = [],
@@ -139,6 +138,32 @@
     let initialScrollHandled = $state(false);
     let shuffleSeed = $state(Date.now());
     let collageImages = $state<string[]>([]);
+    let searchQuery = $state("");
+    let isSearchingMobile = $state(false);
+
+    // Artist badge state (fetched from API, NOT viewer's localStorage)
+    let artistBadges = $state<{ premiumHeader: boolean; goldenKale: boolean }>({
+        premiumHeader: false,
+        goldenKale: false,
+    });
+
+    // Fetch artist's badges from API on mount
+    $effect(() => {
+        if (address) {
+            fetch(`/api/artist/badges/${address}`)
+                .then((res) =>
+                    res.ok
+                        ? res.json()
+                        : { premiumHeader: false, goldenKale: false },
+                )
+                .then((data) => {
+                    artistBadges = data;
+                })
+                .catch(() => {
+                    /* ignore errors */
+                });
+        }
+    });
 
     $effect(() => {
         if (liveDiscography.length > 0 && collageImages.length === 0) {
@@ -146,7 +171,7 @@
                 .filter((s) => s.Id)
                 .map(
                     (s) =>
-                        `${import.meta.env.PUBLIC_API_URL}/image/${s.Id}.png?scale=4`,
+                        `${import.meta.env.PUBLIC_API_URL}/image/${s.Id}.png?scale=16`,
                 )
                 .sort(() => Math.random() - 0.5)
                 .slice(0, 40);
@@ -495,6 +520,14 @@
         if (activeModule === "minted") source = [...liveMinted];
         if (activeModule === "collected") source = [...liveCollected];
 
+        // Filter by Search Query
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            source = source.filter((smol) =>
+                smol.Title?.toLowerCase().includes(query),
+            );
+        }
+
         // Filter by Tags if any
         if (selectedArtistTags.length > 0) {
             source = source.filter((smol) =>
@@ -704,6 +737,7 @@
     }
 
     function handleNext() {
+        if (displayPlaylist.length === 0) return;
         const nextIndex = (currentIndex + 1) % displayPlaylist.length;
         handleSelect(nextIndex);
     }
@@ -714,6 +748,7 @@
     });
 
     function handlePrev() {
+        if (displayPlaylist.length === 0) return;
         const prevIndex =
             (currentIndex - 1 + displayPlaylist.length) %
             displayPlaylist.length;
@@ -797,37 +832,39 @@
 </script>
 
 <div
-    class="space-y-4 md:space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-700 font-mono pb-10"
+    class="space-y-0 h-full flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-700 font-mono"
 >
     <!-- Artist Info Header (Windowed) -->
     <!-- Header Wrapper with Kale Wreath -->
-    <div class="relative max-w-6xl mx-auto mb-1 group/header">
+    <div class="relative md:mb-1 z-50 max-w-6xl w-full mx-auto group/header">
         <!-- Ultimate Premium Kale Crown (Three-Layer Depth) -->
 
         <div
-            class="w-full border border-white/5 rounded-xl shadow-xl overflow-hidden py-3 md:py-4 px-3 md:px-4 flex flex-row items-center justify-between gap-1.5 md:gap-4 relative min-h-[140px] z-40"
+            class="w-full border border-white/5 md:rounded-xl rounded-none shadow-xl overflow-hidden py-3 md:py-4 px-3 md:px-4 flex flex-row items-center justify-between gap-1.5 md:gap-4 relative min-h-[140px] z-40"
         >
-            <!-- Background Collage -->
-            <div
-                class="absolute inset-0 z-0 pointer-events-none select-none overflow-hidden"
-            >
+            <!-- Background Collage (Premium Upgrade) -->
+            {#if artistBadges.premiumHeader && collageImages.length > 0}
                 <div
-                    class="flex flex-wrap content-start w-full animate-slide-up"
+                    class="absolute inset-0 z-0 pointer-events-none select-none overflow-hidden"
                 >
-                    {#each collageImages as img}
-                        <div
-                            class="w-1/4 md:w-1/6 lg:w-1/8 aspect-square relative overflow-hidden"
-                        >
-                            <img
-                                src={img}
-                                alt="art"
-                                class="w-full h-full object-cover opacity-100"
-                                loading="lazy"
-                            />
-                        </div>
-                    {/each}
+                    <div
+                        class="flex flex-wrap content-start w-full animate-slide-up"
+                    >
+                        {#each collageImages as img}
+                            <div
+                                class="w-1/4 md:w-1/6 lg:w-1/8 aspect-square relative overflow-hidden"
+                            >
+                                <img
+                                    src={img}
+                                    alt="art"
+                                    class="w-full h-full object-cover opacity-100"
+                                    loading="lazy"
+                                />
+                            </div>
+                        {/each}
+                    </div>
                 </div>
-            </div>
+            {/if}
 
             <!-- Dark Glass Overlay -->
             <div
@@ -842,6 +879,7 @@
                 >
                     Artist Profile
                 </h1>
+
                 <div class="flex flex-col gap-3">
                     <button
                         onclick={copyAddress}
@@ -881,8 +919,33 @@
                 </div>
             </div>
 
-            <!-- Right Section: Player Controls (Mobile) or Stats (Desktop) -->
-            <div class="flex items-center gap-4 relative z-50 shrink-0">
+            <!-- Middle Section: Artist Stats (Centered on Desktop) -->
+            <div
+                class="hidden md:flex flex-1 justify-center items-center gap-3 relative z-10 px-4"
+            >
+                <div class="flex items-center gap-2">
+                    <span
+                        class="px-2.5 py-1 rounded-md bg-lime-500/10 text-lime-400 text-[9px] border border-lime-500/20 uppercase tracking-widest font-bold shadow-[0_0_8px_rgba(132,204,22,0.1)]"
+                    >
+                        {livePublishedCount} Published
+                    </span>
+                    <span
+                        class="px-2.5 py-1 rounded-md bg-purple-500/10 text-purple-400 text-[9px] border border-purple-500/20 uppercase tracking-widest font-bold shadow-[0_0_8px_rgba(216,54,255,0.1)]"
+                    >
+                        {liveMintedCount} Minted
+                    </span>
+                    <span
+                        class="px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-400 text-[9px] border border-blue-500/20 uppercase tracking-widest font-bold shadow-[0_0_8px_rgba(59,130,246,0.1)]"
+                    >
+                        {liveCollectedCount} Collected
+                    </span>
+                </div>
+            </div>
+
+            <!-- Right Section: Player Controls (Mobile) -->
+            <div
+                class="flex items-center gap-4 relative z-50 shrink-0 min-w-[120px] justify-end"
+            >
                 {#if showGridView && currentSong}
                     {@const currentIdx = displayPlaylist.findIndex(
                         (s) => s.Id === currentSong?.Id,
@@ -992,39 +1055,49 @@
                     </div>
                 {/if}
 
-                <!-- Desktop Stats -->
-                <div class="hidden md:flex flex-col items-end gap-3">
-                    <div class="flex flex-wrap gap-2 justify-end">
-                        <span
-                            class="px-3 py-1 rounded-md bg-lime-500/10 text-lime-400 text-[10px] border border-lime-500/20 uppercase tracking-widest font-bold shadow-[0_0_10px_rgba(132,204,22,0.1)]"
+                <!-- Golden Kale Badge (Unlocked via Secret Tip) -->
+                {#if artistBadges.goldenKale}
+                    <div
+                        class="absolute top-1/2 -translate-y-1/2 right-2 flex items-center justify-center animate-pulse-slow group/badge cursor-help z-[60]"
+                        title="Gold Member"
+                    >
+                        <img
+                            src="https://em-content.zobj.net/source/apple/354/leafy-green_1f96c.png"
+                            class="w-10 h-10 md:w-14 md:h-14 filter sepia-[100%] saturate-[400%] brightness-[1.2] contrast-[1.2] hue-rotate-[5deg] drop-shadow-[4px_4px_0px_rgba(180,140,0,1)] transition-transform group-hover/badge:scale-110"
+                            style="image-rendering: pixelated;"
+                            alt="Golden Kale"
+                        />
+                        <!-- Three Sparkles like ✨ -->
+                        <div
+                            class="absolute -top-2 -right-3 text-[14px] md:text-[20px] text-[#FCF6BA] animate-ping opacity-90 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]"
+                            style="animation-duration: 2s;"
                         >
-                            {livePublishedCount} Published
-                        </span>
-                        <span
-                            class="px-3 py-1 rounded-md bg-purple-500/10 text-purple-400 text-[10px] border border-purple-500/20 uppercase tracking-widest font-bold shadow-[0_0_10px_rgba(216,54,255,0.1)]"
+                            ✦
+                        </div>
+                        <div
+                            class="absolute bottom-0 -left-3 text-[10px] md:text-[14px] text-[#FCF6BA] animate-ping delay-300 opacity-80"
+                            style="animation-duration: 2.2s;"
                         >
-                            {liveMintedCount} Minted
-                        </span>
+                            ✦
+                        </div>
+                        <div
+                            class="absolute -top-2 -left-2 text-[6px] md:text-[10px] text-[#FCF6BA] animate-pulse delay-700 opacity-70"
+                        >
+                            ✦
+                        </div>
                     </div>
-                    <div class="flex gap-2">
-                        <span
-                            class="px-3 py-1 rounded-md bg-blue-500/10 text-blue-400 text-[10px] border border-blue-500/20 uppercase tracking-widest font-bold shadow-[0_0_10px_rgba(59,130,246,0.1)]"
-                        >
-                            {liveCollectedCount} Collected
-                        </span>
-                    </div>
-                </div>
+                {/if}
             </div>
         </div>
     </div>
 
     <!-- Main Player Card -->
     <div
-        class="max-w-6xl mx-auto reactive-glass allow-scroll border border-white/5 bg-[#1d1d1d]/70 backdrop-blur-xl rounded-2xl shadow-2xl relative flex flex-col h-[calc(100vh-180px)] md:h-[calc(100vh-200px)] min-h-[400px]"
+        class="max-w-6xl w-full mx-auto reactive-glass border border-white/5 bg-[#1d1d1d]/70 backdrop-blur-xl md:rounded-2xl rounded-none shadow-2xl relative flex flex-col flex-1 min-h-0"
     >
         <!-- Control Bar (Tabs & View Controls) -->
         <div
-            class="flex items-center border-b border-white/5 bg-black/5 shrink-0 min-w-0 py-2 px-3 gap-2"
+            class="relative z-[45] flex items-center border-b border-white/5 bg-[#1a1a1a] backdrop-blur-xl shrink-0 min-w-0 py-2 px-3 gap-2"
         >
             <div class="flex items-center gap-2 select-none shrink-0">
                 <button
@@ -1050,8 +1123,41 @@
 
             <!-- Module Tabs (Visible on all devices) -->
             <div
-                class="flex flex-1 items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar min-w-0 mask-fade-right"
+                class="flex flex-1 items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar min-w-0 mask-fade-right relative"
             >
+                <!-- Mobile Elegant Search Bar Overlay -->
+                {#if isSearchingMobile}
+                    <div
+                        class="absolute inset-0 bg-[#1a1a1a] flex items-center px-1 z-50 animate-in slide-in-from-right-4 duration-300 md:hidden"
+                    >
+                        <div class="relative w-full flex items-center gap-2">
+                            <input
+                                type="text"
+                                bind:value={searchQuery}
+                                placeholder="Search songs..."
+                                class="flex-1 bg-black/40 border border-lime-500/30 rounded-full py-1.5 px-4 text-base text-white outline-none focus:border-lime-500 transition-all font-mono"
+                            />
+                            <button
+                                onclick={() => {
+                                    isSearchingMobile = false;
+                                    searchQuery = "";
+                                }}
+                                class="shrink-0 p-1.5 text-white/40 hover:text-white"
+                            >
+                                <svg
+                                    class="w-4 h-4"
+                                    fill="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                {/if}
+
                 <button
                     onclick={() => {
                         activeModule = "discography";
@@ -1093,6 +1199,51 @@
                 </button>
             </div>
 
+            <!-- Search Input (Desktop Only) -->
+            <div
+                class="hidden md:flex items-center ml-2 border-l border-white/10 pl-3"
+            >
+                <div class="relative">
+                    <input
+                        type="text"
+                        bind:value={searchQuery}
+                        placeholder="Search {activeModule}..."
+                        class="bg-black/20 border border-white/10 rounded-full py-1.5 px-3 text-[10px] w-32 xl:w-48 focus:w-40 xl:focus:w-56 focus:border-lime-500/50 focus:bg-black/40 outline-none transition-all duration-300 text-white placeholder:text-white/20 font-mono"
+                    />
+                    {#if searchQuery}
+                        <button
+                            onclick={() => (searchQuery = "")}
+                            class="absolute right-2 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors"
+                        >
+                            <svg
+                                class="w-2.5 h-2.5"
+                                fill="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+                                />
+                            </svg>
+                        </button>
+                    {:else}
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke-width="2"
+                            stroke="currentColor"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/20"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
+                            />
+                        </svg>
+                    {/if}
+                </div>
+            </div>
+
             <div class="flex items-center gap-1.5 md:gap-2 shrink-0">
                 <!-- Tags Mini Button (Grid View only) - Green style, toggles tagsExpanded -->
                 {#if showGridView}
@@ -1116,6 +1267,30 @@
                         </svg>
                     </button>
                 {/if}
+
+                <!-- Mobile Search Toggle Button -->
+                <button
+                    onclick={() => (isSearchingMobile = !isSearchingMobile)}
+                    class="md:hidden w-8 h-8 flex items-center justify-center rounded-full transition-all active:scale-95 {isSearchingMobile
+                        ? 'text-lime-400 bg-lime-500/20 border border-lime-500'
+                        : 'text-white/40 hover:text-white hover:bg-white/10 border border-white/10'}"
+                    title="Search Songs"
+                >
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke-width="2"
+                        stroke="currentColor"
+                        class="w-4 h-4"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
+                        />
+                    </svg>
+                </button>
 
                 <!-- Sort Dropdown (Available in both Player and Grid modes) -->
                 <div class="relative">
@@ -1260,7 +1435,7 @@
             </div>
         </div>
 
-        <div class="relative flex-1 min-h-0 flex flex-col overflow-y-auto">
+        <div class="relative flex-1 min-h-0 flex flex-col">
             {#if showGridView}
                 <div
                     class="absolute inset-0 z-50 bg-[#121212] p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto dark-scrollbar"
@@ -1482,10 +1657,12 @@
             {/if}
 
             <div
-                class="flex flex-col lg:flex-row gap-0 lg:gap-4 h-auto lg:h-full items-stretch px-4 pt-0 pb-4"
+                class="flex flex-col lg:flex-row gap-0 lg:gap-4 flex-1 min-h-0 items-stretch px-4 pt-0 pb-4 overflow-hidden"
             >
                 <!-- LEFT COLUMN: PLAYER -->
-                <div class="w-full lg:w-1/2 flex flex-col gap-1 min-h-0">
+                <div
+                    class="w-full lg:w-1/2 flex flex-col gap-0 min-h-0 relative z-[41] shrink-0"
+                >
                     <RadioPlayer
                         playlist={displayPlaylist}
                         replaceDetailWithRegenerate={false}
@@ -1525,59 +1702,14 @@
                             }
                         }}
                     />
-
-                    <!-- Mint + Trade Buttons (hidden on mobile, controls are in art) -->
-                    <div class="hidden lg:flex gap-3 mt-1">
-                        {#if isMinted}
-                            {#if currentSong?.Mint_Amm && currentSong?.Mint_Token}
-                                <button
-                                    onclick={() => {
-                                        if (!userState.contractId) {
-                                            triggerLogin();
-                                            return;
-                                        }
-                                        showTradeModal = true;
-                                    }}
-                                    class="flex-1 py-3 bg-[#2775ca] hover:brightness-110 text-white font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
-                                >
-                                    Trade <TokenBalancePill
-                                        balance={tradeMintBalance}
-                                    />
-                                </button>
-                            {:else}
-                                <button
-                                    onclick={() =>
-                                        navigate(
-                                            `/${currentSong?.Id}?from=artist`,
-                                        )}
-                                    class="flex-1 py-3 bg-emerald-500/20 text-emerald-300 font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2 border border-emerald-500/30"
-                                >
-                                    ✓ Minted
-                                </button>
-                            {/if}
-                        {:else}
-                            <button
-                                onclick={triggerMint}
-                                disabled={minting}
-                                class="flex-1 py-3 bg-[#d836ff] hover:brightness-110 disabled:opacity-50 text-white font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
-                            >
-                                {minting ? "Minting..." : "Mint Track"}
-                            </button>
-                        {/if}
-                        <button
-                            onclick={share}
-                            class="px-6 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl border border-white/5 transition-all text-xs uppercase tracking-widest"
-                            >Share</button
-                        >
-                    </div>
                 </div>
 
                 <!-- RIGHT COLUMN: PLAYLIST -->
                 <div
-                    class="w-full lg:w-1/2 flex flex-col min-h-0 mt-1 lg:mt-0 bg-black/20 border border-white/5 rounded-2xl max-h-[40vh] lg:max-h-[calc(100vh-280px)]"
+                    class="w-full lg:w-1/2 flex flex-col min-h-0 mt-1 lg:mt-0 bg-[#121212] border border-white/5 rounded-2xl relative flex-1 overflow-y-auto dark-scrollbar z-[40]"
                 >
                     <div
-                        class="flex items-center justify-between p-3 border-b border-white/5 bg-white/5 flex-shrink-0"
+                        class="flex items-center justify-between p-3 border-b border-white/5 bg-[#1a1a1a] flex-shrink-0"
                     >
                         <h3
                             class="text-white font-bold tracking-widest uppercase text-xs truncate max-w-[70%]"

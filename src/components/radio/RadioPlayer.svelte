@@ -40,6 +40,7 @@
     replaceDetailWithRegenerate = false,
     showSongDetailButton = true,
     playButtonVariant = "default",
+    overlayControls = false,
   }: {
     playlist: Smol[];
     onNext?: () => void;
@@ -57,6 +58,8 @@
     isMinting?: boolean;
     isAuthenticated?: boolean;
     showMiniActions?: boolean;
+    overlayControlsOnMobile?: boolean; // legacy
+    overlayControls?: boolean;
     onShare?: () => void;
     onShuffle?: () => void;
     onTogglePublish?: () => void;
@@ -68,6 +71,8 @@
     showSongDetailButton?: boolean;
     playButtonVariant?: "default" | "silver";
   } = $props();
+
+  const isOverlay = $derived(overlayControls || overlayControlsOnMobile);
 
   // Context-aware back navigation
   let backContext = $state<{
@@ -400,15 +405,13 @@
     <div class="flex-1 flex flex-col items-center">
       <!-- ALBUM ART + CONTROLS WRAPPER (relative for absolute controls on mobile) -->
       <div
-        class="{overlayControlsOnMobile
-          ? 'relative'
-          : ''} w-full flex flex-col items-center"
+        class="{isOverlay ? 'relative' : ''} w-full flex flex-col items-center"
       >
         <!-- MERGED ALBUM ART + VISUALIZER -->
         <div
-          class="relative shrink-0 shadow-2xl mx-auto transition-all duration-500 rounded-2xl overflow-hidden bg-black/40 border border-white/10 flex items-center justify-center {isFullscreen
-            ? 'max-h-[60vh] max-w-[60vh]'
-            : 'max-w-full max-h-[35vh] lg:max-h-[400px] aspect-square min-h-[320px]'}"
+          class="relative shrink-0 shadow-2xl mx-auto transition-all duration-500 rounded-2xl overflow-hidden bg-black/40 border border-white/10 flex items-center justify-center w-full {isFullscreen
+            ? 'max-h-[85vh] max-w-[85vh]'
+            : 'max-w-full lg:max-h-[400px] aspect-square min-h-[320px]'}"
           style="transform: translateZ(0); -webkit-transform: translateZ(0); -webkit-backdrop-filter: blur(10px);"
         >
           <!-- TOP SCRUBBER (mobile only when overlayControlsOnMobile) -->
@@ -802,8 +805,8 @@
 
         <!-- Controls (below art in standard, absolute on art for overlayControlsOnMobile on mobile) -->
         <div
-          class="flex items-center justify-center gap-2 sm:gap-4 md:gap-6 transition-all duration-500 {overlayControlsOnMobile
-            ? 'absolute bottom-11 left-0 right-0 z-40 lg:relative lg:bottom-auto lg:mt-1 lg:pb-0'
+          class="flex items-center justify-center gap-2 sm:gap-4 md:gap-6 transition-all duration-500 {isOverlay
+            ? 'absolute bottom-11 left-0 right-0 z-40'
             : 'mt-1 pb-0'} {isFullscreen
             ? showControls
               ? 'opacity-100 translate-y-0'
@@ -949,10 +952,10 @@
           {/if}
         </div>
 
-        <!-- Compact Mint/Share buttons for mobile (below controls when overlayControlsOnMobile) -->
-        {#if overlayControlsOnMobile}
+        <!-- Compact Mint/Share buttons (below controls when isOverlay) -->
+        {#if isOverlay}
           <div
-            class="absolute bottom-2 left-0 right-0 z-40 flex justify-center gap-2 px-4 lg:hidden"
+            class="absolute bottom-2 left-0 right-0 z-40 flex justify-center gap-2 px-4"
           >
             {#if onMint}
               <button
@@ -964,7 +967,7 @@
                   onMint?.();
                 }}
                 disabled={isMinting}
-                class="flex-1 max-w-[140px] py-1.5 bg-[#d836ff]/80 backdrop-blur-md text-white text-[10px] font-bold rounded-lg uppercase tracking-wider"
+                class="flex-1 max-w-[140px] py-1.5 bg-[#d836ff]/80 backdrop-blur-md text-white text-[10px] font-bold rounded-lg uppercase tracking-wider hover:bg-[#d836ff] transition-colors"
               >
                 {isMinting ? "..." : "Mint"}
               </button>
@@ -978,7 +981,7 @@
                   }
                   onTrade?.();
                 }}
-                class="flex-1 max-w-[140px] py-1.5 bg-[#2775ca]/80 backdrop-blur-md text-white text-[10px] font-bold rounded-lg uppercase tracking-wider"
+                class="flex-1 max-w-[140px] py-1.5 bg-[#2775ca]/80 backdrop-blur-md text-white text-[10px] font-bold rounded-lg uppercase tracking-wider hover:bg-[#2775ca] transition-colors"
               >
                 Trade
               </button>
@@ -986,7 +989,7 @@
             {#if onShare}
               <button
                 onclick={onShare}
-                class="px-4 py-1.5 bg-white/10 backdrop-blur-md text-white text-[10px] font-bold rounded-lg uppercase tracking-wider border border-white/10"
+                class="px-4 py-1.5 bg-white/10 backdrop-blur-md text-white text-[10px] font-bold rounded-lg uppercase tracking-wider border border-white/10 hover:bg-white/20 transition-colors"
               >
                 Share
               </button>

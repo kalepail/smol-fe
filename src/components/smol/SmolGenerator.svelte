@@ -38,8 +38,8 @@
       }}
     >
       <textarea
-        class="p-2 mb-3 w-full bg-slate-800 text-white outline-3 outline-offset-3 outline-slate-800 rounded focus:outline-slate-700"
-        placeholder="Write an epic prompt for an even epic'er gen"
+        class="p-2 mb-3 w-full bg-slate-800 text-white border-2 border-slate-700 rounded-none focus:border-lime-500 outline-none font-pixel uppercase tracking-widest text-xs leading-relaxed"
+        placeholder={`WRITE AN EPIC PROMPT\nFOR AN EVEN EPIC'ER GEN!`}
         rows="4"
         bind:value={prompt}
         oninput={(e) => {
@@ -47,16 +47,26 @@
           onPromptChange(target.value);
         }}
       ></textarea>
-      <small class="text-xs text-slate-400 self-end mb-2">
+      <small
+        class="text-[10px] font-pixel text-slate-400 self-end mb-2 tracking-wider"
+      >
         {prompt.length} / {maxLength}
       </small>
 
       <div class="flex w-full mb-5">
         <div>
-          <label class="flex items-center" for="public">
-            <span class="text-xs mr-2">Public</span>
+          <label
+            class="flex items-center cursor-pointer hover:text-lime-400 transition-colors gap-2"
+            for="public"
+          >
+            <span
+              class="text-xs font-pixel uppercase tracking-wider {isPublic
+                ? 'text-lime-500'
+                : 'text-slate-300'}">Public</span
+            >
             <input
               type="checkbox"
+              class="hidden"
               name="public"
               id="public"
               bind:checked={isPublic}
@@ -65,12 +75,39 @@
                 onPublicChange(target.checked);
               }}
             />
+            <div
+              class="w-3 h-3 flex items-center justify-center relative -top-[2.5px]"
+            >
+              {#if isPublic}
+                <svg
+                  class="w-3 h-3 text-lime-500"
+                  viewBox="0 0 10 10"
+                  fill="currentColor"
+                >
+                  <rect x="0" y="5" width="3" height="3" />
+                  <rect x="2" y="7" width="3" height="3" />
+                  <rect x="4" y="5" width="3" height="3" />
+                  <rect x="6" y="3" width="3" height="3" />
+                  <rect x="8" y="1" width="3" height="3" />
+                </svg>
+              {:else}
+                <div class="w-1 h-1 bg-slate-600"></div>
+              {/if}
+            </div>
           </label>
 
-          <label class="flex items-center" for="instrumental">
-            <span class="text-xs mr-2">Instrumental</span>
+          <label
+            class="flex items-center cursor-pointer hover:text-lime-400 transition-colors gap-2"
+            for="instrumental"
+          >
+            <span
+              class="text-xs font-pixel uppercase tracking-wider {isInstrumental
+                ? 'text-lime-500'
+                : 'text-slate-300'}">Instrumental</span
+            >
             <input
               type="checkbox"
+              class="hidden"
               name="instrumental"
               id="instrumental"
               bind:checked={isInstrumental}
@@ -79,19 +116,38 @@
                 onInstrumentalChange(target.checked);
               }}
             />
+            <div
+              class="w-3 h-3 flex items-center justify-center relative -top-[2.5px]"
+            >
+              {#if isInstrumental}
+                <svg
+                  class="w-3 h-3 text-lime-500"
+                  viewBox="0 0 10 10"
+                  fill="currentColor"
+                >
+                  <rect x="0" y="5" width="3" height="3" />
+                  <rect x="2" y="7" width="3" height="3" />
+                  <rect x="4" y="5" width="3" height="3" />
+                  <rect x="6" y="3" width="3" height="3" />
+                  <rect x="8" y="1" width="3" height="3" />
+                </svg>
+              {:else}
+                <div class="w-1 h-1 bg-slate-600"></div>
+              {/if}
+            </div>
           </label>
         </div>
 
         <div class="flex items-center gap-2 ml-auto">
           {#if playlist}
             <span
-              class="flex items-center text-xs font-mono bg-lime-500 text-black px-2 py-1 rounded-full"
+              class="flex items-center text-[10px] font-pixel uppercase tracking-wider bg-lime-500 text-black px-2 py-1 rounded-none border border-lime-400"
             >
               {playlist}
               <button
                 type="button"
                 onclick={onRemovePlaylist}
-                class="ml-1.5 -mr-0.5 p-0.5 rounded-full hover:bg-black/20 text-black"
+                class="ml-1.5 -mr-0.5 p-0.5 hover:bg-black/20 text-black rounded-none"
                 aria-label="Remove playlist"
               >
                 <svg
@@ -109,17 +165,31 @@
           {/if}
           <button
             type="submit"
-            class="flex items-center text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1 disabled:opacity-50"
+            class="flex items-center gap-2 text-lime-500 bg-lime-500/20 border-2 border-lime-500 hover:bg-lime-500/30 rounded-none px-3 py-1.5 disabled:opacity-50 font-pixel uppercase tracking-wider text-[10px]"
             disabled={isGenerating || !prompt}
           >
-            ⚡︎ Generate
+            <svg
+              class="w-3.5 h-3.5 flex-shrink-0"
+              viewBox="0 0 12 12"
+              fill="currentColor"
+            >
+              <!-- Sharper Jagged Pixel Bolt -->
+              <rect x="6" y="0" width="4" height="2" />
+              <rect x="4" y="2" width="4" height="2" />
+              <rect x="1" y="4" width="10" height="3" />
+              <rect x="5" y="7" width="4" height="2" />
+              <rect x="3" y="9" width="4" height="3" />
+            </svg>
+            Generate
           </button>
         </div>
       </div>
 
-      <aside class="text-xs self-start">
-        * Will take roughly 6 minutes to fully generate.
-        <br /> &nbsp;&nbsp; Even longer during times of heavy load.
+      <aside
+        class="text-[10px] font-pixel uppercase tracking-wider self-start text-slate-400 mt-2 leading-relaxed opacity-80 max-w-[450px] text-justify"
+      >
+        * Will take roughly 6 minutes to fully generate. Even longer during
+        times of heavy load.
       </aside>
     </form>
   </div>
