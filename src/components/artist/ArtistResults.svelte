@@ -137,6 +137,20 @@
     let isUrlStateLoaded = $state(false);
     let initialScrollHandled = $state(false);
     let shuffleSeed = $state(Date.now());
+    let collageImages = $state<string[]>([]);
+
+    $effect(() => {
+        if (liveDiscography.length > 0 && collageImages.length === 0) {
+            collageImages = liveDiscography
+                .filter((s) => s.Id)
+                .map(
+                    (s) =>
+                        `${import.meta.env.PUBLIC_API_URL}/image/${s.Id}.png?scale=4`,
+                )
+                .sort(() => Math.random() - 0.5)
+                .slice(0, 32);
+        }
+    });
 
     // Deterministic Hash for Seeded Shuffle (Stable Random)
     function getShuffleVal(id: string, seed: number) {
@@ -785,10 +799,34 @@
 >
     <!-- Artist Info Header (Windowed) -->
     <div
-        class="max-w-6xl mx-auto reactive-glass border border-white/5 bg-[#1d1d1d]/70 backdrop-blur-xl rounded-xl shadow-xl overflow-hidden mb-1 py-3 md:py-4 px-3 md:px-4 flex flex-row items-center justify-between gap-1.5 md:gap-4 relative group/header"
+        class="max-w-6xl mx-auto border border-white/5 rounded-xl shadow-xl overflow-hidden mb-1 py-3 md:py-4 px-3 md:px-4 flex flex-row items-center justify-between gap-1.5 md:gap-4 relative group/header min-h-[140px]"
     >
+        <!-- Background Collage -->
+        <div
+            class="absolute inset-0 z-0 flex flex-wrap content-start opacity-70 pointer-events-none select-none"
+        >
+            {#each collageImages as img}
+                <div
+                    class="w-1/4 md:w-1/6 lg:w-1/8 aspect-square relative overflow-hidden"
+                >
+                    <img
+                        src={img}
+                        alt="art"
+                        class="w-full h-full object-cover opacity-85 hover:scale-110 transition-transform duration-[10s] ease-linear"
+                        loading="lazy"
+                    />
+                </div>
+            {/each}
+        </div>
+
+        <!-- Dark Glass Overlay -->
+        <div
+            class="absolute inset-0 z-0 bg-[#0a0a0a]/70 backdrop-blur-2xl"
+        ></div>
         <!-- Left Section: Artist Info & Tip Button -->
-        <div class="space-y-2 relative z-10 flex-1 min-w-0">
+        <div
+            class="space-y-2 relative z-10 flex-1 min-w-0 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]"
+        >
             <h1
                 class="text-[9px] font-mono text-white/40 uppercase tracking-[0.3em]"
             >
