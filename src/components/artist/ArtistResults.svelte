@@ -23,6 +23,7 @@
     import MiniVisualizer from "../ui/MiniVisualizer.svelte";
     import { flip } from "svelte/animate";
     import { backOut } from "svelte/easing";
+    import KaleWreath from "./KaleWreath.svelte";
 
     let {
         discography = [],
@@ -141,14 +142,15 @@
 
     $effect(() => {
         if (liveDiscography.length > 0 && collageImages.length === 0) {
-            collageImages = liveDiscography
+            const base = liveDiscography
                 .filter((s) => s.Id)
                 .map(
                     (s) =>
                         `${import.meta.env.PUBLIC_API_URL}/image/${s.Id}.png?scale=4`,
                 )
                 .sort(() => Math.random() - 0.5)
-                .slice(0, 32);
+                .slice(0, 40);
+            collageImages = [...base, ...base];
         }
     });
 
@@ -798,205 +800,219 @@
     class="space-y-4 md:space-y-2 animate-in fade-in slide-in-from-bottom-4 duration-700 font-mono pb-10"
 >
     <!-- Artist Info Header (Windowed) -->
-    <div
-        class="max-w-6xl mx-auto border border-white/5 rounded-xl shadow-xl overflow-hidden mb-1 py-3 md:py-4 px-3 md:px-4 flex flex-row items-center justify-between gap-1.5 md:gap-4 relative group/header min-h-[140px]"
-    >
-        <!-- Background Collage -->
-        <div
-            class="absolute inset-0 z-0 flex flex-wrap content-start opacity-70 pointer-events-none select-none"
-        >
-            {#each collageImages as img}
-                <div
-                    class="w-1/4 md:w-1/6 lg:w-1/8 aspect-square relative overflow-hidden"
-                >
-                    <img
-                        src={img}
-                        alt="art"
-                        class="w-full h-full object-cover opacity-85 hover:scale-110 transition-transform duration-[10s] ease-linear"
-                        loading="lazy"
-                    />
-                </div>
-            {/each}
-        </div>
+    <!-- Header Wrapper with Kale Wreath -->
+    <div class="relative max-w-6xl mx-auto mb-1 group/header">
+        <!-- Ultimate Premium Kale Crown (Three-Layer Depth) -->
 
-        <!-- Dark Glass Overlay -->
         <div
-            class="absolute inset-0 z-0 bg-[#0a0a0a]/70 backdrop-blur-2xl"
-        ></div>
-        <!-- Left Section: Artist Info & Tip Button -->
-        <div
-            class="space-y-2 relative z-10 flex-1 min-w-0 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]"
+            class="w-full border border-white/5 rounded-xl shadow-xl overflow-hidden py-3 md:py-4 px-3 md:px-4 flex flex-row items-center justify-between gap-1.5 md:gap-4 relative min-h-[140px] z-40"
         >
-            <h1
-                class="text-[9px] font-mono text-white/40 uppercase tracking-[0.3em]"
+            <!-- Background Collage -->
+            <div
+                class="absolute inset-0 z-0 pointer-events-none select-none overflow-hidden"
             >
-                Artist Profile
-            </h1>
-            <div class="flex flex-col gap-3">
-                <button
-                    onclick={copyAddress}
-                    class="text-lg md:text-3xl lg:text-4xl font-bold tracking-tighter text-white hover:text-[#d836ff] transition-colors flex items-center gap-2 md:gap-3 group/address text-left"
-                    title="Click to copy address (Send $KALE only!)"
-                >
-                    {shortAddress}
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke-width="2"
-                        stroke="currentColor"
-                        class="w-5 h-5 opacity-0 group-hover/address:opacity-100 transition-all text-[#d836ff] -ml-2 group-hover/address:ml-0"
-                    >
-                        <path
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                            d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75"
-                        />
-                    </svg>
-                </button>
-
-                <button
-                    onclick={() => {
-                        if (!userState.contractId) {
-                            triggerLogin();
-                            return;
-                        }
-                        showTipModal = true;
-                    }}
-                    class="w-fit px-4 py-1.5 bg-gradient-to-r from-green-600/20 to-green-500/10 border border-green-500/30 rounded-full text-green-400 text-[10px] font-bold uppercase tracking-widest hover:bg-green-500/20 transition-all flex items-center gap-1.5"
-                >
-                    <span class="text-base leading-none">🥬</span>
-                    Tip Artist
-                </button>
-            </div>
-        </div>
-
-        <!-- Right Section: Player Controls (Mobile) or Stats (Desktop) -->
-        <div class="flex items-center gap-4 relative z-10 shrink-0">
-            {#if showGridView && currentSong}
-                {@const currentIdx = displayPlaylist.findIndex(
-                    (s) => s.Id === currentSong?.Id,
-                )}
-                {@const isLiked =
-                    currentIdx !== -1
-                        ? displayPlaylist[currentIdx]?.Liked
-                        : false}
-                <!-- Mobile Mini Player (RadioPlayer Style) -->
                 <div
-                    class="flex items-center gap-1.5 sm:gap-2 bg-black/40 backdrop-blur-md p-1.5 rounded-full border border-white/10 shadow-xl"
+                    class="flex flex-wrap content-start w-full animate-slide-up"
                 >
-                    <!-- Like Button -->
-                    <LikeButton
-                        smolId={currentSong.Id}
-                        liked={!!isLiked}
-                        classNames="tech-button w-7 h-7 flex items-center justify-center active:scale-95 disabled:opacity-30 border rounded-full backdrop-blur-md transition-all duration-300 border-[#ff424c] shadow-[0_0_15px_rgba(255,66,76,0.3)] {isLiked
-                            ? 'bg-[#ff424c] text-white'
-                            : 'bg-[#ff424c]/10 text-[#ff424c] hover:bg-[#ff424c]/20'}"
-                        iconSize="size-3"
-                        on:likeChanged={(e) => {
-                            if (currentIdx !== -1) {
-                                handleToggleLike(currentIdx, e.detail.liked);
-                            }
-                        }}
-                    />
-
-                    <!-- Prev Button -->
-                    <button
-                        class="tech-button w-7 h-7 flex items-center justify-center text-white/60 hover:text-white active:scale-95 border border-white/5 hover:border-white/20 rounded-full bg-white/5"
-                        onclick={handlePrev}
-                        title="Previous"
-                    >
-                        <svg
-                            class="w-3.5 h-3.5"
-                            fill="currentColor"
-                            viewBox="0 0 24 24"
+                    {#each collageImages as img}
+                        <div
+                            class="w-1/4 md:w-1/6 lg:w-1/8 aspect-square relative overflow-hidden"
                         >
-                            <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
-                        </svg>
-                    </button>
+                            <img
+                                src={img}
+                                alt="art"
+                                class="w-full h-full object-cover opacity-100"
+                                loading="lazy"
+                            />
+                        </div>
+                    {/each}
+                </div>
+            </div>
 
-                    <!-- Play/Pause Button -->
+            <!-- Dark Glass Overlay -->
+            <div
+                class="absolute inset-0 z-0 bg-[#0a0a0a]/60 backdrop-blur-[2px]"
+            ></div>
+            <!-- Left Section: Artist Info & Tip Button -->
+            <div
+                class="space-y-2 relative z-10 flex-1 min-w-0 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]"
+            >
+                <h1
+                    class="text-[9px] font-mono text-white/40 uppercase tracking-[0.3em]"
+                >
+                    Artist Profile
+                </h1>
+                <div class="flex flex-col gap-3">
                     <button
-                        class="tech-button w-9 h-9 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-xl border border-[#089981] text-[#089981] bg-[#089981]/10 shadow-[0_0_20px_rgba(8,153,129,0.4)] hover:bg-[#089981]/20 hover:text-white"
-                        onclick={togglePlayPause}
-                        title={isPlaying(currentSong?.Id) ? "Pause" : "Play"}
+                        onclick={copyAddress}
+                        class="text-lg md:text-3xl lg:text-4xl font-bold tracking-tighter text-white hover:text-[#d836ff] transition-colors flex items-center gap-2 md:gap-3 group/address text-left"
+                        title="Click to copy address (Send $KALE only!)"
                     >
-                        {#if isPlaying(currentSong?.Id)}
-                            <svg
-                                class="w-4 h-4"
-                                fill="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
-                            </svg>
-                        {:else}
-                            <svg
-                                class="w-4 h-4 ml-0.5"
-                                fill="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path d="M8 5v14l11-7z" />
-                            </svg>
-                        {/if}
-                    </button>
-
-                    <!-- Next Button -->
-                    <button
-                        class="tech-button w-7 h-7 flex items-center justify-center text-white/60 hover:text-white active:scale-95 border border-white/5 hover:border-white/20 rounded-full bg-white/5"
-                        onclick={handleNext}
-                        title="Next"
-                    >
+                        {shortAddress}
                         <svg
-                            class="w-3.5 h-3.5"
-                            fill="currentColor"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
                             viewBox="0 0 24 24"
-                        >
-                            <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
-                        </svg>
-                    </button>
-
-                    <!-- Regenerate/Shuffle Button (Orange) - Reshuffles playlist -->
-                    <button
-                        class="tech-button w-7 h-7 flex items-center justify-center active:scale-95 border rounded-full transition-all border-[#f7931a] bg-[#f7931a]/10 text-[#f7931a] hover:bg-[#f7931a]/20 shadow-[0_0_15px_rgba(247,147,26,0.2)]"
-                        onclick={generateArtistMix}
-                        disabled={isGeneratingMix}
-                        title="Regenerate Shuffle"
-                    >
-                        <svg
-                            class="w-3.5 h-3.5 {isGeneratingMix
-                                ? 'animate-spin'
-                                : ''}"
-                            fill="currentColor"
-                            viewBox="0 0 24 24"
+                            stroke-width="2"
+                            stroke="currentColor"
+                            class="w-5 h-5 opacity-0 group-hover/address:opacity-100 transition-all text-[#d836ff] -ml-2 group-hover/address:ml-0"
                         >
                             <path
-                                d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75"
                             />
                         </svg>
                     </button>
-                </div>
-            {/if}
 
-            <!-- Desktop Stats -->
-            <div class="hidden md:flex flex-col items-end gap-3">
-                <div class="flex flex-wrap gap-2 justify-end">
-                    <span
-                        class="px-3 py-1 rounded-md bg-lime-500/10 text-lime-400 text-[10px] border border-lime-500/20 uppercase tracking-widest font-bold shadow-[0_0_10px_rgba(132,204,22,0.1)]"
+                    <button
+                        onclick={() => {
+                            if (!userState.contractId) {
+                                triggerLogin();
+                                return;
+                            }
+                            showTipModal = true;
+                        }}
+                        class="w-fit px-4 py-1.5 bg-gradient-to-r from-green-600/20 to-green-500/10 border border-green-500/30 rounded-full text-green-400 text-[10px] font-bold uppercase tracking-widest hover:bg-green-500/20 transition-all flex items-center gap-1.5"
                     >
-                        {livePublishedCount} Published
-                    </span>
-                    <span
-                        class="px-3 py-1 rounded-md bg-purple-500/10 text-purple-400 text-[10px] border border-purple-500/20 uppercase tracking-widest font-bold shadow-[0_0_10px_rgba(216,54,255,0.1)]"
-                    >
-                        {liveMintedCount} Minted
-                    </span>
+                        <span class="text-base leading-none">🥬</span>
+                        Tip Artist
+                    </button>
                 </div>
-                <div class="flex gap-2">
-                    <span
-                        class="px-3 py-1 rounded-md bg-blue-500/10 text-blue-400 text-[10px] border border-blue-500/20 uppercase tracking-widest font-bold shadow-[0_0_10px_rgba(59,130,246,0.1)]"
+            </div>
+
+            <!-- Right Section: Player Controls (Mobile) or Stats (Desktop) -->
+            <div class="flex items-center gap-4 relative z-50 shrink-0">
+                {#if showGridView && currentSong}
+                    {@const currentIdx = displayPlaylist.findIndex(
+                        (s) => s.Id === currentSong?.Id,
+                    )}
+                    {@const isLiked =
+                        currentIdx !== -1
+                            ? displayPlaylist[currentIdx]?.Liked
+                            : false}
+                    <!-- Mobile Mini Player (RadioPlayer Style) -->
+                    <div
+                        class="flex items-center gap-1.5 sm:gap-2 bg-black/40 backdrop-blur-md p-1.5 rounded-full border border-white/10 shadow-xl"
                     >
-                        {liveCollectedCount} Collected
-                    </span>
+                        <!-- Like Button -->
+                        <LikeButton
+                            smolId={currentSong.Id}
+                            liked={!!isLiked}
+                            classNames="tech-button w-7 h-7 flex items-center justify-center active:scale-95 disabled:opacity-30 border rounded-full backdrop-blur-md transition-all duration-300 border-[#ff424c] shadow-[0_0_15px_rgba(255,66,76,0.3)] {isLiked
+                                ? 'bg-[#ff424c] text-white'
+                                : 'bg-[#ff424c]/10 text-[#ff424c] hover:bg-[#ff424c]/20'}"
+                            iconSize="size-3"
+                            on:likeChanged={(e) => {
+                                if (currentIdx !== -1) {
+                                    handleToggleLike(
+                                        currentIdx,
+                                        e.detail.liked,
+                                    );
+                                }
+                            }}
+                        />
+
+                        <!-- Prev Button -->
+                        <button
+                            class="tech-button w-7 h-7 flex items-center justify-center text-white/60 hover:text-white active:scale-95 border border-white/5 hover:border-white/20 rounded-full bg-white/5"
+                            onclick={handlePrev}
+                            title="Previous"
+                        >
+                            <svg
+                                class="w-3.5 h-3.5"
+                                fill="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+                            </svg>
+                        </button>
+
+                        <!-- Play/Pause Button -->
+                        <button
+                            class="tech-button w-9 h-9 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-xl border border-[#089981] text-[#089981] bg-[#089981]/10 shadow-[0_0_20px_rgba(8,153,129,0.4)] hover:bg-[#089981]/20 hover:text-white"
+                            onclick={togglePlayPause}
+                            title={isPlaying(currentSong?.Id)
+                                ? "Pause"
+                                : "Play"}
+                        >
+                            {#if isPlaying(currentSong?.Id)}
+                                <svg
+                                    class="w-4 h-4"
+                                    fill="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                                </svg>
+                            {:else}
+                                <svg
+                                    class="w-4 h-4 ml-0.5"
+                                    fill="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path d="M8 5v14l11-7z" />
+                                </svg>
+                            {/if}
+                        </button>
+
+                        <!-- Next Button -->
+                        <button
+                            class="tech-button w-7 h-7 flex items-center justify-center text-white/60 hover:text-white active:scale-95 border border-white/5 hover:border-white/20 rounded-full bg-white/5"
+                            onclick={handleNext}
+                            title="Next"
+                        >
+                            <svg
+                                class="w-3.5 h-3.5"
+                                fill="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+                            </svg>
+                        </button>
+
+                        <!-- Regenerate/Shuffle Button (Orange) - Reshuffles playlist -->
+                        <button
+                            class="tech-button w-7 h-7 flex items-center justify-center active:scale-95 border rounded-full transition-all border-[#f7931a] bg-[#f7931a]/10 text-[#f7931a] hover:bg-[#f7931a]/20 shadow-[0_0_15px_rgba(247,147,26,0.2)]"
+                            onclick={generateArtistMix}
+                            disabled={isGeneratingMix}
+                            title="Regenerate Shuffle"
+                        >
+                            <svg
+                                class="w-3.5 h-3.5 {isGeneratingMix
+                                    ? 'animate-spin'
+                                    : ''}"
+                                fill="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"
+                                />
+                            </svg>
+                        </button>
+                    </div>
+                {/if}
+
+                <!-- Desktop Stats -->
+                <div class="hidden md:flex flex-col items-end gap-3">
+                    <div class="flex flex-wrap gap-2 justify-end">
+                        <span
+                            class="px-3 py-1 rounded-md bg-lime-500/10 text-lime-400 text-[10px] border border-lime-500/20 uppercase tracking-widest font-bold shadow-[0_0_10px_rgba(132,204,22,0.1)]"
+                        >
+                            {livePublishedCount} Published
+                        </span>
+                        <span
+                            class="px-3 py-1 rounded-md bg-purple-500/10 text-purple-400 text-[10px] border border-purple-500/20 uppercase tracking-widest font-bold shadow-[0_0_10px_rgba(216,54,255,0.1)]"
+                        >
+                            {liveMintedCount} Minted
+                        </span>
+                    </div>
+                    <div class="flex gap-2">
+                        <span
+                            class="px-3 py-1 rounded-md bg-blue-500/10 text-blue-400 text-[10px] border border-blue-500/20 uppercase tracking-widest font-bold shadow-[0_0_10px_rgba(59,130,246,0.1)]"
+                        >
+                            {liveCollectedCount} Collected
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>

@@ -43,6 +43,11 @@
     href="/radio">Radio</a
   >
 
+  <a
+    class="ml-4 hover:underline {path === '/store' ? 'underline' : ''}"
+    href="/store">Store</a
+  >
+
   {#if isAuthenticated}
     <!-- Content links moved to UserMenu -->
   {/if}

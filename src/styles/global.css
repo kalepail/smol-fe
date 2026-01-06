@@ -209,3 +209,18 @@
 .dark-scrollbar::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.6);
 }
+
+@keyframes slide-up {
+    from {
+        transform: translateY(0);
+    }
+
+    to {
+        transform: translateY(-50%);
+    }
+}
+
+.animate-slide-up {
+    animation: slide-up 60s linear infinite;
+    will-change: transform;
+}
