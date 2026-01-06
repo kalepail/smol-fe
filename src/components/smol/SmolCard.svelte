@@ -129,7 +129,7 @@
   </div>
 
   <div
-    class="flex items-center relative p-2 flex-1 overflow-hidden cursor-pointer"
+    class="flex items-center relative p-2 flex-1 overflow-hidden cursor-pointer touch-manipulation active:bg-slate-600/50 transition-colors duration-75"
     onclick={toggleSongSelection}
   >
     <h1 class="relative z-1 leading-4 text-sm text-white line-clamp-2">

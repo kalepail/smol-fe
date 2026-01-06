@@ -108,9 +108,7 @@
                     .slice(0, 4)
                     .map((t) => t[0]);
 
-                console.log(
-                    `[ArtistResults] Loaded artist data: ${disco.length} discography, ${liveCollected.length} collected`,
-                );
+                // Data loaded successfully
             } catch (e) {
                 console.error("[ArtistResults] Failed to load data:", e);
             } finally {
@@ -225,12 +223,7 @@
                     );
 
                     if (matchIndex >= 0) {
-                        console.log(
-                            "[ArtistResults] Seamless return detected. Syncing index to",
-                            matchIndex,
-                            "Tab:",
-                            activeModule,
-                        );
+                        // Seamless return detected - sync index
                         currentIndex = matchIndex;
                     } else {
                         // Song not in current view? Select first of view if exists
@@ -368,7 +361,6 @@
     async function hydrateArtistData(addr: string) {
         if (isLoadingLive) return;
         isLoadingLive = true;
-        console.log(`[ArtistResults] Hydrating live data for ${addr}...`);
 
         try {
             // Fetch ALL smols (Hybrid: Live + Snapshot + Deep Verification)
@@ -439,9 +431,6 @@
         if (isGeneratingMix || basePlaylist.length === 0) return;
 
         isGeneratingMix = true;
-
-        // AI Vibe Delay
-        await new Promise((resolve) => setTimeout(resolve, 1500));
 
         shuffleEnabled = true;
         sortMode = "shuffle";
@@ -594,7 +583,7 @@
                 }
             }
 
-            console.log("[ArtistResults] Regular Shuffle: No song pinned");
+            // Regular shuffle - no song pinned
             // Default shuffle if no song playing or not found
             listToShuffle.sort(
                 (a, b) =>
@@ -622,12 +611,7 @@
 
             // Always sync index if found
             if (foundIndex !== -1 && foundIndex !== currentIndex) {
-                console.log(
-                    "[ArtistResults] Syncing playlist index to",
-                    foundIndex,
-                    "for song",
-                    currentSong.Title,
-                );
+                // Sync playlist index
                 currentIndex = foundIndex;
             }
 
@@ -1796,7 +1780,7 @@
                                                         <div
                                                             class="flex gap-1.5 items-center ml-2 border-l border-white/10 pl-2"
                                                         >
-                                                            {#each song.Tags.slice(0, 3) as tag}
+                                                            {#each (song.Tags ?? []).slice(0, 3) as tag}
                                                                 <span
                                                                     class="text-[9px] text-lime-400/50 hover:text-lime-400 transition-colors cursor-default"
                                                                     >#{tag}</span

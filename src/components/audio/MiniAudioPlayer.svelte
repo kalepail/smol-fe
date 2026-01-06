@@ -7,14 +7,22 @@
         progress?: number;
     }
 
-    let { id, playing_id, songToggle, songNext, progress = 0 }: Props = $props();
+    let {
+        id,
+        playing_id,
+        songToggle,
+        songNext,
+        progress = 0,
+    }: Props = $props();
 
     const radius = 24;
     const circumference = 2 * Math.PI * radius;
 
     const playing = $derived(playing_id === id);
     const nothing_playing = $derived(playing_id === null);
-    const dash_offset = $derived(circumference - (progress / 100) * circumference);
+    const dash_offset = $derived(
+        circumference - (progress / 100) * circumference,
+    );
 </script>
 
 <div class="relative w-9 h-9">
@@ -45,10 +53,9 @@
     <button
         onclick={(e) => {
             e.stopPropagation();
-            console.log('MiniAudioPlayer clicked', { id, playing_id, playing });
             songToggle();
         }}
-        class="absolute inset-1 flex items-center justify-center text-white"
+        class="absolute inset-1 flex items-center justify-center text-white touch-manipulation active:scale-90 transition-transform duration-75"
         aria-label={playing ? "Pause" : "Play"}
     >
         {#if playing}

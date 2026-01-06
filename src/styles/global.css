@@ -2,9 +2,16 @@
 
 @layer base {
 
+    /* Remove 300ms tap delay on mobile */
     button:not(:disabled),
     [role="button"]:not(:disabled) {
         cursor: pointer;
+        touch-action: manipulation;
+    }
+
+    /* Utility class for touch-optimized elements */
+    .touch-manipulation {
+        touch-action: manipulation;
     }
 }
 

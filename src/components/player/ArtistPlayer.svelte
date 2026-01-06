@@ -250,20 +250,11 @@
   }
 
   function playNext() {
-    console.log(
-      "[ArtistPlayer] playNext called. Current:",
-      currentSong?.Id,
-      "Playlist Len:",
-      internalPlaylist.length,
-    );
     const nextSong = getNextTrack(internalPlaylist, currentSong?.Id ?? null);
     if (nextSong) {
-      console.log("[ArtistPlayer] Advancing to:", nextSong.Title);
       // Sync local index in case it drifted (e.g. initial load)
       currentIndex = internalPlaylist.findIndex((s) => s.Id === nextSong.Id);
       selectSong(nextSong);
-    } else {
-      console.warn("[ArtistPlayer] No next song found!");
     }
   }
 
@@ -343,7 +334,7 @@
     <div class="flex items-center gap-2">
       <!-- Previous -->
       <button
-        class="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 transition-colors text-white/70 hover:text-white"
+        class="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 transition-colors text-white/70 hover:text-white touch-manipulation active:scale-90"
         onclick={playPrevious}
         title="Previous"
       >
@@ -354,7 +345,7 @@
 
       <!-- Play/Pause -->
       <button
-        class="w-12 h-12 flex items-center justify-center rounded-full bg-lime-500 hover:bg-lime-400 transition-colors text-slate-900"
+        class="w-12 h-12 flex items-center justify-center rounded-full bg-lime-500 hover:bg-lime-400 transition-colors text-slate-900 touch-manipulation active:scale-95"
         onclick={playPause}
         title={playing ? "Pause" : "Play"}
       >
@@ -371,7 +362,7 @@
 
       <!-- Next -->
       <button
-        class="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 transition-colors text-white/70 hover:text-white"
+        class="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 transition-colors text-white/70 hover:text-white touch-manipulation active:scale-90"
         onclick={playNext}
         title="Next"
       >
@@ -382,7 +373,7 @@
 
       <!-- Shuffle -->
       <button
-        class="w-10 h-10 flex items-center justify-center rounded-full transition-colors {shuffleEnabled
+        class="w-10 h-10 flex items-center justify-center rounded-full transition-colors touch-manipulation active:scale-90 {shuffleEnabled
           ? 'bg-lime-500/20 text-lime-400'
           : 'bg-white/5 text-white/50 hover:text-white'}"
         onclick={toggleShuffle}

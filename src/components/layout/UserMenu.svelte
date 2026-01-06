@@ -114,7 +114,12 @@
     }
   }
 
-  const isAuthenticated = $derived(userState.contractId !== null);
+  // SIMULATED AUTH FOR TESTING
+  if (!userState.contractId) {
+    userState.contractId =
+      "CBNORBI4DCE7LIC42FWMCIWQRULWAUGF2MH2Z7X2RNTFAYNXIACJ33IM";
+  }
+  const isAuthenticated = true; // $derived(userState.contractId !== null);
 </script>
 
 {#if isAuthenticated}
@@ -131,15 +136,7 @@
     >
     <a
       class="hover:underline {path === '/created' ? 'underline' : ''}"
-      href="/created">Created</a
-    >
-    <a
-      class="hover:underline {path === '/liked' ? 'underline' : ''}"
-      href="/liked">Liked</a
-    >
-    <a
-      class="hover:underline {path === '/collected' ? 'underline' : ''}"
-      href="/collected">Collected</a
+      href="/created">My Profile</a
     >
   </div>
 {/if}
