@@ -129,6 +129,18 @@
       class="hover:underline {path === '/create' ? 'underline' : ''}"
       href="/create">+ Create</a
     >
+    <a
+      class="hover:underline {path === '/created' ? 'underline' : ''}"
+      href="/created">Created</a
+    >
+    <a
+      class="hover:underline {path === '/liked' ? 'underline' : ''}"
+      href="/liked">Liked</a
+    >
+    <a
+      class="hover:underline {path === '/collected' ? 'underline' : ''}"
+      href="/collected">Collected</a
+    >
   </div>
 {/if}
 
