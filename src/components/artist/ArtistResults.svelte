@@ -1623,10 +1623,10 @@
                 {/if}
 
                 <div
-                    class="absolute inset-0 z-50 bg-[#121212] p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto dark-scrollbar"
+                    class="absolute inset-0 z-50 bg-[#121212] p-2 md:p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto overflow-x-hidden dark-scrollbar pb-[env(safe-area-inset-bottom)]"
                 >
                     <div
-                        class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 pb-20"
+                        class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 md:gap-4 pb-20"
                     >
                         {#each displayPlaylist as song, index (song.Id)}
                             <button
