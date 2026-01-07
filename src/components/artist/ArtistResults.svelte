@@ -643,7 +643,20 @@
         }
     });
 
-    // Speculative Image Preloading: Background load all images in batches to prevent "pop-in" on scroll
+    // Pagination for Grid View to prevent OOM/Layout thrashing on mobile
+    let gridLimit = $state(50);
+
+    // Derived display playlist (no random calls here = stable)
+    const displayPlaylist = $derived.by(() => {
+        if (shuffleEnabled && shuffledOrder.length > 0) {
+            return shuffledOrder;
+        }
+        return basePlaylist;
+    });
+
+    const visiblePlaylist = $derived(displayPlaylist.slice(0, gridLimit));
+
+    // Speculative Image Preloading: Background load all images
     $effect(() => {
         if (!displayPlaylist || displayPlaylist.length === 0) return;
 
@@ -673,17 +686,26 @@
             }
         };
 
-        // Start preloading shortly after render to prioritize UI interactive first
         setTimeout(preloadNextBatch, 1000);
     });
 
-    // Derived display playlist (no random calls here = stable)
-    const displayPlaylist = $derived.by(() => {
-        if (shuffleEnabled && shuffledOrder.length > 0) {
-            return shuffledOrder;
-        }
-        return basePlaylist;
+    // Reset pagination when playlist changes
+    $effect(() => {
+        // Trigger on displayPlaylist change
+        if (displayPlaylist) gridLimit = 50;
     });
+
+    function handleGridScroll(e: any) {
+        const el = e.currentTarget as HTMLElement;
+        const { scrollTop, scrollHeight, clientHeight } = el;
+        // Load more when within 800px of bottom
+        if (scrollHeight - scrollTop - clientHeight < 800) {
+            if (gridLimit < displayPlaylist.length) {
+                // Throttle? Svelte updates are fast enough usually, but let's be safe
+                gridLimit += 50;
+            }
+        }
+    }
 
     // Playlist Sync: Find current song in new playlist when tab/filter changes
     $effect(() => {
@@ -1658,11 +1680,12 @@
 
                 <div
                     class="absolute inset-0 z-50 bg-[#121212] p-2 md:p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto overflow-x-hidden dark-scrollbar pb-[env(safe-area-inset-bottom)]"
+                    onscroll={handleGridScroll}
                 >
                     <div
                         class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 md:gap-4 pb-20"
                     >
-                        {#each displayPlaylist as song, index (song.Id)}
+                        {#each visiblePlaylist as song, index (song.Id)}
                             <button
                                 id="song-{song.Id}"
                                 in:fade={{ duration: 200 }}
