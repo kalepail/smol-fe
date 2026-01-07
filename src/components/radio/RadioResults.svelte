@@ -281,6 +281,7 @@
                         ? () => (showTradeModal = true)
                         : undefined}
                     onMint={!isMinted ? triggerMint : undefined}
+                    onShare={share}
                     isMinting={minting}
                     isAuthenticated={isAuthenticated()}
                     showMiniActions={false}
