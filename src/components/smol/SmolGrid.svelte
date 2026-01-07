@@ -178,8 +178,19 @@
         }));
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : "Failed to load";
-      console.error("Failed to fetch initial data:", err);
+      console.warn(
+        "Live fetch failed (CORS/API error), falling back to snapshot",
+        err,
+      );
+      try {
+        results = await getFullSnapshot();
+        cursor = null;
+        hasMore = false;
+        error = null; // Clear error to show content
+      } catch (snapshotErr) {
+        console.error("Snapshot fallback also failed:", snapshotErr);
+        error = err instanceof Error ? err.message : "Failed to load";
+      }
     } finally {
       loading = false;
     }
