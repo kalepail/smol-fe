@@ -286,8 +286,8 @@
       ctx.lineWidth = 5; // Thicker lines for visibility
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
-      ctx.shadowBlur = 25; // Stronger glow
-      ctx.shadowColor = "rgba(168, 85, 247, 0.8)";
+      // ctx.shadowBlur = 25; // Removed for performance & sharp hardware look
+      // ctx.shadowColor = "rgba(168, 85, 247, 0.8)";
 
       // Gradient for the line
       const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
