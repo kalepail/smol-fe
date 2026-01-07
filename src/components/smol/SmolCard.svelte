@@ -2,6 +2,7 @@
   import type { Smol, MixtapeTrack } from "../../types/domain";
   import LikeButton from "../ui/LikeButton.svelte";
   import MiniAudioPlayer from "../audio/MiniAudioPlayer.svelte";
+  import { API_URL } from "../../utils/apiUrl";
   import {
     audioState,
     selectSong,
@@ -67,8 +68,8 @@
     ondragend={onDragEnd}
   >
     <img
-      class="aspect-square object-contain pixelated w-full shadow-md"
-      src={`${import.meta.env.PUBLIC_API_URL}/image/${smol.Id}.png`}
+      class="aspect-square object-contain pixelated w-full shadow-md bg-slate-800"
+      src={`${API_URL}/image/${smol.Id}.png`}
       style="transform: translateZ(0); -webkit-transform: translateZ(0);"
       alt={smol.Title}
       loading="lazy"
@@ -129,7 +130,7 @@
   </div>
 
   <div
-    class="flex items-center relative p-2 flex-1 overflow-hidden cursor-pointer"
+    class="flex items-center relative p-2 flex-1 overflow-hidden cursor-pointer touch-manipulation active:bg-slate-600/50 transition-colors duration-75"
     onclick={toggleSongSelection}
   >
     <h1 class="relative z-1 leading-4 text-sm text-white line-clamp-2">
@@ -137,7 +138,7 @@
     </h1>
     <img
       class="absolute inset-0 z-0 opacity-80 scale-y-[-1] w-full h-full blur-lg pointer-events-none"
-      src={`${import.meta.env.PUBLIC_API_URL}/image/${smol.Id}.png`}
+      src={`${API_URL}/image/${smol.Id}.png`}
       style="transform: translateZ(0); -webkit-transform: translateZ(0);"
       alt={smol.Title}
       loading="lazy"

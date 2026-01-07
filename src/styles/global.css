@@ -1,16 +1,35 @@
 @import "tailwindcss";
 
+@font-face {
+    font-family: 'Press Start 2P';
+    src: url('/fonts/PressStart2P.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
 @layer base {
 
+    /* Remove 300ms tap delay on mobile */
     button:not(:disabled),
     [role="button"]:not(:disabled) {
         cursor: pointer;
+        touch-action: manipulation;
+    }
+
+    /* Utility class for touch-optimized elements */
+    .touch-manipulation {
+        touch-action: manipulation;
     }
 }
 
 @layer components {
     .pixelated {
         image-rendering: pixelated;
+    }
+
+    .font-pixel {
+        font-family: 'Press Start 2P', monospace;
     }
 }
 
@@ -201,4 +220,19 @@
 
 .dark-scrollbar::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.6);
+}
+
+@keyframes slide-up {
+    from {
+        transform: translateY(0);
+    }
+
+    to {
+        transform: translateY(-50%);
+    }
+}
+
+.animate-slide-up {
+    animation: slide-up 60s linear infinite;
+    will-change: transform;
 }

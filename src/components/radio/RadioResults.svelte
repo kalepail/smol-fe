@@ -49,7 +49,7 @@
         onShowBuilder?: () => void;
     } = $props();
 
-    const API_URL = import.meta.env.PUBLIC_API_URL;
+    const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
 
     // Minting logic (same as SmolResults)
     const mintingHook = useSmolMinting();
@@ -175,7 +175,7 @@
 </script>
 
 <div
-    class="h-full flex flex-col gap-2 p-2 lg:p-4 lg:gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 font-mono overflow-hidden"
+    class="h-full flex flex-col gap-2 p-2 lg:p-4 lg:gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 font-mono overflow-hidden pb-[env(safe-area-inset-bottom)]"
 >
     <div
         class="reactive-glass flex flex-col flex-1 min-h-0 border border-white/5 bg-[#1d1d1d] max-w-6xl mx-auto overflow-hidden rounded-[32px] lg:rounded-xl w-full"
@@ -201,30 +201,27 @@
                             class="w-6 h-6 object-contain drop-shadow-[0_0_4px_rgba(255,255,255,0.4)]"
                         />
                         <span
-                            class="text-xs font-black text-white uppercase tracking-[0.2em] animate-pulse"
+                            class="text-[10px] font-pixel font-black text-white uppercase tracking-[0.2em] animate-pulse"
                         >
-                            GLOBAL MODE!!! 🚀
+                            GLOBAL MODE!!!
                         </span>
                     </div>
                 {:else}
-                    <!-- Stellar Logo (White part, Glowing) -->
-                    <div
-                        class="text-white drop-shadow-[0_0_4px_rgba(255,255,255,0.4)]"
-                    >
-                        <svg
-                            viewBox="0 0 24 24"
-                            class="w-5 h-5"
-                            fill="currentColor"
-                            xmlns="http://www.w3.org/2000/svg"
+                    <div class="flex items-center gap-2">
+                        <h1
+                            class="text-lg md:text-xl font-black tracking-tighter font-pixel"
+                            style="text-shadow: 2px 2px 0px rgba(0,0,0,0.5);"
                         >
-                            <title>Stellar</title>
-                            <path
-                                d="M12.003 1.716c-1.37 0-2.7.27-3.948.78A10.18 10.18 0 0 0 2.66 7.901a10.136 10.136 0 0 0-.797 3.954c0 .258.01.516.027.775a1.942 1.942 0 0 1-1.055 1.88L0 14.934v1.902l2.463-1.26.072-.032v.005l.77-.39.758-.385.066-.039 14.807-7.56 1.666-.847 3.392-1.732V2.694L17.792 5.86 3.744 13.025l-.104.055-.017-.115a8.286 8.286 0 0 1-.071-1.105c0-2.255.88-4.377 2.474-5.977a8.462 8.462 0 0 1 2.71-1.82 8.513 8.513 0 0 1 3.2-.654h.067a8.41 8.41 0 0 1 4.09 1.055l1.628-.83.126-.066a10.11 10.11 0 0 0-5.845-1.853zM24 7.143 5.047 16.808l-1.666.847L0 19.382v1.902l3.282-1.671 2.91-1.485 14.058-7.153.105-.055.016.115c.05.369.072.743.072 1.11 0 2.255-.88 4.383-2.475 5.978a8.461 8.461 0 0 1-2.71 1.82 8.305 8.305 0 0 1-3.2.654h-.06c-1.441 0-2.86-.369-4.102-1.061l-.066.033-1.683.857c.594.418 1.232.776 1.903 1.062a10.11 10.11 0 0 0 3.947.797 10.09 10.09 0 0 0 7.17-2.975 10.136 10.136 0 0 0 2.969-7.18c0-.259-.005-.523-.027-.781a1.942 1.942 0 0 1 1.055-1.88L24 9.044z"
-                            />
-                        </svg>
+                            <span class="text-[#9ae600]">SMOL</span><span
+                                class="relative text-white"
+                                >RADIO<span
+                                    class="absolute -top-1 right-0 text-[5px] text-[#FDDA24] font-pixel uppercase tracking-widest"
+                                    >PRE-ALPHA</span
+                                ></span
+                            >
+                        </h1>
                     </div>
                 {/if}
-
                 <!-- Active Tags Display -->
                 {#if selectedTags.length > 0}
                     <div
@@ -233,7 +230,7 @@
                         {#each selectedTags as tag}
                             <button
                                 type="button"
-                                class="px-2 py-0.5 text-[9px] bg-[#872ab0]/20 text-[#872ab0] rounded-full border border-[#872ab0]/30 shadow-[0_0_8px_rgba(135,42,176,0.3)] flex items-center gap-1.5 cursor-pointer hover:bg-[#872ab0]/30 transition-all group shrink-0"
+                                class="px-2 py-0.5 text-[9px] bg-[#872ab0]/20 text-white rounded-md border border-[#872ab0]/30 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] flex items-center gap-1.5 cursor-pointer hover:bg-[#872ab0]/40 transition-all group shrink-0 font-pixel uppercase tracking-tighter"
                                 onclick={(e) => {
                                     e.stopPropagation();
                                     onRemoveTag?.(tag);
@@ -255,7 +252,7 @@
             </div>
             <div class="flex items-center gap-4 shrink-0">
                 <button
-                    class="text-xs font-bold text-slate-500 hover:text-white uppercase tracking-widest transition-colors"
+                    class="text-[10px] font-pixel font-bold text-slate-500 hover:text-white uppercase tracking-widest transition-colors underline"
                     onclick={onShowBuilder}
                 >
                     Tags
@@ -264,7 +261,7 @@
         </div>
 
         <div
-            class="flex flex-col lg:flex-row gap-2 lg:gap-8 flex-1 min-h-0 overflow-hidden p-2 lg:p-4 w-full"
+            class="flex flex-col lg:flex-row gap-2 lg:gap-4 flex-1 min-h-0 overflow-hidden p-2 lg:p-4 w-full"
         >
             <!-- LEFT COLUMN: PLAYER -->
             <div
@@ -272,7 +269,8 @@
             >
                 <RadioPlayer
                     {playlist}
-                    overlayControlsOnMobile={true}
+                    overlayControls={true}
+                    variant="arcade"
                     {onNext}
                     {onPrev}
                     {onRegenerate}
@@ -283,6 +281,7 @@
                         ? () => (showTradeModal = true)
                         : undefined}
                     onMint={!isMinted ? triggerMint : undefined}
+                    onShare={share}
                     isMinting={minting}
                     isAuthenticated={isAuthenticated()}
                     showMiniActions={false}
@@ -297,45 +296,6 @@
                         }
                     }}
                 />
-
-                <!-- Mint + Trade Buttons -->
-                <div
-                    class="flex gap-3 mt-2 lg:mt-1 lg:max-w-md lg:w-full lg:mx-auto"
-                >
-                    {#if isMinted}
-                        {#if currentSong?.Mint_Amm && currentSong?.Mint_Token}
-                            <button
-                                onclick={() => (showTradeModal = true)}
-                                class="flex-1 py-3 bg-[#2775ca] hover:brightness-110 text-white font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
-                            >
-                                Trade <TokenBalancePill
-                                    balance={tradeMintBalance}
-                                />
-                            </button>
-                        {:else}
-                            <button
-                                onclick={() =>
-                                    (window.location.href = `/${currentSong?.Id}`)}
-                                class="flex-1 py-3 bg-emerald-500/20 text-emerald-300 font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2 border border-emerald-500/30"
-                            >
-                                ✓ Minted
-                            </button>
-                        {/if}
-                    {:else}
-                        <button
-                            onclick={triggerMint}
-                            disabled={minting}
-                            class="flex-1 py-3 bg-[#d836ff] hover:brightness-110 disabled:opacity-50 text-white font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
-                        >
-                            {minting ? "Minting..." : "Mint Track"}
-                        </button>
-                    {/if}
-                    <button
-                        onclick={share}
-                        class="px-6 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl border border-white/5 transition-all text-xs uppercase tracking-widest"
-                        >Share</button
-                    >
-                </div>
             </div>
 
             <!-- RIGHT COLUMN: PLAYLIST -->
@@ -346,7 +306,7 @@
                     class="flex items-center justify-between p-4 border-b border-white/5 bg-white/5 flex-shrink-0"
                 >
                     <h3
-                        class="text-white font-bold tracking-widest uppercase text-xs"
+                        class="text-white font-pixel font-black tracking-widest uppercase text-[10px]"
                     >
                         Up Next
                     </h3>
@@ -384,11 +344,11 @@
                                     }}
                                 >
                                     <span
-                                        class="text-slate-500 w-6 text-right text-base"
+                                        class="text-slate-500 w-6 text-right text-[10px] font-pixel"
                                         >{index + 1}</span
                                     >
                                     <div
-                                        class="relative w-10 h-10 rounded bg-slate-800 flex-shrink-0 overflow-hidden group"
+                                        class="relative w-10 h-10 rounded bg-slate-800 flex-shrink-0 overflow-hidden group border border-white/10"
                                     >
                                         <img
                                             src="{API_URL}/image/{song.Id}.png?scale=8"
@@ -415,16 +375,16 @@
                                         class="overflow-hidden text-left flex-1 min-w-0"
                                     >
                                         <div
-                                            class="text-lg font-medium text-slate-200 truncate {index ===
+                                            class="text-xs font-pixel font-black text-slate-200 truncate uppercase {index ===
                                             currentIndex
-                                                ? 'text-purple-300'
+                                                ? 'text-[#9ae600]'
                                                 : ''}"
                                         >
                                             {song.Title || "Untitled"}
                                         </div>
                                         <a
                                             href="/artist/{song.Address}"
-                                            class="text-sm text-slate-500 truncate hover:text-[#9ae600] transition-colors hover:underline block"
+                                            class="text-[8px] text-slate-500 truncate hover:text-white transition-colors hover:underline block font-pixel uppercase"
                                             onclick={(e) => e.stopPropagation()}
                                         >
                                             {song.Address || "Unknown Artist"}

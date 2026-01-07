@@ -3,6 +3,7 @@ import { ClientRouter } from 'astro:transitions';
 import Header from '../components/Header.svelte'
 import MixtapeBuilderOverlay from '../components/mixtape/MixtapeBuilderOverlay.svelte'
 import BarAudioPlayer from '../components/audio/BarAudioPlayer.svelte'
+import GlobalVerification from '../components/GlobalVerification.svelte'
 import '../styles/global.css'
 
 interface Props {
@@ -39,7 +40,7 @@ if (token) {
 	<head>
 		<meta charset="utf-8">
 		<meta name="robots" content="index, follow" />
-		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 		<link rel="apple-touch-icon" href={image_url ? image_url : "https://smol.xyz/favicon.png"} />
 		<link rel="icon" type="image/png" href={image_url ? image_url : "https://smol.xyz/favicon.png"} />
 		<meta name="generator" content={Astro.generator} />
@@ -89,9 +90,11 @@ if (token) {
 	</head>
 	<body class="bg-[#020618] text-white">
 		<Header _kid={_kid} _cid={_cid} client:load transition:persist="header" />
-		<div class={(hideBottomBar || Astro.url.pathname.startsWith('/radio') || Astro.url.pathname.startsWith('/artist/')) ? 'hidden' : ''}>
+		<GlobalVerification client:only="svelte" />
+		<div class={(hideBottomBar || Astro.url.pathname.startsWith('/radio') || Astro.url.pathname.startsWith('/artist/') || Astro.url.pathname.startsWith('/tags')) ? 'hidden' : ''}>
 			<BarAudioPlayer client:only="svelte" transition:persist="audio-player" />
 		</div>
+		<MixtapeBuilderOverlay client:load transition:persist="mixtape-builder" />
 		<slot />
 	</body>
 </html>

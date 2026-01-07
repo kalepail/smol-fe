@@ -4,7 +4,7 @@ import {
   mergeSmolsWithSnapshot,
 } from "./snapshot";
 
-const API_URL = import.meta.env.PUBLIC_API_URL;
+const API_URL = import.meta.env.PUBLIC_API_URL || 'https://api.smol.xyz';
 
 /**
  * Fetch all smols with Hybrid Strategy (Live + GalacticSnapshot Merge)

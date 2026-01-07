@@ -4,6 +4,7 @@
     import { account, kale, server } from "../../utils/passkey-kit";
     import { rpc, truncate } from "../../utils/base";
     import { userState } from "../../stores/user.svelte";
+    import { unlockUpgrade } from "../../stores/upgrades.svelte";
     import {
         balanceState,
         updateContractBalance,
@@ -46,15 +47,33 @@
     });
 
     function parseAmount(value: string | number): bigint | null {
-        const sanitized = String(value).trim();
+        const sanitized = String(value).trim().replace(/,/g, "");
         if (!sanitized) return null;
-        if (!/^\d+$/.test(sanitized)) {
-            return null;
-        }
+
         try {
-            const baseUnits = BigInt(sanitized);
-            if (baseUnits <= 0n) return null;
-            return baseUnits * decimalsFactor;
+            // Handle decimals by splitting and padding
+            const [integerPart, fractionalPart = ""] = sanitized.split(".");
+            if (
+                !/^\d+$/.test(integerPart) ||
+                (fractionalPart && !/^\d+$/.test(fractionalPart))
+            ) {
+                return null;
+            }
+
+            const integerBig = BigInt(integerPart) * decimalsFactor;
+
+            // Pad or truncate fractional part to match decimals
+            let fractionBig = 0n;
+            if (fractionalPart) {
+                const paddedFraction = fractionalPart
+                    .padEnd(kaleDecimals, "0")
+                    .slice(0, kaleDecimals);
+                fractionBig = BigInt(paddedFraction);
+            }
+
+            const total = integerBig + fractionBig;
+            if (total <= 0n) return null;
+            return total;
         } catch (err) {
             return null;
         }
@@ -102,7 +121,24 @@
             await server.send(tx);
             await updateContractBalance(userState.contractId);
 
-            success = `Sent ${amount} KALE to ${artistName}!`;
+            // Secret Store Unlock Logic
+            const amountNum = parseFloat(amount.replace(/,/g, ""));
+            const adminAddress =
+                "CBS5Z6IVHGLFUGLYJ6TA4URP4VD67QRXKJ4ZBRH63RBMQ5PO7TC6GJU5";
+
+            if (artistAddress === adminAddress) {
+                if (amountNum === 100000) {
+                    unlockUpgrade("premiumHeader");
+                    success = `Sent ${amount} KALE! Premium Profile Header Unlocked! 🥬✨`;
+                } else if (amountNum === 69420.67) {
+                    unlockUpgrade("goldenKale");
+                    success = `Sent ${amount} KALE! The Golden Kale Unlocked! 🪙🥬`;
+                } else {
+                    success = `Sent ${amount} KALE to ${artistName}!`;
+                }
+            } else {
+                success = `Sent ${amount} KALE to ${artistName}!`;
+            }
             amount = "";
         } catch (err: any) {
             console.error("Tip failed", err);
@@ -144,7 +180,13 @@
         </button>
 
         <div class="text-center mb-6">
-            <div class="text-4xl mb-2">🥬</div>
+            <div class="mb-2 flex justify-center">
+                <img
+                    src="https://em-content.zobj.net/source/apple/354/leafy-green_1f96c.png"
+                    alt="Kale"
+                    class="w-10 h-10 object-contain filter drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]"
+                />
+            </div>
             <h2 class="text-xl font-bold text-white">Tip {artistName}</h2>
             <p class="text-white/40 text-xs font-mono mt-2 break-all">
                 {artistAddress}
@@ -167,7 +209,7 @@
             >
                 <div>
                     <label
-                        class="block text-xs uppercase tracking-widest text-white/40 mb-2 font-bold"
+                        class="block text-xs tracking-widest text-white/40 mb-2 font-bold"
                         for="tip-amount"
                     >
                         Amount (KALE)
@@ -175,11 +217,9 @@
                     <div class="relative">
                         <input
                             id="tip-amount"
-                            type="number"
-                            min="1"
-                            step="1"
+                            type="text"
                             bind:value={amount}
-                            placeholder="100"
+                            placeholder="100,000"
                             class="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-green-500/50 transition-colors font-mono text-lg"
                             disabled={submitting}
                         />
@@ -191,7 +231,7 @@
                     </div>
                     {#if typeof balanceState.balance === "bigint"}
                         <div
-                            class="text-right mt-2 text-[10px] text-white/40 uppercase tracking-widest"
+                            class="text-right mt-2 text-[10px] text-white/40 tracking-widest"
                         >
                             Available: <span class="text-white/60"
                                 >{Number(balanceState.balance) /
@@ -220,12 +260,16 @@
                 <button
                     type="submit"
                     disabled={submitting || !amount}
-                    class="w-full py-3 bg-green-500 text-black font-bold rounded-xl hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all uppercase tracking-widest text-xs shadow-[0_0_20px_rgba(34,197,94,0.3)] flex items-center justify-center gap-2"
+                    class="w-full py-3 bg-green-500 text-black font-bold rounded-xl hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all tracking-widest text-xs shadow-[0_0_20px_rgba(34,197,94,0.3)] flex items-center justify-center gap-2"
                 >
                     {#if submitting}
                         <Loader classNames="w-4 h-4" textColor="text-black" /> Sending...
                     {:else}
-                        Send Tip 🥬
+                        Send Tip <img
+                            src="https://em-content.zobj.net/source/apple/354/leafy-green_1f96c.png"
+                            alt="Kale"
+                            class="w-4 h-4 object-contain"
+                        />
                     {/if}
                 </button>
             </form>

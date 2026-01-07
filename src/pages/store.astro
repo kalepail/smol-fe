@@ -1,0 +1,261 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { upgradesState } from '../stores/upgrades.svelte';
+import PremiumHeaderPreview from '../components/store/PremiumHeaderPreview.svelte';
+import UpgradeToggles from '../components/store/UpgradeToggles.svelte';
+import StorePolicyButton from '../components/store/StorePolicyButton.svelte';
+---
+
+<Layout title="Smol – Store">
+	<main class="min-h-screen text-white p-6 pt-24 pb-32 max-w-7xl mx-auto font-pixel selection:bg-[#4ade80] selection:text-black">
+        <div class="flex flex-col items-center justify-center mb-16 gap-6 uppercase tracking-widest text-center">
+            <div>
+                <h1 class="text-4xl md:text-7xl font-black mb-4 tracking-tighter" style="image-rendering: pixelated; text-shadow: 4px 4px 0px #000000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000;">
+                    <span class="text-[#9ae600]">SMOL</span><span class="relative text-white">MART<span class="absolute -top-3 md:-top-5 right-0 text-[8px] md:text-[10px] text-[#FDDA24] font-bold uppercase tracking-widest">PRE-ALPHA</span></span>
+                </h1>
+                <p class="text-white/70 text-xs md:text-sm tracking-[0.2em]">UPGRADES & ASSETS</p>
+                <p class="text-white/40 text-[8px] md:text-[10px] uppercase tracking-widest font-mono mt-2">
+                    Issues? Contact <a href="https://noot.smol.xyz/artist/CBNORBI4DCE7LIC42FWMCIWQRULWAUGF2MH2Z7X2RNTFAYNXIACJ33IM" target="_blank" class="text-[#9ae600] underline hover:text-white transition-colors">noot.xlm</a> on <a href="https://discord.com/invite/stellar-global-761985725453303838" target="_blank" class="underline hover:text-white transition-colors">Stellar Global Discord</a>
+                </p>
+            </div>
+
+            <!-- Upgrade Notice -->
+            <div class="bg-[#9ae600]/10 border-2 border-[#9ae600]/30 rounded-lg p-4 max-w-xl">
+                <p class="text-[#9ae600] text-xs md:text-sm text-center uppercase tracking-wider">
+                    ⚡ I'm upgrading to Cloudflare soon but will manually implement any unlocks in the meantime! ⚡
+                </p>
+            </div>
+        </div>
+        
+        <div class="flex flex-wrap justify-center gap-8 max-w-5xl mx-auto">
+             <!-- Premium Profile Header Card -->
+             <div class="w-full md:w-96 bg-black border-4 border-white p-4 flex flex-col gap-4 group hover:border-[#9ae600] transition-none relative shadow-[8px_8px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[8px_8px_0px_0px_#9ae600] hover:-translate-y-1">
+                <PremiumHeaderPreview client:only="svelte" />
+                <div>
+                    <h3 class="text-xl font-black text-white group-hover:text-[#9ae600] uppercase tracking-wider mb-2 text-center">[PREMIUM_HEADER]</h3>
+                    <p class="text-xs text-white/60 leading-relaxed uppercase text-center">Unlock the scrolling artist collage for your profile.</p>
+                </div>
+                <div class="mt-auto pt-4 border-t-4 border-white/20 flex items-center justify-center group-hover:border-[#9ae600]/50">
+                     <span class="text-[#9ae600] text-lg font-black tracking-tight">100,000 KALE</span>
+                </div>
+             </div>
+
+             <!-- Golden Kale Badge Card -->
+             <div class="w-full md:w-96 bg-black border-4 border-white p-4 flex flex-col gap-4 group hover:border-amber-500 transition-none relative shadow-[8px_8px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[8px_8px_0px_0px_#f59e0b] hover:-translate-y-1">
+                <div class="aspect-video bg-[#111] border-4 border-white/20 relative overflow-hidden group-hover:border-amber-500 transition-none flex items-center justify-center">
+                    <div class="relative group-hover:scale-125 transition-transform duration-0 steps-2" style="image-rendering: pixelated;">
+                        <img
+                            src="https://em-content.zobj.net/source/apple/354/leafy-green_1f96c.png"
+                            class="w-16 h-16 filter sepia-[100%] saturate-[400%] brightness-[1.2] contrast-[1.2] hue-rotate-[5deg]"
+                            style="image-rendering: pixelated;"
+                            alt="Golden Kale"
+                        />
+                         <!-- Three Sparkles like ✨ -->
+                        <div
+                            class="absolute -top-4 -right-4 text-[24px] text-[#FCF6BA] animate-ping opacity-90 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]"
+                            style="animation-duration: 2s;"
+                        >
+                            ✦
+                        </div>
+                        <div
+                            class="absolute bottom-0 -left-4 text-[18px] text-[#FCF6BA] animate-ping delay-300 opacity-80"
+                            style="animation-duration: 2.2s;"
+                        >
+                            ✦
+                        </div>
+                        <div
+                            class="absolute -top-2 -left-2 text-[12px] text-[#FCF6BA] animate-pulse delay-700 opacity-70"
+                        >
+                            ✦
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-xl font-black text-white group-hover:text-amber-500 uppercase tracking-wider mb-2 text-center">[GOLDEN_KALE]</h3>
+                    <p class="text-xs text-white/60 leading-relaxed uppercase text-center">The ultimate early adopter badge.</p>
+                </div>
+                <div class="mt-auto pt-4 border-t-4 border-white/20 flex items-center justify-center group-hover:border-amber-500/50">
+                     <span class="text-amber-500 text-lg font-black tracking-tight">69,420.67 KALE</span>
+                </div>
+             </div>
+
+             <!-- Vibe Matrix Card -->
+             <div class="w-full md:w-96 bg-[#1e1e1e] border-4 border-[#ff424c] p-4 flex flex-col gap-4 group hover:border-[#d1d5db] transition-none relative shadow-[8px_8px_0px_0px_rgba(255,66,76,0.2)] hover:shadow-[8px_8px_0px_0px_#d1d5db] hover:-translate-y-1">
+                <div class="aspect-video bg-black border-4 border-white/20 relative overflow-hidden group-hover:border-[#d1d5db] transition-none flex items-center justify-center">
+                    <div class="relative w-full h-full flex items-center justify-center">
+                        <!-- Galactic Starfield (Forward Warp - Continuous Drive) -->
+                        <div class="absolute inset-0 bg-black"></div>
+                        <div class="absolute inset-0 flex items-center justify-center overflow-hidden">
+                            <div class="star-layer star-warp-1"></div>
+                            <div class="star-layer star-warp-2"></div>
+                            <div class="star-layer star-warp-3"></div>
+                            <div class="star-layer star-warp-4"></div>
+                            <div class="star-layer star-warp-5"></div>
+                        </div>
+                        <div class="absolute inset-0 opacity-40 bg-[radial-gradient(ellipse_at_center,rgba(0,102,255,0.2)_0%,transparent_70%)]"></div>
+                        
+                        <div class="absolute inset-0 opacity-20 bg-[radial-gradient(ellipse_at_center,rgba(0,102,255,0.15)_0%,transparent_70%)]"></div>
+                        <div class="absolute inset-0 animate-pulse opacity-10 bg-[radial-gradient(circle_at_30%_50%,rgba(0,255,255,0.1)_0%,transparent_50%),radial-gradient(circle_at_70%_80%,rgba(255,0,255,0.05)_0%,transparent_40%)]"></div>
+                        
+                        <div class="z-10 flex flex-col items-center gap-1">
+                            <span class="text-[#ff424c] font-pixel text-2xl tracking-tighter drop-shadow-[0_0_8px_#ff424c]">VIBE</span>
+                            <span class="text-[#d1d5db] font-pixel text-2xl tracking-tighter drop-shadow-[0_0_8px_#d1d5db]">MATRIX</span>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-xl font-black text-white group-hover:text-[#ff424c] uppercase tracking-wider mb-2 text-center">[VIBE_MATRIX]</h3>
+                    <p class="text-xs text-white/60 leading-relaxed uppercase text-center">Unlock the absolute pinnacle of vibe discovery with our advanced matrix algorithm.</p>
+                </div>
+                <div class="mt-auto pt-4 border-t-4 border-white/20 flex items-center justify-center group-hover:border-[#ff424c]/50">
+                     <span class="text-[#ff424c] text-lg font-black tracking-tight">250,000 KALE</span>
+                </div>
+             </div>
+
+             <!-- Showcase Reel Card -->
+             <div class="w-full md:w-96 bg-black border-4 border-white p-4 flex flex-col gap-4 group hover:border-[#BF953F] transition-none relative shadow-[8px_8px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[8px_8px_0px_0px_#BF953F] hover:-translate-y-1">
+                <div class="aspect-video bg-[#1a1a1a] border-4 border-white/20 relative overflow-hidden group-hover:border-[#BF953F] transition-none flex items-center justify-center">
+                    <div class="p-[1.5px] bg-gradient-to-br from-[#BF953F] via-[#FCF6BA] to-[#AA771C] rounded-lg overflow-hidden shadow-[0_0_20px_rgba(245,227,161,0.2)] scale-75 group-hover:scale-100 transition-transform duration-300">
+                        <div class="bg-[#1a1a1a] p-3 rounded-[calc(0.5rem-1.5px)] flex flex-col items-center gap-2">
+                            <div class="w-24 h-16 bg-[#222] rounded flex items-center justify-center relative overflow-hidden">
+                                <div class="absolute inset-0 bg-gradient-to-br from-[#BF953F] via-[#FCF6BA] to-[#AA771C] opacity-20"></div>
+                                <span class="text-[10px] text-white/40 uppercase tracking-tighter z-10 font-bold">Showcase</span>
+                            </div>
+                            <div class="h-1 w-16 bg-gradient-to-r from-[#BF953F] via-[#FCF6BA] to-[#AA771C] rounded-full"></div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-xl font-black text-white group-hover:text-[#FCF6BA] uppercase tracking-wider mb-2 text-center">[SHOWCASE_REEL]</h3>
+                    <p class="text-xs text-white/60 leading-relaxed uppercase text-center">Transform your artist profile into a premium animated gallery.</p>
+                </div>
+                <div class="mt-auto pt-4 border-t-4 border-white/20 flex items-center justify-center group-hover:border-[#BF953F]/50">
+                     <span class="text-[#FCF6BA] text-lg font-black tracking-tight">1,000,000 KALE</span>
+                </div>
+             </div>
+        </div>
+
+        <!-- Upgrade Toggles (only shows if user has unlocks) -->
+        <UpgradeToggles client:only="svelte" />
+
+        <!-- Policy Modal Button -->
+        <StorePolicyButton client:only="svelte" />
+
+        <!-- Thank You -->
+        <div class="text-center mt-16">
+            <p class="text-xs md:text-sm uppercase tracking-widest font-pixel wave-text">
+                <span class="wave-container">
+                    <span style="--i:0">T</span><span style="--i:1">h</span><span style="--i:2">a</span><span style="--i:3">n</span><span style="--i:4">k</span><span style="--i:5">&nbsp;</span><span style="--i:6">y</span><span style="--i:7">o</span><span style="--i:8">u</span><span style="--i:9">&nbsp;</span><span style="--i:10">f</span><span style="--i:11">o</span><span style="--i:12">r</span><span style="--i:13">&nbsp;</span><span style="--i:14">v</span><span style="--i:15">i</span><span style="--i:16">s</span><span style="--i:17">i</span><span style="--i:18">t</span><span style="--i:19">i</span><span style="--i:20">n</span><span style="--i:21">g</span>
+                </span>
+                <br />
+                <span class="wave-container">
+                    <span style="--i:22">m</span><span style="--i:23">y</span><span style="--i:24">&nbsp;</span><span style="--i:25">s</span><span style="--i:26">i</span><span style="--i:27">t</span><span style="--i:28">e</span><span style="--i:29">!</span><span style="--i:30">!</span><span style="--i:31">!</span><span style="--i:32">&nbsp;</span><span style="--i:33">💚</span>
+                </span>
+            </p>
+        </div>
+
+        <style>
+            .wave-text {
+                animation: glow-cycle 3s ease-in-out infinite;
+            }
+            
+            @keyframes glow-cycle {
+                0%, 100% { 
+                    color: #9ae600; 
+                    text-shadow: 0 0 10px #9ae600, 0 0 20px #9ae600, 0 0 30px #9ae600;
+                }
+                33% { 
+                    color: #d836ff; 
+                    text-shadow: 0 0 10px #d836ff, 0 0 20px #d836ff, 0 0 30px #d836ff;
+                }
+                66% { 
+                    color: #ff8c00; 
+                    text-shadow: 0 0 10px #ff8c00, 0 0 20px #ff8c00, 0 0 30px #ff8c00;
+                }
+            }
+            
+            .wave-container {
+                display: inline-block;
+            }
+            
+            .wave-container span {
+                display: inline-block;
+                animation: wave 1.5s ease-in-out infinite;
+                animation-delay: calc(var(--i) * 0.05s);
+            }
+            
+            @keyframes wave {
+                0%, 100% { transform: translateY(0); }
+                50% { transform: translateY(-6px); }
+            }
+
+            .star-layer {
+                position: absolute;
+                width: 2px;
+                height: 2px;
+                background: transparent;
+                border-radius: 50%;
+                opacity: 0;
+            }
+            
+            /* Staggered layers for smooth continuous stream with high star density */
+            .star-warp-1 {
+                box-shadow: 
+                    -50px -50px #fff, 50px 50px #fff, -80px 20px #fff, 40px -70px #fff,
+                    -30px 60px #fff, 70px -30px #fff, -100px -10px #fff, 10px 90px #fff,
+                    -120px 40px #fff, 110px -80px #fff, 0px -100px #fff, 0px 100px #fff,
+                    -150px -150px #fff, 150px 150px #fff, -200px 50px #fff, 180px -90px #fff;
+                animation: star-warp-forward 2s linear infinite;
+            }
+            .star-warp-2 {
+                box-shadow: 
+                    -40px 40px #fff, 60px -60px #fff, -90px -20px #fff, 30px 80px #fff,
+                    -110px 50px #fff, 120px -120px #fff, -50px 120px #fff, 80px 20px #fff,
+                    -20px -120px #fff, 100px 50px #fff, -150px 0px #fff, 150px 0px #fff,
+                    -70px -70px #fff, 200px 100px #fff, -180px -40px #fff, 60px 150px #fff;
+                animation: star-warp-forward 2s linear infinite 0.4s;
+            }
+            .star-warp-3 {
+                box-shadow: 
+                    -15px -15px #fff, 85px 85px #fff, -50px 50px #fff, 180px -20px #fff,
+                    -70px -90px #fff, 40px 110px #fff, -140px 30px #fff, 160px -160px #fff,
+                    -10px 150px #fff, 130px -10px #fff, -180px -180px #fff, 200px 200px #fff,
+                    -250px 50px #fff, 220px -120px #fff, -30px -180px #fff, 150px 250px #fff;
+                animation: star-warp-forward 2s linear infinite 0.8s;
+            }
+            .star-warp-4 {
+                box-shadow: 
+                    -30px -40px #fff, 90px 40px #fff, -20px 100px #fff, 150px -150px #fff,
+                    -100px -150px #fff, 200px 50px #fff, -60px 200px #fff, 120px -200px #fff,
+                    -280px -50px #fff, 250px 180px #fff, -40px 280px #fff, 190px -60px #fff;
+                animation: star-warp-forward 2s linear infinite 1.2s;
+            }
+            .star-warp-5 {
+                box-shadow: 
+                    30px 30px #fff, -90px -40px #fff, 20px -100px #fff, -150px 150px #fff,
+                    100px 150px #fff, -200px -50px #fff, 60px -200px #fff, -120px 200px #fff,
+                    -220px -220px #fff, 280px 40px #fff, -100px -280px #fff, 50px 300px #fff;
+                animation: star-warp-forward 2s linear infinite 1.6s;
+            }
+
+            @keyframes star-warp-forward {
+                0% { 
+                    transform: scale(0.1); 
+                    opacity: 0;
+                }
+                10% {
+                    opacity: 1;
+                }
+                80% {
+                    opacity: 1;
+                }
+                100% { 
+                    transform: scale(10); 
+                    opacity: 0;
+                }
+            }
+        </style>
+
+    </main>
+</Layout>
+

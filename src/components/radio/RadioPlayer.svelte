@@ -40,6 +40,8 @@
     replaceDetailWithRegenerate = false,
     showSongDetailButton = true,
     playButtonVariant = "default",
+    overlayControls = false,
+    variant = "default",
   }: {
     playlist: Smol[];
     onNext?: () => void;
@@ -57,6 +59,8 @@
     isMinting?: boolean;
     isAuthenticated?: boolean;
     showMiniActions?: boolean;
+    overlayControlsOnMobile?: boolean; // legacy
+    overlayControls?: boolean;
     onShare?: () => void;
     onShuffle?: () => void;
     onTogglePublish?: () => void;
@@ -67,7 +71,10 @@
     replaceDetailWithRegenerate?: boolean;
     showSongDetailButton?: boolean;
     playButtonVariant?: "default" | "silver";
+    variant?: "default" | "arcade";
   } = $props();
+
+  const isOverlay = $derived(overlayControls || overlayControlsOnMobile);
 
   // Context-aware back navigation
   let backContext = $state<{
@@ -125,7 +132,7 @@
     if (onRegenerate) onRegenerate();
   }
 
-  const API_URL = import.meta.env.PUBLIC_API_URL;
+  const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
   const coverUrl = $derived(
     currentSong ? `${API_URL}/image/${currentSong.Id}.png?scale=8` : null,
   );
@@ -279,8 +286,8 @@
       ctx.lineWidth = 5; // Thicker lines for visibility
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
-      ctx.shadowBlur = 25; // Stronger glow
-      ctx.shadowColor = "rgba(168, 85, 247, 0.8)";
+      // ctx.shadowBlur = 25; // Removed for performance & sharp hardware look
+      // ctx.shadowColor = "rgba(168, 85, 247, 0.8)";
 
       // Gradient for the line
       const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
@@ -400,15 +407,13 @@
     <div class="flex-1 flex flex-col items-center">
       <!-- ALBUM ART + CONTROLS WRAPPER (relative for absolute controls on mobile) -->
       <div
-        class="{overlayControlsOnMobile
-          ? 'relative'
-          : ''} w-full flex flex-col items-center"
+        class="{isOverlay ? 'relative' : ''} w-full flex flex-col items-center"
       >
         <!-- MERGED ALBUM ART + VISUALIZER -->
         <div
-          class="relative shrink-0 shadow-2xl mx-auto transition-all duration-500 rounded-2xl overflow-hidden bg-black/40 border border-white/10 flex items-center justify-center {isFullscreen
-            ? 'max-h-[60vh] max-w-[60vh]'
-            : 'max-w-full max-h-[35vh] lg:max-h-[400px] aspect-square min-h-[320px]'}"
+          class="relative shrink-0 shadow-2xl mx-auto transition-all duration-500 rounded-2xl overflow-hidden bg-black/40 border border-white/10 flex items-center justify-center w-full {isFullscreen
+            ? 'max-h-[85vh] max-w-[85vh]'
+            : 'max-w-full lg:max-h-[400px] aspect-square min-h-[320px]'}"
           style="transform: translateZ(0); -webkit-transform: translateZ(0); -webkit-backdrop-filter: blur(10px);"
         >
           <!-- TOP SCRUBBER (mobile only when overlayControlsOnMobile) -->
@@ -489,7 +494,7 @@
 
           <!-- Visualizer Canvas (Bottom Bar) -->
           <div
-            class="absolute bottom-16 left-0 right-0 h-24 z-30 pointer-events-none opacity-90"
+            class="absolute bottom-20 left-0 right-0 h-24 z-30 pointer-events-none opacity-90"
           >
             <canvas
               bind:this={canvasRef}
@@ -516,11 +521,13 @@
                 title={backContext.label}
               >
                 {#if backContext.type === "radio"}
-                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"
-                    ><path
-                      d="M3.24 6.15C2.51 6.43 2 7.17 2 8v12a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V8c0-.83-.51-1.57-1.24-1.85L13.24.47a1 1 0 0 0-.7.01L3.24 6.15zM4 8l8-4.66L20 8v12H4V8zm10 4a2 2 0 1 1-4 0 2 2 0 0 1 4 0z"
-                    /></svg
-                  >
+                  <!-- Radio Icon (Broadcast Tower) -->
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                      d="M12 5c-3.87 0-7 3.13-7 7h2c0-2.76 2.24-5 5-5s5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4C6.48 1 2 5.48 2 11h2c0-4.42 3.58-8 8-8s8 3.58 8 8h2c0-5.52-4.48-10-10-10z"
+                    />
+                    <path d="M13 13h-2v10h2V13z" />
+                  </svg>
                 {:else}
                   <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"
                     ><path
@@ -538,29 +545,24 @@
           >
             <div
               class="{isFullscreen
-                ? songTitle?.length > 25
-                  ? 'text-2xl'
-                  : 'text-4xl'
-                : songTitle?.length > 25
-                  ? 'text-lg'
-                  : 'text-2xl'} text-white font-bold tracking-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] leading-tight"
-              style="text-shadow: 0 0 2px rgba(0,0,0,0.5);"
+                ? 'text-xl md:text-2xl'
+                : 'text-lg md:text-xl'} font-pixel font-black tracking-tighter leading-tight uppercase text-white drop-shadow-lg"
+              style="image-rendering: pixelated; text-shadow: 2px 2px 0px rgba(0,0,0,0.8);"
             >
               {songTitle}
             </div>
             {#if songTags}
               <div
                 class="{isFullscreen
-                  ? 'text-base mt-2'
-                  : 'text-xs mt-1'} text-purple-400 font-medium uppercase tracking-[0.2em] truncate drop-shadow-md"
-                style="text-shadow: 0 2px 4px rgba(0,0,0,0.5);"
+                  ? 'text-xs mt-3'
+                  : 'text-[9px] mt-2'} text-[#9ae600] font-pixel font-black tracking-[0.2em] truncate uppercase"
               >
                 {songTags}
               </div>
             {/if}
           </div>
 
-          <!-- FULLSCREEN TOGGLE BUTTONS (TOP RIGHT OF ART) -->
+          <!-- Sidebar Controls (Top Right of Art) -->
           <div
             class="absolute top-4 right-4 z-40 flex flex-col gap-2 {isFullscreen
               ? 'opacity-0 group-hover/fs:opacity-100 transition-opacity'
@@ -595,7 +597,7 @@
             {/if}
 
             <button
-              class="tech-button p-2 text-white/40 hover:text-white transition-all bg-black/40 backdrop-blur-md rounded-lg border border-white/5 hover:border-white/20"
+              class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/40 backdrop-blur-md rounded-lg border border-white/10 hover:border-white/30"
               onclick={(e) => {
                 e.stopPropagation();
                 toggleFullscreen();
@@ -633,43 +635,33 @@
               {/if}
             </button>
 
-            <!-- Radio Button (Orange Neon) -->
-            {#if !isFullscreen}
-              <button
-                class="tech-button w-9 h-9 items-center justify-center transition-all bg-black/20 backdrop-blur-md rounded-full border border-[#f97316]/50 text-[#f97316] hover:bg-[#f97316]/20 shadow-[0_0_15px_rgba(249,115,22,0.2)] flex"
-                onclick={(e) => {
-                  e.stopPropagation();
-                  const target = currentSong
-                    ? `/radio?play=${currentSong.Id}`
-                    : "/radio";
-                  navigate(target);
-                }}
-                title="Go to Radio"
-              >
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <path
-                    d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"
-                  />
-                </svg>
-              </button>
-            {/if}
+            {#if variant === "arcade"}
+              <!-- ARCADE LAYOUT: Station Gen -> Song Page -> Artist Page -->
 
-            <!-- Mobile Song Detail Button (Double Note) OR Regenerate - Under Radio -->
-            {#if overlayControlsOnMobile && currentSong && !isFullscreen}
-              {#if replaceDetailWithRegenerate && onRegenerate}
+              <!-- 1. Station Gen (Amber) -->
+              {#if onRegenerate}
                 <button
-                  class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/20 backdrop-blur-md rounded-full border border-[#F7931A]/50 text-[#F7931A] hover:bg-[#F7931A]/20 shadow-[0_0_15px_rgba(247,147,26,0.2)]"
+                  class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/40 backdrop-blur-md rounded-full border border-amber-500/50 text-amber-500 hover:bg-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.3)]"
                   onclick={(e) => {
                     e.stopPropagation();
-                    handleRegenerate(e);
+                    onRegenerate();
                   }}
-                  title="Regenerate"
+                  title="Generate Station From Song"
                 >
-                  <span class="text-lg">↻</span>
+                  <!-- Radio Icon (Broadcast Tower) -->
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                      d="M12 5c-3.87 0-7 3.13-7 7h2c0-2.76 2.24-5 5-5s5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4C6.48 1 2 5.48 2 11h2c0-4.42 3.58-8 8-8s8 3.58 8 8h2c0-5.52-4.48-10-10-10z"
+                    />
+                    <path d="M13 13h-2v10h2V13z" />
+                  </svg>
                 </button>
-              {:else}
+              {/if}
+
+              <!-- 2. Song Details (Pink Double Note) -->
+              {#if currentSong}
                 <button
-                  class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/20 backdrop-blur-md rounded-full border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 shadow-[0_0_15px_rgba(216,54,255,0.2)]"
+                  class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/40 backdrop-blur-md rounded-full border border-[#ff3399]/50 text-[#ff3399] hover:bg-[#ff3399]/20 shadow-[0_0_15px_rgba(255,51,153,0.3)]"
                   onclick={(e) => {
                     e.stopPropagation();
                     let from = "";
@@ -688,28 +680,122 @@
                 </button>
               {/if}
 
-              <!-- Artist Link Button (Under Song Detail) -->
+              <!-- 3. Artist Page (User Icon) -->
+              {#if currentSong}
+                <button
+                  class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/40 backdrop-blur-md rounded-full border border-[#9ae600]/50 text-[#9ae600] hover:bg-[#9ae600]/20 shadow-[0_0_15px_rgba(154,230,0,0.3)]"
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/artist/${currentSong.Address}`);
+                  }}
+                  title="View Artist Page"
+                >
+                  <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                      d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                    />
+                  </svg>
+                </button>
+              {/if}
+
+              <!-- Shuffle for Arcade (Optional, keep if requested or omit. Keeping for now but bottom priority in stack) -->
+              {#if onShuffle}
+                <button
+                  class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/20 backdrop-blur-md rounded-full border border-lime-500/50 text-lime-400 hover:bg-lime-500/20 shadow-[0_0_15px_rgba(154,230,0,0.2)] opacity-60 hover:opacity-100"
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    onShuffle();
+                  }}
+                  title="Shuffle Station"
+                >
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                      d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"
+                    />
+                  </svg>
+                </button>
+              {/if}
+            {:else}
+              <!-- DEFAULT LAYOUT (Artist Page): Radio -> Song -> Artist -->
+
+              <!-- 1. Radio Gen (Amber/Orange) -->
               <button
-                class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/20 backdrop-blur-md rounded-full border border-[#9ae600]/50 text-[#9ae600] hover:bg-[#9ae600]/20 shadow-[0_0_15px_rgba(154,230,0,0.2)]"
+                class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/40 backdrop-blur-md rounded-full border border-[#f97316]/50 text-[#f97316] hover:bg-[#f97316]/20 shadow-[0_0_15px_rgba(249,115,22,0.3)]"
                 onclick={(e) => {
                   e.stopPropagation();
-                  navigate(`/artist/${currentSong.Address}`);
+                  const target = currentSong
+                    ? `/radio?play=${currentSong.Id}`
+                    : "/radio";
+                  navigate(target);
                 }}
-                title="View Artist Page"
+                title="Start Radio from Song"
               >
-                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <!-- Radio Icon (Broadcast Tower) -->
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                   <path
-                    d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                    d="M12 5c-3.87 0-7 3.13-7 7h2c0-2.76 2.24-5 5-5s5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4C6.48 1 2 5.48 2 11h2c0-4.42 3.58-8 8-8s8 3.58 8 8h2c0-5.52-4.48-10-10-10z"
                   />
+                  <path d="M13 13h-2v10h2V13z" />
                 </svg>
               </button>
+
+              <!-- 2. Song Details (Pink) -->
+              {#if currentSong}
+                <button
+                  class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/40 backdrop-blur-md rounded-full border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 shadow-[0_0_15px_rgba(216,54,255,0.3)]"
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    let from = "";
+                    const path = window.location.pathname;
+                    if (path.includes("/radio")) from = "?from=radio";
+                    else if (path.includes("/artist")) from = "?from=artist";
+                    navigate(`/${currentSong.Id}${from}`);
+                  }}
+                  title="View Song Details"
+                >
+                  <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                      d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
+                    />
+                  </svg>
+                </button>
+              {/if}
+
+              <!-- 3. Artist Page (Lime) -->
+              {#if currentSong}
+                <button
+                  class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/40 backdrop-blur-md rounded-full border border-[#9ae600]/50 text-[#9ae600] hover:bg-[#9ae600]/20 shadow-[0_0_15px_rgba(154,230,0,0.3)]"
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/artist/${currentSong.Address}`);
+                  }}
+                  title="View Artist Page"
+                >
+                  <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                      d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                    />
+                  </svg>
+                </button>
+              {/if}
+
+              <!-- Mobile Controls (Mirror Desktop) -->
+              {#if overlayControlsOnMobile && currentSong && !isFullscreen}
+                <!-- The controls above are visible on mobile due to flex layout in parent. We don't need duplicates here unless sidebar is hidden on mobile? -->
+                <!-- Parent container line 564 is 'absolute top-4 right-4 z-40 flex flex-col gap-2'. It works on mobile. -->
+                <!-- Previously I had a block 'Mobile Controls' but lines 733+ were duplicates of Regenerate/Song/Artist for mobile only. -->
+                <!-- Since I made the top buttons generic, they will show on mobile too. -->
+                <!-- I will remove the duplicate mobile block to clean up. -->
+              {/if}
             {/if}
           </div>
+
+          <!-- Bottom action buttons handled by isOverlay section below -->
 
           <!-- VERSION SELECTOR (BOTTOM CENTER OF ART - ABOVE PLAY BUTTON) -->
           {#if versions && versions.length > 1 && onVersionSelect}
             <div
-              class="absolute bottom-24 lg:bottom-2 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2"
+              class="absolute bottom-28 lg:bottom-32 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2"
             >
               {#each versions as v}
                 <button
@@ -802,8 +888,8 @@
 
         <!-- Controls (below art in standard, absolute on art for overlayControlsOnMobile on mobile) -->
         <div
-          class="flex items-center justify-center gap-2 sm:gap-4 md:gap-6 transition-all duration-500 {overlayControlsOnMobile
-            ? 'absolute bottom-12 left-0 right-0 z-40 lg:relative lg:bottom-auto lg:mt-1 lg:pb-0'
+          class="flex items-center justify-center gap-2 sm:gap-4 md:gap-6 transition-all duration-500 {isOverlay
+            ? 'absolute bottom-14 left-0 right-0 z-40'
             : 'mt-1 pb-0'} {isFullscreen
             ? showControls
               ? 'opacity-100 translate-y-0'
@@ -833,7 +919,7 @@
           {/if}
 
           <button
-            class="tech-button w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md"
+            class="tech-button w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md touch-manipulation"
             onclick={(e) => {
               if (backContext && enableContextBack) {
                 window.history.back();
@@ -851,7 +937,7 @@
           </button>
 
           <button
-            class="tech-button w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center active:scale-95 transition-all relative overflow-hidden group rounded-full backdrop-blur-xl {playButtonVariant ===
+            class="tech-button w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center active:scale-95 transition-all relative overflow-hidden group rounded-full backdrop-blur-xl touch-manipulation {playButtonVariant ===
             'silver'
               ? 'bg-gradient-to-br from-white via-neutral-300 to-neutral-500 border-[2px] border-white text-neutral-800 shadow-[inset_0_2px_4px_rgba(255,255,255,0.9),inset_0_-4px_6px_rgba(0,0,0,0.2),0_4px_15px_rgba(0,0,0,0.5),0_0_25px_rgba(255,255,255,0.5)] hover:brightness-110'
               : 'border border-[#089981] text-[#089981] bg-[#089981]/10 shadow-[0_0_30px_rgba(8,153,129,0.4)] hover:bg-[#089981]/20 hover:text-white hover:shadow-[0_0_40px_rgba(8,153,129,0.6)]'}"
@@ -871,7 +957,7 @@
 
           <!-- NEXT BUTTON -->
           <button
-            class="tech-button w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md"
+            class="tech-button w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md touch-manipulation"
             onclick={handleNext}
             title="Next"
           >
@@ -883,7 +969,7 @@
           <!-- SHUFFLE BUTTON (mobile only when overlayControlsOnMobile) -->
           {#if onShuffle && overlayControlsOnMobile}
             <button
-              class="tech-button w-8 h-8 sm:w-10 sm:h-10 flex lg:hidden items-center justify-center text-lime-400 hover:text-lime-300 active:scale-95 border border-lime-500/30 hover:border-lime-400/50 rounded-full bg-lime-500/10 backdrop-blur-md"
+              class="tech-button w-8 h-8 sm:w-10 sm:h-10 flex lg:hidden items-center justify-center text-lime-400 hover:text-lime-300 active:scale-95 border border-lime-500/30 hover:border-lime-400/50 rounded-full bg-lime-500/10 backdrop-blur-md touch-manipulation"
               onclick={onShuffle}
               title="Shuffle Playlist"
             >
@@ -949,10 +1035,10 @@
           {/if}
         </div>
 
-        <!-- Compact Mint/Share buttons for mobile (below controls when overlayControlsOnMobile) -->
-        {#if overlayControlsOnMobile}
+        <!-- Compact Mint/Share buttons (below controls when isOverlay) -->
+        {#if isOverlay}
           <div
-            class="absolute bottom-2 left-0 right-0 z-40 flex justify-center gap-2 px-4 lg:hidden"
+            class="absolute bottom-2 left-0 right-0 z-40 flex justify-center gap-2 px-4"
           >
             {#if onMint}
               <button
@@ -964,7 +1050,7 @@
                   onMint?.();
                 }}
                 disabled={isMinting}
-                class="flex-1 max-w-[140px] py-1.5 bg-[#d836ff]/80 backdrop-blur-md text-white text-[10px] font-bold rounded-lg uppercase tracking-wider"
+                class="flex-[1.5] max-w-[200px] py-2.5 bg-[#d836ff]/80 backdrop-blur-md text-white text-xs font-pixel rounded-lg uppercase tracking-wider hover:bg-[#d836ff] transition-all shadow-lg hover:shadow-[#d836ff]/40"
               >
                 {isMinting ? "..." : "Mint"}
               </button>
@@ -978,7 +1064,7 @@
                   }
                   onTrade?.();
                 }}
-                class="flex-1 max-w-[140px] py-1.5 bg-[#2775ca]/80 backdrop-blur-md text-white text-[10px] font-bold rounded-lg uppercase tracking-wider"
+                class="flex-[1.5] max-w-[200px] py-2.5 bg-[#2775ca]/80 backdrop-blur-md text-white text-xs font-pixel rounded-lg uppercase tracking-wider hover:bg-[#2775ca] transition-all shadow-lg hover:shadow-[#2775ca]/40"
               >
                 Trade
               </button>
@@ -986,7 +1072,7 @@
             {#if onShare}
               <button
                 onclick={onShare}
-                class="px-4 py-1.5 bg-white/10 backdrop-blur-md text-white text-[10px] font-bold rounded-lg uppercase tracking-wider border border-white/10"
+                class="px-6 py-2.5 bg-white/10 backdrop-blur-md text-white text-xs font-pixel rounded-lg uppercase tracking-wider border border-white/10 hover:bg-white/20 transition-all shadow-lg"
               >
                 Share
               </button>
@@ -1068,15 +1154,15 @@
               </div>
               <div class="flex-1 min-w-0">
                 <div
-                  class="text-sm font-bold {index === currentIndex
-                    ? 'text-purple-400'
+                  class="text-sm font-pixel font-black {index === currentIndex
+                    ? 'text-lime-400'
                     : 'text-white/80'} truncate lowercase tracking-tighter"
                 >
                   {song.Title || "Untitled"}
                 </div>
                 <a
                   href="/artist/{song.Address}"
-                  class="text-[10px] text-white/30 uppercase tracking-widest truncate mt-0.5 block transition-colors hover:underline"
+                  class="text-[9px] text-white/30 uppercase tracking-widest truncate mt-0.5 block transition-colors hover:underline font-pixel"
                   style="--accent-hover: {accentColor}"
                   onmouseenter={(e) =>
                     ((e.currentTarget as HTMLElement).style.color =

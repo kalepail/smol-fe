@@ -215,22 +215,24 @@ async function hydrateDetails(smolList, minterMap, previousState) {
 
 async function main() {
     // 0. LOAD PREVIOUS STATE
-    let previousState = new Map();
+    let previousState = { songs: new Map(), tagGraph: null };
     if (fs.existsSync(OUTPUT_FILE)) {
         try {
             const oldData = JSON.parse(fs.readFileSync(OUTPUT_FILE, 'utf8'));
-            oldData.forEach(s => previousState.set(s.Id, s));
-            console.log(`[INIT] Loaded ${oldData.length} records from previous snapshot.`);
+            const oldSongs = Array.isArray(oldData) ? oldData : (oldData.songs || []);
+            oldSongs.forEach(s => previousState.songs.set(s.Id, s));
+            previousState.tagGraph = oldData.tagGraph || null;
+            console.log(`[INIT] Loaded ${oldSongs.length} records from previous snapshot.`);
         } catch (e) { }
     }
 
     const minterMap = await scanBlockchain();
     const smolList = await scanApiList();
-    const fullSnapshot = await hydrateDetails(smolList, minterMap, previousState);
+    const fullSnapshot = await hydrateDetails(smolList, minterMap, previousState.songs);
 
     // 4. DIFF REPORTING
     console.log(`\n[PHASE 4] Analysis & Saving...`);
-    const newItems = fullSnapshot.filter(s => !previousState.has(s.Id));
+    const newItems = fullSnapshot.filter(s => !previousState.songs.has(s.Id));
 
     if (newItems.length > 0) {
         console.log(`\n🚨 DETECTED ${newItems.length} NEW PUBLISHES/MINTS:`);
@@ -242,7 +244,12 @@ async function main() {
         console.log(`\n✅ No new items compared to last snapshot.`);
     }
 
-    fs.writeFileSync(OUTPUT_FILE, JSON.stringify(fullSnapshot, null, 2));
+    const outputData = {
+        songs: fullSnapshot,
+        tagGraph: previousState.tagGraph
+    };
+
+    fs.writeFileSync(OUTPUT_FILE, JSON.stringify(outputData, null, 2));
     console.log(`\nSaved ${fullSnapshot.length} records to ${OUTPUT_FILE}`);
 }
 

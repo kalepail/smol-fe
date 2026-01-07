@@ -45,7 +45,7 @@ export interface SmolTrackData {
   } | null;
 }
 
-const API_URL = import.meta.env.PUBLIC_API_URL!;
+const API_URL = import.meta.env.PUBLIC_API_URL || 'https://api.smol.xyz';
 
 /**
  * Get auth headers from smol_token cookie.
@@ -111,8 +111,9 @@ export async function updateMixtape(id: string, draft: MixtapeDraft): Promise<{ 
     throw new Error(`Failed to update mixtape: ${response.statusText}`);
   }
 
-  const data: { id: string } = await response.json();
-  return data;
+  // Backend returns { success: true }, but we return { id } for consistency with publish
+  await response.json();
+  return { id };
 }
 
 /**

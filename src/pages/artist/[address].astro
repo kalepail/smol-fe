@@ -9,7 +9,7 @@ const { address } = Astro.params;
 ---
 
 <Layout title={`Artist ${address?.substring(0, 6) || 'Unknown'}...`}>
-	<main class="h-[calc(100vh-80px)] text-white px-4 pt-4 pb-0 max-w-7xl mx-auto">
+	<main class="h-[calc(100vh-52px)] overflow-hidden text-white p-0 md:px-4 max-w-7xl mx-auto -mt-[2px] md:mt-0">
         <ArtistResults 
             client:load 
             address={address} 

@@ -54,7 +54,7 @@
 </script>
 
 <button
-    class={classNames}
+    class="{classNames} touch-manipulation active:scale-90 transition-transform duration-75"
     aria-label={localLiked ? "Unlike" : "Like"}
     disabled={liking}
     onclick={handleLike}

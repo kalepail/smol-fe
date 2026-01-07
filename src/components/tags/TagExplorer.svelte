@@ -1,8 +1,28 @@
 ﻿<script lang="ts">
-    import { onMount } from "svelte";
+    import { onDestroy, onMount } from "svelte";
+    import { fade } from "svelte/transition";
     import type { Smol } from "../../types/domain";
-    import SmolGrid from "../smol/SmolGrid.svelte";
-    import { getFullSnapshot, safeFetchSmols } from "../../services/api/smols";
+    // import SmolGrid from "../smol/SmolGrid.svelte"; // Replaced with custom grid
+    import {
+        getFullSnapshot,
+        safeFetchSmols,
+        fetchLikedSmols,
+    } from "../../services/api/smols";
+    import {
+        audioState,
+        selectSong,
+        registerSongNextCallback,
+        isPlaying,
+        togglePlayPause,
+    } from "../../stores/audio.svelte";
+    import MiniVisualizer from "../ui/MiniVisualizer.svelte";
+    import LikeButton from "../ui/LikeButton.svelte";
+    import { navigate } from "astro:transitions/client";
+    import { userState } from "../../stores/user.svelte";
+    import { useGridMediaSession } from "../../hooks/useGridMediaSession";
+    import { upgradesState, isUnlocked } from "../../stores/upgrades.svelte";
+
+    const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
     import {
         getSnapshotTagStats,
         getUnifiedTags,
@@ -10,12 +30,14 @@
         sortTagStats,
     } from "../../services/tags/unifiedTags";
     import type { TagMeta, TagStat } from "../../services/tags/unifiedTags";
+    import { getSnapshotTagGraphAsync } from "../../services/api/snapshot";
 
     let smols = $state<Smol[]>([]);
     let hasLoggedTags = $state(false);
     let isLoading = $state(true);
 
     let tagStats = $state<TagStat[]>([]);
+    let tagGraph = $state<any>(null);
     let tagMeta = $state<TagMeta>({
         snapshotTagsCount: 0,
         liveTagsCount: 0,
@@ -23,7 +45,25 @@
         dataSourceUsed: "snapshot",
     });
 
+    // Mobile specific state
+    let isMobile = $state(false);
+    let activeTab = $state<"library" | "results">("library");
+
+    function updateMobileState() {
+        isMobile = window.innerWidth < 1024;
+    }
+
+    $effect(() => {
+        if (isUnlocked("vibeMatrix") && !tagGraph) {
+            getSnapshotTagGraphAsync().then((g) => {
+                if (g) tagGraph = g;
+            });
+        }
+    });
+
     onMount(async () => {
+        updateMobileState();
+        window.addEventListener("resize", updateMobileState);
         try {
             const snap = await getSnapshotTagStats();
             tagStats = snap.tags;
@@ -72,14 +112,23 @@
     let filteredSmols = $derived.by(() => {
         if (selectedTags.length === 0) return [];
 
+        // Pre-normalize selected tags for performance
+        const normalizedSelected = selectedTags.map((t) => t.toLowerCase());
+
         return smols.filter((smol) => {
             const styles = new Set<string>();
             if (smol.Tags) smol.Tags.forEach((t) => styles.add(t));
             if (smol.lyrics?.style)
                 smol.lyrics.style.forEach((t) => styles.add(t));
 
-            // Show song if it matches ANY selected tag
-            return selectedTags.some((tag) => styles.has(tag));
+            // Show song if it matches ANY selected tag (Fuzzy Match: Substring)
+            // e.g. "Rock" matches "Indie Rock", "Pop" matches "K-Pop"
+            const songTags = Array.from(styles);
+            return normalizedSelected.some((selectedTag) =>
+                songTags.some((songTag) =>
+                    songTag.toLowerCase().includes(selectedTag),
+                ),
+            );
         });
     });
 
@@ -90,6 +139,46 @@
             selectedTags = [...selectedTags, tag];
         }
     }
+
+    function pivotTag(tag: string) {
+        // "Pivot" behavior: Replace current selection with this new vibe
+        // This makes the matrix feel like switching a playlist/vibe instantly
+        selectedTags = [tag];
+    }
+
+    function normalizeTag(tag: string) {
+        if (!tag) return null;
+        return tag
+            .toLowerCase()
+            .trim()
+            .replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "")
+            .replace(/\s+/g, " ");
+    }
+
+    // Matrix Algorithm: Derive related and tertiary tags - Gated
+    let recommendationClusters = $derived.by(() => {
+        if (!isUnlocked("vibeMatrix") || !tagGraph || selectedTags.length === 0)
+            return { related: [], tertiary: [] };
+
+        // We take the last selected tag as the primary pivot for recommendations
+        const primaryTag = normalizeTag(selectedTags[selectedTags.length - 1]);
+        if (!primaryTag || !tagGraph.tags[primaryTag])
+            return { related: [], tertiary: [] };
+
+        const data = tagGraph.tags[primaryTag];
+
+        // Filter out tags already selected
+        const selectedSet = new Set(selectedTags.map(normalizeTag));
+
+        return {
+            related: data.direct.filter(
+                (t: any) => !selectedSet.has(normalizeTag(t.tag)),
+            ),
+            tertiary: data.tertiary.filter(
+                (t: any) => !selectedSet.has(normalizeTag(t.tag)),
+            ),
+        };
+    });
 
     // Visual scaling logic
     function getFontSize(count: number, max: number): string {
@@ -113,194 +202,637 @@
     );
 
     $effect(() => {
-        if (hasLoggedTags || !shouldLogTagDiagnostics()) return;
-        if (tagMeta) {
+        if (!hasLoggedTags && shouldLogTagDiagnostics() && tagMeta) {
             console.log(
                 `[Tags] Tag counts (snapshot=${tagMeta.snapshotTagsCount}, live=${tagMeta.liveTagsCount}, final=${tagMeta.finalTagsCount}, source=${tagMeta.dataSourceUsed})`,
             );
             hasLoggedTags = true;
         }
     });
+
+    $effect(() => {
+        // Fetch likes if user is authenticated
+        if (userState.contractId) {
+            (async () => {
+                const likedIds = await fetchLikedSmols();
+                // Apply liked state to results
+                smols = smols.map((smol) => ({
+                    ...smol,
+                    Liked: likedIds.some((id) => id === smol.Id),
+                }));
+            })();
+        }
+    });
+
+    const mediaHook = useGridMediaSession();
+
+    function songNext() {
+        const next = mediaHook.findNextSong(
+            filteredSmols,
+            audioState.currentSong?.Id,
+        );
+        if (next) selectSong(next);
+    }
+
+    function songPrev() {
+        const prev = mediaHook.findPreviousSong(
+            filteredSmols,
+            audioState.currentSong?.Id,
+        );
+        if (prev) selectSong(prev);
+    }
+
+    // Manage media session and queue callback manually since we removed SmolGrid
+    $effect(() => {
+        registerSongNextCallback(songNext);
+        const cleanupMedia = mediaHook.setupMediaSessionHandlers(
+            songPrev,
+            songNext,
+        );
+        return () => {
+            registerSongNextCallback(null);
+            cleanupMedia();
+        };
+    });
+
+    // Update media session metadata when song changes
+    $effect(() => {
+        const song = audioState.currentSong;
+        mediaHook.updateMediaMetadata(song, API_URL);
+    });
+
+    function handleLikeChanged(smol: Smol, liked: boolean) {
+        // Update local state
+        const foundIndex = smols.findIndex((s) => s.Id === smol.Id);
+        if (foundIndex !== -1) {
+            smols[foundIndex].Liked = liked;
+        }
+    }
+
+    onDestroy(() => {
+        if (typeof window !== "undefined") {
+            window.removeEventListener("resize", updateMobileState);
+        }
+    });
 </script>
 
-<div class="container mx-auto px-4 py-2 relative z-10">
-    <div class="mb-8">
-        <!-- Header & Search Row -->
-        <div
-            class="flex flex-col md:flex-row justify-between items-center mb-6 gap-6"
-        >
-            <div class="flex items-baseline gap-2 cursor-default group">
-                <span
-                    class="text-[#9ae600] font-bold text-3xl tracking-tight drop-shadow-[0_0_10px_rgba(154,230,0,0.3)]"
-                    >SMOL</span
-                >
-                <span class="font-thin text-white text-3xl">TAGS</span>
-            </div>
+<div
+    class="h-full flex flex-col lg:flex-row gap-6 p-4 max-w-[1800px] mx-auto overflow-hidden relative"
+>
+    <!-- Mobile View Switcher -->
+    {#if isMobile}
+        <div class="flex gap-2 mb-4 shrink-0">
+            <button
+                class="flex-1 py-3 font-pixel text-xs border-2 transition-all {activeTab ===
+                'library'
+                    ? 'bg-[#ff424c] text-white border-[#ff424c]'
+                    : 'bg-[#1e1e1e] text-white/40 border-white/10'}"
+                onclick={() => (activeTab = "library")}
+            >
+                VIBE LIBRARY
+            </button>
+            <button
+                class="flex-1 py-3 font-pixel text-xs border-2 transition-all {activeTab ===
+                'results'
+                    ? 'bg-[#ff424c] text-white border-[#ff424c]'
+                    : 'bg-[#1e1e1e] text-white/40 border-white/10'}"
+                onclick={() => (activeTab = "results")}
+                disabled={selectedTags.length === 0}
+            >
+                {selectedTags.length > 0 ? "VIBE MATRIX" : "PICK A VIBE"}
+            </button>
+        </div>
+    {/if}
 
-            <!-- Search Bar (Radio Style) -->
-            <div class="relative w-full md:w-80 flex gap-2">
-                <input
-                    type="text"
-                    bind:value={searchQuery}
-                    placeholder="Search vibes..."
-                    class="reactive-input flex-1 px-4 py-2 text-sm placeholder-white/20 focus:outline-none transition-all font-mono bg-black/40"
-                />
-                {#if searchQuery}
-                    <button
-                        class="text-white/40 hover:text-white transition-colors"
-                        onclick={() => (searchQuery = "")}
+    <!-- Left Column: Header & Tags -->
+    <div
+        class="w-full lg:w-[400px] xl:w-[450px] flex flex-col min-h-0 shrink-0 gap-6 {isMobile &&
+        activeTab !== 'library'
+            ? 'hidden'
+            : 'h-[45%] lg:h-auto'}"
+    >
+        <!-- Header Section -->
+        <div>
+            <!-- Header & Search Row -->
+            <div class="flex flex-col gap-4">
+                <div
+                    class="flex flex-col items-center lg:items-start gap-1 cursor-default group"
+                >
+                    <div class="flex items-baseline gap-2">
+                        <span
+                            class="text-[#ff424c] font-pixel font-bold text-3xl tracking-tight drop-shadow-[0_0_10px_rgba(255,66,76,0.5)]"
+                            style="text-shadow: 3px 3px 0px #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;"
+                            >SMOL</span
+                        >
+                        <span
+                            class="font-pixel font-bold text-[#d1d5db] text-3xl"
+                            style="text-shadow: 3px 3px 0px #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;"
+                            >TAGS</span
+                        >
+                    </div>
+                    <span
+                        class="text-[8px] font-pixel text-[#FDDA24]/50 tracking-[0.3em] uppercase"
+                        >Explore the Vibe Matrix</span
                     >
-                        ✕
-                    </button>
-                {/if}
+                </div>
+
+                <!-- Search Bar (Pixel Style) -->
+                <div class="relative w-full flex gap-2">
+                    <input
+                        type="text"
+                        bind:value={searchQuery}
+                        placeholder="Search vibes..."
+                        class="flex-1 px-4 py-2 text-sm font-pixel placeholder-white/30 focus:outline-none transition-all bg-[#1e1e1e] border-2 border-[#ff424c]/30 focus:border-[#ff424c] text-white"
+                        style="box-shadow: 4px 4px 0px 0px rgba(0,0,0,0.5);"
+                    />
+                    {#if searchQuery}
+                        <button
+                            class="text-white/40 hover:text-[#ff424c] transition-colors font-pixel"
+                            onclick={() => (searchQuery = "")}
+                        >
+                            ✕
+                        </button>
+                    {/if}
+                </div>
             </div>
         </div>
 
-        <!-- Tag Cloud (Radio Style) -->
-        <div
-            class="p-8 reactive-glass rounded-3xl transition-all duration-500 ease-in-out border border-white/5 backdrop-blur-xl"
-        >
-            <div class="max-h-[400px] overflow-y-auto pr-4 custom-scrollbar">
+        <!-- Tag Cloud Container -->
+        <div class="flex-1 min-h-0 relative flex flex-col">
+            <!-- Tag Cloud (Retro Glass Style) -->
+            <div
+                class="absolute inset-0 p-6 reactive-glass rounded-3xl transition-all duration-500 ease-in-out border-2 border-white/10 hover:border-[#ff424c]/30 backdrop-blur-xl overflow-hidden group/container flex flex-col"
+                style="box-shadow: 8px 8px 0px 0px rgba(0,0,0,0.3); background-color: #1e1e1e;"
+            >
+                <!-- Scanline Effect (Subtle) -->
                 <div
-                    class="flex flex-wrap gap-x-4 gap-y-3 justify-center items-center"
-                >
-                    {#each displayedTags as { tag, count }}
-                        <button
-                            class="transition-all duration-300 hover:scale-110 leading-none py-1 px-2 rounded-full {selectedTags.includes(
-                                tag,
-                            )
-                                ? 'text-[#9ae600] drop-shadow-[0_0_8px_rgba(154,230,0,0.5)] bg-white/5'
-                                : 'text-white'}"
-                            style="font-size: {getFontSize(
-                                count,
-                                maxCount,
-                            )}; opacity: {selectedTags.includes(tag)
-                                ? 1
-                                : getOpacity(count, maxCount)}"
-                            onclick={() => selectTag(tag)}
-                        >
-                            {tag}
-                            {#if selectedTags.includes(tag)}
-                                <span
-                                    class="text-[0.6em] align-top ml-0.5 text-white/40 font-mono tracking-tighter"
-                                    >{count}</span
-                                >
-                            {/if}
-                        </button>
-                    {/each}
-                </div>
-            </div>
+                    class="absolute inset-0 pointer-events-none opacity-[0.03] z-10"
+                    style="background: repeating-linear-gradient(0deg, transparent 0px, transparent 2px, #fff 2px, #fff 4px);"
+                ></div>
 
-            {#if processedTags.length === 0}
                 <div
-                    class="text-center text-white/20 italic py-10 font-mono text-sm tracking-widest"
+                    class="flex-1 overflow-y-auto pr-2 custom-scrollbar relative z-20"
                 >
-                    NO TAGS FOUND FOR "{searchQuery.toUpperCase()}"
-                </div>
-            {/if}
-
-            {#if !searchQuery && processedTags.length > INITIAL_TAG_LIMIT}
-                <div
-                    class="mt-8 pt-6 border-t border-white/5 flex {selectedTags.length >
-                    0
-                        ? 'justify-between'
-                        : 'justify-center'} items-center gap-4"
-                >
-                    <button
-                        class="text-[10px] font-black tracking-[0.2em] text-white/30 hover:text-[#9ae600] transition-all uppercase px-8 py-2 rounded-full border border-white/5 hover:border-[#9ae600]/30"
-                        onclick={() => (showAll = !showAll)}
+                    <div
+                        class="flex flex-wrap gap-x-3 gap-y-2 justify-center lg:justify-start content-start"
                     >
-                        {showAll
-                            ? "Show Less"
-                            : `Expand Library (${processedTags.length} Vibes)`}
-                    </button>
+                        {#each displayedTags as { tag, count }}
+                            <button
+                                class="transition-all duration-300 hover:scale-110 leading-none py-2 px-3 rounded-full font-pixel tracking-wide text-[10px] md:text-xs {selectedTags.includes(
+                                    tag,
+                                )
+                                    ? 'text-[#ff424c] drop-shadow-[0_0_8px_rgba(255,66,76,0.5)] bg-white/5 border border-[#ff424c]/30'
+                                    : 'text-white/80 hover:text-white border border-transparent hover:border-white/20'}"
+                                style="opacity: {selectedTags.includes(tag)
+                                    ? 1
+                                    : getOpacity(count, maxCount)}"
+                                onclick={() => selectTag(tag)}
+                            >
+                                {tag}
+                                {#if selectedTags.includes(tag)}
+                                    <span
+                                        class="text-[0.6em] align-top ml-1 text-[#ff424c]/60 font-pixel"
+                                        >{count}</span
+                                    >
+                                {/if}
+                            </button>
+                        {/each}
 
-                    {#if selectedTags.length > 0}
+                        {#if processedTags.length === 0}
+                            <div
+                                class="w-full text-center text-white/20 italic py-10 font-pixel text-xs tracking-widest"
+                            >
+                                NO TAGS FOUND FOR "{searchQuery.toUpperCase()}"
+                            </div>
+                        {/if}
+                    </div>
+                </div>
+
+                {#if !searchQuery && processedTags.length > INITIAL_TAG_LIMIT}
+                    <div
+                        class="mt-4 pt-4 border-t border-white/5 flex flex-col gap-3 relative z-20 shrink-0"
+                    >
+                        <button
+                            class="w-full text-[10px] font-pixel tracking-[0.2em] text-white/40 hover:text-[#ff424c] transition-all uppercase px-4 py-2 rounded-lg border border-white/5 hover:border-[#ff424c]/30 hover:bg-white/5"
+                            onclick={() => (showAll = !showAll)}
+                        >
+                            {showAll
+                                ? "Show Less"
+                                : `Expand Library (${processedTags.length} Vibes)`}
+                        </button>
+
+                        {#if selectedTags.length > 0}
+                            <div class="flex flex-col gap-2">
+                                <button
+                                    onclick={() => (activeTab = "results")}
+                                    class="lg:hidden w-full font-pixel text-center inline-block text-white bg-[#ff424c] font-bold px-6 py-2 rounded shadow-[4px_4px_0px_0px_rgba(255,255,255,0.1)] hover:shadow-[4px_4px_0px_0px_rgba(255,66,76,0.3)] active:translate-y-[2px] transition-all uppercase tracking-wider text-[10px]"
+                                >
+                                    OPEN MATRIX →
+                                </button>
+                                <a
+                                    href={`/radio?${selectedTags.map((t) => `tag=${encodeURIComponent(t)}`).join("&")}`}
+                                    class="w-full font-pixel text-center inline-block text-white bg-[#d1d5db] font-bold px-6 py-2 rounded shadow-[4px_4px_0px_0px_rgba(255,255,255,0.1)] hover:shadow-[4px_4px_0px_0px_rgba(209,213,219,0.3)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all uppercase tracking-wider text-[10px]"
+                                >
+                                    Send to Radio 📻
+                                </a>
+                            </div>
+                        {/if}
+                    </div>
+                {:else if selectedTags.length > 0}
+                    <div
+                        class="mt-4 pt-4 border-t border-white/5 relative z-20 shrink-0"
+                    >
                         <a
                             href={`/radio?${selectedTags.map((t) => `tag=${encodeURIComponent(t)}`).join("&")}`}
-                            class="reactive-button-ignite inline-block text-white font-bold px-6 py-2 rounded-full transition-all hover:scale-105 active:scale-95 shadow-lg uppercase tracking-wider text-[11px] animate-in fade-in zoom-in-95 duration-300"
+                            class="w-full font-pixel text-center inline-block text-white bg-[#ff424c] font-bold px-6 py-2 rounded shadow-[4px_4px_0px_0px_rgba(255,255,255,0.1)] hover:shadow-[4px_4px_0px_0px_rgba(255,66,76,0.3)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all uppercase tracking-wider text-[10px]"
                         >
                             Send to Radio 📻
                         </a>
-                    {/if}
-                </div>
-            {:else if selectedTags.length > 0}
-                <!-- If no Expand button, still show the Send to Radio button -->
-                <div
-                    class="mt-8 pt-6 border-t border-white/5 flex justify-center"
-                >
-                    <a
-                        href={`/radio?${selectedTags.map((t) => `tag=${encodeURIComponent(t)}`).join("&")}`}
-                        class="reactive-button-ignite inline-block text-white font-bold px-8 py-2 rounded-full transition-all hover:scale-105 active:scale-95 shadow-lg uppercase tracking-wider text-[11px] animate-in fade-in zoom-in-95 duration-300"
-                    >
-                        Send to Radio 📻
-                    </a>
-                </div>
-            {/if}
+                    </div>
+                {/if}
+            </div>
         </div>
     </div>
 
-    <!-- Results Section -->
-    {#if selectedTags.length > 0}
-        <div
-            class="animate-fade-in-up mt-12 bg-black/20 rounded-3xl p-6 border border-white/5"
-        >
+    <!-- Right Column: Results & Matrix - Gated -->
+    <div
+        class="flex-1 flex flex-col min-h-0 bg-[#1e1e1e] rounded-3xl border border-white/5 relative overflow-hidden h-[55%] lg:h-auto"
+    >
+        {#if !isUnlocked("vibeMatrix")}
             <div
-                class="flex flex-col sm:flex-row items-center justify-between mb-8 px-2 gap-4"
+                class="absolute inset-0 z-50 flex flex-col items-center justify-center p-8 text-center gap-8 bg-[#1e1e1e]/80 backdrop-blur-md"
             >
-                <div class="flex flex-wrap items-center gap-2">
-                    <h3
-                        class="text-xs font-black tracking-[0.2em] text-white/40 uppercase mr-2"
+                <!-- Premium Asset Icon/Graphic -->
+                <div class="relative">
+                    <div
+                        class="absolute -inset-4 bg-gradient-to-r from-[#ff424c] to-[#d1d5db] rounded-full blur-2xl opacity-20 animate-pulse"
+                    ></div>
+                    <div
+                        class="relative bg-[#1e1e1e] border-2 border-[#ff424c]/30 p-6 rounded-2xl shadow-2xl"
                     >
-                        VIBE POOL:
-                    </h3>
-                    {#each selectedTags as tag}
-                        <span
-                            class="bg-[#9ae600]/10 text-[#9ae600] px-3 py-1 rounded-full text-[10px] font-black tracking-wider uppercase border border-[#9ae600]/20 flex items-center gap-2 group"
+                        <div
+                            class="flex flex-col items-center gap-1 font-pixel"
                         >
-                            {tag}
-                            <button
-                                class="text-[#9ae600]/40 group-hover:text-[#9ae600] transition-colors"
-                                onclick={() => selectTag(tag)}
+                            <span
+                                class="text-[#ff424c] text-2xl tracking-tighter drop-shadow-[0_0_8px_#ff424c]"
+                                >VIBE</span
                             >
-                                ✕
-                            </button>
-                        </span>
-                    {/each}
-                    <span class="text-[10px] font-mono text-white/20 ml-2">
-                        {filteredSmols.length} RESULTS
-                    </span>
+                            <span
+                                class="text-[#d1d5db] text-2xl tracking-tighter drop-shadow-[0_0_8px_#d1d5db]"
+                                >MATRIX</span
+                            >
+                        </div>
+                    </div>
                 </div>
 
-                <button
-                    class="text-[10px] font-black tracking-widest text-white/30 hover:text-white transition-colors uppercase"
-                    onclick={() => (selectedTags = [])}
-                >
-                    Clear Filter
-                </button>
-            </div>
+                <div class="max-w-md space-y-4">
+                    <h2
+                        class="text-2xl md:text-3xl font-black text-white uppercase tracking-tighter italic"
+                    >
+                        Premium Access Required
+                    </h2>
+                    <p
+                        class="text-white/60 text-sm md:text-base leading-relaxed uppercase font-pixel tracking-wide"
+                    >
+                        Unlock the absolute pinnacle of vibe discovery. Our
+                        advanced matrix algorithm uses tertiary jaccard
+                        similarity and cross-genre predictive flow to map your
+                        sonic identity.
+                    </p>
+                </div>
 
-            {#key selectedTags.join(",")}
-                <SmolGrid
-                    initialSmols={filteredSmols}
-                    onSmolClick={(smol) => {
-                        const tagsParam = selectedTags
-                            .map((t) => `tag=${encodeURIComponent(t)}`)
-                            .join("&");
-                        window.location.href = `/radio?play=${smol.Id}&${tagsParam}`;
-                    }}
-                />
-            {/key}
-        </div>
-    {:else}
-        <div class="text-center py-20 animate-pulse">
-            <div
-                class="text-white/10 font-mono text-xs tracking-[0.4em] uppercase"
-            >
-                Select a vibe to explore the archive
+                <div class="flex flex-col gap-4 w-full max-w-xs">
+                    <a
+                        href="/store"
+                        class="w-full font-pixel text-center inline-block text-white bg-[#ff424c] font-bold px-8 py-4 rounded-xl shadow-[4px_4px_0px_0px_rgba(255,255,255,0.1)] hover:shadow-[8px_8px_0px_0px_rgba(255,66,76,0.4)] hover:-translate-y-1 active:translate-y-0 transition-all uppercase tracking-widest text-sm"
+                    >
+                        Visit Smol Mart (250k Kale)
+                    </a>
+                </div>
             </div>
-        </div>
-    {/if}
+        {/if}
+
+        {#if (isMobile && activeTab === "results") || !isMobile}
+            {#if selectedTags.length > 0 && isUnlocked("vibeMatrix")}
+                <div
+                    class="h-full flex flex-col animate-in fade-in slide-in-from-right-4 duration-500 {isMobile &&
+                    activeTab !== 'results'
+                        ? 'hidden'
+                        : ''}"
+                >
+                    <div
+                        class="shrink-0 flex flex-col p-6 pb-2 border-b border-white/5 gap-4"
+                    >
+                        <div class="flex items-center justify-between w-full">
+                            <div class="flex items-center gap-3">
+                                <div
+                                    class="w-2 h-6 bg-[#ff424c] rounded-full shadow-[0_0_10px_rgba(255,66,76,0.5)]"
+                                ></div>
+                                <h3
+                                    class="text-sm font-black tracking-[0.3em] text-white uppercase"
+                                >
+                                    Vibe Matrix
+                                </h3>
+                            </div>
+
+                            <!-- Header Controls (Desktop/Mobile unified) -->
+                            <div class="flex items-center gap-4">
+                                {#if audioState.currentSong}
+                                    <div
+                                        class="flex items-center gap-2 bg-[#1e1e1e]/40 px-3 py-1 rounded-full border border-white/10"
+                                    >
+                                        <button
+                                            class="text-white/40 hover:text-[#ff424c] transition-colors"
+                                            onclick={songPrev}
+                                            title="Previous"
+                                        >
+                                            <svg
+                                                class="size-4"
+                                                fill="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    d="M6 6h2v12H6zm3.5 6 8.5 6V6z"
+                                                />
+                                            </svg>
+                                        </button>
+                                        <button
+                                            class="text-[#ff424c] hover:scale-110 transition-transform"
+                                            onclick={togglePlayPause}
+                                            title={isPlaying(
+                                                audioState.currentSong.Id,
+                                            )
+                                                ? "Pause"
+                                                : "Play"}
+                                        >
+                                            {#if isPlaying(audioState.currentSong.Id)}
+                                                <svg
+                                                    class="size-5"
+                                                    fill="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"
+                                                    />
+                                                </svg>
+                                            {:else}
+                                                <svg
+                                                    class="size-5"
+                                                    fill="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path d="M8 5v14l11-7z" />
+                                                </svg>
+                                            {/if}
+                                        </button>
+                                        <button
+                                            class="text-white/40 hover:text-[#9ae600] transition-colors"
+                                            onclick={songNext}
+                                            title="Next"
+                                        >
+                                            <svg
+                                                class="size-4"
+                                                fill="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    d="m6 18 8.5-6L6 6zM16 6h2v12h-2z"
+                                                />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                {/if}
+
+                                <div class="hidden md:flex items-center gap-2">
+                                    <span
+                                        class="text-[10px] font-pixel text-white/30"
+                                    >
+                                        {filteredSmols.length} MATCHES
+                                    </span>
+                                </div>
+
+                                <button
+                                    class="text-[10px] font-black tracking-widest text-white/40 hover:text-[#ff424c] transition-colors uppercase border border-white/10 px-3 py-1 rounded-md hover:border-[#ff424c]/30"
+                                    onclick={() => (selectedTags = [])}
+                                >
+                                    Reset
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Matrix Clusters -->
+                        {#if recommendationClusters.related.length > 0 || recommendationClusters.tertiary.length > 0}
+                            <div
+                                class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full mt-2 p-4 bg-black/40 rounded-2xl border border-white/5 animate-in fade-in slide-in-from-top-2 duration-700"
+                            >
+                                <!-- Direct Neighbors (Related Vibes) -->
+                                {#if recommendationClusters.related.length > 0}
+                                    <div class="space-y-3">
+                                        <div
+                                            class="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] font-black text-[#9ae600]/80 px-1"
+                                        >
+                                            <div
+                                                class="w-1.5 h-1.5 rounded-full bg-[#ff424c] animate-pulse"
+                                            ></div>
+                                            Related Vibes
+                                        </div>
+                                        <div class="flex flex-wrap gap-1.5">
+                                            {#each recommendationClusters.related.slice(0, 12) as rec}
+                                                <button
+                                                    onclick={() =>
+                                                        pivotTag(rec.display)}
+                                                    class="px-3 py-1 rounded-lg bg-white/5 border border-white/10 hover:border-[#ff424c]/40 hover:bg-[#ff424c]/10 text-white/50 hover:text-[#ff424c] text-xs transition-all duration-300 transform hover:-translate-y-0.5"
+                                                >
+                                                    {rec.display}
+                                                </button>
+                                            {/each}
+                                        </div>
+                                    </div>
+                                {/if}
+
+                                <!-- 2-Hop neighbors (Deep Cuts) -->
+                                {#if recommendationClusters.tertiary.length > 0}
+                                    <div class="space-y-3">
+                                        <div
+                                            class="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] font-black text-[#d1d5db]/80 px-1"
+                                        >
+                                            <div
+                                                class="w-1.5 h-1.5 rounded-full bg-[#d1d5db] animate-pulse"
+                                            ></div>
+                                            Discovery (Deep Cuts)
+                                        </div>
+                                        <div class="flex flex-wrap gap-1.5">
+                                            {#each recommendationClusters.tertiary.slice(0, 12) as rec}
+                                                <button
+                                                    onclick={() =>
+                                                        pivotTag(rec.display)}
+                                                    class="px-3 py-1 rounded-lg bg-white/5 border border-white/10 hover:border-[#d1d5db]/40 hover:bg-[#d1d5db]/10 text-white/50 hover:text-[#d1d5db] text-xs transition-all duration-300 transform hover:-translate-y-0.5"
+                                                >
+                                                    {rec.display}
+                                                </button>
+                                            {/each}
+                                        </div>
+                                    </div>
+                                {/if}
+                            </div>
+                        {/if}
+                    </div>
+
+                    <div
+                        class="flex-1 overflow-y-auto custom-scrollbar p-6 pt-0"
+                    >
+                        <div class="pt-6">
+                            <div
+                                class="pt-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 pb-20"
+                            >
+                                {#each filteredSmols as song (song.Id)}
+                                    <button
+                                        id="song-{song.Id}"
+                                        in:fade={{ duration: 200 }}
+                                        class="flex flex-col gap-2 group text-left w-full relative"
+                                        onclick={() => {
+                                            if (
+                                                audioState.currentSong?.Id ===
+                                                song.Id
+                                            ) {
+                                                togglePlayPause();
+                                            } else {
+                                                selectSong(song);
+                                            }
+                                        }}
+                                    >
+                                        {#if audioState.currentSong?.Id === song.Id}
+                                            <!-- Outer Ambient Glow -->
+                                            <div
+                                                class="absolute -inset-2 rounded-2xl blur-xl transition-opacity duration-500 animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_0deg,#ff424c,#d1d5db,#ff424c,#d1d5db)] {isPlaying(
+                                                    song.Id,
+                                                )
+                                                    ? 'opacity-50'
+                                                    : 'opacity-30'}"
+                                            ></div>
+                                        {/if}
+
+                                        <!-- Main Container (Defines Shape) -->
+                                        <div
+                                            class="aspect-square rounded-xl relative overflow-hidden z-10 shadow-2xl"
+                                        >
+                                            {#if audioState.currentSong?.Id === song.Id}
+                                                <!-- Spinning Lightwire Background for Border -->
+                                                <div
+                                                    class="absolute inset-[-100%] bg-[conic-gradient(from_0deg,#ff424c,#d1d5db,#ff424c,#d1d5db)] transition-opacity duration-500 animate-[spin_4s_linear_infinite] {isPlaying(
+                                                        song.Id,
+                                                    )
+                                                        ? 'opacity-100'
+                                                        : 'opacity-50'}"
+                                                ></div>
+                                            {/if}
+
+                                            <!-- Content Mask (Inset to reveal wire) -->
+                                            <div
+                                                class="absolute bg-[#1e1e1e] overflow-hidden transition-all duration-300 {audioState
+                                                    .currentSong?.Id === song.Id
+                                                    ? 'inset-[2px] rounded-[10px]'
+                                                    : 'inset-0 rounded-xl border border-white/10 group-hover:border-[#ff424c]/50'}"
+                                            >
+                                                <img
+                                                    src="{API_URL}/image/{song.Id}.png?scale=8"
+                                                    alt={song.Title}
+                                                    class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                                    loading="lazy"
+                                                />
+                                                {#if audioState.currentSong?.Id === song.Id}
+                                                    <div
+                                                        class="absolute inset-0 flex items-center justify-center z-10"
+                                                    >
+                                                        <div
+                                                            class="w-full h-full"
+                                                        >
+                                                            <MiniVisualizer />
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- Bottom Left: Like Button -->
+                                                    <div
+                                                        class="absolute bottom-2 left-2 z-20"
+                                                        onclick={(e) =>
+                                                            e.stopPropagation()}
+                                                    >
+                                                        <LikeButton
+                                                            smolId={song.Id}
+                                                            liked={song.Liked}
+                                                            classNames="p-1.5 rounded-full bg-black/40 backdrop-blur-md border border-[#FF424C]/50 text-[#FF424C] hover:bg-[#FF424C]/20 transition-all shadow-[0_0_10px_rgba(255,66,76,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(255,66,76,0.5)]"
+                                                            iconSize="size-4"
+                                                        />
+                                                    </div>
+
+                                                    <!-- Center: Artist Profile Button -->
+                                                    {#if song.Address || song.Creator}
+                                                        <a
+                                                            href={`/artist/${song.Address || song.Creator}`}
+                                                            class="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#d1d5db]/50 text-[#d1d5db] hover:bg-[#d1d5db]/20 transition-all shadow-[0_0_10px_rgba(209,213,219,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(209,213,219,0.5)]"
+                                                            onclick={(e) =>
+                                                                e.stopPropagation()}
+                                                            title="View Artist"
+                                                        >
+                                                            <svg
+                                                                class="w-4 h-4"
+                                                                fill="currentColor"
+                                                                viewBox="0 0 24 24"
+                                                            >
+                                                                <path
+                                                                    d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                                                                />
+                                                            </svg>
+                                                        </a>
+                                                    {/if}
+
+                                                    <!-- Bottom Right: Song Detail -->
+                                                    <button
+                                                        class="absolute bottom-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 transition-all shadow-[0_0_10px_rgba(216,54,255,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(216,54,255,0.5)]"
+                                                        onclick={(e) => {
+                                                            e.stopPropagation();
+                                                            navigate(
+                                                                `/${song.Id}?from=tags`,
+                                                            );
+                                                        }}
+                                                        title="View Song Details"
+                                                    >
+                                                        <svg
+                                                            class="w-4 h-4"
+                                                            fill="currentColor"
+                                                            viewBox="0 0 24 24"
+                                                        >
+                                                            <path
+                                                                d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
+                                                            />
+                                                        </svg>
+                                                    </button>
+                                                {/if}
+                                            </div>
+                                        </div>
+                                        <span
+                                            class="text-[9px] font-pixel text-white/60 truncate group-hover:text-white transition-colors"
+                                            >{song.Title || "Untitled"}</span
+                                        >
+                                    </button>
+                                {/each}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {:else}
+                <div
+                    class="h-full flex items-center justify-center animate-pulse border-2 border-white/5 rounded-3xl bg-white/[0.02]"
+                >
+                    <div
+                        class="text-white/10 font-pixel text-xs tracking-[0.4em] uppercase"
+                    >
+                        Select a vibe to explore the matrix
+                    </div>
+                </div>
+            {/if}
+        {/if}
+    </div>
 </div>
 
 <style>
@@ -325,10 +857,10 @@
         background: transparent;
     }
     .custom-scrollbar::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.1);
+        background: rgba(255, 66, 76, 0.2);
         border-radius: 10px;
     }
     .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: rgba(154, 230, 0, 0.3);
+        background: rgba(255, 66, 76, 0.4);
     }
 </style>

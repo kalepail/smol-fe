@@ -1,16 +1,16 @@
 <script lang="ts">
-  import type { SmolDetailResponse } from '../types/domain';
-  import { onMount, onDestroy } from 'svelte';
-  import SmolGenerator from './smol/SmolGenerator.svelte';
-  import SmolDisplay from './smol/SmolDisplay.svelte';
-  import MintTradeModal from './MintTradeModal.svelte';
-  import { userState } from '../stores/user.svelte';
-  import { updateContractBalance } from '../stores/balance.svelte';
-  import { useSmolGeneration } from '../hooks/useSmolGeneration';
-  import { useSmolMinting } from '../hooks/useSmolMinting';
-  import { audioState } from '../stores/audio.svelte';
-  import { sac } from '../utils/passkey-kit';
-  import { getTokenBalance } from '../utils/balance';
+  import type { SmolDetailResponse } from "../types/domain";
+  import { onMount, onDestroy } from "svelte";
+  import SmolGenerator from "./smol/SmolGenerator.svelte";
+  import SmolDisplay from "./smol/SmolDisplay.svelte";
+  import MintTradeModal from "./MintTradeModal.svelte";
+  import { userState } from "../stores/user.svelte";
+  import { updateContractBalance } from "../stores/balance.svelte";
+  import { useSmolGeneration } from "../hooks/useSmolGeneration";
+  import { useSmolMinting } from "../hooks/useSmolMinting";
+  import { audioState } from "../stores/audio.svelte";
+  import { sac } from "../utils/passkey-kit";
+  import { getTokenBalance } from "../utils/balance";
 
   interface Props {
     id?: string | null;
@@ -22,10 +22,10 @@
   let data = $state<SmolDetailResponse | null>(null);
   let loading = $state(false);
   let error = $state<string | null>(null);
-  let d1 = $state<SmolDetailResponse['d1']>(undefined);
-  let kv_do = $state<SmolDetailResponse['kv_do']>(undefined);
+  let d1 = $state<SmolDetailResponse["d1"]>(undefined);
+  let kv_do = $state<SmolDetailResponse["kv_do"]>(undefined);
   let liked = $state<boolean | undefined>(undefined);
-  let prompt = $state('');
+  let prompt = $state("");
   let is_public = $state(true);
   let is_instrumental = $state(false);
   let best_song = $state<string | undefined>(undefined);
@@ -49,15 +49,15 @@
   const maxLength = $derived(is_instrumental ? 380 : 2280);
   const tradeSongId = $derived(id ?? d1?.Id ?? null);
   const tradeTitle = $derived(
-    kv_do?.lyrics?.title ?? kv_do?.description ?? d1?.Title ?? null
+    kv_do?.lyrics?.title ?? kv_do?.description ?? d1?.Title ?? null,
   );
   const tradeImageUrl = $derived(
     tradeSongId
       ? `${import.meta.env.PUBLIC_API_URL}/image/${tradeSongId}.png`
-      : null
+      : null,
   );
   const tradeImageFallback = $derived(
-    kv_do?.image_base64 ? `data:image/png;base64,${kv_do.image_base64}` : null
+    kv_do?.image_base64 ? `data:image/png;base64,${kv_do.image_base64}` : null,
   );
 
   // Effects
@@ -99,7 +99,10 @@
 
     if (mintToken && contractId) {
       // Only fetch if values actually changed
-      if (mintToken !== lastFetchedMintToken || contractId !== lastFetchedUser) {
+      if (
+        mintToken !== lastFetchedMintToken ||
+        contractId !== lastFetchedUser
+      ) {
         lastFetchedMintToken = mintToken;
         lastFetchedUser = contractId;
 
@@ -109,7 +112,7 @@
             tradeMintBalance = balance;
           })
           .catch((error) => {
-            console.error('Failed to fetch mint token balance:', error);
+            console.error("Failed to fetch mint token balance:", error);
             tradeMintBalance = 0n;
           });
       }
@@ -129,12 +132,15 @@
     error = null;
 
     try {
-      const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/${smolId}`, {
-        credentials: 'include'
-      });
+      const response = await fetch(
+        `${import.meta.env.PUBLIC_API_URL}/${smolId}`,
+        {
+          credentials: "include",
+        },
+      );
 
       if (!response.ok) {
-        throw new Error('Failed to load smol');
+        throw new Error("Failed to load smol");
       }
 
       data = await response.json();
@@ -142,8 +148,8 @@
       kv_do = data?.kv_do;
       liked = data?.liked;
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to load';
-      console.error('Failed to fetch smol data:', err);
+      error = err instanceof Error ? err.message : "Failed to load";
+      console.error("Failed to fetch smol data:", err);
     } finally {
       loading = false;
     }
@@ -159,25 +165,26 @@
 
   onMount(async () => {
     switch (data?.wf?.status) {
-      case 'queued':
-      case 'running':
-      case 'paused':
-      case 'waiting':
-      case 'waitingForPause':
+      case "queued":
+      case "running":
+      case "paused":
+      case "waiting":
+      case "waitingForPause":
         interval = setInterval(getGen, 1000 * 6);
         break;
-      case 'errored':
-      case 'terminated':
-      case 'unknown':
+      case "errored":
+      case "terminated":
+      case "unknown":
         failed = true;
         break;
     }
 
     const urlParams = new URLSearchParams(window.location.search);
-    playlist = urlParams.get('playlist') || localStorage.getItem('smol:playlist');
+    playlist =
+      urlParams.get("playlist") || localStorage.getItem("smol:playlist");
 
     if (playlist) {
-      localStorage.setItem('smol:playlist', playlist);
+      localStorage.setItem("smol:playlist", playlist);
     }
   });
 
@@ -224,9 +231,9 @@
 
   function removePlaylist() {
     const url = new URL(window.location.href);
-    url.searchParams.delete('playlist');
-    history.replaceState({}, '', url.toString());
-    localStorage.removeItem('smol:playlist');
+    url.searchParams.delete("playlist");
+    history.replaceState({}, "", url.toString());
+    localStorage.removeItem("smol:playlist");
     playlist = null;
     location.reload();
   }
@@ -239,8 +246,8 @@
 
   async function makeSongPublic() {
     await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
-      method: 'PUT',
-      credentials: 'include',
+      method: "PUT",
+      credentials: "include",
     });
 
     if (d1) {
@@ -249,21 +256,21 @@
   }
 
   async function deleteSong() {
-    if (!confirm('Are you sure you want to delete this song?')) return;
+    if (!confirm("Are you sure you want to delete this song?")) return;
 
     await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
-      method: 'DELETE',
-      credentials: 'include',
+      method: "DELETE",
+      credentials: "include",
     });
 
-    history.replaceState({}, '', '/');
+    history.replaceState({}, "", "/");
     location.reload();
   }
 
   async function selectBestSong(song_id: string) {
     await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}/${song_id}`, {
-      method: 'PUT',
-      credentials: 'include',
+      method: "PUT",
+      credentials: "include",
     });
   }
 
@@ -280,8 +287,13 @@
       interval = null;
     }
 
-    id = await generationHook.postGen(prompt, is_public, is_instrumental, playlist);
-    prompt = '';
+    id = await generationHook.postGen(
+      prompt,
+      is_public,
+      is_instrumental,
+      playlist,
+    );
+    prompt = "";
 
     interval = setInterval(getGen, 1000 * 6);
     await getGen();
@@ -308,15 +320,15 @@
     if (!id || minting || minted) return;
 
     if (!userState.contractId || !userState.keyId) {
-      alert('Connect your wallet to mint');
+      alert("Connect your wallet to mint");
       return;
     }
 
     const smolContractId = import.meta.env.PUBLIC_SMOL_CONTRACT_ID;
 
     if (!smolContractId) {
-      console.error('Missing PUBLIC_SMOL_CONTRACT_ID env var');
-      alert('Minting is temporarily unavailable. Please try again later.');
+      console.error("Missing PUBLIC_SMOL_CONTRACT_ID env var");
+      alert("Minting is temporarily unavailable. Please try again later.");
       return;
     }
 
@@ -330,13 +342,14 @@
           keyId: userState.keyId,
           smolContractId,
           rpcUrl: import.meta.env.PUBLIC_RPC_URL as string,
-          networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE as string,
-          creatorAddress: d1?.Address || '',
+          networkPassphrase: import.meta.env
+            .PUBLIC_NETWORK_PASSPHRASE as string,
+          creatorAddress: d1?.Address || "",
           kaleSacId: import.meta.env.PUBLIC_KALE_SAC_ID as string,
         },
         async () => {
           await getGen();
-        }
+        },
       );
     } catch (error) {
       console.error(error);
@@ -400,7 +413,9 @@
   {#if !userState.contractId}
     <div class="px-2 py-10 bg-slate-900">
       <div class="flex flex-col items-center max-w-[1024px] mx-auto">
-        <h1 class="bg-rose-950 border border-rose-400 rounded px-2 py-1">
+        <h1
+          class="bg-rose-950 border-2 border-rose-400 rounded-none px-3 py-1.5 font-pixel tracking-wider text-xs"
+        >
           Login or Create New Account
         </h1>
       </div>
@@ -430,7 +445,7 @@
           <li>
             <div class="flex items-center gap-2">
               <button
-                class="text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1 disabled:opacity-50"
+                class="flex items-center font-pixel tracking-wider text-[10px] text-lime-500 bg-lime-500/20 border-2 border-lime-500 hover:bg-lime-500/30 rounded-none px-3 py-1.5 disabled:opacity-50"
                 onclick={retryGen}
                 disabled={!!id && !!interval}
               >
@@ -444,7 +459,7 @@
                   <button
                     type="button"
                     onclick={removePlaylist}
-                    class="ml-1.5 -mr-0.5 p-0.5 rounded-full hover:bg-black/20 text-black"
+                    class="ml-1.5 -mr-0.5 p-0.5 rounded-none hover:bg-black/20 text-black"
                     aria-label="Remove playlist"
                   >
                     <svg
