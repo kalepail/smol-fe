@@ -3,6 +3,7 @@
   import Loader from "../ui/Loader.svelte";
   import LikeButton from "../ui/LikeButton.svelte";
   import TokenBalancePill from "../ui/TokenBalancePill.svelte";
+  import { API_URL } from "../../utils/apiUrl";
 
   interface Props {
     id: string | null;
@@ -175,7 +176,7 @@
         {#if kv_do && kv_do?.image_base64}
           <img
             class="aspect-square object-contain pixelated w-[256px]"
-            src={`${import.meta.env.PUBLIC_API_URL}/image/${id}.png`}
+            src={`${API_URL}/image/${id}.png`}
             style="transform: translateZ(0); -webkit-transform: translateZ(0);"
             onerror={(e) => {
               // @ts-ignore
@@ -212,7 +213,7 @@
                   onplay={() => onPlayAudio(index)}
                   src={song.status < 4
                     ? song.audio
-                    : `${import.meta.env.PUBLIC_API_URL}/song/${song.music_id}.mp3`}
+                    : `${API_URL}/song/${song.music_id}.mp3`}
                   onerror={(e) => {
                     // @ts-ignore
                     e.currentTarget.src = song.audio;

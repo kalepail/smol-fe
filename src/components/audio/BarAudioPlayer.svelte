@@ -156,7 +156,7 @@
     <div class="flex items-center justify-between max-w-7xl mx-auto">
       <div class="flex items-center gap-4 mr-4">
         <img
-          src={`${import.meta.env.PUBLIC_API_URL}/image/${audioState.currentSong.Id}.png?scale=8`}
+          src={`${API_URL}/image/${audioState.currentSong.Id}.png?scale=8`}
           alt={audioState.currentSong.Title}
           class="w-12 h-12 rounded object-cover"
         />
