@@ -1832,6 +1832,7 @@
                         isMinting={minting}
                         isAuthenticated={userState.contractId !== null}
                         {currentIndex}
+                        overlayControls={true}
                         overlayControlsOnMobile={false}
                         onShare={share}
                         {versions}
