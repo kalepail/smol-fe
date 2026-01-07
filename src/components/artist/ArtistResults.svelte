@@ -1808,7 +1808,7 @@
             >
                 <!-- LEFT COLUMN: PLAYER -->
                 <div
-                    class="w-full landscape:w-1/2 lg:w-1/2 flex flex-col gap-0 min-h-0 relative z-[41] shrink-0"
+                    class="w-full landscape:w-1/2 lg:w-1/2 flex flex-col gap-0 min-h-0 relative z-[60] shrink-0"
                 >
                     <RadioPlayer
                         playlist={displayPlaylist}
