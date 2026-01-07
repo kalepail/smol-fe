@@ -140,7 +140,14 @@
         const url = new URL(baseUrl, window.location.origin);
         url.searchParams.set("limit", "100");
 
-        const response = await fetch(url, { credentials: "include" });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
+
+        const response = await fetch(url, {
+          credentials: "include",
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
           console.warn(
