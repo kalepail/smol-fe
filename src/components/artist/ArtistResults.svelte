@@ -24,6 +24,8 @@
     import { flip } from "svelte/animate";
     import { backOut } from "svelte/easing";
 
+    const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
+
     let {
         discography = [],
         minted = [],
@@ -169,10 +171,7 @@
         if (liveDiscography.length > 0 && collageImages.length === 0) {
             const base = liveDiscography
                 .filter((s) => s.Id)
-                .map(
-                    (s) =>
-                        `${import.meta.env.PUBLIC_API_URL}/image/${s.Id}.png?scale=16`,
-                )
+                .map((s) => `${API_URL}/image/${s.Id}.png?scale=16`)
                 .sort(() => Math.random() - 0.5)
                 .slice(0, 40);
             collageImages = [...base, ...base];
@@ -781,8 +780,6 @@
             }
         }
     });
-
-    const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
 
     function handleSelect(index: number) {
         currentIndex = index;
