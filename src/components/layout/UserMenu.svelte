@@ -115,12 +115,7 @@
     }
   }
 
-  // SIMULATED AUTH FOR TESTING
-  if (!userState.contractId) {
-    userState.contractId =
-      "CBNORBI4DCE7LIC42FWMCIWQRULWAUGF2MH2Z7X2RNTFAYNXIACJ33IM";
-  }
-  const isAuthenticated = true; // $derived(userState.contractId !== null);
+  const isAuthenticated = $derived(userState.contractId !== null);
 </script>
 
 <!-- Mixtape Mode Toggle stays outside if requested, otherwise it can move too. 
