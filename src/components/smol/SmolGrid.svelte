@@ -46,14 +46,15 @@
   let visibleCards = $state<Record<string, boolean>>({});
   let loadingMore = $state(false);
   let scrollTrigger = $state<HTMLDivElement | null>(null);
+  let displayLimit = $state(50); // Start with 50 items for speed
 
   // Profile mode tab state
   let activeTab = $state<"discography" | "minted" | "collection">(
     endpoint === "collected" ? "collection" : "discography",
   );
 
-  // Derived displayed results - filters based on profileMode and activeTab
-  let displayedResults = $derived.by(() => {
+  // Derived matching results (FULL LIST matched by filters)
+  let filteredResults = $derived.by(() => {
     if (!profileMode || !filterValue) {
       return results; // No filtering for homepage
     }
@@ -61,14 +62,12 @@
     const fv = filterValue.toLowerCase();
 
     if (activeTab === "discography") {
-      // Songs I published (Creator/Address matches me)
       return results.filter(
         (s) =>
           (s.Creator || "").toLowerCase() === fv ||
           (s.Address || "").toLowerCase() === fv,
       );
     } else if (activeTab === "minted") {
-      // Songs I published AND are minted
       return results.filter(
         (s) =>
           ((s.Creator || "").toLowerCase() === fv ||
@@ -76,7 +75,6 @@
           !!s.Mint_Token,
       );
     } else if (activeTab === "collection") {
-      // Songs I own (minted by me) but didn't publish (Creator/Address != me)
       return results.filter(
         (s) =>
           (s.Minted_By || "").toLowerCase() === fv &&
@@ -87,6 +85,12 @@
 
     return results;
   });
+
+  // Rendered results (PAGINATED subset of matched results)
+  let visibleResults = $derived(filteredResults.slice(0, displayLimit));
+
+  // Combined "Has More" check for both API and Local Pagination
+  let canLoadMore = $derived(hasMore || filteredResults.length > displayLimit);
 
   const visibilityHook = useVisibilityTracking();
   const scrollHook = useInfiniteScroll();
@@ -241,7 +245,7 @@
     if (!scrollTrigger) return;
 
     const scrollObserver = scrollHook.createScrollObserver(() => {
-      if (hasMore && !loadingMore && !loading) {
+      if (canLoadMore && !loadingMore && !loading) {
         loadMore();
       }
     });
@@ -306,7 +310,20 @@
   }
 
   async function loadMore() {
-    if (loadingMore || !hasMore || !cursor) return;
+    if (loadingMore || !canLoadMore) return;
+
+    // 1. Local Pagination (Snapshot Mode or Cached Data)
+    if (filteredResults.length > displayLimit) {
+      loadingMore = true;
+      // Small artificial delay to allow UI update if needed, or just immediate
+      await new Promise((r) => setTimeout(r, 10));
+      displayLimit += 50;
+      loadingMore = false;
+      return;
+    }
+
+    // 2. API Pagination (Live Mode)
+    if (!cursor) return;
 
     loadingMore = true;
 
@@ -378,7 +395,7 @@
   <div
     class="relative grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2 m-2 pb-10"
   >
-    {#each displayedResults as smol (smol.Id)}
+    {#each visibleResults as smol (smol.Id)}
       <div use:observeVisibility={smol.Id}>
         <SmolCard
           {smol}
