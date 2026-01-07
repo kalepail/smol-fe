@@ -643,6 +643,40 @@
         }
     });
 
+    // Speculative Image Preloading: Background load all images in batches to prevent "pop-in" on scroll
+    $effect(() => {
+        if (!displayPlaylist || displayPlaylist.length === 0) return;
+
+        let preloadIndex = 0;
+        const BATCH_SIZE = 20;
+
+        const preloadNextBatch = () => {
+            if (preloadIndex >= displayPlaylist.length) return;
+
+            const batch = displayPlaylist.slice(
+                preloadIndex,
+                preloadIndex + BATCH_SIZE,
+            );
+            batch.forEach((song) => {
+                const img = new Image();
+                img.src = `${API_URL}/image/${song.Id}.png?scale=8`;
+            });
+
+            preloadIndex += BATCH_SIZE;
+
+            if (preloadIndex < displayPlaylist.length) {
+                if ("requestIdleCallback" in window) {
+                    requestIdleCallback(preloadNextBatch);
+                } else {
+                    setTimeout(preloadNextBatch, 500);
+                }
+            }
+        };
+
+        // Start preloading shortly after render to prioritize UI interactive first
+        setTimeout(preloadNextBatch, 1000);
+    });
+
     // Derived display playlist (no random calls here = stable)
     const displayPlaylist = $derived.by(() => {
         if (shuffleEnabled && shuffledOrder.length > 0) {
@@ -1684,8 +1718,9 @@
                                         <img
                                             src="{API_URL}/image/{song.Id}.png?scale=8"
                                             alt={song.Title}
-                                            class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                            class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-slate-800"
                                             style="transform: translateZ(0); -webkit-transform: translateZ(0);"
+                                            loading="lazy"
                                         />
                                         {#if currentSong && song.Id === currentSong.Id}
                                             <div
