@@ -811,27 +811,7 @@
                   <span>Share</span>
                 </button>
               {/if}
-
-              {#if onTrade}
-                <button
-                  class="tech-button flex-1 h-11 flex items-center justify-center gap-2 transition-all bg-black/40 backdrop-blur-md rounded-xl border border-blue-400/50 text-blue-400 hover:bg-blue-400/20 shadow-[0_0_20px_rgba(96,165,250,0.2)] font-pixel text-[10px] uppercase tracking-widest"
-                  onclick={(e) => {
-                    e.stopPropagation();
-                    if (!userState.contractId) {
-                      triggerLogin();
-                      return;
-                    }
-                    onTrade();
-                  }}
-                >
-                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path
-                      d="M13 17V7h-2v10H8l4 4 4-4h-3zM7 3L3 7h3v7h2V7h3L7 3z"
-                    />
-                  </svg>
-                  <span>Trade</span>
-                </button>
-              {/if}
+              <!-- Trade button removed from here - use the isOverlay section instead -->
             </div>
           {/if}
           <!-- Mobile Song Detail Button (Double Note) OR Regenerate - Under Radio -->
@@ -1079,8 +1059,8 @@
           {/if}
         </div>
 
-        <!-- Compact Mint/Share buttons (below controls when isOverlay) - NOT for arcade variant -->
-        {#if isOverlay && variant !== "arcade"}
+        <!-- Compact Mint/Share buttons (below controls when isOverlay) -->
+        {#if isOverlay}
           <div
             class="absolute bottom-2 left-0 right-0 z-40 flex justify-center gap-2 px-4"
           >
