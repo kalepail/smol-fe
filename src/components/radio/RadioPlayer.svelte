@@ -1079,8 +1079,8 @@
           {/if}
         </div>
 
-        <!-- Compact Mint/Share buttons (below controls when isOverlay) -->
-        {#if isOverlay}
+        <!-- Compact Mint/Share buttons (below controls when isOverlay) - NOT for arcade variant -->
+        {#if isOverlay && variant !== "arcade"}
           <div
             class="absolute bottom-2 left-0 right-0 z-40 flex justify-center gap-2 px-4"
           >
