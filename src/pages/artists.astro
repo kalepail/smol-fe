@@ -1,15 +1,45 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import ArtistsIndex from '../components/artist/ArtistsIndex.svelte';
-// OOM FIX: Removed server-side snapshot loading - component fetches data on mount
+
+const flavorTexts = [
+    "Got a song in your heart?<br/>That's all you need.<br/>The stage is yours, creator.",
+    "No gatekeepers.<br/>No bosses.<br/>Just you and your sound.<br/>Press +CREATE to begin.",
+    "They say anyone with a melody can become a legend here.<br/>Will you be next?",
+    "The world is listening.<br/>Bedroom producer or wandering bard—<br/>your music belongs here.",
+    "Welcome, creator.<br/>Your quest: turn dreams into sound.<br/>Requirements: just a spark.",
+    "Tip: You don't need a studio.<br/>You don't need permission.<br/>You just need to create.",
+    "Every adventurer starts somewhere.<br/>Got a beat in your step?<br/>Let's go.",
+    "No label required.<br/>No fancy gear.<br/>Just vibes and a vision.",
+    "From anywhere, to everywhere.<br/>Your sound knows no borders.",
+    "The algorithm doesn't pick favorites.<br/>The music speaks for itself.",
+    "Some create hits.<br/>Some create memories.<br/>All create magic.",
+    "Entry fee: zero.<br/>Equipment needed: imagination.<br/>Let's build.",
+    "Whether you rap, sing, or hum—<br/>there's a place for you here.",
+    "The next big thing?<br/>It might be you.<br/>Only one way to find out.",
+    "Forget the industry.<br/>This is the community.<br/>Welcome home.",
+    "Your bedroom is a studio.<br/>Your phone is a mic.<br/>Your time is now.",
+    "Legends aren't born.<br/>They're minted.<br/>One track at a time.",
+    "Make whatever you want.<br/>It can be weird. It can be wild.<br/>That's the point.",
+    "From zero listeners to infinite possibilities.<br/>Start your journey.",
+    "Music has no prerequisites.<br/>Neither do we.<br/>Jump in.",
+    "There's probably some good elevator music in here.<br/>We don't judge.",
+    "Your restaurant could use a new vibe.<br/>Just saying.",
+    "Need hold music for your business?<br/>We got you.<br/>Probably.",
+    "Somewhere in here is the perfect dentist office banger.<br/>Keep scrolling.",
+    "Corporate training video soundtrack?<br/>Yeah, we have that too.<br/>Unironically.",
+];
+
+const randomFlavor = flavorTexts[Math.floor(Math.random() * flavorTexts.length)];
 ---
 
 <Layout title="Smol – Artists">
 	<main class="min-h-screen text-white p-6 pt-24 max-w-7xl mx-auto">
-        <div class="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+        <div class="flex flex-col items-center text-center mb-12">
             <div>
-                <h1 class="text-4xl font-bold mb-2 tracking-tighter">Artists</h1>
-                <p class="text-white/50 font-mono text-sm uppercase tracking-widest">Global Creator Network</p>
+                <h1 class="text-4xl font-bold mb-2 tracking-tighter font-pixel">Artists</h1>
+                <p class="text-white/50 font-pixel text-sm tracking-widest mb-4">Global Creator Network</p>
+                <p class="text-white/30 font-pixel text-[10px] tracking-wider max-w-md italic leading-relaxed" set:html={`"${randomFlavor}"`}></p>
             </div>
         </div>
         

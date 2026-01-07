@@ -3,17 +3,16 @@
 
 import { xdr, StrKey, scValToNative } from '@stellar/stellar-sdk';
 import { upgradesState, unlockUpgrade } from '../../stores/upgrades.svelte';
+import { getVIPAccess } from '../../utils/vip';
 
 const ADMIN_ADDRESS = "CBS5Z6IVHGLFUGLYJ6TA4URP4VD67QRXKJ4ZBRH63RBMQ5PO7TC6GJU5";
 const SMOL_MART_AMOUNTS = {
     PREMIUM_HEADER: 100000,
-    GOLDEN_KALE: 69420.67
+    GOLDEN_KALE: 69420.67,
+    SHOWCASE_REEL: 1000000
 };
 
-// VIP addresses that automatically get all upgrades (admin grants)
-const VIP_ADDRESSES = [
-    "CBNORBI4DCE7LIC42FWMCIWQRULWAUGF2MH2Z7X2RNTFAYNXIACJ33IM",
-];
+// VIP addresses now managed in src/utils/vip.ts
 
 /**
  * Scan account history to see if they already paid for upgrades.
@@ -24,11 +23,13 @@ export async function verifyPastPurchases(userAddress: string) {
 
     console.log(`[SmolMart] Verifying purchases for ${userAddress}...`);
 
-    // VIP check - instant unlock for whitelisted addresses
-    if (VIP_ADDRESSES.includes(userAddress)) {
-        console.log('[SmolMart] VIP address detected - unlocking all upgrades!');
-        unlockUpgrade('premiumHeader');
-        unlockUpgrade('goldenKale');
+    // VIP check - instant unlock for whitelisted addresses (granular)
+    const vipAccess = getVIPAccess(userAddress);
+    if (vipAccess) {
+        console.log('[SmolMart] VIP address detected - granting granular access!');
+        if (vipAccess.premiumHeader) unlockUpgrade('premiumHeader');
+        if (vipAccess.goldenKale) unlockUpgrade('goldenKale');
+        if (vipAccess.showcaseReel) unlockUpgrade('showcaseReel');
         return;
     }
 
@@ -98,6 +99,12 @@ export async function verifyPastPurchases(userAddress: string) {
                                     }
                                     if (Math.abs(amountNum - SMOL_MART_AMOUNTS.GOLDEN_KALE) < 0.1) {
                                         console.log('[SmolMart] Found Golden Kale purchase!');
+                                        unlockUpgrade('goldenKale');
+                                    }
+                                    if (Math.abs(amountNum - SMOL_MART_AMOUNTS.SHOWCASE_REEL) < 0.1) {
+                                        console.log('[SmolMart] Found Showcase Reel purchase! (Ultimate Bundle)');
+                                        unlockUpgrade('showcaseReel');
+                                        unlockUpgrade('premiumHeader');
                                         unlockUpgrade('goldenKale');
                                     }
                                 }

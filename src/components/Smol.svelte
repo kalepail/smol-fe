@@ -414,7 +414,7 @@
     <div class="px-2 py-10 bg-slate-900">
       <div class="flex flex-col items-center max-w-[1024px] mx-auto">
         <h1
-          class="bg-rose-950 border-2 border-rose-400 rounded-none px-3 py-1.5 font-pixel uppercase tracking-wider text-xs"
+          class="bg-rose-950 border-2 border-rose-400 rounded-none px-3 py-1.5 font-pixel tracking-wider text-xs"
         >
           Login or Create New Account
         </h1>
@@ -445,7 +445,7 @@
           <li>
             <div class="flex items-center gap-2">
               <button
-                class="flex items-center font-pixel uppercase tracking-wider text-[10px] text-lime-500 bg-lime-500/20 border-2 border-lime-500 hover:bg-lime-500/30 rounded-none px-3 py-1.5 disabled:opacity-50"
+                class="flex items-center font-pixel tracking-wider text-[10px] text-lime-500 bg-lime-500/20 border-2 border-lime-500 hover:bg-lime-500/30 rounded-none px-3 py-1.5 disabled:opacity-50"
                 onclick={retryGen}
                 disabled={!!id && !!interval}
               >

@@ -139,7 +139,7 @@
   {/if}
 
   <button
-    class="text-[#9ae600] hover:text-white transition-colors font-pixel uppercase tracking-wider text-[10px] md:text-xs border border-transparent hover:border-[#9ae600]/30 px-2 py-1"
+    class="text-[#9ae600] hover:text-white transition-colors font-pixel tracking-wider text-[10px] md:text-xs border border-transparent hover:border-[#9ae600]/30 px-2 py-1"
     onclick={toggleMenu}
   >
     {uiState.isMenuOpen ? "[CLOSE]" : "+MENU"}

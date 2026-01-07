@@ -1,10 +1,12 @@
 import type { APIRoute } from 'astro';
+import { getVIPAccess } from '../../../../utils/vip';
 
 const ADMIN_ADDRESS = "CBS5Z6IVHGLFUGLYJ6TA4URP4VD67QRXKJ4ZBRH63RBMQ5PO7TC6GJU5";
 const KALE_ISSUER = "GAKDNXUGEIRGESAXOPUHU7YNQNQN4RVD7ZS665HXBQJ4CEJJAXIUWE"; // Official KALE token issuer
 const SMOL_MART_AMOUNTS = {
     PREMIUM_HEADER: 100000,
-    GOLDEN_KALE: 69420.67
+    GOLDEN_KALE: 69420.67,
+    SHOWCASE_REEL: 1000000
 };
 
 /**
@@ -14,17 +16,11 @@ const SMOL_MART_AMOUNTS = {
  * ║  This API verifies SMOL MART upgrade ownership for any address.   ║
  * ║                                                                    ║
  * ║  HOW IT WORKS:                                                     ║
- * ║  1. Checks ADMIN_GRANTS list first (instant approval)             ║
- * ║  2. If not in list → queries Horizon for KALE payments            ║
- * ║  3. Returns { premiumHeader: bool, goldenKale: bool }             ║
- * ║                                                                    ║
- * ║  ADMIN_GRANTS: Manual grants for users who should have upgrades   ║
- * ║  without needing to pay (e.g. contest winners, early supporters)  ║
+ * ║  1. Checks VIP_CONFIG via getVIPAccess (granular manual grants)    ║
+ * ║  2. If not a VIP → queries Horizon for KALE payments              ║
+ * ║  3. Returns { premiumHeader: bool, goldenKale: bool, showcaseReel: bool } ║
  * ╚════════════════════════════════════════════════════════════════════╝
  */
-const ADMIN_GRANTS = [
-    "CBNORBI4DCE7LIC42FWMCIWQRULWAUGF2MH2Z7X2RNTFAYNXIACJ33IM", // noot.xlm
-];
 
 // Simple in-memory cache (5 minute TTL)
 const cache = new Map<string, { data: any; expires: number }>();
@@ -48,18 +44,18 @@ export const GET: APIRoute = async ({ params }) => {
         });
     }
 
-    // Admin grant check (instant approval for manually granted users)
-    if (ADMIN_GRANTS.includes(address)) {
-        const result = { premiumHeader: true, goldenKale: true };
-        cache.set(address, { data: result, expires: Date.now() + CACHE_TTL });
-        return new Response(JSON.stringify(result), {
+    // Admin/VIP grant check (granular approval)
+    const vipAccess = getVIPAccess(address);
+    if (vipAccess) {
+        cache.set(address, { data: vipAccess, expires: Date.now() + CACHE_TTL });
+        return new Response(JSON.stringify(vipAccess), {
             headers: { 'Content-Type': 'application/json' }
         });
     }
 
     // Query Horizon for operations
     try {
-        const result = { premiumHeader: false, goldenKale: false };
+        const result = { premiumHeader: false, goldenKale: false, showcaseReel: false };
         const limit = 200;
         const url = `https://horizon.stellar.org/accounts/${address}/operations?limit=${limit}&order=desc&include_failed=false`;
 
@@ -109,6 +105,11 @@ export const GET: APIRoute = async ({ params }) => {
                         if (Math.abs(amount - SMOL_MART_AMOUNTS.GOLDEN_KALE) < 0.1) {
                             result.goldenKale = true;
                         }
+                        if (Math.abs(amount - SMOL_MART_AMOUNTS.SHOWCASE_REEL) < 0.1) {
+                            result.showcaseReel = true;
+                            result.premiumHeader = true; // Included in 1M bundle
+                            result.goldenKale = true;   // Included in 1M bundle
+                        }
                     }
                 }
             }
@@ -120,7 +121,8 @@ export const GET: APIRoute = async ({ params }) => {
         // Apply preferences filter (only show if owned AND enabled)
         const finalResult = {
             premiumHeader: result.premiumHeader && prefs.premiumHeaderEnabled,
-            goldenKale: result.goldenKale && prefs.goldenKaleEnabled
+            goldenKale: result.goldenKale && prefs.goldenKaleEnabled,
+            showcaseReel: result.showcaseReel && prefs.showcaseReelEnabled
         };
 
         cache.set(address, { data: finalResult, expires: Date.now() + CACHE_TTL });
@@ -140,6 +142,7 @@ export const GET: APIRoute = async ({ params }) => {
 async function fetchUserPrefs(address: string): Promise<{
     premiumHeaderEnabled: boolean;
     goldenKaleEnabled: boolean;
+    showcaseReelEnabled: boolean;
 }> {
     try {
         const res = await fetch(`${import.meta.env.PUBLIC_API_URL}/prefs/${address}`);
@@ -149,5 +152,5 @@ async function fetchUserPrefs(address: string): Promise<{
     } catch (e) {
         // Ignore errors, default to enabled
     }
-    return { premiumHeaderEnabled: true, goldenKaleEnabled: true };
+    return { premiumHeaderEnabled: true, goldenKaleEnabled: true, showcaseReelEnabled: true };
 }

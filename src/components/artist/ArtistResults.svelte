@@ -140,6 +140,7 @@
     let collageImages = $state<string[]>([]);
     let searchQuery = $state("");
     let isSearchingMobile = $state(false);
+    let showSearchMenu = $state(false);
 
     // Artist badge state (fetched from API, NOT viewer's localStorage)
     let artistBadges = $state<{ premiumHeader: boolean; goldenKale: boolean }>({
@@ -832,7 +833,7 @@
 </script>
 
 <div
-    class="space-y-0 h-full flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-700 font-mono"
+    class="space-y-0 h-full landscape:h-auto landscape:overflow-y-auto md:landscape:h-full md:landscape:overflow-hidden flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-700 font-mono"
 >
     <!-- Artist Info Header (Windowed) -->
     <!-- Header Wrapper with Kale Wreath -->
@@ -875,7 +876,7 @@
                 class="space-y-2 relative z-10 flex-1 min-w-0 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]"
             >
                 <h1
-                    class="text-[9px] font-mono text-white/40 uppercase tracking-[0.3em]"
+                    class="text-[9px] font-pixel text-white/40 uppercase tracking-[0.3em]"
                 >
                     Artist Profile
                 </h1>
@@ -883,7 +884,7 @@
                 <div class="flex flex-col gap-3">
                     <button
                         onclick={copyAddress}
-                        class="text-lg md:text-3xl lg:text-4xl font-bold tracking-tighter text-white hover:text-[#d836ff] transition-colors flex items-center gap-2 md:gap-3 group/address text-left"
+                        class="w-full text-lg md:text-3xl lg:text-4xl font-bold tracking-tighter text-white hover:text-[#d836ff] transition-colors flex items-center gap-2 md:gap-3 group/address text-left font-pixel tracking-widest"
                         title="Click to copy address (Send $KALE only!)"
                     >
                         {shortAddress}
@@ -911,13 +912,51 @@
                             }
                             showTipModal = true;
                         }}
-                        class="w-fit px-4 py-1.5 bg-gradient-to-r from-green-600/20 to-green-500/10 border border-green-500/30 rounded-full text-green-400 text-[10px] font-bold uppercase tracking-widest hover:bg-green-500/20 transition-all flex items-center gap-1.5"
+                        class="w-fit px-5 py-2 rounded-full text-[10px] font-pixel tracking-[0.2em] transition-all flex items-center gap-2 overflow-hidden relative group/tip {artistBadges.goldenKale
+                            ? 'bg-gradient-to-b from-[#FFF5D1]/40 via-[#D4AF37]/50 to-[#AA8C2C]/60 border border-[#FFE066]/60 text-[#FCF6BA] shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_2px_4px_rgba(0,0,0,0.1)] hover:brightness-110 active:scale-95 backdrop-blur-sm'
+                            : 'bg-gradient-to-r from-green-600/20 to-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500/20'}"
                     >
-                        <span class="text-base leading-none">🥬</span>
-                        Tip Artist
+                        <!-- Metallic Shine Overlay -->
+                        {#if artistBadges.goldenKale}
+                            <div
+                                class="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover/tip:animate-[shine_1.5s_infinite]"
+                            ></div>
+                        {/if}
+
+                        <img
+                            src="https://em-content.zobj.net/source/apple/354/leafy-green_1f96c.png"
+                            alt="Kale"
+                            class="w-4 h-4 object-contain relative z-10 opacity-100 {artistBadges.goldenKale
+                                ? 'filter sepia-[100%] saturate-[400%] brightness-[1.3] contrast-[1.2] hue-rotate-[5deg] drop-shadow-[0_0_4px_rgba(255,215,0,0.8)] animate-pulse'
+                                : ''}"
+                        />
+                        <span
+                            class="relative z-10 {artistBadges.goldenKale
+                                ? 'drop-shadow-[0_1px_0_rgba(255,255,255,0.5)] font-bold text-shadow-sm'
+                                : ''}">Tip Artist</span
+                        >
                     </button>
                 </div>
             </div>
+
+            {#if artistBadges.goldenKale}
+                <!-- Absolute Positioned Golden Kale (Bottom-Right, Aligned with Tip Button, Mobile Only) -->
+                <div
+                    class="absolute bottom-6 right-3 md:hidden z-50 animate-pulse-slow group-hover/header:rotate-6 transition-transform origin-center pointer-events-none"
+                    title="Gold Member"
+                >
+                    <img
+                        src="https://em-content.zobj.net/source/apple/354/leafy-green_1f96c.png"
+                        class="w-14 h-14 filter sepia-[100%] saturate-[400%] brightness-[1.2] contrast-[1.2] hue-rotate-[5deg] drop-shadow-[2px_2px_0px_rgba(180,140,0,1)]"
+                        style="image-rendering: pixelated;"
+                        alt="Golden Kale"
+                    />
+                    <span
+                        class="text-[12px] text-[#FCF6BA] animate-ping ml-[-6px] mt-[-10px] z-10 absolute top-0 right-0"
+                        >✦</span
+                    >
+                </div>
+            {/if}
 
             <!-- Middle Section: Artist Stats (Centered on Desktop) -->
             <div
@@ -925,17 +964,17 @@
             >
                 <div class="flex items-center gap-2">
                     <span
-                        class="px-2.5 py-1 rounded-md bg-lime-500/10 text-lime-400 text-[9px] border border-lime-500/20 uppercase tracking-widest font-bold shadow-[0_0_8px_rgba(132,204,22,0.1)]"
+                        class="px-2.5 py-1 rounded-md bg-lime-500/10 text-lime-400 text-[9px] border border-lime-500/20 tracking-widest font-pixel shadow-[0_0_8px_rgba(132,204,22,0.1)]"
                     >
                         {livePublishedCount} Published
                     </span>
                     <span
-                        class="px-2.5 py-1 rounded-md bg-purple-500/10 text-purple-400 text-[9px] border border-purple-500/20 uppercase tracking-widest font-bold shadow-[0_0_8px_rgba(216,54,255,0.1)]"
+                        class="px-2.5 py-1 rounded-md bg-purple-500/10 text-purple-400 text-[9px] border border-purple-500/20 tracking-widest font-pixel shadow-[0_0_8px_rgba(216,54,255,0.1)]"
                     >
                         {liveMintedCount} Minted
                     </span>
                     <span
-                        class="px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-400 text-[9px] border border-blue-500/20 uppercase tracking-widest font-bold shadow-[0_0_8px_rgba(59,130,246,0.1)]"
+                        class="px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-400 text-[9px] border border-blue-500/20 tracking-widest font-pixel shadow-[0_0_8px_rgba(59,130,246,0.1)]"
                     >
                         {liveCollectedCount} Collected
                     </span>
@@ -946,7 +985,7 @@
             <div
                 class="flex items-center gap-4 relative z-50 shrink-0 min-w-[120px] justify-end"
             >
-                {#if showGridView && currentSong}
+                {#if currentSong}
                     {@const currentIdx = displayPlaylist.findIndex(
                         (s) => s.Id === currentSong?.Id,
                     )}
@@ -956,7 +995,9 @@
                             : false}
                     <!-- Mobile Mini Player (RadioPlayer Style) -->
                     <div
-                        class="flex items-center gap-1.5 sm:gap-2 bg-black/40 backdrop-blur-md p-1.5 rounded-full border border-white/10 shadow-xl"
+                        class="items-center gap-1.5 sm:gap-2 bg-black/40 backdrop-blur-md p-1.5 rounded-full border border-white/10 shadow-xl {showGridView
+                            ? 'flex md:hidden'
+                            : 'hidden landscape:flex md:landscape:hidden'}"
                     >
                         <!-- Like Button -->
                         <LikeButton
@@ -1058,7 +1099,7 @@
                 <!-- Golden Kale Badge (Unlocked via Secret Tip) -->
                 {#if artistBadges.goldenKale}
                     <div
-                        class="absolute top-1/2 -translate-y-1/2 right-2 flex items-center justify-center animate-pulse-slow group/badge cursor-help z-[60]"
+                        class="absolute top-1/2 -translate-y-1/2 right-2 items-center justify-center animate-pulse-slow group/badge cursor-help z-[60] hidden md:flex"
                         title="Gold Member"
                     >
                         <img
@@ -1097,7 +1138,7 @@
     >
         <!-- Control Bar (Tabs & View Controls) -->
         <div
-            class="relative z-[45] flex items-center border-b border-white/5 bg-[#1a1a1a] backdrop-blur-xl shrink-0 min-w-0 py-2 px-3 gap-2"
+            class="relative z-[80] flex items-center border-b border-white/5 bg-[#1a1a1a] backdrop-blur-xl shrink-0 min-w-0 py-2 px-3 gap-2 landscape:sticky landscape:top-0"
         >
             <div class="flex items-center gap-2 select-none shrink-0">
                 <button
@@ -1123,37 +1164,22 @@
 
             <!-- Module Tabs (Visible on all devices) -->
             <div
-                class="flex flex-1 items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar min-w-0 mask-fade-right relative"
+                class="flex flex-1 items-center gap-4 md:gap-6 overflow-x-auto no-scrollbar min-w-0 relative {isSearchingMobile
+                    ? ''
+                    : 'mask-fade-right'}"
             >
                 <!-- Mobile Elegant Search Bar Overlay -->
                 {#if isSearchingMobile}
                     <div
-                        class="absolute inset-0 bg-[#1a1a1a] flex items-center px-1 z-50 animate-in slide-in-from-right-4 duration-300 md:hidden"
+                        class="absolute inset-0 bg-[#1a1a1a] w-full h-full flex items-center z-[100] animate-in slide-in-from-right-4 duration-300 md:hidden overflow-hidden justify-start"
                     >
-                        <div class="relative w-full flex items-center gap-2">
+                        <div class="relative w-[90%] flex items-center -ml-0.5">
                             <input
                                 type="text"
                                 bind:value={searchQuery}
-                                placeholder="Search songs..."
-                                class="flex-1 bg-black/40 border border-lime-500/30 rounded-full py-1.5 px-4 text-base text-white outline-none focus:border-lime-500 transition-all font-mono"
+                                placeholder="Search..."
+                                class="flex-1 bg-black/40 border border-lime-500/30 rounded-full py-0.5 px-3 text-[8px] text-white outline-none focus:border-lime-500 transition-all font-pixel m-0"
                             />
-                            <button
-                                onclick={() => {
-                                    isSearchingMobile = false;
-                                    searchQuery = "";
-                                }}
-                                class="shrink-0 p-1.5 text-white/40 hover:text-white"
-                            >
-                                <svg
-                                    class="w-4 h-4"
-                                    fill="currentColor"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
-                                    />
-                                </svg>
-                            </button>
                         </div>
                     </div>
                 {/if}
@@ -1164,7 +1190,7 @@
                         shuffleEnabled = false;
                         selectedArtistTags = [];
                     }}
-                    class="text-[10px] font-bold uppercase tracking-[0.15em] md:tracking-[0.2em] transition-colors {activeModule ===
+                    class="py-1.5 text-[8px] font-pixel transition-colors {activeModule ===
                     'discography'
                         ? 'text-lime-400'
                         : 'text-white/40 hover:text-white'} whitespace-nowrap"
@@ -1177,7 +1203,7 @@
                         shuffleEnabled = false;
                         selectedArtistTags = [];
                     }}
-                    class="text-[10px] font-bold uppercase tracking-[0.15em] md:tracking-[0.2em] transition-colors {activeModule ===
+                    class="py-1.5 text-[8px] font-pixel transition-colors {activeModule ===
                     'minted'
                         ? 'text-lime-400'
                         : 'text-white/40 hover:text-white'} whitespace-nowrap"
@@ -1190,7 +1216,7 @@
                         shuffleEnabled = false;
                         selectedArtistTags = [];
                     }}
-                    class="text-[10px] font-bold uppercase tracking-[0.15em] md:tracking-[0.2em] transition-colors {activeModule ===
+                    class="py-1.5 text-[8px] font-pixel transition-colors {activeModule ===
                     'collected'
                         ? 'text-lime-400'
                         : 'text-white/40 hover:text-white'} whitespace-nowrap"
@@ -1208,7 +1234,7 @@
                         type="text"
                         bind:value={searchQuery}
                         placeholder="Search {activeModule}..."
-                        class="bg-black/20 border border-white/10 rounded-full py-1.5 px-3 text-[10px] w-32 xl:w-48 focus:w-40 xl:focus:w-56 focus:border-lime-500/50 focus:bg-black/40 outline-none transition-all duration-300 text-white placeholder:text-white/20 font-mono"
+                        class="bg-black/20 border border-white/10 rounded-full py-1.5 px-3 text-[10px] w-32 xl:w-48 focus:w-40 xl:focus:w-56 focus:border-lime-500/50 focus:bg-black/40 outline-none transition-all duration-300 text-white placeholder:text-white/20 font-pixel"
                     />
                     {#if searchQuery}
                         <button
@@ -1244,37 +1270,14 @@
                 </div>
             </div>
 
-            <div class="flex items-center gap-1.5 md:gap-2 shrink-0">
-                <!-- Tags Mini Button (Grid View only) - Green style, toggles tagsExpanded -->
-                {#if showGridView}
-                    <button
-                        onclick={() => {
-                            tagsExpanded = !tagsExpanded;
-                        }}
-                        class="w-8 h-8 flex items-center justify-center rounded-full transition-all {tagsExpanded
-                            ? 'text-lime-400 bg-lime-500/20 border border-lime-500'
-                            : 'text-lime-500 hover:text-white hover:bg-lime-500/20 border border-lime-500/30 hover:border-lime-500 bg-lime-500/5'}"
-                        title="Filter by Tags ({activeModule})"
-                    >
-                        <svg
-                            class="w-4 h-4"
-                            fill="currentColor"
-                            viewBox="0 0 24 24"
-                        >
-                            <path
-                                d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"
-                            />
-                        </svg>
-                    </button>
-                {/if}
-
-                <!-- Mobile Search Toggle Button -->
+            <div class="flex items-center gap-3 md:gap-2 shrink-0">
+                <!-- Landscape Search Button (Direct Toggle) -->
                 <button
                     onclick={() => (isSearchingMobile = !isSearchingMobile)}
-                    class="md:hidden w-8 h-8 flex items-center justify-center rounded-full transition-all active:scale-95 {isSearchingMobile
+                    class="hidden landscape:flex lg:hidden w-8 h-8 items-center justify-center rounded-full transition-all active:scale-95 {isSearchingMobile
                         ? 'text-lime-400 bg-lime-500/20 border border-lime-500'
                         : 'text-white/40 hover:text-white hover:bg-white/10 border border-white/10'}"
-                    title="Search Songs"
+                    title="Search"
                 >
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -1291,6 +1294,92 @@
                         />
                     </svg>
                 </button>
+
+                <!-- Mobile Search/Menu Toggle Button (Portrait Grid Only) -->
+                <div class="relative md:hidden landscape:hidden">
+                    <button
+                        onclick={() => {
+                            if (showGridView) {
+                                showSearchMenu = !showSearchMenu;
+                            } else {
+                                isSearchingMobile = !isSearchingMobile;
+                            }
+                        }}
+                        class="w-8 h-8 flex items-center justify-center rounded-full transition-all active:scale-95 {isSearchingMobile ||
+                        showSearchMenu
+                            ? 'text-lime-400 bg-lime-500/20 border border-lime-500'
+                            : 'text-white/40 hover:text-white hover:bg-white/10 border border-white/10'}"
+                        title="Search Options"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke-width="2"
+                            stroke="currentColor"
+                            class="w-4 h-4"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
+                            />
+                        </svg>
+                    </button>
+
+                    <!-- Search Menu Dropdown (Mobile Grid View Only) -->
+                    {#if showSearchMenu && showGridView}
+                        <div
+                            class="absolute right-0 top-10 z-[100] bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl p-1 min-w-[140px] overflow-hidden backdrop-blur-xl animate-in slide-in-from-top-2 duration-200"
+                        >
+                            <button
+                                onclick={() => {
+                                    isSearchingMobile = !isSearchingMobile;
+                                    showSearchMenu = false;
+                                }}
+                                class="w-full text-left px-3 py-2.5 text-[10px] font-pixel tracking-wider rounded-lg flex items-center gap-3 {isSearchingMobile
+                                    ? 'text-lime-400 bg-white/10'
+                                    : 'text-white/60 hover:text-white hover:bg-white/5'}"
+                            >
+                                <svg
+                                    class="w-3.5 h-3.5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke-width="2"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
+                                    />
+                                </svg>
+                                Search
+                            </button>
+                            <div class="h-px bg-white/5 my-1"></div>
+                            <button
+                                onclick={() => {
+                                    tagsExpanded = !tagsExpanded;
+                                    showSearchMenu = false;
+                                }}
+                                class="w-full text-left px-3 py-2.5 text-[10px] font-pixel tracking-wider rounded-lg flex items-center gap-3 {tagsExpanded
+                                    ? 'text-lime-400 bg-white/10'
+                                    : 'text-white/60 hover:text-white hover:bg-white/5'}"
+                            >
+                                <svg
+                                    class="w-3.5 h-3.5"
+                                    fill="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z"
+                                    />
+                                </svg>
+                                Tags {tagsExpanded ? "(On)" : ""}
+                            </button>
+                        </div>
+                    {/if}
+                </div>
 
                 <!-- Sort Dropdown (Available in both Player and Grid modes) -->
                 <div class="relative">
@@ -1343,7 +1432,7 @@
                                     sortMode = "latest";
                                     showSortDropdown = false;
                                 }}
-                                class="w-full text-left px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider rounded-lg flex items-center gap-3 {sortMode ===
+                                class="w-full text-left px-3 py-2.5 text-[10px] font-pixel uppercase tracking-wider rounded-lg flex items-center gap-3 {sortMode ===
                                 'latest'
                                     ? 'text-lime-400 bg-white/10'
                                     : 'text-white/60 hover:text-white hover:bg-white/5'}"
@@ -1364,7 +1453,7 @@
                                     sortMode = "canon";
                                     showSortDropdown = false;
                                 }}
-                                class="w-full text-left px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider rounded-lg flex items-center gap-3 {sortMode ===
+                                class="w-full text-left px-3 py-2.5 text-[10px] font-pixel uppercase tracking-wider rounded-lg flex items-center gap-3 {sortMode ===
                                 'canon'
                                     ? 'text-lime-400 bg-white/10'
                                     : 'text-white/60 hover:text-white hover:bg-white/5'}"
@@ -1387,7 +1476,7 @@
                                     showSortDropdown = false;
                                     shuffleSeed = Date.now(); // Reshuffle
                                 }}
-                                class="w-full text-left px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider rounded-lg flex items-center gap-3 {sortMode ===
+                                class="w-full text-left px-3 py-2.5 text-[10px] font-pixel uppercase tracking-wider rounded-lg flex items-center gap-3 {sortMode ===
                                 'shuffle'
                                     ? 'text-lime-400 bg-white/10'
                                     : 'text-white/60 hover:text-white hover:bg-white/5'}"
@@ -1435,108 +1524,108 @@
             </div>
         </div>
 
-        <div class="relative flex-1 min-h-0 flex flex-col">
+        <div
+            class="relative flex-1 min-h-0 landscape:min-h-0 landscape:h-auto md:landscape:h-full flex flex-col"
+        >
             {#if showGridView}
+                <!-- Grid View Tags Integration (Overlay) -->
+                {#if tagsExpanded}
+                    <div
+                        class="absolute top-0 left-0 right-0 z-[70] bg-[#1a1a1a]/95 backdrop-blur-xl border-b border-white/10 p-6 shadow-2xl animate-in slide-in-from-top-4 duration-500"
+                    >
+                        <div class="flex items-center justify-between mb-4">
+                            <h3
+                                class="text-[8px] font-pixel text-lime-400 uppercase tracking-wide"
+                            >
+                                Filter {activeModule} by Vibe
+                            </h3>
+                            {#if selectedArtistTags.length > 0}
+                                <button
+                                    onclick={() => (selectedArtistTags = [])}
+                                    class="text-[8px] uppercase tracking-widest text-white/30 hover:text-white border-b border-white/10 hover:border-white transition-all"
+                                >
+                                    Clear {selectedArtistTags.length} Filter{selectedArtistTags.length >
+                                    1
+                                        ? "s"
+                                        : ""}
+                                </button>
+                            {/if}
+                        </div>
+                        <div
+                            class="max-h-[150px] overflow-y-auto pr-2 dark-scrollbar"
+                        >
+                            <div class="flex flex-wrap gap-2 items-center">
+                                {#each artistTags as { tag, count }}
+                                    <button
+                                        onclick={() => toggleArtistTag(tag)}
+                                        class="px-3 py-1.5 rounded-full text-[8px] font-pixel uppercase tracking-normal transition-all duration-300 {selectedArtistTags.includes(
+                                            tag,
+                                        )
+                                            ? 'bg-lime-500 text-black font-pixel scale-105'
+                                            : 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10 opacity-70 hover:opacity-100'}"
+                                        style="font-size: {0.7 +
+                                            (count / maxTagCount) * 0.4}rem;"
+                                    >
+                                        {tag}
+                                        <span
+                                            class="ml-0.5 opacity-40 text-[0.8em]"
+                                            >{count}</span
+                                        >
+                                    </button>
+                                {/each}
+                            </div>
+                        </div>
+                        {#if selectedArtistTags.length > 0}
+                            <div class="mt-6 flex justify-center">
+                                <button
+                                    onclick={generateArtistMix}
+                                    disabled={isGeneratingMix}
+                                    class="group relative flex items-center gap-3 px-8 py-3 bg-lime-500 rounded-full text-black font-pixel uppercase tracking-wide text-[11px] transition-all hover:scale-105 active:scale-95 disabled:opacity-50 {isGeneratingMix
+                                        ? 'animate-pulse bg-purple-500'
+                                        : 'shadow-[0_0_20px_rgba(132,204,22,0.4)] hover:shadow-[0_0_30px_rgba(132,204,22,0.6)]'}"
+                                >
+                                    {#if isGeneratingMix}
+                                        <svg
+                                            class="animate-spin h-4 w-4 text-black"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <circle
+                                                class="opacity-25"
+                                                cx="12"
+                                                cy="12"
+                                                r="10"
+                                                stroke="currentColor"
+                                                stroke-width="4"
+                                            ></circle>
+                                            <path
+                                                class="opacity-75"
+                                                fill="currentColor"
+                                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                            ></path>
+                                        </svg>
+                                        <span>Mixing...</span>
+                                    {:else}
+                                        <svg
+                                            class="w-4 h-4 group-hover:rotate-12 transition-transform"
+                                            fill="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"
+                                            />
+                                        </svg>
+                                        <span>Generate Tag Mix</span>
+                                    {/if}
+                                </button>
+                            </div>
+                        {:else}{/if}
+                    </div>
+                {/if}
+
                 <div
                     class="absolute inset-0 z-50 bg-[#121212] p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto dark-scrollbar"
                 >
-                    <!-- Grid View Tags Integration (shows when tagsExpanded is true) -->
-                    {#if tagsExpanded}
-                        <div
-                            class="mb-8 border-b border-white/10 pb-6 animate-in slide-in-from-top-4 duration-500"
-                        >
-                            <div class="flex items-center justify-between mb-4">
-                                <h3
-                                    class="text-[10px] font-bold text-lime-400 uppercase tracking-widest"
-                                >
-                                    Filter {activeModule} by Vibe
-                                </h3>
-                                {#if selectedArtistTags.length > 0}
-                                    <button
-                                        onclick={() =>
-                                            (selectedArtistTags = [])}
-                                        class="text-[8px] uppercase tracking-widest text-white/30 hover:text-white border-b border-white/10 hover:border-white transition-all"
-                                    >
-                                        Clear {selectedArtistTags.length} Filter{selectedArtistTags.length >
-                                        1
-                                            ? "s"
-                                            : ""}
-                                    </button>
-                                {/if}
-                            </div>
-                            <div
-                                class="max-h-[150px] overflow-y-auto pr-2 dark-scrollbar"
-                            >
-                                <div class="flex flex-wrap gap-2 items-center">
-                                    {#each artistTags as { tag, count }}
-                                        <button
-                                            onclick={() => toggleArtistTag(tag)}
-                                            class="px-3 py-1.5 rounded-full text-[10px] uppercase tracking-wider transition-all duration-300 {selectedArtistTags.includes(
-                                                tag,
-                                            )
-                                                ? 'bg-lime-500 text-black font-black scale-105'
-                                                : 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10 opacity-70 hover:opacity-100'}"
-                                            style="font-size: {0.7 +
-                                                (count / maxTagCount) *
-                                                    0.4}rem;"
-                                        >
-                                            {tag}
-                                            <span
-                                                class="ml-0.5 opacity-40 text-[0.8em]"
-                                                >{count}</span
-                                            >
-                                        </button>
-                                    {/each}
-                                </div>
-                            </div>
-                            {#if selectedArtistTags.length > 0}
-                                <div class="mt-6 flex justify-center">
-                                    <button
-                                        onclick={generateArtistMix}
-                                        disabled={isGeneratingMix}
-                                        class="group relative flex items-center gap-3 px-8 py-3 bg-lime-500 rounded-full text-black font-bold uppercase tracking-[0.2em] text-[11px] transition-all hover:scale-105 active:scale-95 disabled:opacity-50 {isGeneratingMix
-                                            ? 'animate-pulse bg-purple-500'
-                                            : 'shadow-[0_0_20px_rgba(132,204,22,0.4)] hover:shadow-[0_0_30px_rgba(132,204,22,0.6)]'}"
-                                    >
-                                        {#if isGeneratingMix}
-                                            <svg
-                                                class="animate-spin h-4 w-4 text-black"
-                                                fill="none"
-                                                viewBox="0 0 24 24"
-                                            >
-                                                <circle
-                                                    class="opacity-25"
-                                                    cx="12"
-                                                    cy="12"
-                                                    r="10"
-                                                    stroke="currentColor"
-                                                    stroke-width="4"
-                                                ></circle>
-                                                <path
-                                                    class="opacity-75"
-                                                    fill="currentColor"
-                                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                                ></path>
-                                            </svg>
-                                            <span>Mixing...</span>
-                                        {:else}
-                                            <svg
-                                                class="w-4 h-4 group-hover:rotate-12 transition-transform"
-                                                fill="currentColor"
-                                                viewBox="0 0 24 24"
-                                            >
-                                                <path
-                                                    d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"
-                                                />
-                                            </svg>
-                                            <span>Generate Tag Mix</span>
-                                        {/if}
-                                    </button>
-                                </div>
-                            {:else}{/if}
-                        </div>
-                    {/if}
-
                     <div
                         class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 pb-20"
                     >
@@ -1647,7 +1736,7 @@
                                     </div>
                                 </div>
                                 <span
-                                    class="text-[10px] font-bold text-white/60 truncate group-hover:text-white transition-colors"
+                                    class="text-[9px] font-pixel text-white/60 truncate group-hover:text-white transition-colors"
                                     >{song.Title || "Untitled"}</span
                                 >
                             </button>
@@ -1657,11 +1746,11 @@
             {/if}
 
             <div
-                class="flex flex-col lg:flex-row gap-0 lg:gap-4 flex-1 min-h-0 items-stretch px-4 pt-0 pb-4 overflow-hidden"
+                class="flex flex-col landscape:flex-row lg:flex-row gap-0 landscape:gap-4 lg:gap-4 flex-1 min-h-0 landscape:h-auto md:landscape:h-full items-stretch px-4 pt-0 pb-4 overflow-hidden landscape:overflow-visible md:landscape:overflow-hidden"
             >
                 <!-- LEFT COLUMN: PLAYER -->
                 <div
-                    class="w-full lg:w-1/2 flex flex-col gap-0 min-h-0 relative z-[41] shrink-0"
+                    class="w-full landscape:w-1/2 lg:w-1/2 flex flex-col gap-0 min-h-0 relative z-[41] shrink-0"
                 >
                     <RadioPlayer
                         playlist={displayPlaylist}
@@ -1706,13 +1795,13 @@
 
                 <!-- RIGHT COLUMN: PLAYLIST -->
                 <div
-                    class="w-full lg:w-1/2 flex flex-col min-h-0 mt-1 lg:mt-0 bg-[#121212] border border-white/5 rounded-2xl relative flex-1 overflow-y-auto dark-scrollbar z-[40]"
+                    class="w-full landscape:w-1/2 lg:w-1/2 flex flex-col min-h-0 mt-1 landscape:mt-0 lg:mt-0 bg-[#121212] border border-white/5 rounded-2xl relative flex-1 overflow-y-auto dark-scrollbar z-[40]"
                 >
                     <div
                         class="flex items-center justify-between p-3 border-b border-white/5 bg-[#1a1a1a] flex-shrink-0"
                     >
                         <h3
-                            class="text-white font-bold tracking-widest uppercase text-xs truncate max-w-[70%]"
+                            class="text-white font-pixel tracking-wide uppercase text-[9px] truncate max-w-[70%]"
                             title={playlistTitle}
                         >
                             {playlistTitle} ({displayPlaylist.length})
@@ -1722,7 +1811,7 @@
                             class="flex items-center gap-1.5 px-2 py-1 rounded bg-white/10 hover:bg-lime-500/20 border border-white/10 hover:border-lime-500/50 transition-all"
                         >
                             <span
-                                class="text-[9px] text-lime-400 font-bold uppercase tracking-widest"
+                                class="text-[8px] text-lime-400 font-pixel uppercase tracking-wide"
                                 >{tagsExpanded ? "▼" : "▶"} Tags</span
                             >
                         </button>
@@ -1746,10 +1835,10 @@
                                     {#each artistTags.slice(0, 50) as { tag, count }}
                                         <button
                                             onclick={() => toggleArtistTag(tag)}
-                                            class="px-2.5 py-1 rounded-full text-[11px] uppercase tracking-wide transition-all duration-200 {selectedArtistTags.includes(
+                                            class="px-2.5 py-1 rounded-full text-[8px] font-pixel uppercase tracking-normal transition-all duration-200 {selectedArtistTags.includes(
                                                 tag,
                                             )
-                                                ? 'bg-lime-500 text-black font-black scale-105'
+                                                ? 'bg-lime-500 text-black font-pixel scale-105'
                                                 : 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10 opacity-70 hover:opacity-100'}"
                                         >
                                             {tag}
@@ -1778,7 +1867,7 @@
                                         <button
                                             onclick={generateArtistMix}
                                             disabled={isGeneratingMix}
-                                            class="group relative flex items-center gap-2 px-3 py-1 bg-lime-500 rounded text-black font-bold uppercase tracking-widest text-[9px] transition-all hover:scale-105 active:scale-95 disabled:opacity-50 {isGeneratingMix
+                                            class="group relative flex items-center gap-2 px-3 py-1 bg-lime-500 rounded text-black font-pixel uppercase tracking-wide text-[9px] transition-all hover:scale-105 active:scale-95 disabled:opacity-50 {isGeneratingMix
                                                 ? 'animate-pulse bg-purple-500'
                                                 : 'shadow-[0_0_10px_rgba(132,204,22,0.3)] hover:shadow-[0_0_15px_rgba(132,204,22,0.6)]'}"
                                         >
@@ -1878,7 +1967,7 @@
                                             }}
                                         >
                                             <span
-                                                class="text-white/20 w-4 text-center text-xs font-mono"
+                                                class="text-white/20 w-4 text-center text-[9px] font-pixel"
                                                 >{index + 1}</span
                                             >
 
@@ -1941,7 +2030,7 @@
                                                 class="overflow-hidden text-left flex-1 min-w-0"
                                             >
                                                 <div
-                                                    class="text-xs font-bold text-white/90 truncate {index ===
+                                                    class="text-[9px] font-pixel text-white/90 truncate {index ===
                                                     currentIndex
                                                         ? 'text-lime-400'
                                                         : ''}"
@@ -1949,7 +2038,7 @@
                                                     {song.Title || "Untitled"}
                                                 </div>
                                                 <div
-                                                    class="flex items-center gap-3 text-[9px] text-white/30 truncate uppercase tracking-widest mt-0.5 font-light"
+                                                    class="flex items-center gap-3 text-[7px] text-white/30 truncate font-pixel uppercase tracking-wide mt-0.5"
                                                 >
                                                     {new Date(
                                                         song.Created_At ||
@@ -1968,7 +2057,7 @@
                                                         >
                                                             {#each (song.Tags ?? []).slice(0, 3) as tag}
                                                                 <span
-                                                                    class="text-[9px] text-lime-400/50 hover:text-lime-400 transition-colors cursor-default"
+                                                                    class="text-[9px] font-pixel text-lime-400/50 hover:text-lime-400 transition-colors cursor-default"
                                                                     >#{tag}</span
                                                                 >
                                                             {/each}

@@ -38,8 +38,8 @@
       }}
     >
       <textarea
-        class="p-2 mb-3 w-full bg-slate-800 text-white border-2 border-slate-700 rounded-none focus:border-lime-500 outline-none font-pixel uppercase tracking-widest text-xs leading-relaxed"
-        placeholder={`WRITE AN EPIC PROMPT\nFOR AN EVEN EPIC'ER GEN!`}
+        class="p-2 mb-3 w-full bg-slate-800 text-white border-2 border-slate-700 rounded-none focus:border-lime-500 outline-none font-pixel tracking-widest text-xs leading-relaxed"
+        placeholder={`Write an epic prompt\nfor an even epic'er gen!`}
         rows="4"
         bind:value={prompt}
         oninput={(e) => {
@@ -60,7 +60,7 @@
             for="public"
           >
             <span
-              class="text-xs font-pixel uppercase tracking-wider {isPublic
+              class="text-xs font-pixel tracking-wider {isPublic
                 ? 'text-lime-500'
                 : 'text-slate-300'}">Public</span
             >
@@ -101,7 +101,7 @@
             for="instrumental"
           >
             <span
-              class="text-xs font-pixel uppercase tracking-wider {isInstrumental
+              class="text-xs font-pixel tracking-wider {isInstrumental
                 ? 'text-lime-500'
                 : 'text-slate-300'}">Instrumental</span
             >
@@ -141,7 +141,7 @@
         <div class="flex items-center gap-2 ml-auto">
           {#if playlist}
             <span
-              class="flex items-center text-[10px] font-pixel uppercase tracking-wider bg-lime-500 text-black px-2 py-1 rounded-none border border-lime-400"
+              class="flex items-center text-[10px] font-pixel tracking-wider bg-lime-500 text-black px-2 py-1 rounded-none border border-lime-400"
             >
               {playlist}
               <button
@@ -165,7 +165,7 @@
           {/if}
           <button
             type="submit"
-            class="flex items-center gap-2 text-lime-500 bg-lime-500/20 border-2 border-lime-500 hover:bg-lime-500/30 rounded-none px-3 py-1.5 disabled:opacity-50 font-pixel uppercase tracking-wider text-[10px]"
+            class="flex items-center gap-2 text-lime-500 bg-lime-500/20 border-2 border-lime-500 hover:bg-lime-500/30 rounded-none px-3 py-1.5 disabled:opacity-50 font-pixel tracking-wider text-[10px]"
             disabled={isGenerating || !prompt}
           >
             <svg
@@ -186,7 +186,7 @@
       </div>
 
       <aside
-        class="text-[10px] font-pixel uppercase tracking-wider self-start text-slate-400 mt-2 leading-relaxed opacity-80 max-w-[450px] text-justify"
+        class="text-[10px] font-pixel tracking-wider self-start text-slate-400 mt-2 leading-relaxed opacity-80 max-w-[450px] text-justify"
       >
         * Will take roughly 6 minutes to fully generate. Even longer during
         times of heavy load.

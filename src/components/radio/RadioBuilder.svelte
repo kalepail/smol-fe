@@ -361,8 +361,8 @@
     tagObj: { count: number; popularity: number },
     max: { count: number; popularity: number },
   ): string {
-    const minSize = 0.75;
-    const maxSize = 2.0; // Increased max size for impact
+    const minSize = 0.7;
+    const maxSize = 1.2; // Reduced for compactness
 
     let val = tagObj.count;
     let maxVal = max.count;
@@ -832,7 +832,7 @@
   <div
     class="relative transition-all duration-700 ease-in-out {isCompact
       ? 'pt-0'
-      : 'py-2 md:py-8'}"
+      : 'py-2 md:pt-2 md:pb-8'}"
   >
     <!-- HEADER / TUNER CONTROLS (Only show when Builder is active) -->
     {#if showBuilder || generatedPlaylist.length === 0}
@@ -844,319 +844,286 @@
             ? 'max-w-6xl mx-auto w-full'
             : ''}"
         >
-          <!-- COMPACT ROW: Logo + Input + Ignite -->
-          {#if false}
-            <!-- STASHED HEADER LOGIC PER USER REQUEST (TAGS MENU ETC) -->
-            {#if isCompact}
-              <div
-                class="flex flex-wrap items-center justify-between md:justify-start gap-4 animate-in fade-in slide-in-from-top-4 duration-500"
-              >
-                <div
-                  class="flex items-center gap-1 cursor-pointer group select-none"
-                  onclick={() => (generatedPlaylist = [])}
-                >
-                  <h2
-                    class="text-3xl font-thin tracking-tighter text-white flex items-center gap-1"
-                    style="text-shadow: 0 0 15px rgba(255,255,255,0.3);"
-                  >
-                    <span class="text-[#9ae600] font-bold">SMOL</span>
-                    <span class="font-thin text-white">RADIO</span>
-                  </h2>
-                </div>
-
-                <!-- Quick Mood Input (Full width on mobile, middle on desktop) -->
-                {#if GEMINI_API_KEY}
-                  <div
-                    class="w-full order-last md:order-none md:w-auto md:flex-1 max-w-xl flex gap-2"
-                  >
-                    <input
-                      bind:value={moodInput}
-                      placeholder="Add a vibe..."
-                      class="reactive-input flex-1 px-4 py-2 text-sm placeholder-white/20 focus:outline-none transition-all font-mono bg-black/40 border border-white/10 focus:border-[#2775ca]"
-                      onkeydown={(e) =>
-                        e.key === "Enter" && suggestTagsFromMood()}
-                      disabled={isFetchingMood}
-                    />
-                    <button
-                      class="reactive-button text-[#19859b] font-bold px-4 py-2 transition-all disabled:opacity-50 uppercase tracking-widest text-[10px]"
-                      onclick={suggestTagsFromMood}
-                      disabled={!moodInput.trim() || isFetchingMood}
-                    >
-                      {isFetchingMood ? "..." : "+"}
-                    </button>
-                  </div>
-                {/if}
-
-                <!-- REGENERATE -->
-                <div class="flex items-center gap-4">
-                  <button
-                    class="reactive-button-ignite h-10 w-10 flex items-center justify-center rounded-full transition-all hover:scale-105 active:scale-95 border border-[#F7931A] text-[#F7931A] bg-[#F7931A]/10 shadow-[0_0_20px_rgba(247,147,26,0.3)] hover:bg-[#F7931A]/20 hover:text-white"
-                    onclick={generateStation}
-                    title="Regenerate Station"
-                    disabled={isGenerating}
-                  >
-                    <span class:animate-spin={isGenerating}>↻</span>
-                  </button>
-
-                  <!-- TOGGLE CLOUD -->
-                  <button
-                    class="text-white/40 hover:text-white text-xs uppercase tracking-widest transition-colors"
-                    onclick={() => (showAll = !showAll)}
-                  >
-                    {showAll ? "Hide Tags" : "Tags"}
-                  </button>
-                </div>
-              </div>
-            {:else}
-              <!-- FULL HEADER (Initial State) -->
-              <div
-                class="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 animate-in fade-in zoom-in-95 duration-500"
-              >
-                <div>
-                  <h2
-                    class="text-2xl md:text-4xl font-thin tracking-tighter text-white mb-2"
-                    style="text-shadow: 0 0 20px rgba(255,255,255,0.3);"
-                  >
-                    <span class="text-[#9ae600] font-bold">SMOL</span>
-                    <span class="font-thin text-white">RADIO</span>
-                  </h2>
-                  <p class="text-white/60 text-sm tracking-wide font-light">
-                    SELECT UP TO {MAX_TAGS} VIBES
-                  </p>
-                </div>
-                <!-- Sort & Filter Controls -->
-                <!-- Sort & Filter Controls (Moved to Tag Cloud) -->
-              </div>
-            {/if}
-          {/if}
-
-          <!-- TAG CLOUD (Collapsible) -->
-          {#if showCloud}
+          <div
+            class="reactive-glass flex flex-col flex-1 min-h-0 border border-white/5 bg-[#1d1d1d] max-w-2xl mx-auto rounded-[32px] lg:rounded-xl w-full pb-6 overflow-hidden"
+          >
             <div
-              class="md:col-span-7 reactive-glass flex flex-col items-center p-2 border border-white/5 transition-all duration-500 relative z-40 rounded-xl overflow-hidden"
+              class="flex items-center justify-between px-6 py-2 border-b border-white/5 bg-black/40 mb-1 rounded-t-xl"
             >
-              <!-- Title Bar -->
-              <div
-                class="w-full flex items-center justify-between mb-2 border-b border-white/10 min-h-[32px]"
-              >
-                <h3
-                  class="text-xs uppercase tracking-[0.2em] text-white/50 font-semibold -mt-2"
+              <div class="flex items-center gap-4">
+                <h1
+                  class="text-lg md:text-xl font-black tracking-tighter font-pixel shrink-0"
                 >
-                  {isDreamMode ? "✨ Dream Mode" : "🎵 Vibe Builder"}
-                </h3>
+                  <span class="text-[#9ae600]">SMOL</span><span
+                    class="relative text-white"
+                    >RADIO<span
+                      class="absolute -top-1 right-0 text-[5px] text-[#FDDA24] font-pixel uppercase tracking-widest"
+                      >PRE-ALPHA</span
+                    ></span
+                  >
+                </h1>
 
-                {#if generatedPlaylist.length > 0}
+                <div class="h-4 w-px bg-white/10 hidden md:block"></div>
+
+                <h3
+                  class="text-[10px] md:text-xs uppercase tracking-[0.2em] text-[#9ae600] font-pixel font-bold pt-0.5 hidden md:block"
+                >
+                  {isDreamMode ? "✨ DREAM MODE" : "🎵 VIBE BUILDER"}
+                </h3>
+              </div>
+              <div class="flex items-center gap-2">
+                {#if !isCompact}
                   <button
-                    class="flex items-center gap-2 px-3 py-1.5 text-[10px] font-bold text-[#1b8da0] border border-[#1b8da0]/30 rounded-full hover:bg-[#1b8da0]/10 transition-all uppercase tracking-widest bg-black/20 -mt-2"
+                    class="text-[10px] font-pixel font-bold text-slate-500 hover:text-white uppercase tracking-widest transition-colors underline"
                     onclick={() => (showBuilder = false)}
                   >
-                    Return to Player →
+                    Back
                   </button>
                 {/if}
               </div>
+            </div>
 
-              <!-- Selected Vibes Row -->
-              <div
-                class="w-full flex flex-wrap items-center justify-between gap-2 mb-3"
+            <div class="p-4 md:pt-4 md:pb-2 flex flex-col items-center">
+              <p
+                class="text-white/70 text-[10px] tracking-[0.2em] uppercase font-pixel mb-1 animate-arcade-pulse"
               >
-                {#if selectedTags.length > 0}
-                  <div class="flex flex-wrap gap-2 items-center">
-                    {#each selectedTags as tag}
-                      <span
-                        class="px-2 py-0.5 text-[10px] bg-[#872ab0] text-white rounded-full border border-[#872ab0]/50 shadow-[0_0_12px_rgba(135,42,176,0.6)] flex items-center gap-1.5 cursor-pointer hover:bg-[#872ab0]/90 transition-all"
-                        onclick={() => removeTag(tag)}
-                      >
-                        {tag}
-                        <span class="text-[8px] opacity-70 hover:opacity-100"
-                          >✕</span
-                        >
-                      </span>
-                    {/each}
-                    <button
-                      class="text-[10px] text-white/30 hover:text-red-400 transition-colors ml-1"
-                      onclick={clearTags}
-                    >
-                      Clear All
-                    </button>
-                  </div>
-                {:else}
-                  <span class="text-[10px] text-white/30"
-                    >No vibes selected</span
-                  >
-                {/if}
-              </div>
-              <!-- Toolbar: Search & Sort -->
-              <div
-                class="w-full flex gap-3 mb-4 animate-in fade-in slide-in-from-top-2 duration-300"
-              >
-                <form
-                  class="relative flex-1 group"
-                  onsubmit={(e) => {
-                    e.preventDefault();
-                    if (isDreamMode && !isFetchingMood && moodInput.trim()) {
-                      suggestTagsFromMood();
-                    }
-                  }}
-                >
-                  <button
-                    type="button"
-                    class="absolute left-2 top-1/2 -translate-y-1/2 transition-all duration-300 z-50 flex items-center justify-center w-11 h-11 rounded-full cursor-pointer {isDreamMode
-                      ? 'bg-[#fdda24]/10 text-[#fdda24] shadow-[0_0_10px_rgba(253,218,36,0.2)]'
-                      : 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10'}"
-                    onclick={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      isDreamMode = !isDreamMode;
-                    }}
-                    title={isDreamMode
-                      ? "Switch to Search"
-                      : "Switch to Dream Mode"}
-                  >
-                    <!-- SPARKLE ICON (Always visible, changes color) -->
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 24 24"
-                      fill="currentColor"
-                      class="w-5 h-5 transition-transform duration-300 {isDreamMode
-                        ? 'scale-110'
-                        : 'scale-90'}"
-                    >
-                      <path
-                        fill-rule="evenodd"
-                        d="M9 4.5a.75.75 0 01.721.544l.813 2.846a3.75 3.75 0 002.576 2.576l2.846.813a.75.75 0 010 1.442l-2.846.813a3.75 3.75 0 00-2.576 2.576l-.813 2.846a.75.75 0 01-1.442 0l-.813-2.846a3.75 3.75 0 00-2.576-2.576l-2.846-.813a.75.75 0 010-1.442l2.846-.813a3.75 3.75 0 002.576-2.576l.813-2.846A.75.75 0 019 4.5zM18 1.5a.75.75 0 01.728.568l.258 1.036c.236.94.97 1.674 1.91 1.91l1.036.258a.75.75 0 010 1.456l-1.036.258c-.94.236-1.674.97-1.91 1.91l-.258 1.036a.75.75 0 01-1.456 0l-.258-1.036a2.625 2.625 0 00-1.91-1.91l-1.036-.258a.75.75 0 010-1.456l1.036-.258a2.625 2.625 0 001.91-1.91l.258-1.036A.75.75 0 0118 1.5zM16.5 15a.75.75 0 01.712.513l.394 1.183c.15.447.5.799.948.948l1.183.394a.75.75 0 010 1.422l-1.183.394c-.447.15-.799.5-.948.948l-.394 1.183a.75.75 0 01-1.422 0l-.394-1.183a1.5 1.5 0 00-.948-.948l-1.183-.394a.75.75 0 010-1.422l1.183-.394c.447-.15.799-.5.948-.948l.394-1.183A.75.75 0 0116.5 15z"
-                        clip-rule="evenodd"
-                      />
-                    </svg>
-                  </button>
+                Select up to {MAX_TAGS} vibes
+              </p>
 
-                  {#if isDreamMode}
-                    <input
-                      type="text"
-                      bind:value={moodInput}
-                      placeholder="Dream it... (e.g. 'Chill Vibes')"
-                      class="reactive-input w-full pl-14 pr-12 py-3 text-base placeholder-[#fdda24]/50 text-[#fdda24] border-[#fdda24]/30 focus:border-[#fdda24] focus:outline-none transition-all"
-                      disabled={isFetchingMood}
-                      enterkeyhint="go"
-                      autofocus
-                    />
-                    <button
-                      class="absolute right-2 top-1/2 -translate-y-1/2 text-[#fdda24] hover:text-white disabled:opacity-50 p-3 cursor-pointer z-50 min-w-[44px] min-h-[44px] flex items-center justify-center"
-                      type="submit"
-                      onclick={() => {}}
-                      disabled={!moodInput.trim() || isFetchingMood}
-                    >
-                      {#if isFetchingMood}
-                        <span class="animate-spin text-xs">↻</span>
-                      {:else}
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                          class="w-5 h-5"
-                        >
-                          <path
-                            fill-rule="evenodd"
-                            d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z"
-                            clip-rule="evenodd"
-                          />
-                        </svg>
-                      {/if}
-                    </button>
-                  {:else}
-                    <input
-                      type="text"
-                      bind:value={searchQuery}
-                      placeholder="Search vibes..."
-                      class="reactive-input w-full pl-14 pr-4 py-3 text-base placeholder-white/30 focus:outline-none transition-all"
-                      onkeydown={(e) => e.key === "Enter" && e.preventDefault()}
-                    />
-                  {/if}
-                </form>
-
-                <select
-                  bind:value={sortMode}
-                  class="reactive-input px-4 py-2 text-sm focus:outline-none appearance-none cursor-pointer hover:bg-white/5 transition-colors text-white/60 hover:text-white"
-                >
-                  <option value="popularity" class="bg-slate-900"
-                    >Popularity</option
-                  >
-                  <option value="recent" class="bg-slate-900">Recent</option>
-                  <option value="frequency" class="bg-slate-900"
-                    >Frequency</option
-                  >
-                  <option value="alphabetical" class="bg-slate-900">A-Z</option>
-                </select>
-              </div>
-              <div
-                class="flex flex-wrap gap-x-2 gap-y-2 justify-center max-h-[35vh] md:max-h-64 overflow-y-auto dark-scrollbar w-full p-2"
-              >
-                {#if isLoadingTags}
-                  <div
-                    class="flex flex-col items-center justify-center py-12 text-white/20 animate-pulse w-full"
-                  >
-                    <div class="text-2xl mb-2">📡</div>
-                    <div class="text-[10px] uppercase tracking-[0.2em]">
-                      Scanning Airwaves...
-                    </div>
-                  </div>
-                {:else if displayedTags.length === 0 && searchQuery}
-                  <div class="py-8 text-white/30 text-xs italic">
-                    No matching vibes found
-                  </div>
-                {:else}
-                  {#each displayedTags as tagObj}
-                    <button
-                      class="tag-pill transition-all duration-300 hover:scale-110 leading-none py-1 px-2 rounded-full {selectedTags.includes(
-                        tagObj.tag,
-                      )
-                        ? 'text-[#9ae600] drop-shadow-[0_0_8px_rgba(154,230,0,0.5)] bg-white/5'
-                        : 'text-white'}"
-                      style="font-size: {getFontSize(
-                        tagObj,
-                        maxMetrics,
-                      )}; opacity: {selectedTags.includes(tagObj.tag)
-                        ? 1
-                        : getOpacity(tagObj, maxMetrics)}"
-                      onclick={() => toggleTag(tagObj.tag)}
-                    >
-                      {tagObj.tag}
-
-                      <!-- Count or New Indicator -->
-                      {#if selectedTags.includes(tagObj.tag)}
-                        <span
-                          class="text-[0.6em] align-top ml-0.5 text-white/40 font-mono tracking-tighter"
-                          >{tagObj.count}</span
-                        >
-                      {:else if tagObj.latest && new Date().getTime() - new Date(tagObj.latest).getTime() < 3 * 24 * 60 * 60 * 1000}
-                        <!-- NEW indicator if latest song is < 3 days old -->
-                        <span
-                          class="text-[0.4em] align-top ml-0.5 text-[#ff0099] font-black tracking-tighter animate-pulse"
-                          >new</span
-                        >
-                      {/if}
-                    </button>
-                  {/each}
-                {/if}
-              </div>
-
-              {#if !isCompact && !searchQuery && processedTags.length > INITIAL_TAG_LIMIT}
+              {#if generatedPlaylist.length > 0}
                 <button
-                  class="mt-4 text-xs font-bold tracking-[0.2em] text-white/40 hover:text-white transition-colors uppercase w-full py-2 border-t border-white/5"
-                  onclick={() => (showAll = !showAll)}
+                  class="bg-white text-black font-pixel px-6 py-2 border-4 border-white shadow-[8px_8px_0px_0px_rgba(255,255,255,0.2)] hover:bg-[#9ae600] hover:border-[#9ae600] active:translate-y-1 active:shadow-none transition-none uppercase tracking-widest text-xs"
+                  onclick={() => (showBuilder = false)}
                 >
-                  {showAll ? "Collapse" : `Show All (${processedTags.length})`}
+                  Return to Player →
                 </button>
               {/if}
             </div>
-          {/if}
 
-          <!-- MAIN IGNITE BUTTON (Only if not compact) -->
-          {#if !isCompact}
+            <!-- TAG CLOUD (Collapsible) -->
+            {#if showCloud}
+              <div
+                class="w-full reactive-glass border border-white/10 p-6 transition-all duration-500 relative z-40 rounded-2xl bg-black/60 shadow-[0_8px_32px_rgba(0,0,0,0.4)]"
+              >
+                <!-- Title Bar (Mobile Only) -->
+                <div
+                  class="w-full flex items-center justify-between mb-2 md:hidden"
+                >
+                  <h3
+                    class="text-[10px] uppercase tracking-[0.2em] text-[#9ae600] font-bold font-pixel"
+                  >
+                    {isDreamMode ? "✨ DREAM MODE" : "🎵 VIBE BUILDER"}
+                  </h3>
+                </div>
+
+                <!-- Selected Vibes Row -->
+                <div
+                  class="w-full flex flex-wrap items-center justify-between gap-2 mb-3"
+                >
+                  {#if selectedTags.length > 0}
+                    <div class="flex flex-wrap gap-2 items-center">
+                      {#each selectedTags as tag}
+                        <span
+                          class="px-2 py-0.5 text-[8px] bg-[#872ab0]/20 text-white rounded border border-[#872ab0]/30 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] flex items-center gap-1.5 cursor-pointer hover:bg-[#872ab0]/40 transition-all group shrink-0 font-pixel uppercase tracking-tighter"
+                          onclick={() => removeTag(tag)}
+                        >
+                          <span class="max-w-[100px] truncate">{tag}</span>
+                          <span class="text-white/40 group-hover:text-white"
+                            >✕</span
+                          >
+                        </span>
+                      {/each}
+                      <button
+                        class="text-[9px] text-slate-500 hover:text-white uppercase tracking-[0.2em] transition-colors font-pixel underline ml-2"
+                        onclick={clearTags}
+                      >
+                        Clear All
+                      </button>
+                    </div>
+                  {:else}
+                    <span class="text-[10px] text-white/30"
+                      >No vibes selected</span
+                    >
+                  {/if}
+                </div>
+                <!-- Toolbar: Search & Sort -->
+                <div
+                  class="w-full flex gap-3 mb-4 animate-in fade-in slide-in-from-top-2 duration-300"
+                >
+                  <form
+                    class="relative flex-1 group"
+                    onsubmit={(e) => {
+                      e.preventDefault();
+                      if (isDreamMode && !isFetchingMood && moodInput.trim()) {
+                        suggestTagsFromMood();
+                      }
+                    }}
+                  >
+                    <button
+                      type="button"
+                      class="absolute left-2 top-1/2 -translate-y-1/2 transition-all duration-300 z-50 flex items-center justify-center w-11 h-11 rounded-full cursor-pointer {isDreamMode
+                        ? 'bg-[#fdda24]/10 text-[#fdda24] shadow-[0_0_10px_rgba(253,218,36,0.2)]'
+                        : 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10'}"
+                      onclick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        isDreamMode = !isDreamMode;
+                      }}
+                      title={isDreamMode
+                        ? "Switch to Search"
+                        : "Switch to Dream Mode"}
+                    >
+                      <!-- SPARKLE ICON (Always visible, changes color) -->
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        class="w-5 h-5 transition-transform duration-300 {isDreamMode
+                          ? 'scale-110'
+                          : 'scale-90'}"
+                      >
+                        <path
+                          fill-rule="evenodd"
+                          d="M9 4.5a.75.75 0 01.721.544l.813 2.846a3.75 3.75 0 002.576 2.576l2.846.813a.75.75 0 010 1.442l-2.846.813a3.75 3.75 0 00-2.576 2.576l-.813 2.846a.75.75 0 01-1.442 0l-.813-2.846a3.75 3.75 0 00-2.576-2.576l-2.846-.813a.75.75 0 010-1.442l2.846-.813a3.75 3.75 0 002.576-2.576l.813-2.846A.75.75 0 019 4.5zM18 1.5a.75.75 0 01.728.568l.258 1.036c.236.94.97 1.674 1.91 1.91l1.036.258a.75.75 0 010 1.456l-1.036.258c-.94.236-1.674.97-1.91 1.91l-.258 1.036a.75.75 0 01-1.456 0l-.258-1.036a2.625 2.625 0 00-1.91-1.91l-1.036-.258a.75.75 0 010-1.456l1.036-.258a2.625 2.625 0 001.91-1.91l.258-1.036A.75.75 0 0118 1.5zM16.5 15a.75.75 0 01.712.513l.394 1.183c.15.447.5.799.948.948l1.183.394a.75.75 0 010 1.422l-1.183.394c-.447.15-.799.5-.948.948l-.394 1.183a.75.75 0 01-1.422 0l-.394-1.183a1.5 1.5 0 00-.948-.948l-1.183-.394a.75.75 0 010-1.422l1.183-.394c.447-.15.799-.5.948-.948l.394-1.183A.75.75 0 0116.5 15z"
+                          clip-rule="evenodd"
+                        />
+                      </svg>
+                    </button>
+
+                    {#if isDreamMode}
+                      <input
+                        type="text"
+                        bind:value={moodInput}
+                        placeholder="DREAM IT... (E.G. 'CHILL VIBES')"
+                        class="w-full pl-12 pr-12 py-2 text-xs placeholder-white/20 text-white bg-white/5 border border-white/10 rounded-lg focus:border-[#9ae600]/50 focus:outline-none focus:bg-white/10 transition-all font-pixel uppercase tracking-tight"
+                        disabled={isFetchingMood}
+                        enterkeyhint="go"
+                        autofocus
+                      />
+                      <button
+                        class="absolute right-2 top-1/2 -translate-y-1/2 text-[#fdda24] hover:text-white disabled:opacity-50 p-3 cursor-pointer z-50 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                        type="submit"
+                        onclick={() => {}}
+                        disabled={!moodInput.trim() || isFetchingMood}
+                      >
+                        {#if isFetchingMood}
+                          <span class="animate-spin text-xs">↻</span>
+                        {:else}
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                            class="w-5 h-5"
+                          >
+                            <path
+                              fill-rule="evenodd"
+                              d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z"
+                              clip-rule="evenodd"
+                            />
+                          </svg>
+                        {/if}
+                      </button>
+                    {:else}
+                      <input
+                        type="text"
+                        bind:value={searchQuery}
+                        placeholder="SEARCH VIBES..."
+                        class="w-full pl-12 pr-4 py-2 text-xs placeholder-white/20 text-white bg-white/5 border border-white/10 rounded-lg focus:border-[#9ae600]/50 focus:outline-none focus:bg-white/10 transition-all font-pixel uppercase tracking-tight"
+                        onkeydown={(e) =>
+                          e.key === "Enter" && e.preventDefault()}
+                      />
+                    {/if}
+                  </form>
+
+                  <select
+                    bind:value={sortMode}
+                    class="bg-black/40 border border-white/10 text-white/80 px-3 py-1.5 text-[10px] rounded-lg focus:border-[#9ae600]/50 focus:outline-none cursor-pointer hover:bg-black/60 transition-all uppercase font-pixel tracking-tighter shadow-inner"
+                  >
+                    <option value="popularity" class="bg-[#1a1a1a] text-white"
+                      >POPULARITY</option
+                    >
+                    <option value="recent" class="bg-[#1a1a1a] text-white"
+                      >RECENT</option
+                    >
+                    <option value="frequency" class="bg-[#1a1a1a] text-white"
+                      >FREQUENCY</option
+                    >
+                    <option value="alphabetical" class="bg-[#1a1a1a] text-white"
+                      >A-Z</option
+                    >
+                  </select>
+                </div>
+                <div
+                  class="flex flex-wrap gap-x-2 gap-y-2 justify-center max-h-[35vh] md:max-h-64 overflow-y-auto dark-scrollbar w-full p-2"
+                >
+                  {#if isLoadingTags}
+                    <div
+                      class="flex flex-col items-center justify-center py-12 text-white/20 animate-pulse w-full"
+                    >
+                      <div class="text-2xl mb-2">📡</div>
+                      <div class="text-[10px] uppercase tracking-[0.2em]">
+                        Scanning Airwaves...
+                      </div>
+                    </div>
+                  {:else if displayedTags.length === 0 && searchQuery}
+                    <div class="py-8 text-white/30 text-xs italic">
+                      No matching vibes found
+                    </div>
+                  {:else}
+                    {#each displayedTags as tagObj}
+                      <button
+                        class="tag-pill transition-all leading-none py-1.5 px-3 rounded-md border transition-all hover:scale-105 active:scale-95 font-pixel uppercase tracking-tighter {selectedTags.includes(
+                          tagObj.tag,
+                        )
+                          ? 'text-black bg-[#9ae600] border-[#9ae600] shadow-[0_0_15px_rgba(154,230,0,0.4)]'
+                          : 'text-white/60 border-white/5 hover:border-white/20 bg-white/5 hover:bg-white/10'}"
+                        style="font-size: {getFontSize(
+                          tagObj,
+                          maxMetrics,
+                        )}; opacity: {selectedTags.includes(tagObj.tag)
+                          ? 1
+                          : getOpacity(tagObj, maxMetrics)}"
+                        onclick={() => toggleTag(tagObj.tag)}
+                      >
+                        {tagObj.tag}
+
+                        <!-- Count or New Indicator -->
+                        {#if selectedTags.includes(tagObj.tag)}
+                          <span
+                            class="text-[0.6em] align-top ml-0.5 text-black/50 font-pixel tracking-tighter"
+                            >{tagObj.count}</span
+                          >
+                        {:else if tagObj.latest && new Date().getTime() - new Date(tagObj.latest).getTime() < 3 * 24 * 60 * 60 * 1000}
+                          <!-- NEW indicator if latest song is < 3 days old -->
+                          <span
+                            class="text-[0.4em] align-top ml-0.5 text-[#ff0099] font-black tracking-tighter animate-pulse"
+                            >new</span
+                          >
+                        {/if}
+                      </button>
+                    {/each}
+                  {/if}
+                </div>
+
+                {#if !isCompact && !searchQuery && processedTags.length > INITIAL_TAG_LIMIT}
+                  <button
+                    class="mt-4 text-xs font-bold tracking-[0.2em] text-white/40 hover:text-white transition-colors uppercase w-full py-2 border-t border-white/5"
+                    onclick={() => (showAll = !showAll)}
+                  >
+                    {showAll
+                      ? "Collapse"
+                      : `Show All (${processedTags.length})`}
+                  </button>
+                {/if}
+              </div>
+            {/if}
+
+            <!-- MAIN IGNITE BUTTON -->
             <div
-              class="flex justify-center mt-0 mb-2 md:mb-0 gap-6 items-center"
+              class="flex justify-center mt-2 mb-2 md:mb-0 gap-6 items-center flex-shrink-0"
             >
               <button
-                class="reactive-button-ignite w-full md:w-auto text-white font-bold py-4 px-8 md:py-4 md:px-12 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-[0.2em] text-lg md:text-lg border-2 border-[#F7931A] shadow-[0_0_30px_rgba(247,147,26,0.6)] hover:shadow-[0_0_40px_rgba(247,147,26,0.8)] hover:border-[#F7931A] md:shadow-[0_0_15px_rgba(247,147,26,0.4)] rounded-xl"
+                class="tech-button bg-[#9ae600] text-slate-900 font-black py-3 px-10 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-[0.2em] text-base shadow-[0_0_15px_rgba(154,230,0,0.3)] hover:scale-105 active:scale-95 group relative overflow-hidden font-pixel"
                 onclick={() => {
                   if (isDreamMode && moodInput.trim()) {
                     suggestTagsFromMood();
@@ -1170,7 +1137,7 @@
                 {isGenerating || isFetchingMood ? "SYNTHESIZING..." : "IGNITE"}
               </button>
             </div>
-          {/if}
+          </div>
         </div>
       </div>
     {/if}
@@ -1213,6 +1180,20 @@
       opacity: 1;
       transform: translateY(0);
     }
+  }
+  @keyframes arcadePulse {
+    0%,
+    100% {
+      opacity: 1;
+      text-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+    }
+    50% {
+      opacity: 0.3;
+      text-shadow: none;
+    }
+  }
+  .animate-arcade-pulse {
+    animation: arcadePulse 1.2s infinite steps(4, end);
   }
   .animate-fade-in-up {
     animation: fadeInUp 0.4s ease-out forwards;

@@ -180,7 +180,13 @@
         </button>
 
         <div class="text-center mb-6">
-            <div class="text-4xl mb-2">🥬</div>
+            <div class="mb-2 flex justify-center">
+                <img
+                    src="https://em-content.zobj.net/source/apple/354/leafy-green_1f96c.png"
+                    alt="Kale"
+                    class="w-10 h-10 object-contain filter drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]"
+                />
+            </div>
             <h2 class="text-xl font-bold text-white">Tip {artistName}</h2>
             <p class="text-white/40 text-xs font-mono mt-2 break-all">
                 {artistAddress}
@@ -203,7 +209,7 @@
             >
                 <div>
                     <label
-                        class="block text-xs uppercase tracking-widest text-white/40 mb-2 font-bold"
+                        class="block text-xs tracking-widest text-white/40 mb-2 font-bold"
                         for="tip-amount"
                     >
                         Amount (KALE)
@@ -225,7 +231,7 @@
                     </div>
                     {#if typeof balanceState.balance === "bigint"}
                         <div
-                            class="text-right mt-2 text-[10px] text-white/40 uppercase tracking-widest"
+                            class="text-right mt-2 text-[10px] text-white/40 tracking-widest"
                         >
                             Available: <span class="text-white/60"
                                 >{Number(balanceState.balance) /
@@ -254,12 +260,16 @@
                 <button
                     type="submit"
                     disabled={submitting || !amount}
-                    class="w-full py-3 bg-green-500 text-black font-bold rounded-xl hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all uppercase tracking-widest text-xs shadow-[0_0_20px_rgba(34,197,94,0.3)] flex items-center justify-center gap-2"
+                    class="w-full py-3 bg-green-500 text-black font-bold rounded-xl hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all tracking-widest text-xs shadow-[0_0_20px_rgba(34,197,94,0.3)] flex items-center justify-center gap-2"
                 >
                     {#if submitting}
                         <Loader classNames="w-4 h-4" textColor="text-black" /> Sending...
                     {:else}
-                        Send Tip 🥬
+                        Send Tip <img
+                            src="https://em-content.zobj.net/source/apple/354/leafy-green_1f96c.png"
+                            alt="Kale"
+                            class="w-4 h-4 object-contain"
+                        />
                     {/if}
                 </button>
             </form>

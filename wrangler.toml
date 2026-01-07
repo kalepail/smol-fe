@@ -1,0 +1,7 @@
+name = "smol-fe"
+compatibility_date = "2024-04-03"
+pages_build_output_dir = "dist"
+
+[vars]
+# Add non-secret public variables here if desired, 
+# although Cloudflare Dashboard is usually preferred for Pages.

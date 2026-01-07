@@ -21,9 +21,7 @@
   }
 </script>
 
-<div
-  class="flex items-center gap-2 font-pixel uppercase tracking-wider text-[10px]"
->
+<div class="flex items-center gap-2 font-pixel tracking-wider text-[10px]">
   <a
     class="hover:text-[#9ae600] transition-colors"
     href="https://stellar.expert/explorer/public/contract/{contractId}"
@@ -65,7 +63,7 @@
   </button>
 </div>
 <a
-  class="text-lime-500 bg-lime-500/20 border-2 border-lime-500 hover:bg-lime-500/30 rounded-sm px-2 py-1 flex items-center justify-center min-w-[80px] font-pixel uppercase tracking-wider text-[10px]"
+  class="text-lime-500 bg-lime-500/20 border-2 border-lime-500 hover:bg-lime-500/30 rounded-sm px-2 py-1 flex items-center justify-center min-w-[80px] font-pixel tracking-wider text-[10px]"
   href="/account"
 >
   {#if loading}

@@ -7,9 +7,14 @@
     } from "../../stores/upgrades.svelte";
 
     // Fetch artist's actual badge ownership from API
-    let artistBadges = $state<{ premiumHeader: boolean; goldenKale: boolean }>({
+    let artistBadges = $state<{
+        premiumHeader: boolean;
+        goldenKale: boolean;
+        showcaseReel: boolean;
+    }>({
         premiumHeader: false,
         goldenKale: false,
+        showcaseReel: false,
     });
     let syncing = $state(false);
 
@@ -20,7 +25,11 @@
                 .then((res) =>
                     res.ok
                         ? res.json()
-                        : { premiumHeader: false, goldenKale: false },
+                        : {
+                              premiumHeader: false,
+                              goldenKale: false,
+                              showcaseReel: false,
+                          },
                 )
                 .then((data) => {
                     artistBadges = data;
@@ -29,7 +38,9 @@
         }
     });
 
-    async function handleToggle(key: "premiumHeader" | "goldenKale") {
+    async function handleToggle(
+        key: "premiumHeader" | "goldenKale" | "showcaseReel",
+    ) {
         // Toggle locally first for instant feedback
         toggleUpgrade(key);
 
@@ -51,6 +62,7 @@
                     body: JSON.stringify({
                         premiumHeaderEnabled: enabledState.premiumHeader,
                         goldenKaleEnabled: enabledState.goldenKale,
+                        showcaseReelEnabled: enabledState.showcaseReel,
                     }),
                 });
             }
@@ -62,7 +74,7 @@
     }
 </script>
 
-{#if artistBadges.premiumHeader || artistBadges.goldenKale}
+{#if artistBadges.premiumHeader || artistBadges.goldenKale || artistBadges.showcaseReel}
     <div
         class="w-full max-w-2xl mx-auto mt-12 border-4 border-white/20 bg-black/50 p-4"
     >
@@ -110,6 +122,28 @@
                     >
                         <div
                             class="absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform {enabledState.goldenKale
+                                ? 'translate-x-6'
+                                : 'translate-x-0.5'}"
+                        ></div>
+                    </button>
+                </label>
+            {/if}
+
+            {#if artistBadges.showcaseReel}
+                <label
+                    class="flex items-center justify-between p-3 border-2 border-white/10 hover:border-[#BF953F]/50 cursor-pointer transition-colors"
+                >
+                    <span class="text-white text-xs uppercase tracking-wider"
+                        >[SHOWCASE_REEL]</span
+                    >
+                    <button
+                        onclick={() => handleToggle("showcaseReel")}
+                        class="w-12 h-6 rounded-full border-2 transition-colors relative {enabledState.showcaseReel
+                            ? 'bg-[#BF953F] border-[#BF953F]'
+                            : 'bg-white/10 border-white/30'}"
+                    >
+                        <div
+                            class="absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform {enabledState.showcaseReel
                                 ? 'translate-x-6'
                                 : 'translate-x-0.5'}"
                         ></div>

@@ -13,21 +13,25 @@ const ENABLED_KEY = 'smol_upgrades_enabled';
 export interface UnlockedUpgrades {
     premiumHeader: boolean;
     goldenKale: boolean;
+    showcaseReel: boolean;
 }
 
 export interface EnabledUpgrades {
     premiumHeader: boolean;
     goldenKale: boolean;
+    showcaseReel: boolean;
 }
 
 const initialOwned: UnlockedUpgrades = {
     premiumHeader: false,
-    goldenKale: false
+    goldenKale: false,
+    showcaseReel: false
 };
 
 const initialEnabled: EnabledUpgrades = {
     premiumHeader: true,  // Default to enabled when unlocked
-    goldenKale: true
+    goldenKale: true,
+    showcaseReel: true
 };
 
 // Load initial state from localStorage if available
