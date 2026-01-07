@@ -790,31 +790,7 @@
             {/if}
           </div>
 
-          <!-- ARCADE ONLY: Bottom Action Buttons (Share & Trade) -->
-          {#if variant === "arcade"}
-            <div
-              class="absolute bottom-6 left-6 right-16 z-40 flex items-center gap-3 pr-4"
-            >
-              {#if onShare}
-                <button
-                  class="tech-button flex-1 h-11 flex items-center justify-center gap-2 transition-all bg-black/40 backdrop-blur-md rounded-xl border border-blue-500/50 text-blue-400 hover:bg-blue-500/20 shadow-[0_0_20px_rgba(59,130,246,0.2)] font-pixel text-[10px] uppercase tracking-widest"
-                  onclick={(e) => {
-                    e.stopPropagation();
-                    onShare();
-                  }}
-                >
-                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                    <path
-                      d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z"
-                    />
-                  </svg>
-                  <span>Share</span>
-                </button>
-              {/if}
-              <!-- Trade button removed from here - use the isOverlay section instead -->
-            </div>
-          {/if}
-          <!-- Mobile Song Detail Button (Double Note) OR Regenerate - Under Radio -->
+          <!-- Bottom action buttons handled by isOverlay section below -->
 
           <!-- VERSION SELECTOR (BOTTOM CENTER OF ART - ABOVE PLAY BUTTON) -->
           {#if versions && versions.length > 1 && onVersionSelect}
