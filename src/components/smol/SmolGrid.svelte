@@ -435,7 +435,7 @@
   </div>
 {/if}
 
-{#if hasMore || loadingMore}
+{#if canLoadMore || loadingMore}
   <div bind:this={scrollTrigger} class="flex justify-center mb-20 py-8">
     {#if loadingMore}
       <div class="text-lime-500">Loading...</div>
