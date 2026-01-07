@@ -1743,7 +1743,8 @@
                                             alt={song.Title}
                                             class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-slate-800"
                                             style="transform: translateZ(0); -webkit-transform: translateZ(0);"
-                                            loading="lazy"
+                                            loading="eager"
+                                            decoding="async"
                                         />
                                         {#if currentSong && song.Id === currentSong.Id}
                                             <div
