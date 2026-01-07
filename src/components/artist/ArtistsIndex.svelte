@@ -3,6 +3,7 @@
     import { userState } from "../../stores/user.svelte";
     import { isUpgradeActive } from "../../stores/upgrades.svelte";
     import { getVIPAccess } from "../../utils/vip";
+    import { API_URL } from "../../utils/apiUrl";
     import type { Smol } from "../../types/domain";
     import { safeFetchSmols } from "../../services/api/smols";
 
@@ -215,7 +216,7 @@
                                     {#each [...artist.recentSmols, ...artist.recentSmols] as smol}
                                         <div class="w-1/2 aspect-square">
                                             <img
-                                                src={`${import.meta.env.PUBLIC_API_URL}/image/${smol.Id}.png`}
+                                                src={`${API_URL}/image/${smol.Id}.png`}
                                                 alt="art"
                                                 class="w-full h-full object-cover pixelated"
                                                 loading="lazy"
@@ -262,7 +263,7 @@
                         {:else}
                             <!-- Standard Single Image -->
                             <img
-                                src={`${import.meta.env.PUBLIC_API_URL}/image/${artist.latestSmol.Id}.png`}
+                                src={`${API_URL}/image/${artist.latestSmol.Id}.png`}
                                 class="w-full h-full object-cover pixelated transition-transform duration-700 group-hover:scale-110 opacity-80 group-hover:opacity-100"
                                 style="transform: translateZ(0); -webkit-transform: translateZ(0);"
                                 loading="lazy"
