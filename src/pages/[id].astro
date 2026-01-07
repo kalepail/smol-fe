@@ -8,11 +8,12 @@ const { id } = Astro.params;
 let title: string | undefined;
 let description: string | undefined;
 let song_url: string | null = null;
-let image_url: string | null = id ? `${import.meta.env.PUBLIC_API_URL}/image/${id}.png` : null;
+const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
+let image_url: string | null = id ? `${API_URL}/image/${id}.png` : null;
 
 if (id) {
 	try {
-		const data = await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
+		const data = await fetch(`${API_URL}/${id}`, {
 			headers: {
 				Cookie: Astro.request.headers.get("cookie") ?? "",
 			},
@@ -27,9 +28,9 @@ if (id) {
 
 			// Set song URL
 			if (data.d1?.Song_1) {
-				song_url = `${import.meta.env.PUBLIC_API_URL}/song/${data.d1.Song_1}.mp3`;
+				song_url = `${API_URL}/song/${data.d1.Song_1}.mp3`;
 			} else if (data.kv_do?.songs?.[0]?.audio) {
-				song_url = `${import.meta.env.PUBLIC_API_URL}/song/${data.kv_do.songs[0].music_id}.mp3`;
+				song_url = `${API_URL}/song/${data.kv_do.songs[0].music_id}.mp3`;
 			}
 		}
 	} catch (error) {
