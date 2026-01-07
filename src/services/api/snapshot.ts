@@ -13,11 +13,28 @@ export async function getSnapshotAsync(): Promise<Smol[]> {
     const res = await fetch('/data/GalacticSnapshot.json');
     if (!res.ok) throw new Error(`Snapshot load failed: ${res.status}`);
     const data = await res.json();
-    cachedSnapshot = Array.isArray(data) ? data : [];
+
+    // Support both legacy array and new structured object { songs: [], tagGraph: {} }
+    const songs = Array.isArray(data) ? data : (data.songs || []);
+    cachedSnapshot = songs;
     return cachedSnapshot;
   } catch (e) {
     console.error('[getSnapshotAsync] Failed to load snapshot:', e);
     return [];
+  }
+}
+
+/**
+ * Fetch the tag graph (Matrix) from the snapshot
+ */
+export async function getSnapshotTagGraphAsync(): Promise<any | null> {
+  try {
+    const res = await fetch('/data/GalacticSnapshot.json');
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.tagGraph || null;
+  } catch (e) {
+    return null;
   }
 }
 

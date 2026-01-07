@@ -148,20 +148,19 @@
         goldenKale: false,
     });
 
-    // Fetch artist's badges from API on mount
+    // Fetch artist's badges from API on mount (with static fallback)
     $effect(() => {
         if (address) {
             fetch(`/api/artist/badges/${address}`)
-                .then((res) =>
-                    res.ok
-                        ? res.json()
-                        : { premiumHeader: false, goldenKale: false },
-                )
+                .then((res) => (res.ok ? res.json() : null))
                 .then((data) => {
-                    artistBadges = data;
+                    if (data) {
+                        artistBadges = data;
+                    }
+                    // No fallback for other artists - we can't know their status without API
                 })
                 .catch(() => {
-                    /* ignore errors */
+                    /* API unavailable - badges stay default (false) */
                 });
         }
     });

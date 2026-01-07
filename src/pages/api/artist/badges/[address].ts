@@ -6,7 +6,8 @@ const KALE_ISSUER = "GAKDNXUGEIRGESAXOPUHU7YNQNQN4RVD7ZS665HXBQJ4CEJJAXIUWE"; //
 const SMOL_MART_AMOUNTS = {
     PREMIUM_HEADER: 100000,
     GOLDEN_KALE: 69420.67,
-    SHOWCASE_REEL: 1000000
+    SHOWCASE_REEL: 1000000,
+    VIBE_MATRIX: 250000
 };
 
 /**
@@ -18,7 +19,7 @@ const SMOL_MART_AMOUNTS = {
  * ║  HOW IT WORKS:                                                     ║
  * ║  1. Checks VIP_CONFIG via getVIPAccess (granular manual grants)    ║
  * ║  2. If not a VIP → queries Horizon for KALE payments              ║
- * ║  3. Returns { premiumHeader: bool, goldenKale: bool, showcaseReel: bool } ║
+ * ║  3. Returns { premiumHeader: bool, goldenKale: bool, showcaseReel: bool, vibeMatrix: bool } ║
  * ╚════════════════════════════════════════════════════════════════════╝
  */
 
@@ -55,7 +56,7 @@ export const GET: APIRoute = async ({ params }) => {
 
     // Query Horizon for operations
     try {
-        const result = { premiumHeader: false, goldenKale: false, showcaseReel: false };
+        const result = { premiumHeader: false, goldenKale: false, showcaseReel: false, vibeMatrix: false };
         const limit = 200;
         const url = `https://horizon.stellar.org/accounts/${address}/operations?limit=${limit}&order=desc&include_failed=false`;
 
@@ -109,6 +110,10 @@ export const GET: APIRoute = async ({ params }) => {
                             result.showcaseReel = true;
                             result.premiumHeader = true; // Included in 1M bundle
                             result.goldenKale = true;   // Included in 1M bundle
+                            result.vibeMatrix = true;     // Included in 1M bundle
+                        }
+                        if (Math.abs(amount - SMOL_MART_AMOUNTS.VIBE_MATRIX) < 0.1) {
+                            result.vibeMatrix = true;
                         }
                     }
                 }
@@ -122,7 +127,8 @@ export const GET: APIRoute = async ({ params }) => {
         const finalResult = {
             premiumHeader: result.premiumHeader && prefs.premiumHeaderEnabled,
             goldenKale: result.goldenKale && prefs.goldenKaleEnabled,
-            showcaseReel: result.showcaseReel && prefs.showcaseReelEnabled
+            showcaseReel: result.showcaseReel && prefs.showcaseReelEnabled,
+            vibeMatrix: result.vibeMatrix && prefs.vibeMatrixEnabled
         };
 
         cache.set(address, { data: finalResult, expires: Date.now() + CACHE_TTL });
@@ -143,6 +149,7 @@ async function fetchUserPrefs(address: string): Promise<{
     premiumHeaderEnabled: boolean;
     goldenKaleEnabled: boolean;
     showcaseReelEnabled: boolean;
+    vibeMatrixEnabled: boolean;
 }> {
     try {
         const res = await fetch(`${import.meta.env.PUBLIC_API_URL}/prefs/${address}`);
@@ -152,5 +159,5 @@ async function fetchUserPrefs(address: string): Promise<{
     } catch (e) {
         // Ignore errors, default to enabled
     }
-    return { premiumHeaderEnabled: true, goldenKaleEnabled: true, showcaseReelEnabled: true };
+    return { premiumHeaderEnabled: true, goldenKaleEnabled: true, showcaseReelEnabled: true, vibeMatrixEnabled: true };
 }

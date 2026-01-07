@@ -37,7 +37,7 @@ function normalizeTag(tag) {
 }
 
 const SNAPSHOT_PATH = 'public/data/GalacticSnapshot.json';
-const OUTPUT_PATH = 'public/data/tag_graph.json';
+const OUTPUT_PATH = 'src/data/tag_graph.json';
 
 async function generate() {
     console.log("🚀 Starting Vibe Matrix Generation...");
@@ -47,13 +47,14 @@ async function generate() {
         return;
     }
 
-    const data = JSON.parse(fs.readFileSync(SNAPSHOT_PATH, 'utf8'));
-    console.log(`📊 Loaded ${data.length} songs.`);
+    const snapshot = JSON.parse(fs.readFileSync(SNAPSHOT_PATH, 'utf8'));
+    const songs = Array.isArray(snapshot) ? snapshot : (snapshot.songs || []);
+    console.log(`📊 Loaded ${songs.length} songs from snapshot.`);
 
     // 1. Build Song x Tag Incidence
     const tagToDisplay = {}; // normalized -> original best display
     const tagCounts = {}; // tag -> frequency (df)
-    const songToTags = data.map(smol => {
+    const songToTags = songs.map(smol => {
         const rawTags = new Set();
         if (smol.Tags) smol.Tags.forEach(t => rawTags.add(t));
         if (smol.lyrics?.style) smol.lyrics.style.forEach(t => rawTags.add(t));
@@ -138,12 +139,11 @@ async function generate() {
             display: tagToDisplay[tag],
             df: tagCounts[tag],
             direct: direct,
-            tertiary: [] // To be computed
+            tertiary: []
         };
     });
 
     // 4. Compute Tertiary Recommendations (2-hop)
-    // score(u, w) = sum( sim(u, v) * sim(v, w) ) for all neighbors v of u
     allTags.forEach((tagU) => {
         const uData = graph.tags[tagU];
         const tertiaryMap = new Map();
@@ -153,9 +153,8 @@ async function generate() {
         uData.direct.forEach(v => {
             const vData = graph.tags[v.tag];
             vData.direct.forEach(w => {
-                if (directSet.has(w.tag)) return; // Skip self or direct neighbors
-
-                const weight = v.score * w.score * 0.8; // Decay
+                if (directSet.has(w.tag)) return;
+                const weight = v.score * w.score * 0.8;
                 tertiaryMap.set(w.tag, (tertiaryMap.get(w.tag) || 0) + weight);
             });
         });
@@ -170,29 +169,31 @@ async function generate() {
             .slice(0, 15);
     });
 
-    fs.writeFileSync(OUTPUT_PATH, JSON.stringify(graph, null, 2));
-    console.log(`✅ Graph generated at ${OUTPUT_PATH}`);
+    // Write back into the snapshot
+    if (Array.isArray(snapshot)) {
+        const unified = { songs: snapshot, tagGraph: graph };
+        fs.writeFileSync(SNAPSHOT_PATH, JSON.stringify(unified, null, 2));
+    } else {
+        snapshot.tagGraph = graph;
+        fs.writeFileSync(SNAPSHOT_PATH, JSON.stringify(snapshot, null, 2));
+    }
+    console.log(`✅ Graph integrated into ${SNAPSHOT_PATH}`);
 
     // --- EVALUATION REPORT ---
     console.log("\n🧪 --- VIBE MATRIX EVALUATION REPORT ---");
-
     const tagsWithRecs = allTags.filter(t => graph.tags[t].direct.length >= 5);
-    const coverage = (tagsWithRecs.length / allTags.length) * 100;
-    console.log(`📊 Coverage: ${coverage.toFixed(2)}% of tags have >= 5 recommendations.`);
+    console.log(`📊 Coverage: ${((tagsWithRecs.length / allTags.length) * 100).toFixed(2)}% of tags have >= 5 recommendations.`);
 
     const sampleTags = ['pop', 'rock', 'heavy metal', 'emotional', 'hiphop', 'electronic', 'folk', 'ambient', 'synthwave', 'cinematic'];
-    console.log("\n🧠 Sanity Check (Top 10 Recs for Sample Tags):");
+    console.log("\n🧠 Sanity Check:");
     sampleTags.forEach(t => {
         const data = graph.tags[t];
         if (data) {
             const recs = data.direct.slice(0, 10).map(r => r.display).join(", ");
             console.log(`- ${data.display}: ${recs}`);
-        } else {
-            console.log(`- ${t}: [Not Found]`);
         }
     });
 
-    // Guardrails Check
     let duplicatesFound = 0;
     allTags.forEach(tag => {
         const seen = new Set([tag]);
@@ -201,7 +202,7 @@ async function generate() {
             seen.add(d.tag);
         });
     });
-    console.log(`\n🛡️  Guardrails: ${duplicatesFound === 0 ? "PASSED" : "FAILED (" + duplicatesFound + " duplicates)"} (No self/duplicate tags in recs)`);
+    console.log(`\n🛡️  Guardrails: ${duplicatesFound === 0 ? "PASSED" : "FAILED (" + duplicatesFound + " duplicates)"}`);
 }
 
 generate();

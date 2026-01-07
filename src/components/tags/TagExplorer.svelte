@@ -30,6 +30,7 @@
         sortTagStats,
     } from "../../services/tags/unifiedTags";
     import type { TagMeta, TagStat } from "../../services/tags/unifiedTags";
+    import { getSnapshotTagGraphAsync } from "../../services/api/snapshot";
 
     let smols = $state<Smol[]>([]);
     let hasLoggedTags = $state(false);
@@ -52,20 +53,18 @@
         isMobile = window.innerWidth < 1024;
     }
 
+    $effect(() => {
+        if (isUnlocked("vibeMatrix") && !tagGraph) {
+            getSnapshotTagGraphAsync().then((g) => {
+                if (g) tagGraph = g;
+            });
+        }
+    });
+
     onMount(async () => {
         updateMobileState();
         window.addEventListener("resize", updateMobileState);
         try {
-            // Load Tag Graph (Matrix Algorithm Output) - Gated
-            if (isUnlocked("vibeMatrix")) {
-                fetch("/data/tag_graph.json")
-                    .then((r) => r.json())
-                    .then((g) => (tagGraph = g))
-                    .catch((e) =>
-                        console.warn("[TagExplorer] Graph load failed:", e),
-                    );
-            }
-
             const snap = await getSnapshotTagStats();
             tagStats = snap.tags;
             tagMeta = snap.meta;

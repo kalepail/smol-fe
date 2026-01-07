@@ -24,20 +24,29 @@
         const address = userState.contractId;
         if (address) {
             fetch(`/api/artist/badges/${address}`)
-                .then((res) =>
-                    res.ok
-                        ? res.json()
-                        : {
-                              premiumHeader: false,
-                              goldenKale: false,
-                              showcaseReel: false,
-                              vibeMatrix: false,
-                          },
-                )
+                .then((res) => (res.ok ? res.json() : null))
                 .then((data) => {
-                    artistBadges = data;
+                    if (data) {
+                        artistBadges = data;
+                    } else {
+                        // Fallback to local state when API unavailable (No Cloudflare yet)
+                        artistBadges = {
+                            premiumHeader: upgradesState.premiumHeader,
+                            goldenKale: upgradesState.goldenKale,
+                            showcaseReel: upgradesState.showcaseReel,
+                            vibeMatrix: upgradesState.vibeMatrix,
+                        };
+                    }
                 })
-                .catch(() => {});
+                .catch(() => {
+                    // Network error - fallback to local state
+                    artistBadges = {
+                        premiumHeader: upgradesState.premiumHeader,
+                        goldenKale: upgradesState.goldenKale,
+                        showcaseReel: upgradesState.showcaseReel,
+                        vibeMatrix: upgradesState.vibeMatrix,
+                    };
+                });
         }
     });
 
