@@ -22,7 +22,7 @@
     import { useGridMediaSession } from "../../hooks/useGridMediaSession";
     import { upgradesState, isUnlocked } from "../../stores/upgrades.svelte";
 
-    const API_URL = import.meta.env.PUBLIC_API_URL;
+    const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
     import {
         getSnapshotTagStats,
         getUnifiedTags,

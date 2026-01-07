@@ -40,7 +40,7 @@
   const MAX_TAGS = 5;
   const TARGET_SONGS = 20;
   const INITIAL_TAG_LIMIT = 50;
-  const API_URL = import.meta.env.PUBLIC_API_URL;
+  const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
 
   // Genealogies / Relationships for "Silent Merge"
   // If user selects key, we also look for values (Tier 3 match)

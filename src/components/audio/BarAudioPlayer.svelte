@@ -12,7 +12,7 @@
     playNextSong,
   } from "../../stores/audio.svelte";
 
-  const API_URL = import.meta.env.PUBLIC_API_URL;
+  const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
 
   /**
    * Effect: Sync audio source with current song

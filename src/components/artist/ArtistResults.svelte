@@ -726,7 +726,7 @@
         }
     });
 
-    const API_URL = import.meta.env.PUBLIC_API_URL;
+    const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
 
     function handleSelect(index: number) {
         currentIndex = index;

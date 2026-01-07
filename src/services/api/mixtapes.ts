@@ -45,7 +45,7 @@ export interface SmolTrackData {
   } | null;
 }
 
-const API_URL = import.meta.env.PUBLIC_API_URL!;
+const API_URL = import.meta.env.PUBLIC_API_URL || 'https://api.smol.xyz';
 
 /**
  * Get auth headers from smol_token cookie.
