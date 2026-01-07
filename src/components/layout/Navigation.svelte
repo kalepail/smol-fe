@@ -109,6 +109,15 @@
         : ''}"
       href="/store">Store</a
     >
+
+    <!-- Desktop Only: +CREATE -->
+    <a
+      class="hidden md:flex items-center gap-1 text-[#9ae600] hover:text-white transition-colors whitespace-nowrap {path ===
+      '/create'
+        ? 'text-white'
+        : ''}"
+      href="/create">+CREATE</a
+    >
   </div>
 
   <!-- Dropdown Menu -->
@@ -161,20 +170,7 @@
 
     <div class="h-px bg-slate-700/50 w-full"></div>
 
-    <!-- 3. Create New -->
-    <a
-      class="flex items-center gap-3 hover:text-[#9ae600] transition-colors {path ===
-      '/create'
-        ? 'text-white'
-        : ''}"
-      href="/create"
-      onclick={closeMenu}
-    >
-      <span class="text-[#9ae600]">+</span>
-      <span>Create New</span>
-    </a>
-
-    <!-- 4. Mixtape Mode Toggle (Mobile Only) -->
+    <!-- 3. Mixtape Mode Toggle (Mobile Only) -->
     {#if isAuthenticated}
       <div class="md:hidden">
         <div class="h-px bg-slate-700/50 w-full my-4"></div>

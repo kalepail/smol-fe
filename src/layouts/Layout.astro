@@ -94,6 +94,7 @@ if (token) {
 		<div class={(hideBottomBar || Astro.url.pathname.startsWith('/radio') || Astro.url.pathname.startsWith('/artist/')) ? 'hidden' : ''}>
 			<BarAudioPlayer client:only="svelte" transition:persist="audio-player" />
 		</div>
+		<MixtapeBuilderOverlay client:load transition:persist="mixtape-builder" />
 		<slot />
 	</body>
 </html>

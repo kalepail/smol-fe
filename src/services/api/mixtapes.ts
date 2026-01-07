@@ -111,8 +111,9 @@ export async function updateMixtape(id: string, draft: MixtapeDraft): Promise<{ 
     throw new Error(`Failed to update mixtape: ${response.statusText}`);
   }
 
-  const data: { id: string } = await response.json();
-  return data;
+  // Backend returns { success: true }, but we return { id } for consistency with publish
+  await response.json();
+  return { id };
 }
 
 /**
