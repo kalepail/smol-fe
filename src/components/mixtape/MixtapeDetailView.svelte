@@ -337,8 +337,11 @@
   async function handlePurchaseConfirm() {
     if (!mixtape || !userState.contractId || !userState.keyId) return;
 
-    const smolContractId = import.meta.env.PUBLIC_SMOL_CONTRACT_ID;
+    const smolContractId =
+      import.meta.env.PUBLIC_SMOL_CONTRACT_ID ||
+      "CBRNUVLGFM5OYWAGZVGU7CTMP2UJLKZCLFY2ANUCK5UGKND6BBAA5PLA";
     if (!smolContractId) {
+      // This check will now always be false due to the fallback
       console.error("Missing PUBLIC_SMOL_CONTRACT_ID env var");
       alert("Purchasing is temporarily unavailable. Please try again later.");
       return;

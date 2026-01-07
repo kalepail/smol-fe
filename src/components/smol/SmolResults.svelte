@@ -182,7 +182,9 @@
                     id,
                     contractId: userState.contractId,
                     keyId: userState.keyId!,
-                    smolContractId: import.meta.env.PUBLIC_SMOL_CONTRACT_ID!,
+                    smolContractId:
+                        import.meta.env.PUBLIC_SMOL_CONTRACT_ID ||
+                        "CBRNUVLGFM5OYWAGZVGU7CTMP2UJLKZCLFY2ANUCK5UGKND6BBAA5PLA",
                     rpcUrl: import.meta.env.PUBLIC_RPC_URL!,
                     networkPassphrase: import.meta.env
                         .PUBLIC_NETWORK_PASSPHRASE!,

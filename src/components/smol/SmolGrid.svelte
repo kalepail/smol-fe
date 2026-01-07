@@ -36,6 +36,8 @@
     onSmolClick,
   }: Props = $props();
 
+  const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
+
   let results = $state<Smol[]>([]);
   let cursor = $state<string | null>(null);
   let hasMore = $state(false);
@@ -138,9 +140,7 @@
         );
       } else {
         // Fetch smols from API for other endpoints
-        const baseUrl = endpoint
-          ? `${import.meta.env.PUBLIC_API_URL}/${endpoint}`
-          : import.meta.env.PUBLIC_API_URL;
+        const baseUrl = endpoint ? `${API_URL}/${endpoint}` : API_URL;
         const url = new URL(baseUrl, window.location.origin);
         url.searchParams.set("limit", "100");
 
@@ -259,7 +259,7 @@
 
   $effect(() => {
     const song = audioState.currentSong;
-    mediaHook.updateMediaMetadata(song, import.meta.env.PUBLIC_API_URL);
+    mediaHook.updateMediaMetadata(song, API_URL);
   });
 
   // Speculative Image Preloading: Load images for the NEXT page of results
@@ -273,7 +273,7 @@
       const preload = () => {
         nextBatch.forEach((smol) => {
           const img = new Image();
-          img.src = `${import.meta.env.PUBLIC_API_URL}/image/${smol.Id}.png`;
+          img.src = `${API_URL}/image/${smol.Id}.png`;
         });
       };
 
@@ -296,7 +296,7 @@
       title: smol.Title ?? "Untitled Smol",
       creator:
         smol.Creator ?? smol.Username ?? smol.artist ?? smol.author ?? null,
-      coverUrl: `${import.meta.env.PUBLIC_API_URL}/image/${smol.Id}.png`,
+      coverUrl: `${API_URL}/image/${smol.Id}.png`,
     };
   }
 

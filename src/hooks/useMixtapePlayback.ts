@@ -12,6 +12,8 @@ interface PlaybackControls {
 export function useMixtapePlayback(controls: PlaybackControls) {
   // Don't destructure - keep reference to controls object to access reactive getters
 
+  const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
+
   function handlePlayAll() {
     if (controls.mixtapeTracks.length === 0) return;
 
@@ -151,7 +153,7 @@ export function useMixtapePlayback(controls: PlaybackControls) {
         album: mixtapeTitle || 'Smol Mixtape',
         artwork: [
           {
-            src: `${import.meta.env.PUBLIC_API_URL}/image/${song.Id}.png?scale=8`,
+            src: `${API_URL}/image/${song.Id}.png?scale=8`,
             sizes: '512x512',
             type: 'image/png',
           },

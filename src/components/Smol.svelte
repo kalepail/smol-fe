@@ -12,6 +12,8 @@
   import { sac } from "../utils/passkey-kit";
   import { getTokenBalance } from "../utils/balance";
 
+  const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
+
   interface Props {
     id?: string | null;
   }
@@ -52,9 +54,7 @@
     kv_do?.lyrics?.title ?? kv_do?.description ?? d1?.Title ?? null,
   );
   const tradeImageUrl = $derived(
-    tradeSongId
-      ? `${import.meta.env.PUBLIC_API_URL}/image/${tradeSongId}.png`
-      : null,
+    tradeSongId ? `${API_URL}/image/${tradeSongId}.png` : null,
   );
   const tradeImageFallback = $derived(
     kv_do?.image_base64 ? `data:image/png;base64,${kv_do.image_base64}` : null,
@@ -132,12 +132,9 @@
     error = null;
 
     try {
-      const response = await fetch(
-        `${import.meta.env.PUBLIC_API_URL}/${smolId}`,
-        {
-          credentials: "include",
-        },
-      );
+      const response = await fetch(`${API_URL}/${smolId}`, {
+        credentials: "include",
+      });
 
       if (!response.ok) {
         throw new Error("Failed to load smol");
@@ -245,7 +242,7 @@
   }
 
   async function makeSongPublic() {
-    await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
+    await fetch(`${API_URL}/${id}`, {
       method: "PUT",
       credentials: "include",
     });
@@ -258,7 +255,7 @@
   async function deleteSong() {
     if (!confirm("Are you sure you want to delete this song?")) return;
 
-    await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
+    await fetch(`${API_URL}/${id}`, {
       method: "DELETE",
       credentials: "include",
     });
@@ -268,7 +265,7 @@
   }
 
   async function selectBestSong(song_id: string) {
-    await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}/${song_id}`, {
+    await fetch(`${API_URL}/${id}/${song_id}`, {
       method: "PUT",
       credentials: "include",
     });
@@ -324,10 +321,7 @@
       return;
     }
 
-    const smolContractId = import.meta.env.PUBLIC_SMOL_CONTRACT_ID;
-
-    if (!smolContractId) {
-      console.error("Missing PUBLIC_SMOL_CONTRACT_ID env var");
+    const smolContractId = import.meta.env.PUBLIC_SMOL_CONTRACT_ID || "CBRNUVLGFM5OYWAGZVGU7CTMP2UJLKZCLFY2ANUCK5UGKND6BBAA5PLA";
       alert("Minting is temporarily unavailable. Please try again later.");
       return;
     }

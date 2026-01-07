@@ -32,7 +32,8 @@ export function useSmolMinting() {
   ): Promise<void> {
     try {
       const xdrString = await createMintTransaction(params);
-      await submitMintTransaction(params.id, xdrString, import.meta.env.PUBLIC_API_URL!);
+      const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
+      await submitMintTransaction(params.id, xdrString, API_URL);
 
       clearMintPolling();
       mintInterval = setInterval(onPollStatus, MINT_POLL_INTERVAL);

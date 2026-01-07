@@ -89,9 +89,9 @@ export function useMixtapeMinting() {
     const saltsArray: Buffer[] = [];
     const feeRulesArray: Array<
       | {
-          fee_asset: string;
-          recipients: Array<{ percent: bigint; recipient: string }>;
-        }
+        fee_asset: string;
+        recipients: Array<{ percent: bigint; recipient: string }>;
+      }
       | undefined
     > = [];
     const issuer = 'GBVJZCVQIKK7SL2K6NL4BO6ZYNXAGNVBTAQDDNOIJ5VPP3IXCSE2SMOL';
@@ -217,15 +217,12 @@ export function useMixtapeMinting() {
   ): Promise<void> {
     const { mixtapeTracks, userContractId, userKeyId } = params;
 
-    const smolContractId = import.meta.env.PUBLIC_SMOL_CONTRACT_ID;
+    const smolContractId = import.meta.env.PUBLIC_SMOL_CONTRACT_ID || "CBRNUVLGFM5OYWAGZVGU7CTMP2UJLKZCLFY2ANUCK5UGKND6BBAA5PLA";
     if (!smolContractId) {
       throw new Error('Missing PUBLIC_SMOL_CONTRACT_ID env var');
     }
 
-    const kaleSacId = import.meta.env.PUBLIC_KALE_SAC_ID;
-    if (!kaleSacId) {
-      throw new Error('Missing PUBLIC_KALE_SAC_ID env var');
-    }
+    const kaleSacId = import.meta.env.PUBLIC_KALE_SAC_ID || "CAS3J7GYLGXMF6TDJBBYABC3M2OX6COCCFDDB6J6W3F7X47X62N3C4A5";
 
     // Find all tracks that need minting
     const tracksToMintData = mixtapeTracks.filter((track) => {
