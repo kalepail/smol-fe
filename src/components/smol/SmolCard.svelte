@@ -68,7 +68,7 @@
     ondragend={onDragEnd}
   >
     <img
-      class="aspect-square object-contain pixelated w-full shadow-md"
+      class="aspect-square object-contain pixelated w-full shadow-md bg-slate-800"
       src={`${API_URL}/image/${smol.Id}.png`}
       style="transform: translateZ(0); -webkit-transform: translateZ(0);"
       alt={smol.Title}

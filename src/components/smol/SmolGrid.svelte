@@ -262,6 +262,29 @@
     mediaHook.updateMediaMetadata(song, import.meta.env.PUBLIC_API_URL);
   });
 
+  // Speculative Image Preloading: Load images for the NEXT page of results
+  // This ensures that when the user scrolls down, images are already cached
+  $effect(() => {
+    const nextLimit = displayLimit + 50;
+    const nextBatch = filteredResults.slice(displayLimit, nextLimit);
+
+    if (nextBatch.length > 0) {
+      // Use requestIdleCallback if available to avoid blocking main thread
+      const preload = () => {
+        nextBatch.forEach((smol) => {
+          const img = new Image();
+          img.src = `${import.meta.env.PUBLIC_API_URL}/image/${smol.Id}.png`;
+        });
+      };
+
+      if ("requestIdleCallback" in window) {
+        requestIdleCallback(preload);
+      } else {
+        setTimeout(preload, 1000);
+      }
+    }
+  });
+
   function songNext() {
     const next = mediaHook.findNextSong(results, audioState.currentSong?.Id);
     if (next) selectSong(next);
