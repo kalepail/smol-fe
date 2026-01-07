@@ -1804,7 +1804,9 @@
             {/if}
 
             <div
-                class="flex flex-col landscape:flex-row lg:flex-row gap-0 landscape:gap-4 lg:gap-4 flex-1 min-h-0 landscape:h-auto md:landscape:h-full items-stretch px-4 pt-0 pb-4 overflow-hidden landscape:overflow-visible md:landscape:overflow-hidden"
+                class="flex flex-col landscape:flex-row lg:flex-row gap-0 landscape:gap-4 lg:gap-4 flex-1 min-h-0 landscape:h-auto md:landscape:h-full items-stretch px-4 pt-0 pb-4 overflow-hidden landscape:overflow-visible md:landscape:overflow-hidden {showGridView
+                    ? 'hidden landscape:flex lg:flex'
+                    : 'flex'}"
             >
                 <!-- LEFT COLUMN: PLAYER -->
                 <div
@@ -1833,7 +1835,7 @@
                         isMinting={minting}
                         isAuthenticated={userState.contractId !== null}
                         {currentIndex}
-                        overlayControlsOnMobile={true}
+                        overlayControlsOnMobile={false}
                         onShare={share}
                         {versions}
                         currentVersionId={selectedVersionId || ""}
