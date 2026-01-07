@@ -9,7 +9,8 @@ const ADMIN_ADDRESS = "CBS5Z6IVHGLFUGLYJ6TA4URP4VD67QRXKJ4ZBRH63RBMQ5PO7TC6GJU5"
 const SMOL_MART_AMOUNTS = {
     PREMIUM_HEADER: 100000,
     GOLDEN_KALE: 69420.67,
-    SHOWCASE_REEL: 1000000
+    SHOWCASE_REEL: 1000000,
+    VIBE_MATRIX: 250000
 };
 
 // VIP addresses now managed in src/utils/vip.ts
@@ -30,6 +31,7 @@ export async function verifyPastPurchases(userAddress: string) {
         if (vipAccess.premiumHeader) unlockUpgrade('premiumHeader');
         if (vipAccess.goldenKale) unlockUpgrade('goldenKale');
         if (vipAccess.showcaseReel) unlockUpgrade('showcaseReel');
+        if (vipAccess.vibeMatrix) unlockUpgrade('vibeMatrix');
         return;
     }
 
@@ -106,6 +108,11 @@ export async function verifyPastPurchases(userAddress: string) {
                                         unlockUpgrade('showcaseReel');
                                         unlockUpgrade('premiumHeader');
                                         unlockUpgrade('goldenKale');
+                                        unlockUpgrade('vibeMatrix');
+                                    }
+                                    if (Math.abs(amountNum - SMOL_MART_AMOUNTS.VIBE_MATRIX) < 0.1) {
+                                        console.log('[SmolMart] Found Vibe Matrix purchase!');
+                                        unlockUpgrade('vibeMatrix');
                                     }
                                 }
                             }

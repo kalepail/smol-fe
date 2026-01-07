@@ -1,0 +1,21 @@
+🚀 Starting Vibe Matrix Generation...
+📊 Loaded 1894 songs.
+🏷️  Found 2221 unique normalized tags.
+✅ Graph generated at public/data/tag_graph.json
+
+🧪 --- VIBE MATRIX EVALUATION REPORT ---
+📊 Coverage: 56.46% of tags have >= 5 recommendations.
+
+🧠 Sanity Check (Top 10 Recs for Sample Tags):
+- Pop: Indie Pop, Fun, Upbeat, Acoustic, Dance, Female Vocal, Funk, Indie, Electro-Pop, Folk
+- Rock: Alternative, Blues Rock, Male Vocal, Emotional, Hard Rock, Dramatic, electric, Heavy Metal, Alternative Rock, Anthem
+- Heavy Metal: Dark, Dramatic, Power, Aggressive, Hard Rock, Thrash Metal, Industrial Rock, Power Metal, Slow, Symphonic
+- Emotional: Acoustic Guitar, Ethereal, Anthemic, Storytelling, Orchestral, Female Vocal, Atmospheric, Intimate, Dark, Melancholy
+- Hip-Hop: Rap, Trap, Electronic, Urban, Storytelling, Anthemic, Inspirational, Aggressive, Funk, EDM
+- Electronic: Cyberpunk, Futuristic, Hip-Hop, Dance, Glitchy, Anthemic, Atmospheric, Techno, Inspirational, Dark
+- Folk: Acoustic, Country, Male Vocal, Indie, Americana, Acoustic Guitar, Troubadour, Storytelling, Indie Pop, Emotional
+- Ambient: Ethereal, Lo-fi, Cinematic, Experimental, Sadcore, Vaporwave, Mysterious, Electronic, Emotional, Progressive Rock
+- Synthwave: Retro, Vaporwave, Chillwave, Hazewave, Driving Drums, Atmospheric, Ambient, Dreamwave, Electro Rock, Hazy
+- Cinematic: Orchestral, Christian Rock, Ambient, Ethereal, Dark, Emotional, Tribal, Dramatic, Resonant Male Vocal, Heroic
+
+🛡️  Guardrails: PASSED (No self/duplicate tags in recs)

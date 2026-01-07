@@ -133,7 +133,7 @@
     });
 </script>
 
-<div class="mb-10 flex items-center justify-center gap-4">
+<div class="mb-10 flex flex-col items-center justify-center gap-4">
     <div class="flex bg-white/5 p-1 rounded-lg border border-white/10">
         <button
             onclick={() => (sortMode = "fresh")}

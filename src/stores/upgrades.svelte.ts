@@ -14,24 +14,28 @@ export interface UnlockedUpgrades {
     premiumHeader: boolean;
     goldenKale: boolean;
     showcaseReel: boolean;
+    vibeMatrix: boolean;
 }
 
 export interface EnabledUpgrades {
     premiumHeader: boolean;
     goldenKale: boolean;
     showcaseReel: boolean;
+    vibeMatrix: boolean;
 }
 
 const initialOwned: UnlockedUpgrades = {
     premiumHeader: false,
     goldenKale: false,
-    showcaseReel: false
+    showcaseReel: false,
+    vibeMatrix: false
 };
 
 const initialEnabled: EnabledUpgrades = {
     premiumHeader: true,  // Default to enabled when unlocked
     goldenKale: true,
-    showcaseReel: true
+    showcaseReel: true,
+    vibeMatrix: true
 };
 
 // Load initial state from localStorage if available

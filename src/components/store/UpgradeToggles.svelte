@@ -11,10 +11,12 @@
         premiumHeader: boolean;
         goldenKale: boolean;
         showcaseReel: boolean;
+        vibeMatrix: boolean;
     }>({
         premiumHeader: false,
         goldenKale: false,
         showcaseReel: false,
+        vibeMatrix: false,
     });
     let syncing = $state(false);
 
@@ -29,6 +31,7 @@
                               premiumHeader: false,
                               goldenKale: false,
                               showcaseReel: false,
+                              vibeMatrix: false,
                           },
                 )
                 .then((data) => {
@@ -39,7 +42,7 @@
     });
 
     async function handleToggle(
-        key: "premiumHeader" | "goldenKale" | "showcaseReel",
+        key: "premiumHeader" | "goldenKale" | "showcaseReel" | "vibeMatrix",
     ) {
         // Toggle locally first for instant feedback
         toggleUpgrade(key);
@@ -63,6 +66,7 @@
                         premiumHeaderEnabled: enabledState.premiumHeader,
                         goldenKaleEnabled: enabledState.goldenKale,
                         showcaseReelEnabled: enabledState.showcaseReel,
+                        vibeMatrixEnabled: enabledState.vibeMatrix,
                     }),
                 });
             }
@@ -74,7 +78,7 @@
     }
 </script>
 
-{#if artistBadges.premiumHeader || artistBadges.goldenKale || artistBadges.showcaseReel}
+{#if artistBadges.premiumHeader || artistBadges.goldenKale || artistBadges.showcaseReel || artistBadges.vibeMatrix}
     <div
         class="w-full max-w-2xl mx-auto mt-12 border-4 border-white/20 bg-black/50 p-4"
     >
@@ -144,6 +148,27 @@
                     >
                         <div
                             class="absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform {enabledState.showcaseReel
+                                ? 'translate-x-6'
+                                : 'translate-x-0.5'}"
+                        ></div>
+                    </button>
+                </label>
+            {/if}
+            {#if artistBadges.vibeMatrix}
+                <label
+                    class="flex items-center justify-between p-3 border-2 border-white/10 hover:border-[#d836ff]/50 cursor-pointer transition-colors"
+                >
+                    <span class="text-white text-xs uppercase tracking-wider"
+                        >[VIBE_MATRIX]</span
+                    >
+                    <button
+                        onclick={() => handleToggle("vibeMatrix")}
+                        class="w-12 h-6 rounded-full border-2 transition-colors relative {enabledState.vibeMatrix
+                            ? 'bg-[#d836ff] border-[#d836ff]'
+                            : 'bg-white/10 border-white/30'}"
+                    >
+                        <div
+                            class="absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform {enabledState.vibeMatrix
                                 ? 'translate-x-6'
                                 : 'translate-x-0.5'}"
                         ></div>

@@ -11,6 +11,7 @@ export interface VIPAccess {
     premiumHeader: boolean;
     goldenKale: boolean;
     showcaseReel: boolean;
+    vibeMatrix: boolean;
 }
 
 export const VIP_CONFIG: Record<string, Partial<VIPAccess>> = {
@@ -18,7 +19,8 @@ export const VIP_CONFIG: Record<string, Partial<VIPAccess>> = {
     "CBNORBI4DCE7LIC42FWMCIWQRULWAUGF2MH2Z7X2RNTFAYNXIACJ33IM": {
         premiumHeader: true,
         goldenKale: true,
-        showcaseReel: true
+        showcaseReel: true,
+        vibeMatrix: true
     },
 
     // Example: Grant only specific features to an address
@@ -43,6 +45,7 @@ export function getVIPAccess(address: string): VIPAccess | null {
     return {
         premiumHeader: config.premiumHeader ?? false,
         goldenKale: config.goldenKale ?? false,
-        showcaseReel: config.showcaseReel ?? false
+        showcaseReel: config.showcaseReel ?? false,
+        vibeMatrix: config.vibeMatrix ?? false
     };
 }

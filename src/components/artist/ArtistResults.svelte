@@ -837,7 +837,7 @@
 >
     <!-- Artist Info Header (Windowed) -->
     <!-- Header Wrapper with Kale Wreath -->
-    <div class="relative md:mb-1 z-50 max-w-6xl w-full mx-auto group/header">
+    <div class="relative z-50 max-w-6xl w-full mx-auto group/header">
         <!-- Ultimate Premium Kale Crown (Three-Layer Depth) -->
 
         <div
@@ -1795,7 +1795,7 @@
 
                 <!-- RIGHT COLUMN: PLAYLIST -->
                 <div
-                    class="w-full landscape:w-1/2 lg:w-1/2 flex flex-col min-h-0 mt-1 landscape:mt-0 lg:mt-0 bg-[#121212] border border-white/5 rounded-2xl relative flex-1 overflow-y-auto dark-scrollbar z-[40]"
+                    class="w-full landscape:w-1/2 lg:w-1/2 flex flex-col min-h-0 mt-1 landscape:mt-0 lg:mt-0 bg-[#121212] border border-white/5 rounded-2xl relative flex-1 max-h-[50vh] landscape:max-h-full lg:max-h-full overflow-y-auto dark-scrollbar z-[40]"
                 >
                     <div
                         class="flex items-center justify-between p-3 border-b border-white/5 bg-[#1a1a1a] flex-shrink-0"
