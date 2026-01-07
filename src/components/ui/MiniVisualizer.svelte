@@ -11,10 +11,7 @@
     let animationId: number;
 
     function draw() {
-        if (!canvas || !audioState.analyser) {
-            animationId = requestAnimationFrame(draw);
-            return;
-        }
+        if (!canvas || !audioState.analyser) return;
 
         if (!ctx) {
             ctx = canvas.getContext("2d");
@@ -23,7 +20,7 @@
 
         const bufferLength = audioState.analyser.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
-        audioState.analyser.getByteTimeDomainData(dataArray); // Use Time Domain for Waveform
+        audioState.analyser.getByteTimeDomainData(dataArray);
 
         // Initialize smoothing buffer
         if (!lastDataArray || lastDataArray.length !== bufferLength) {
@@ -32,8 +29,7 @@
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        ctx.lineWidth = 2.5; // Slightly thicker
-        // Create Gradient: Green -> Purple -> Orange
+        ctx.lineWidth = 2.5;
         const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
         gradient.addColorStop(0.1, "#10b981");
         gradient.addColorStop(0.5, "#a855f7");
@@ -47,21 +43,14 @@
         const sliceWidth = canvas.width / bufferLength;
         let x = 0;
         const centerY = canvas.height / 2;
-
-        // Boost for small display
         const BOOST = 1.5;
 
-        // Draw Loop
         for (let i = 0; i < bufferLength; i++) {
             const currentVal = dataArray[i];
-
-            // Temporal Smoothing
             lastDataArray[i] += (currentVal - lastDataArray[i]) * SMOOTHING;
 
             const v = (lastDataArray[i] - 128) / 128.0;
-            // Simple non-linear boost
             const boostedV = v * (1 + Math.abs(v));
-
             const y = centerY + boostedV * (canvas.height / 2) * BOOST;
 
             if (i === 0) {
@@ -69,7 +58,6 @@
             } else {
                 ctx.lineTo(x, y);
             }
-
             x += sliceWidth;
         }
 
@@ -79,14 +67,13 @@
         animationId = requestAnimationFrame(draw);
     }
 
-    // Resize observer to handle container size changes if needed
-    // For now, fixed internal resolution of 128x64 is plenty for 64px display output
-    // but the canvas bind width/height is 64x32 in markup.
+    $effect(() => {
+        if (canvas && audioState.analyser) {
+            draw();
+        }
 
-    onMount(() => {
-        animationId = requestAnimationFrame(draw);
         return () => {
-            cancelAnimationFrame(animationId);
+            if (animationId) cancelAnimationFrame(animationId);
         };
     });
 </script>
