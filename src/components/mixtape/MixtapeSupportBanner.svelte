@@ -102,10 +102,14 @@
 
     {#if success}
         <!-- Success State -->
-        <div class="text-center py-4" transition:fade>
+        <div class="text-center py-4 font-pixel" transition:fade>
             <div class="text-4xl mb-3">💚</div>
-            <h3 class="text-lg font-bold text-lime-400 mb-1">Thank You!</h3>
-            <p class="text-white/60 text-sm">
+            <h3
+                class="text-lg font-bold text-lime-400 mb-1 uppercase tracking-widest"
+            >
+                Thank You!
+            </h3>
+            <p class="text-white/60 text-sm uppercase tracking-wide">
                 You supported {uniqueArtists} artist{uniqueArtists !== 1
                     ? "s"
                     : ""}, the curator{#if uniqueMinters > 0}, and {uniqueMinters}
@@ -126,7 +130,9 @@
                     />
                     Support This Mixtape
                 </h3>
-                <p class="text-white/50 text-xs mt-1">
+                <p
+                    class="text-white/50 text-xs mt-1 font-pixel uppercase tracking-wide"
+                >
                     {tracks.length} track{tracks.length !== 1 ? "s" : ""} curated
                     by {curatorName}
                 </p>
@@ -156,19 +162,15 @@
 
         <!-- Payment Breakdown -->
         <div
-            class="bg-black/40 rounded-xl p-3 mb-4 border border-white/5 text-xs space-y-1"
+            class="bg-black/40 rounded-xl p-3 mb-4 border border-white/5 text-xs space-y-1 font-pixel uppercase tracking-wide"
         >
             <div class="flex justify-between text-white/60">
-                <span>Price ({tracks.length} tracks × 1 🥬)</span>
-                <span class="text-white font-mono"
-                    >{breakdown.totalKale} KALE</span
-                >
+                <span>Price ({tracks.length} tracks × 100 🥬)</span>
+                <span class="text-white">{breakdown.totalKale} KALE</span>
             </div>
             <div class="flex justify-between text-white/40">
                 <span>→ Curator (30%)</span>
-                <span class="font-mono"
-                    >{formatKaleAmount(breakdown.curatorShare)}</span
-                >
+                <span>{formatKaleAmount(breakdown.curatorShare)}</span>
             </div>
             {#if uniqueArtists > 0}
                 <div class="flex justify-between text-white/40">
@@ -177,9 +179,7 @@
                             ? "s"
                             : ""} (50%)</span
                     >
-                    <span class="font-mono"
-                        >{formatKaleAmount(breakdown.artistShare)}</span
-                    >
+                    <span>{formatKaleAmount(breakdown.artistShare)}</span>
                 </div>
             {/if}
             {#if uniqueMinters > 0}
@@ -189,11 +189,16 @@
                             ? "s"
                             : ""} (20%)</span
                     >
-                    <span class="font-mono"
-                        >{formatKaleAmount(breakdown.minterShare)}</span
-                    >
+                    <span>{formatKaleAmount(breakdown.minterShare)}</span>
                 </div>
             {/if}
+        </div>
+
+        <!-- Prealpha Warning -->
+        <div
+            class="mb-4 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] text-center font-pixel uppercase tracking-wide"
+        >
+            ⚠️ Prealpha Feature • Still Testing
         </div>
 
         <!-- Error Message -->
@@ -209,7 +214,7 @@
         <!-- Action Buttons -->
         <div class="flex gap-3">
             <button
-                class="flex-1 py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2
+                class="flex-1 py-3 px-4 rounded-xl font-pixel font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2
         {submitting
                     ? 'bg-lime-700/50 text-lime-200 cursor-wait'
                     : 'bg-lime-500 text-black hover:bg-lime-400 shadow-[0_0_20px_rgba(132,204,22,0.3)] active:scale-98'}"
@@ -225,7 +230,7 @@
             </button>
 
             <button
-                class="py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-widest text-white/40 hover:text-white/70 border border-white/10 hover:border-white/20 transition-all"
+                class="py-3 px-4 rounded-xl font-pixel font-bold text-xs uppercase tracking-widest text-white/40 hover:text-white/70 border border-white/10 hover:border-white/20 transition-all"
                 onclick={onDismiss}
                 disabled={submitting}
             >
@@ -234,7 +239,9 @@
         </div>
 
         <!-- Altruistic Message -->
-        <p class="text-center text-white/30 text-[10px] mt-4 italic">
+        <p
+            class="text-center text-white/30 text-[10px] mt-4 font-pixel uppercase tracking-wide"
+        >
             100% of your support goes directly to creators ✨
         </p>
     {/if}

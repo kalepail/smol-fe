@@ -7,8 +7,8 @@ import type { Smol } from '../types/domain';
 const KALE_DECIMALS = 7;
 const KALE_FACTOR = 10n ** BigInt(KALE_DECIMALS);
 
-// 1 KALE per track
-const PRICE_PER_TRACK_KALE = 1;
+// 100 KALE per track
+const PRICE_PER_TRACK_KALE = 100;
 
 export interface SupportPaymentRecipient {
     address: string;
