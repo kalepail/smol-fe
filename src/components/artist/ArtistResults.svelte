@@ -138,6 +138,25 @@
     let initialPlayHandled = $state(false);
     let isUrlStateLoaded = $state(false);
     let initialScrollHandled = $state(false);
+
+    // Time Machine Clock State
+    let timeString = $state("");
+
+    onMount(() => {
+        // Start Clock
+        timeString = new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+        });
+        const interval = setInterval(() => {
+            timeString = new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+            });
+        }, 1000);
+
+        return () => clearInterval(interval);
+    });
     let shuffleSeed = $state(Date.now());
     let collageImages = $state<string[]>([]);
     let searchQuery = $state("");
@@ -323,6 +342,7 @@
             params.set("seed", shuffleSeed.toString());
         } else {
             params.delete("shuffle");
+        }
         // Sync Grid Mode
         if (showGridView) {
             params.set("grid", "true");
@@ -334,11 +354,11 @@
         if (currentSong?.Id) {
             params.set("play", currentSong.Id);
         } else {
-             params.delete("play");
+            params.delete("play");
         }
-        
+
         // Preserve 'from' if it exists
-        
+
         window.history.replaceState(history.state, "", url.toString());
     });
 
@@ -876,14 +896,14 @@
 
     function share() {
         let url = window.location.href; // Default to current page (artist profile)
-        
+
         // If a song is selected/playing, append ?play=ID to the artist URL
         if (currentSong?.Id && address) {
-             const baseUrl = `${window.location.origin}/artist/${address}`;
-             url = `${baseUrl}?play=${currentSong.Id}`;
+            const baseUrl = `${window.location.origin}/artist/${address}`;
+            url = `${baseUrl}?play=${currentSong.Id}`;
         } else if (currentSong?.Id) {
-             // Fallback if address is missing (rare)
-             url = `${window.location.origin}/${currentSong.Id}`;
+            // Fallback if address is missing (rare)
+            url = `${window.location.origin}/${currentSong.Id}`;
         }
 
         navigator
@@ -1300,21 +1320,18 @@
                 </button>
             </div>
 
-            <!-- Time Machine (Canon Sort + Random Jump) -->
+            <!-- Time Machine (Live Clock Trigger) -->
             <button
-                class="hidden md:flex items-center gap-1.5 px-3 py-1 bg-fuchsia-500/10 hover:bg-fuchsia-500/20 text-fuchsia-400 border border-fuchsia-500/30 rounded-full transition-all active:scale-95 text-[10px] font-pixel tracking-wider whitespace-nowrap mx-2"
-                title="Time Machine: Canon Sort & Random Jump"
+                class="hidden md:flex items-center gap-2 px-3 py-1 bg-black/40 hover:bg-fuchsia-500/20 text-fuchsia-400 border border-white/5 hover:border-fuchsia-500/50 rounded-md transition-all active:scale-95 mx-2 group/clock"
+                title="Time Machine: Click to Jump to Random Point in Timeline"
                 onclick={() => {
-                    // 1. Disable Shuffle (to revert to Canon/ID sort usually)
+                    // Time Machine Logic
                     shuffleEnabled = false;
-
-                    // 2. Identify current list
                     let list = discography;
                     if (activeModule === "minted") list = minted;
                     if (activeModule === "collected") list = collected;
 
                     if (list.length > 0) {
-                        // 3. Jump to random index
                         const randomIdx = Math.floor(
                             Math.random() * list.length,
                         );
@@ -1323,21 +1340,11 @@
                     }
                 }}
             >
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke-width="2"
-                    stroke="currentColor"
-                    class="w-3.5 h-3.5"
+                <span
+                    class="text-[10px] font-pixel tracking-widest tabular-nums opacity-80 group-hover/clock:opacity-100 group-hover/clock:text-fuchsia-300 transition-all uppercase"
                 >
-                    <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
-                    />
-                </svg>
-                Time Machine
+                    {timeString}
+                </span>
             </button>
 
             <!-- Search Input (Desktop Only) -->
