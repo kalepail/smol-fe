@@ -17,7 +17,7 @@
                 The Story of KALE
             </h1>
             <p class="text-slate-500 text-xs font-pixel">
-                a collaborative farming token on Stellar
+                a collaborative proof of teamwork asset on Stellar
             </p>
         </div>
 
