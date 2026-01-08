@@ -1320,34 +1320,6 @@
                 >
                     Collected
                 </button>
-
-                <!-- Time Machine (Live Clock Trigger) - Moved INSIDE scroller -->
-                <button
-                    class="flex items-center gap-2 px-3 py-1 bg-black/40 hover:bg-fuchsia-500/20 text-fuchsia-400 border border-white/5 hover:border-fuchsia-500/50 rounded-md transition-all active:scale-95 ml-2 group/clock shrink-0"
-                    title="Time Machine: Click to Jump to Random Point in Timeline"
-                    onclick={() => {
-                        // Time Machine Logic
-                        shuffleEnabled = false;
-                        let list = liveDiscography; // Use live version
-                        if (activeModule === "minted") list = minted ?? [];
-                        if (activeModule === "collected")
-                            list = collected ?? [];
-
-                        if (list.length > 0) {
-                            const randomIdx = Math.floor(
-                                Math.random() * list.length,
-                            );
-                            selectSong(list[randomIdx]);
-                            currentIndex = randomIdx;
-                        }
-                    }}
-                >
-                    <span
-                        class="text-[10px] font-pixel tracking-widest tabular-nums opacity-80 group-hover/clock:opacity-100 group-hover/clock:text-fuchsia-300 transition-all uppercase"
-                    >
-                        {timeString}
-                    </span>
-                </button>
             </div>
 
             <!-- Search Input (Desktop Only) -->
@@ -1937,15 +1909,46 @@
                         >
                             {playlistTitle} ({displayPlaylist.length})
                         </h3>
-                        <button
-                            onclick={() => (tagsExpanded = !tagsExpanded)}
-                            class="flex items-center gap-1.5 px-2 py-1 rounded bg-white/10 hover:bg-lime-500/20 border border-white/10 hover:border-lime-500/50 transition-all"
-                        >
-                            <span
-                                class="text-[8px] text-lime-400 font-pixel uppercase tracking-wide"
-                                >{tagsExpanded ? "▼" : "▶"} Tags</span
+                        <div class="flex items-center gap-2">
+                            <!-- Time Machine (Live Clock Trigger) -->
+                            <button
+                                class="flex items-center gap-1.5 px-2 py-1 rounded bg-black/40 hover:bg-fuchsia-500/20 text-fuchsia-400 border border-white/10 hover:border-fuchsia-500/50 transition-all group/clock shrink-0"
+                                title="Time Machine: Click to Jump to Random Point in Timeline"
+                                onclick={() => {
+                                    // Time Machine Logic
+                                    shuffleEnabled = false;
+                                    let list = liveDiscography; // Use live version
+                                    if (activeModule === "minted")
+                                        list = minted ?? [];
+                                    if (activeModule === "collected")
+                                        list = collected ?? [];
+
+                                    if (list.length > 0) {
+                                        const randomIdx = Math.floor(
+                                            Math.random() * list.length,
+                                        );
+                                        selectSong(list[randomIdx]);
+                                        currentIndex = randomIdx;
+                                    }
+                                }}
                             >
-                        </button>
+                                <span
+                                    class="text-[8px] font-pixel tracking-widest tabular-nums opacity-80 group-hover/clock:opacity-100 group-hover/clock:text-fuchsia-300 uppercase"
+                                >
+                                    {timeString}
+                                </span>
+                            </button>
+
+                            <button
+                                onclick={() => (tagsExpanded = !tagsExpanded)}
+                                class="flex items-center gap-1.5 px-2 py-1 rounded bg-white/10 hover:bg-lime-500/20 border border-white/10 hover:border-lime-500/50 transition-all"
+                            >
+                                <span
+                                    class="text-[8px] text-lime-400 font-pixel uppercase tracking-wide"
+                                    >{tagsExpanded ? "▼" : "▶"} Tags</span
+                                >
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Tags Filter Cloud (Artist Scoped) -->
