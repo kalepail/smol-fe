@@ -220,6 +220,11 @@
                 shuffleSeed = parseInt(seedParam, 10);
             }
 
+            const gridParam = urlParams.get("grid");
+            if (gridParam === "true") {
+                showGridView = true;
+            }
+
             // Handle Auto-Play (?play=id)
             const playId = urlParams.get("play");
             if (playId && discography.length > 0) {
@@ -319,6 +324,13 @@
         } else {
             params.delete("shuffle");
             params.delete("seed");
+        }
+
+        // Sync Grid Mode
+        if (showGridView) {
+            params.set("grid", "true");
+        } else {
+            params.delete("grid");
         }
 
         // Preserve 'from' if it exists (though not typically used on Artist page)
