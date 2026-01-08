@@ -222,17 +222,17 @@
                     <!-- PRIMARY CTA: CREATE PASSKEY -->
                     <button
                         onclick={handleCreate}
-                        class="group relative w-full max-w-xs py-5 px-8 bg-[#d836ff] text-white font-pixel font-bold uppercase tracking-widest text-sm md:text-base rounded-lg
-                           hover:bg-[#e05cff] hover:-translate-y-1 hover:shadow-[0_8px_0_rgba(160,32,240,0.6)]
-                           active:translate-y-1 active:shadow-none active:bg-[#c026e5]
-                           transition-all duration-100 shadow-[0_4px_0_rgba(160,32,240,0.6)]
-                           focus:outline-none focus:ring-4 focus:ring-[#d836ff]/40"
+                        class="group relative w-full max-w-xs py-5 px-8 bg-[#1d293d] text-lime-400 font-pixel font-bold uppercase tracking-widest text-sm md:text-base rounded-lg
+                           hover:bg-[#2a3b55] hover:-translate-y-1 hover:shadow-[0_8px_0_rgba(15,23,42,1)]
+                           active:translate-y-1 active:shadow-none active:bg-[#151e2e]
+                           transition-all duration-100 shadow-[0_4px_0_rgba(15,23,42,1)]
+                           focus:outline-none focus:ring-4 focus:ring-lime-400/20 border-2 border-lime-400/20"
                         aria-label="Create Passkey"
                     >
                         <span
                             class="relative z-10 flex items-center justify-center gap-3"
                         >
-                            <span class="text-xl">★</span> INSERT COIN (CREATE PASSKEY)
+                            <span class="text-xl">★</span> INSERT $KALE
                         </span>
                     </button>
 
