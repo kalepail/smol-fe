@@ -12,10 +12,10 @@
 
     const authHook = useAuthentication();
 
-    // Feature highlights
+    // Feature highlights with pixel art SVG icons
     const FEATURES = [
         {
-            icon: "🎵",
+            icon: "music",
             title: "Create Music",
             items: [
                 "Type a prompt, get a full song",
@@ -24,7 +24,7 @@
             ],
         },
         {
-            icon: "💰",
+            icon: "kale",
             title: "Earn Tips",
             items: [
                 "Mint tracks on-chain",
@@ -33,7 +33,7 @@
             ],
         },
         {
-            icon: "🎨",
+            icon: "star",
             title: "Unlock Cosmetics",
             items: [
                 "VIP badges & styles",
@@ -181,7 +181,199 @@
                         ></div>
 
                         <div class="relative z-10">
-                            <div class="text-3xl mb-3">{feature.icon}</div>
+                            <!-- Custom Pixel Art Icons -->
+                            <div class="w-10 h-10 mb-3">
+                                {#if feature.icon === "music"}
+                                    <!-- Pixel Music Note -->
+                                    <svg
+                                        viewBox="0 0 16 16"
+                                        class="w-full h-full"
+                                        fill="currentColor"
+                                        class:text-lime-400={true}
+                                    >
+                                        <rect
+                                            x="10"
+                                            y="1"
+                                            width="2"
+                                            height="2"
+                                        />
+                                        <rect
+                                            x="12"
+                                            y="1"
+                                            width="2"
+                                            height="4"
+                                        />
+                                        <rect
+                                            x="10"
+                                            y="3"
+                                            width="2"
+                                            height="10"
+                                        />
+                                        <rect
+                                            x="4"
+                                            y="10"
+                                            width="6"
+                                            height="2"
+                                        />
+                                        <rect
+                                            x="4"
+                                            y="12"
+                                            width="4"
+                                            height="2"
+                                        />
+                                        <rect
+                                            x="2"
+                                            y="10"
+                                            width="2"
+                                            height="4"
+                                        />
+                                    </svg>
+                                {:else if feature.icon === "kale"}
+                                    <!-- Pixel Kale/Coin -->
+                                    <svg
+                                        viewBox="0 0 16 16"
+                                        class="w-full h-full"
+                                        fill="currentColor"
+                                        class:text-lime-400={true}
+                                    >
+                                        <rect
+                                            x="5"
+                                            y="1"
+                                            width="6"
+                                            height="2"
+                                        />
+                                        <rect
+                                            x="3"
+                                            y="3"
+                                            width="2"
+                                            height="2"
+                                        />
+                                        <rect
+                                            x="11"
+                                            y="3"
+                                            width="2"
+                                            height="2"
+                                        />
+                                        <rect
+                                            x="1"
+                                            y="5"
+                                            width="2"
+                                            height="6"
+                                        />
+                                        <rect
+                                            x="13"
+                                            y="5"
+                                            width="2"
+                                            height="6"
+                                        />
+                                        <rect
+                                            x="3"
+                                            y="11"
+                                            width="2"
+                                            height="2"
+                                        />
+                                        <rect
+                                            x="11"
+                                            y="11"
+                                            width="2"
+                                            height="2"
+                                        />
+                                        <rect
+                                            x="5"
+                                            y="13"
+                                            width="6"
+                                            height="2"
+                                        />
+                                        <rect
+                                            x="6"
+                                            y="5"
+                                            width="4"
+                                            height="2"
+                                        />
+                                        <rect
+                                            x="7"
+                                            y="7"
+                                            width="2"
+                                            height="4"
+                                        />
+                                    </svg>
+                                {:else if feature.icon === "star"}
+                                    <!-- Pixel Star -->
+                                    <svg
+                                        viewBox="0 0 16 16"
+                                        class="w-full h-full"
+                                        fill="currentColor"
+                                        class:text-lime-400={true}
+                                    >
+                                        <rect
+                                            x="7"
+                                            y="1"
+                                            width="2"
+                                            height="2"
+                                        />
+                                        <rect
+                                            x="7"
+                                            y="3"
+                                            width="2"
+                                            height="2"
+                                        />
+                                        <rect
+                                            x="5"
+                                            y="5"
+                                            width="6"
+                                            height="2"
+                                        />
+                                        <rect
+                                            x="1"
+                                            y="5"
+                                            width="4"
+                                            height="2"
+                                        />
+                                        <rect
+                                            x="11"
+                                            y="5"
+                                            width="4"
+                                            height="2"
+                                        />
+                                        <rect
+                                            x="3"
+                                            y="7"
+                                            width="10"
+                                            height="2"
+                                        />
+                                        <rect
+                                            x="4"
+                                            y="9"
+                                            width="8"
+                                            height="2"
+                                        />
+                                        <rect
+                                            x="3"
+                                            y="11"
+                                            width="3"
+                                            height="2"
+                                        />
+                                        <rect
+                                            x="10"
+                                            y="11"
+                                            width="3"
+                                            height="2"
+                                        />
+                                        <rect
+                                            x="2"
+                                            y="13"
+                                            width="2"
+                                            height="2"
+                                        />
+                                        <rect
+                                            x="12"
+                                            y="13"
+                                            width="2"
+                                            height="2"
+                                        />
+                                    </svg>
+                                {/if}
+                            </div>
                             <h3
                                 class="font-pixel text-lime-400 uppercase tracking-wider text-sm mb-3"
                             >
