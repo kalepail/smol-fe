@@ -84,11 +84,9 @@
         },
     });
 
-    async function handlePlayToggle(mixtapeId: string) {
-        // If it's already the active mixtape and we have tracks
+    async function loadTracksForMixtape(mixtapeId: string) {
         if (activeMixtapeId === mixtapeId && mixtapeTracks.length > 0) {
-            togglePlayPause();
-            return;
+            return { mixtapeTracks, creator: activeMixtapeCurator };
         }
 
         loadingMixtapeId = mixtapeId;
@@ -96,7 +94,6 @@
             const detail = await getMixtapeDetail(mixtapeId);
             if (!detail) throw new Error("Mixtape not found");
 
-            // Fetch snapshot to get Minted_By data
             const snapshot = await safeFetchSmols();
             const snapshotMap = new Map(snapshot.map((s) => [s.Id, s]));
 
@@ -116,6 +113,24 @@
                 } as Smol;
             });
 
+            return { mixtapeTracks, creator: detail.creator };
+        } catch (err) {
+            console.error("Failed to load mixtape tracks:", err);
+            throw err;
+        } finally {
+            loadingMixtapeId = null;
+        }
+    }
+
+    async function handlePlayToggle(mixtapeId: string) {
+        if (activeMixtapeId === mixtapeId && mixtapeTracks.length > 0) {
+            togglePlayPause();
+            return;
+        }
+
+        try {
+            const detail = await loadTracksForMixtape(mixtapeId);
+
             // Show support modal if not dismissed and not the creator
             if (
                 !supportModalDismissed.has(mixtapeId) &&
@@ -128,10 +143,19 @@
             playbackHook.handlePlayAll();
             isPlayingAll = true;
         } catch (err) {
-            console.error("Failed to play mixtape from grid:", err);
-            alert("Failed to load mixtape tracks. Please try again.");
-        } finally {
-            loadingMixtapeId = null;
+            alert("failed to load mixtape tracks. please try again.");
+        }
+    }
+
+    async function handleMintClick(e: MouseEvent, mixtapeId: string) {
+        e.stopPropagation();
+        e.preventDefault();
+
+        try {
+            await loadTracksForMixtape(mixtapeId);
+            showSupportModal = true;
+        } catch (err) {
+            alert("failed to load tracks for minting. please try again.");
         }
     }
 
@@ -539,23 +563,22 @@
                 </div>
 
                 <div class="mt-auto flex flex-col gap-1.5 pt-3 relative z-10">
-                    {#if !isActive}
-                        <button
-                            class="w-full rounded-xl px-2 py-3 text-[9px] font-pixel font-bold uppercase tracking-widest transition-all duration-500 bg-lime-400 border border-lime-400 text-black hover:bg-lime-500 hover:shadow-[0_0_20px_rgba(163,230,53,0.4)]"
-                            onclick={() => handlePlayToggle(mixtape.id)}
-                        >
-                            {#if isLoading}
-                                <div
-                                    class="flex items-center justify-center gap-1.5"
-                                >
-                                    <Loader classNames="w-3 h-3 text-black" />
-                                    Loading...
-                                </div>
-                            {:else}
-                                Play
-                            {/if}
-                        </button>
-                    {/if}
+                    <button
+                        class="w-full rounded-xl px-2 py-3 text-[9px] font-pixel font-bold uppercase tracking-widest transition-all duration-500 bg-[#d836ff] border border-[#d836ff] text-white hover:bg-[#e056ff] hover:shadow-[0_0_20px_rgba(216,54,255,0.4)] disabled:opacity-50 disabled:cursor-wait"
+                        onclick={(e) => handleMintClick(e, mixtape.id)}
+                        disabled={isLoading}
+                    >
+                        {#if isLoading}
+                            <div
+                                class="flex items-center justify-center gap-1.5"
+                            >
+                                <Loader classNames="w-3 h-3 text-white" />
+                                Loading...
+                            </div>
+                        {:else}
+                            Mint
+                        {/if}
+                    </button>
 
                     <a
                         class="w-full rounded-xl border border-white/5 bg-black/40 px-2 py-2 text-center text-[8px] font-pixel uppercase tracking-widest text-white/30 hover:text-white hover:bg-white/5 transition-all outline-none"
