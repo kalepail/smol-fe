@@ -240,38 +240,155 @@
       </button>
       {#if showKaleInfo}
         <div
-          class="mt-2 p-2 bg-black/40 rounded-lg text-[9px] text-slate-400 space-y-2"
+          class="mt-3 p-3 bg-gradient-to-br from-lime-950/40 via-black/60 to-emerald-950/40 rounded-xl border border-lime-500/20 text-[9px] space-y-3"
         >
-          <p>
-            KALE is a collaborative farming token on Stellar. Earn by staking,
-            mining, and harvesting.
+          <!-- Tagline -->
+          <p class="text-slate-300 leading-relaxed">
+            KALE is Stellar's collaborative farming token - earn by staking,
+            mining hashes, and harvesting crops 🌱
           </p>
-          <ul class="space-y-1 text-[8px]">
-            <li>
-              • <span class="text-lime-300">Minting:</span> 100 KALE per track
-            </li>
-            <li>
-              • <span class="text-lime-300">Buying:</span> ~33 KALE via AMM
-            </li>
-            <li>
-              • <span class="text-lime-300">Farm:</span>
-              <a
-                href="https://kalefarm.xyz"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="text-lime-400 underline">kalefarm.xyz</a
+
+          <!-- Quick Stats -->
+          <div class="grid grid-cols-2 gap-2 text-[8px]">
+            <div class="bg-black/40 rounded-lg p-2 text-center">
+              <div class="text-lime-400 font-bold">100 🥬</div>
+              <div class="text-slate-500">per mint</div>
+            </div>
+            <div class="bg-black/40 rounded-lg p-2 text-center">
+              <div class="text-lime-400 font-bold">~33 🥬</div>
+              <div class="text-slate-500">per buy</div>
+            </div>
+          </div>
+
+          <!-- Links -->
+          <div class="space-y-2">
+            <a
+              href="https://stellar.org/blog/ecosystem/the-story-of-kale"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="flex items-center gap-2 p-2 bg-black/30 rounded-lg hover:bg-lime-500/10 transition-colors"
+            >
+              <img
+                src="https://stellar.org/favicon.ico"
+                alt="Stellar"
+                class="w-4 h-4"
+              />
+              <div class="flex-1">
+                <div class="text-slate-200">The Story of KALE</div>
+                <div class="text-[7px] text-slate-500">stellar.org article</div>
+              </div>
+              <svg
+                class="w-3 h-3 text-slate-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-            </li>
-            <li>
-              • <span class="text-lime-300">Trade:</span>
-              <a
-                href="https://stellarx.com/markets/KALE:GBDVX4VELCDSQ54KQJYTNHXAHFLBCA77ZY2USQBM4CSHTTV7DME7KALE/native"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="text-lime-400 underline">StellarX</a
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                />
+              </svg>
+            </a>
+
+            <a
+              href="https://kalefarm.xyz"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="flex items-center gap-2 p-2 bg-black/30 rounded-lg hover:bg-lime-500/10 transition-colors"
+            >
+              <KaleEmoji size="w-4 h-4" />
+              <div class="flex-1">
+                <div class="text-slate-200">Kale Farm</div>
+                <div class="text-[7px] text-slate-500">
+                  stake, mine, harvest
+                </div>
+              </div>
+              <svg
+                class="w-3 h-3 text-slate-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-            </li>
-          </ul>
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                />
+              </svg>
+            </a>
+
+            <a
+              href="https://lobstr.co"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="flex items-center gap-2 p-2 bg-black/30 rounded-lg hover:bg-lime-500/10 transition-colors"
+            >
+              <img
+                src="https://lobstr.co/static/images/lobstr-icon.png"
+                alt="Lobstr"
+                class="w-4 h-4 rounded"
+              />
+              <div class="flex-1">
+                <div class="text-slate-200">Lobstr Wallet</div>
+                <div class="text-[7px] text-slate-500">
+                  stellar mobile wallet
+                </div>
+              </div>
+              <svg
+                class="w-3 h-3 text-slate-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                />
+              </svg>
+            </a>
+
+            <a
+              href="https://stellarx.com/markets/KALE:GBDVX4VELCDSQ54KQJYTNHXAHFLBCA77ZY2USQBM4CSHTTV7DME7KALE/native"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="flex items-center gap-2 p-2 bg-black/30 rounded-lg hover:bg-lime-500/10 transition-colors"
+            >
+              <img
+                src="https://stellarx.com/favicon.ico"
+                alt="StellarX"
+                class="w-4 h-4"
+              />
+              <div class="flex-1">
+                <div class="text-slate-200">Trade on StellarX</div>
+                <div class="text-[7px] text-slate-500">KALE/XLM market</div>
+              </div>
+              <svg
+                class="w-3 h-3 text-slate-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                />
+              </svg>
+            </a>
+          </div>
+
+          <!-- Lore teaser -->
+          <p
+            class="text-[7px] text-slate-500 text-center pt-1 border-t border-slate-700/50"
+          >
+            🪐 Set on planet Demeter • scientists vs. Zebulon
+          </p>
         </div>
       {/if}
     </div>
