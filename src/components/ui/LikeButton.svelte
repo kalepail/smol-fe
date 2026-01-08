@@ -33,7 +33,11 @@
     });
 
     async function handleLike() {
-        if (!userState.contractId || liking) return;
+        if (!userState.contractId) {
+            window.dispatchEvent(new CustomEvent("smol:promote-passkey"));
+            return;
+        }
+        if (liking) return;
 
         try {
             liking = true;

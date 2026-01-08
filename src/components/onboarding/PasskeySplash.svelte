@@ -9,9 +9,7 @@
     let step = $state<"intro" | "username" | "processing" | "success">("intro");
     let username = $state("");
     let error = $state<string | null>(null);
-    let audioMuted = $state(true);
-    let audioInitialized = $state(false);
-    let audioEl: HTMLAudioElement | undefined = undefined;
+    // Audio removed per user request
 
     const authHook = useAuthentication();
 
@@ -20,20 +18,49 @@
         "find your next favorite.",
         "make music here.",
         "save the ones you love.",
-        "support the humans behind the sound.",
+        "support the humans\nbehind the sound.",
+        "it's free suno.",
+        "create without limits.",
+        "your sound, your rules.",
+        "listen to something new.",
+        "simple, open, yours.",
+        "collect what\nyou vibe with.",
     ];
     let taglineIndex = $state(0);
+    let visibleCount = $state(0);
+    // let isTyping = $state(false); // Unused in this version if we don't blink a cursor moving
 
-    // Rotate taglines
+    $effect(() => {
+        let i = 0;
+        const target = TAGLINES[taglineIndex];
+        // isTyping = true;
+        visibleCount = 0;
+
+        const typeInterval = setInterval(() => {
+            i++;
+            visibleCount = i;
+            if (i >= target.length) {
+                clearInterval(typeInterval);
+                // isTyping = false;
+            }
+        }, 50);
+
+        const nextInterval = setTimeout(() => {
+            taglineIndex = (taglineIndex + 1) % TAGLINES.length;
+        }, 4000);
+
+        return () => {
+            clearInterval(typeInterval);
+            clearTimeout(nextInterval);
+        };
+    });
+
     onMount(() => {
         // Check if already auth'd or skipped - redirect if so
         const skipped = localStorage.getItem("smol_passkey_skipped");
         if (userState.contractId || (skipped && step !== "success")) {
             if (!userState.contractId && skipped) {
-                // Only skip if explicitly skipped, but if they came here manually allow it?
-                // Actually scope says: "route new users... returning users bypass"
-                // If I am here, I might have been redirected.
-                // If I am already auth'd, go home.
+                // Only skip if explicitly skipped
             }
             if (userState.contractId) {
                 window.location.href = "/";
@@ -41,18 +68,12 @@
             }
         }
 
-        const interval = setInterval(() => {
-            taglineIndex = (taglineIndex + 1) % TAGLINES.length;
-        }, 3000);
-
         // Analytics
         logEvent("passkey_splash_view", {
             variant: "arcade",
             is_new_user: !localStorage.getItem("smol_passkey_skipped"),
             platform: getPlatform(),
         });
-
-        return () => clearInterval(interval);
     });
 
     function getPlatform() {
@@ -71,20 +92,7 @@
         console.log(`[Analytics] ${name}`, payload);
     }
 
-    // Audio Logic
-    function toggleAudio() {
-        if (!audioInitialized) {
-            // Lazy load / init audio context if needed
-            // ensuring user gesture
-            audioInitialized = true;
-            // If we had a sound file, we play it. For now, just toggle state to show UI logic.
-        }
-        audioMuted = !audioMuted;
-        if (audioEl) {
-            if (audioMuted) audioEl.pause();
-            else audioEl.play().catch(() => {});
-        }
-    }
+    // Audio Logic removed
 
     async function handleCreate() {
         logEvent("passkey_create_click");
@@ -180,18 +188,26 @@
             in:fade={{ duration: 800 }}
         >
             <!-- Rotating One-Liner -->
+            <!-- Shift right slightly to align center with the '.' in SMOL.XYZ -->
             <div
-                class="h-6 md:h-8 flex items-center justify-center mb-2 md:mb-6"
+                class="min-h-[24px] md:min-h-[32px] flex items-center justify-center mb-2 md:mb-6 pl-[0.6ch]"
             >
-                {#key taglineIndex}
-                    <p
-                        in:fly={{ y: 10, duration: 400, delay: 200 }}
-                        out:fly={{ y: -10, duration: 400 }}
-                        class="text-lime-400 font-pixel uppercase tracking-widest text-xs md:text-sm drop-shadow-[0_0_10px_rgba(132,204,22,0.5)]"
+                <p
+                    class="text-lime-400 font-pixel uppercase tracking-widest text-xs md:text-sm drop-shadow-[0_0_10px_rgba(132,204,22,0.5)] whitespace-pre-wrap text-center leading-tight"
+                >
+                    {#each TAGLINES[taglineIndex].split("") as char, i}
+                        <span
+                            class="transition-opacity duration-0 {i <
+                            visibleCount
+                                ? 'opacity-100'
+                                : 'opacity-0'}">{char}</span
+                        >
+                    {/each}
+                    <!-- Zero-width cursor container to prevent centering offset -->
+                    <span class="inline-block w-0 overflow-visible"
+                        ><span class="animate-pulse">_</span></span
                     >
-                        {TAGLINES[taglineIndex]}
-                    </p>
-                {/key}
+                </p>
             </div>
 
             <h1
@@ -223,7 +239,11 @@
                         <span
                             class="relative z-10 flex items-center justify-center gap-3"
                         >
-                            <span class="text-xl">★</span> INSERT $KALE
+                            <img
+                                src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple/img/apple/64/1f96c.png"
+                                alt="Kale"
+                                class="w-5 h-5 md:w-6 md:h-6 object-contain"
+                            /> INSERT $KALE
                         </span>
                     </button>
 
@@ -317,16 +337,7 @@
             {/if}
         </div>
 
-        <!-- FOOTER CONTROLS -->
-        <div class="absolute bottom-6 right-6 z-40">
-            <button
-                onclick={toggleAudio}
-                class="p-3 text-white/20 hover:text-white transition-colors font-pixel text-[10px] uppercase"
-                aria-label={audioMuted ? "Unmute Audio" : "Mute Audio"}
-            >
-                [{audioMuted ? "MUTE" : "SOUND ON"}]
-            </button>
-        </div>
+        <!-- FOOTER CONTROLS REMOVED -->
     </main>
 </div>
 
