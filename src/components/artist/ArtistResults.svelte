@@ -343,6 +343,7 @@
         } else {
             params.delete("shuffle");
         }
+
         // Sync Grid Mode
         if (showGridView) {
             params.set("grid", "true");
