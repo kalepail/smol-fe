@@ -430,6 +430,80 @@
                   {songTags || "Now Playing"}
                 </div>
               </div>
+
+              <!-- Extra Mobile Buttons (Radio, Song, Artist) -->
+              <div class="flex items-center gap-2 mr-2 relative z-50">
+                <!-- Radio / Regenerate (Orange Tower) -->
+                {#if onRegenerate}
+                  <button
+                    class="w-7 h-7 flex items-center justify-center rounded-full bg-[#f7931a]/10 hover:bg-[#f7931a]/20 border border-[#f7931a]/30 text-[#f7931a] transition-colors active:scale-95"
+                    onclick={(e) => {
+                      e.stopPropagation();
+                      handleRegenerate();
+                    }}
+                    title="Send to Radio"
+                  >
+                    <svg
+                      class="w-3.5 h-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"
+                      />
+                    </svg>
+                  </button>
+                {/if}
+
+                <!-- Song ID (Pink Double Note) -->
+                <a
+                  href={`/${currentSong?.Id || ""}`}
+                  class="w-7 h-7 flex items-center justify-center rounded-full bg-[#d836ff]/10 hover:bg-[#d836ff]/20 border border-[#d836ff]/30 text-[#d836ff] transition-colors active:scale-95"
+                  onclick={(e) => e.stopPropagation()}
+                  title="Song Details"
+                >
+                  <svg
+                    class="w-3.5 h-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
+                    />
+                  </svg>
+                </a>
+
+                <!-- Artist Page (Green Profile) -->
+                <a
+                  href={`/artist/${currentSong?.Address || ""}`}
+                  class="w-7 h-7 flex items-center justify-center rounded-full bg-[#089981]/10 hover:bg-[#089981]/20 border border-[#089981]/30 text-[#089981] transition-colors active:scale-95"
+                  onclick={(e) => e.stopPropagation()}
+                  title="Artist Profile"
+                >
+                  <svg
+                    class="w-3.5 h-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                    />
+                  </svg>
+                </a>
+              </div>
+
               <!-- Expand Button -->
               <button
                 class="w-10 h-10 flex items-center justify-center rounded-full bg-lime-500/20 hover:bg-lime-500/30 text-lime-400 transition-colors active:scale-95"
