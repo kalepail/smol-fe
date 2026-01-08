@@ -15,6 +15,7 @@ export interface MixtapeSmolData {
   Address: string;
   Mint_Token?: string;
   Mint_Amm?: string;
+  Minted_By?: string;
   Song_1?: string;
   Tags?: string[];
 }

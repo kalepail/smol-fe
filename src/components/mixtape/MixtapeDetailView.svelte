@@ -17,7 +17,7 @@
   import { useMixtapePlayback } from "../../hooks/useMixtapePlayback";
   import { MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from "../../utils/mint";
   import { getMixtapeDetail } from "../../services/api/mixtapes";
-  import { fetchLikedSmols } from "../../services/api/smols";
+  import { fetchLikedSmols, safeFetchSmols } from "../../services/api/smols";
   import {
     loadPublishedMixtape,
     enterMixtapeMode,
@@ -157,9 +157,14 @@
         likedTrackIds = await fetchLikedSmols();
       }
 
-      // Initialize tracks
+      // Fetch snapshot to get Minted_By data
+      const snapshot = await safeFetchSmols();
+      const snapshotMap = new Map(snapshot.map((s) => [s.Id, s]));
+
+      // Initialize tracks with Minted_By from snapshot
       mixtapeTracks = mixtapeData.tracks.map((track) => {
         const isLiked = likedTrackIds.includes(track.Id);
+        const snapshotTrack = snapshotMap.get(track.Id);
         return {
           Id: track.Id,
           Title: track.Title,
@@ -167,6 +172,7 @@
           Song_1: track.Song_1,
           Mint_Token: track.Mint_Token,
           Mint_Amm: track.Mint_Amm,
+          Minted_By: track.Minted_By || snapshotTrack?.Minted_By, // Use API or fallback to snapshot
           Liked: isLiked,
           minting: false,
           balance: undefined,
