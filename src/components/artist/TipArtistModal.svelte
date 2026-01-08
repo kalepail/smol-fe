@@ -130,7 +130,7 @@
                 if (amountNum === 100000) {
                     unlockUpgrade("premiumHeader");
                     success = `Sent ${amount} KALE! Premium Profile Header Unlocked! 🥬✨`;
-                } else if (amountNum === 69420.67) {
+                } else if (amountNum === 69420) {
                     unlockUpgrade("goldenKale");
                     success = `Sent ${amount} KALE! The Golden Kale Unlocked! 🪙🥬`;
                 } else {
