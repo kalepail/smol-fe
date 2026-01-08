@@ -1318,35 +1318,37 @@
                         ? 'text-lime-400'
                         : 'text-white/40 hover:text-white'} whitespace-nowrap"
                 >
+                    Collected
+                </button>
+
+                <!-- Time Machine (Live Clock Trigger) - Moved INSIDE scroller -->
+                <button
+                    class="flex items-center gap-2 px-3 py-1 bg-black/40 hover:bg-fuchsia-500/20 text-fuchsia-400 border border-white/5 hover:border-fuchsia-500/50 rounded-md transition-all active:scale-95 ml-2 group/clock shrink-0"
+                    title="Time Machine: Click to Jump to Random Point in Timeline"
+                    onclick={() => {
+                        // Time Machine Logic
+                        shuffleEnabled = false;
+                        let list = liveDiscography; // Use live version
+                        if (activeModule === "minted") list = minted ?? [];
+                        if (activeModule === "collected")
+                            list = collected ?? [];
+
+                        if (list.length > 0) {
+                            const randomIdx = Math.floor(
+                                Math.random() * list.length,
+                            );
+                            selectSong(list[randomIdx]);
+                            currentIndex = randomIdx;
+                        }
+                    }}
+                >
+                    <span
+                        class="text-[10px] font-pixel tracking-widest tabular-nums opacity-80 group-hover/clock:opacity-100 group-hover/clock:text-fuchsia-300 transition-all uppercase"
+                    >
+                        {timeString}
+                    </span>
                 </button>
             </div>
-
-            <!-- Time Machine (Live Clock Trigger) -->
-            <button
-                class="flex items-center gap-2 px-3 py-1 bg-black/40 hover:bg-fuchsia-500/20 text-fuchsia-400 border border-white/5 hover:border-fuchsia-500/50 rounded-md transition-all active:scale-95 mx-2 group/clock"
-                title="Time Machine: Click to Jump to Random Point in Timeline"
-                onclick={() => {
-                    // Time Machine Logic
-                    shuffleEnabled = false;
-                    let list = discography;
-                    if (activeModule === "minted") list = minted;
-                    if (activeModule === "collected") list = collected;
-
-                    if (list.length > 0) {
-                        const randomIdx = Math.floor(
-                            Math.random() * list.length,
-                        );
-                        selectSong(list[randomIdx]);
-                        currentIndex = randomIdx;
-                    }
-                }}
-            >
-                <span
-                    class="text-[10px] font-pixel tracking-widest tabular-nums opacity-80 group-hover/clock:opacity-100 group-hover/clock:text-fuchsia-300 transition-all uppercase"
-                >
-                    {timeString}
-                </span>
-            </button>
 
             <!-- Search Input (Desktop Only) -->
             <div

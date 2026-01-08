@@ -165,7 +165,14 @@
     // --- Lifecycle & Effects ---
 
     onMount(() => {
-        loadState();
+        try {
+            // Delay loadState slightly to prioritize render
+            setTimeout(() => {
+                loadState();
+            }, 0);
+        } catch (e) {
+            console.warn("[AudioManager] Load failed gracefully", e);
+        }
 
         // Handle URL Time Param on Load
         const urlParams = new URLSearchParams(window.location.search);
