@@ -1,6 +1,7 @@
 <script lang="ts">
     import { fade, scale } from "svelte/transition";
     import Loader from "../ui/Loader.svelte";
+    import KaleEmoji from "../ui/KaleEmoji.svelte";
     import type { Smol } from "../../types/domain";
     import {
         calculateSupportPayment,
@@ -159,7 +160,11 @@
             class="bg-black/40 rounded-lg p-2 mb-3 border border-white/5 text-[9px] space-y-0.5 font-pixel"
         >
             <div class="flex justify-between text-white/60">
-                <span>price ({tracks.length} × 100 🥬)</span>
+                <span
+                    >price ({tracks.length} × 100 <KaleEmoji
+                        size="w-2.5 h-2.5"
+                    />)</span
+                >
                 <span class="text-white">{breakdown.totalKale} kale</span>
             </div>
             <div class="flex justify-between text-white/40">
@@ -222,7 +227,10 @@
                     />
                     <span>{progressMessage || "processing..."}</span>
                 {:else}
-                    <span>support ({breakdown.totalKale} 🥬)</span>
+                    <span
+                        >support ({breakdown.totalKale}
+                        <KaleEmoji size="w-2.5 h-2.5" />)</span
+                    >
                 {/if}
             </button>
 
