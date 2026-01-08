@@ -413,7 +413,7 @@
         <!-- MINIMIZED HEADER BAR (Mobile Only - just song info + expand button) -->
         {#if isMinimized}
           <div
-            class="md:hidden w-full bg-black/60 backdrop-blur-md border border-white/10 rounded-xl p-4 mb-3 min-h-[80px]"
+            class="md:hidden w-full bg-black/60 backdrop-blur-md border border-white/10 rounded-xl p-4 mb-3 min-h-[160px]"
           >
             <!-- Song Info Row with Expand Button -->
             <div class="flex items-center gap-3">
@@ -1001,7 +1001,9 @@
           {/if}
 
           <button
-            class="tech-button w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md touch-manipulation"
+            class="tech-button {isMinimized
+              ? 'w-6 h-6'
+              : 'w-8 h-8 sm:w-10 sm:h-10'} flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md touch-manipulation"
             onclick={(e) => {
               if (backContext && enableContextBack) {
                 window.history.back();
@@ -1013,13 +1015,19 @@
               ? backContext.label
               : "Previous"}
           >
-            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <svg
+              class={isMinimized ? "w-3.5 h-3.5" : "w-5 h-5"}
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
             </svg>
           </button>
 
           <button
-            class="tech-button w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center active:scale-95 transition-all relative overflow-hidden group rounded-full backdrop-blur-xl touch-manipulation {playButtonVariant ===
+            class="tech-button {isMinimized
+              ? 'w-10 h-10'
+              : 'w-12 h-12 sm:w-16 sm:h-16'} flex items-center justify-center active:scale-95 transition-all relative overflow-hidden group rounded-full backdrop-blur-xl touch-manipulation {playButtonVariant ===
             'silver'
               ? 'bg-gradient-to-br from-white via-neutral-300 to-neutral-500 border-[2px] border-white text-neutral-800 shadow-[inset_0_2px_4px_rgba(255,255,255,0.9),inset_0_-4px_6px_rgba(0,0,0,0.2),0_4px_15px_rgba(0,0,0,0.5),0_0_25px_rgba(255,255,255,0.5)] hover:brightness-110'
               : 'border border-[#089981] text-[#089981] bg-[#089981]/10 shadow-[0_0_30px_rgba(8,153,129,0.4)] hover:bg-[#089981]/20 hover:text-white hover:shadow-[0_0_40px_rgba(8,153,129,0.6)]'}"
@@ -1027,11 +1035,19 @@
             title={playing ? "Pause" : "Play"}
           >
             {#if playing}
-              <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+              <svg
+                class={isMinimized ? "w-4 h-4" : "w-6 h-6"}
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
               </svg>
             {:else}
-              <svg class="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24">
+              <svg
+                class="{isMinimized ? 'w-4 h-4' : 'w-6 h-6'} ml-1"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path d="M8 5v14l11-7z" />
               </svg>
             {/if}
@@ -1039,11 +1055,17 @@
 
           <!-- NEXT BUTTON -->
           <button
-            class="tech-button w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md touch-manipulation"
+            class="tech-button {isMinimized
+              ? 'w-6 h-6'
+              : 'w-8 h-8 sm:w-10 sm:h-10'} flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md touch-manipulation"
             onclick={handleNext}
             title="Next"
           >
-            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <svg
+              class={isMinimized ? "w-3.5 h-3.5" : "w-5 h-5"}
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
             </svg>
           </button>
