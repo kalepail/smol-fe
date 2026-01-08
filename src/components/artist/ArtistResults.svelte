@@ -323,9 +323,6 @@
             params.set("seed", shuffleSeed.toString());
         } else {
             params.delete("shuffle");
-            params.delete("seed");
-        }
-
         // Sync Grid Mode
         if (showGridView) {
             params.set("grid", "true");
@@ -333,10 +330,15 @@
             params.delete("grid");
         }
 
-        // Preserve 'from' if it exists (though not typically used on Artist page)
-        // Clean up 'play' param if it exists (one-time use)
-        params.delete("play");
-
+        // Sync Play Param (Reflect current song)
+        if (currentSong?.Id) {
+            params.set("play", currentSong.Id);
+        } else {
+             params.delete("play");
+        }
+        
+        // Preserve 'from' if it exists
+        
         window.history.replaceState(history.state, "", url.toString());
     });
 
