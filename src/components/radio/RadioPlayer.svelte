@@ -381,7 +381,8 @@
   }
 </script>
 
-```html
+<svelte:window on:keydown={handleKeydown} />
+
 <div
   bind:this={containerRef}
   class="w-full relative {isFullscreen
@@ -391,9 +392,7 @@
     : ''}"
   onmousemove={handleMouseMove}
 >
-  <!-- Keyboard Listener for Spacebar -->
-  <svelte:window on:keydown={handleKeydown} />
-
+  <!-- AudioManager works fine inside div -->
   <AudioManager {playlist} />
 
   <!-- FULLSCREEN BACKGROUND (BLURRED ART) -->
