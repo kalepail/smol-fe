@@ -321,7 +321,10 @@
       return;
     }
 
-    const smolContractId = import.meta.env.PUBLIC_SMOL_CONTRACT_ID || "CBRNUVLGFM5OYWAGZVGU7CTMP2UJLKZCLFY2ANUCK5UGKND6BBAA5PLA";
+    const smolContractId =
+      import.meta.env.PUBLIC_SMOL_CONTRACT_ID ||
+      "CBRNUVLGFM5OYWAGZVGU7CTMP2UJLKZCLFY2ANUCK5UGKND6BBAA5PLA";
+    if (!smolContractId) {
       alert("Minting is temporarily unavailable. Please try again later.");
       return;
     }
