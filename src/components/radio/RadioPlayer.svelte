@@ -11,6 +11,7 @@
   import { navigate } from "astro:transitions/client";
 
   import LikeButton from "../ui/LikeButton.svelte";
+  import AudioManager from "../audio/AudioManager.svelte";
   import { userState } from "../../stores/user.svelte";
 
   let {
@@ -380,6 +381,7 @@
   }
 </script>
 
+```html
 <div
   bind:this={containerRef}
   class="w-full relative {isFullscreen
@@ -389,6 +391,11 @@
     : ''}"
   onmousemove={handleMouseMove}
 >
+  <!-- Keyboard Listener for Spacebar -->
+  <svelte:window on:keydown={handleKeydown} />
+
+  <AudioManager {playlist} />
+
   <!-- FULLSCREEN BACKGROUND (BLURRED ART) -->
   {#if isFullscreen && coverUrl}
     <div class="absolute inset-0 z-0">
@@ -424,12 +431,16 @@
                 alt={songTitle}
                 class="w-12 h-12 rounded-lg object-cover flex-shrink-0"
               />
-              <div class="flex-1 min-w-0">
-                <div class="text-white font-medium text-sm truncate">
-                  {songTitle}
-                </div>
-                <div class="text-white/50 text-xs truncate">
-                  {songTags || "Now Playing"}
+              <!-- Main Player View -->
+              <div class="flex-1 min-w-0" data-role="player-mobile">
+                <AudioManager {playlist} />
+                <div class="flex flex-col h-full justify-end">
+                  <div class="text-white font-medium text-sm truncate">
+                    {songTitle}
+                  </div>
+                  <div class="text-white/50 text-xs truncate">
+                    {songTags || "Now Playing"}
+                  </div>
                 </div>
               </div>
 
