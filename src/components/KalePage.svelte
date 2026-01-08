@@ -97,13 +97,20 @@
                         <div class="text-[8px] text-slate-500">to buy</div>
                     </div>
                 </div>
-                <!-- Tipping & Splits -->
+                <!-- Tip Artists -->
                 <div class="mt-2 bg-black/40 rounded-lg p-2 text-center">
+                    <div class="text-[9px] text-slate-300">💚 Tip Artists</div>
+                    <div class="text-[7px] text-slate-500 mt-0.5">
+                        100% goes to them
+                    </div>
+                </div>
+                <!-- Support Mixtapes -->
+                <div class="mt-1 bg-black/40 rounded-lg p-2 text-center">
                     <div class="text-[9px] text-slate-300">
-                        💚 Support artists, curators & minters
+                        🎧 Support Mixtapes
                     </div>
                     <div class="text-[7px] text-slate-500 mt-0.5">
-                        50% • 30% • 20%
+                        artists 50% • curators 30% • minters 20%
                     </div>
                 </div>
             </div>
