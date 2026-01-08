@@ -151,6 +151,7 @@
   let isFullscreen = $state(false);
   let showControls = $state(true);
   let showQueue = $state(false);
+  let isMinimized = $state(false); // Mobile minimize mode - hide art, show playlist
   let controlsTimeout: number | null = null;
 
   function toggleFullscreen() {
@@ -409,11 +410,13 @@
       <div
         class="{isOverlay ? 'relative' : ''} w-full flex flex-col items-center"
       >
-        <!-- MERGED ALBUM ART + VISUALIZER -->
+        <!-- MERGED ALBUM ART + VISUALIZER (hidden on mobile when minimized) -->
         <div
           class="relative shrink-0 shadow-2xl mx-auto transition-all duration-500 rounded-2xl overflow-hidden bg-black/40 border border-white/10 flex items-center justify-center w-full {isFullscreen
             ? 'max-h-[85vh] max-w-[85vh]'
-            : 'max-w-full lg:max-h-[400px] aspect-square min-h-[320px]'}"
+            : 'max-w-full lg:max-h-[400px] aspect-square min-h-[320px]'} {isMinimized
+            ? 'hidden md:flex'
+            : ''}"
           style="transform: translateZ(0); -webkit-transform: translateZ(0); -webkit-backdrop-filter: blur(10px);"
         >
           <!-- TOP SCRUBBER (mobile only when overlayControlsOnMobile) -->
@@ -595,6 +598,41 @@
                 </svg>
               </button>
             {/if}
+
+            <!-- Mobile Minimize Button (toggles album art collapse) -->
+            <button
+              class="md:hidden tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/40 backdrop-blur-md rounded-lg border border-white/10 hover:border-white/30 {isMinimized
+                ? 'text-lime-400 border-lime-500/50'
+                : ''}"
+              onclick={(e) => {
+                e.stopPropagation();
+                isMinimized = !isMinimized;
+              }}
+              title={isMinimized ? "Show Album Art" : "Show Playlist"}
+            >
+              <svg
+                class="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                {#if isMinimized}
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                {:else}
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M4 6h16M4 10h16M4 14h16M4 18h16"
+                  />
+                {/if}
+              </svg>
+            </button>
 
             <button
               class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/40 backdrop-blur-md rounded-lg border border-white/10 hover:border-white/30"
