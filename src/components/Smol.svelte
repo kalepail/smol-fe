@@ -56,9 +56,7 @@
       ? `${import.meta.env.PUBLIC_API_URL}/image/${tradeSongId}.png`
       : null
   );
-  const tradeImageFallback = $derived(
-    kv_do?.image_base64 ? `data:image/png;base64,${kv_do.image_base64}` : null
-  );
+  const tradeImageFallback = '/favicon.png';
 
   // Effects
   $effect(() => {

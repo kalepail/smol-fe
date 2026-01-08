@@ -85,7 +85,6 @@ export interface SmolDetailResponse {
       instrumental?: boolean;
     };
     description?: string;
-    image_base64?: string;
     nsfw?: {
       safe: boolean;
       categories: string[];

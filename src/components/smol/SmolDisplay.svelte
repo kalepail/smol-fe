@@ -164,17 +164,15 @@
       <li>
         <h1 class="mb-2">Image:</h1>
 
-        {#if kv_do && kv_do?.image_base64}
-          <img
-            class="aspect-square object-contain pixelated w-[256px]"
-            src={`${import.meta.env.PUBLIC_API_URL}/image/${id}.png`}
-            onerror={(e) => {
-              // @ts-ignore
-              e.currentTarget.src = `data:image/png;base64,${kv_do.image_base64}`;
-            }}
-            alt={kv_do?.lyrics?.title}
-          />
-        {/if}
+        <img
+          class="aspect-square object-contain pixelated w-[256px]"
+          src={`${import.meta.env.PUBLIC_API_URL}/image/${id}.png`}
+          onerror={(e) => {
+            // @ts-ignore
+            e.currentTarget.src = '/favicon.png';
+          }}
+          alt={kv_do?.lyrics?.title}
+        />
       </li>
 
       <li>
