@@ -10,6 +10,7 @@
         updateContractBalance,
     } from "../../stores/balance.svelte";
     import { getDomain } from "tldts";
+    import { StrKey } from "@stellar/stellar-sdk";
     import Loader from "../ui/Loader.svelte";
 
     let {
@@ -28,6 +29,11 @@
     let success = $state<string | null>(null);
     let kaleDecimals = $state(7);
     let decimalsFactor = $state(10n ** 7n);
+    const normalizedArtistAddress = $derived(artistAddress.trim());
+    const isValidArtistAddress = $derived(
+        StrKey.isValidEd25519PublicKey(normalizedArtistAddress) ||
+            StrKey.isValidContract(normalizedArtistAddress),
+    );
 
     onMount(async () => {
         try {
@@ -88,6 +94,11 @@
             return;
         }
 
+        if (!isValidArtistAddress) {
+            error = "Enter a valid recipient address.";
+            return;
+        }
+
         const amountInUnits = parseAmount(amount);
         if (!amountInUnits) {
             error = "Enter a valid whole number amount.";
@@ -107,7 +118,7 @@
         try {
             let tx = await kale.transfer({
                 from: userState.contractId,
-                to: artistAddress,
+                to: normalizedArtistAddress,
                 amount: amountInUnits,
             });
 
@@ -124,9 +135,9 @@
             // Secret Store Unlock Logic
             const amountNum = parseFloat(amount.replace(/,/g, ""));
             const adminAddress =
-                "CBS5Z6IVHGLFUGLYJ6TA4URP4VD67QRXKJ4ZBRH63RBMQ5PO7TC6GJU5";
+                "CBNORBI4DCE7LIC42FWMCIWQRULWAUGF2MH2Z7X2RNTFAYNXIACJ33IM";
 
-            if (artistAddress === adminAddress) {
+            if (normalizedArtistAddress === adminAddress) {
                 if (amountNum === 100000) {
                     unlockUpgrade("premiumHeader");
                     success = `Sent ${amount} KALE! Premium Profile Header Unlocked! 🥬✨`;
@@ -189,7 +200,7 @@
             </div>
             <h2 class="text-xl font-bold text-white">Tip {artistName}</h2>
             <p class="text-white/40 text-xs font-mono mt-2 break-all">
-                {artistAddress}
+                {normalizedArtistAddress || "Unavailable address"}
             </p>
         </div>
 

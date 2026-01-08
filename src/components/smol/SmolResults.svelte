@@ -737,7 +737,7 @@
 
 {#if showTipModal && data?.d1}
     <TipArtistModal
-        artistAddress={data.d1.Address || data.d1.Minted_By || ""}
+        artistAddress={data.d1.Minted_By || data.d1.Address || ""}
         onClose={() => (showTipModal = false)}
     />
 {/if}

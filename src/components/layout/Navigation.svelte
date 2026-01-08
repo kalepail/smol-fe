@@ -124,7 +124,7 @@
   <div
     class={`
     ${uiState.isMenuOpen ? "flex" : "hidden"} 
-    fixed top-[52px] right-0 p-4 bg-slate-800 border-l border-b border-[#9ae600] flex-col gap-4 w-64 shadow-[-4px_4px_0px_0px_rgba(0,0,0,0.5)] z-[101]
+    fixed top-[52px] right-0 p-4 menu-glass border-l border-b border-[#9ae600] flex-col gap-4 w-64 shadow-[-4px_4px_0px_0px_rgba(0,0,0,0.5)] z-[101]
   `}
   >
     <!-- 1. My Profile (Top Priority if Authenticated) -->
