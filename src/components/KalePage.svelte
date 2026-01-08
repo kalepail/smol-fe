@@ -16,24 +16,39 @@
             class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-slate-950/80"
         ></div>
 
-        <!-- Twinkling Stars -->
-        <div class="absolute inset-0 pointer-events-none">
-            {#each Array(40) as _, i}
-                <div
-                    class="absolute w-px h-px bg-white animate-pulse"
-                    style="top: {Math.random() * 100}%; left: {Math.random() *
-                        100}%; animation-delay: {Math.random() *
-                        5}s; opacity: {Math.random() * 0.7 + 0.3};"
-                ></div>
-            {/each}
-            {#each Array(10) as _, i}
-                <div
-                    class="absolute w-0.5 h-0.5 bg-lime-400 animate-pulse"
-                    style="top: {Math.random() * 100}%; left: {Math.random() *
-                        100}%; animation-delay: {Math.random() *
-                        7}s; opacity: {Math.random() * 0.5};"
-                ></div>
-            {/each}
+        <!-- Rotating Star Containers -->
+        <div
+            class="absolute inset-0 pointer-events-none z-0 overflow-hidden flex items-center justify-center"
+        >
+            <!-- Slow Orbit 1 -->
+            <div
+                class="absolute w-[150vmax] h-[150vmax] animate-orbit-slow flex items-center justify-center"
+            >
+                {#each Array(40) as _, i}
+                    <div
+                        class="absolute w-0.5 h-0.5 md:w-1 md:h-1 bg-white rounded-full animate-pulse"
+                        style="top: {Math.random() *
+                            100}%; left: {Math.random() *
+                            100}%; animation-delay: {Math.random() *
+                            5}s; opacity: {Math.random() * 0.5 + 0.3};"
+                    ></div>
+                {/each}
+            </div>
+
+            <!-- Slow Orbit 2 (Reverse + Lime) -->
+            <div
+                class="absolute w-[150vmax] h-[150vmax] animate-orbit-reverse flex items-center justify-center"
+            >
+                {#each Array(15) as _, i}
+                    <div
+                        class="absolute w-1 h-1 md:w-1.5 md:h-1.5 bg-lime-400 rounded-full animate-pulse blur-[1px]"
+                        style="top: {Math.random() *
+                            100}%; left: {Math.random() *
+                            100}%; animation-delay: {Math.random() *
+                            7}s; opacity: {Math.random() * 0.4};"
+                    ></div>
+                {/each}
+            </div>
         </div>
 
         <!-- Rare Shooting Star -->
@@ -41,6 +56,28 @@
     </div>
 
     <style>
+        @keyframes orbit-slow {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        @keyframes orbit-reverse {
+            from {
+                transform: rotate(360deg);
+            }
+            to {
+                transform: rotate(0deg);
+            }
+        }
+        .animate-orbit-slow {
+            animation: orbit-slow 120s linear infinite;
+        }
+        .animate-orbit-reverse {
+            animation: orbit-reverse 180s linear infinite;
+        }
         .shooting-star {
             position: absolute;
             bottom: -10%;
