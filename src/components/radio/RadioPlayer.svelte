@@ -380,7 +380,7 @@
     seek(clickProgress);
   }
 
-  function handleKeydown(e: KeyboardEvent) {
+  function onWindowKeydown(e: KeyboardEvent) {
     if (e.code === "Space" && e.target === document.body) {
       e.preventDefault();
       playPause();
@@ -388,7 +388,7 @@
   }
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
+<svelte:window onkeydown={onWindowKeydown} />
 
 <div
   bind:this={containerRef}
