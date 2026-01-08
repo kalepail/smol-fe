@@ -43,7 +43,7 @@
     <style>
         .shooting-star {
             position: absolute;
-            top: -10%;
+            bottom: -10%;
             left: -10%;
             width: 2px;
             height: 2px;
@@ -58,14 +58,14 @@
 
         @keyframes shoot {
             0% {
-                transform: translate(0, 0) rotate(45deg) scaleX(1);
+                transform: translate(0, 0) rotate(-45deg) scaleX(1);
                 opacity: 0;
             }
             10% {
                 opacity: 1;
             }
             30% {
-                transform: translate(120vw, 120vh) rotate(45deg) scaleX(20);
+                transform: translate(120vw, -120vh) rotate(-45deg) scaleX(20);
                 opacity: 0;
             }
             100% {
