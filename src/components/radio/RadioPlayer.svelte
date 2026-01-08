@@ -971,7 +971,9 @@
         <!-- Controls (below art in standard, absolute on art for overlayControlsOnMobile on mobile) -->
         <div
           class="flex items-center justify-center gap-2 sm:gap-4 md:gap-6 transition-all duration-500 {isOverlay
-            ? 'absolute bottom-14 left-0 right-0 z-40'
+            ? isMinimized
+              ? 'absolute bottom-16 left-0 right-0 z-40'
+              : 'absolute bottom-14 left-0 right-0 z-40'
             : 'mt-1 pb-0'} {isFullscreen
             ? showControls
               ? 'opacity-100 translate-y-0'
@@ -1002,7 +1004,7 @@
 
           <button
             class="tech-button {isMinimized
-              ? 'w-6 h-6'
+              ? 'w-7 h-7'
               : 'w-8 h-8 sm:w-10 sm:h-10'} flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md touch-manipulation"
             onclick={(e) => {
               if (backContext && enableContextBack) {
@@ -1016,7 +1018,7 @@
               : "Previous"}
           >
             <svg
-              class={isMinimized ? "w-3.5 h-3.5" : "w-5 h-5"}
+              class={isMinimized ? "w-4 h-4" : "w-5 h-5"}
               fill="currentColor"
               viewBox="0 0 24 24"
             >
@@ -1026,7 +1028,7 @@
 
           <button
             class="tech-button {isMinimized
-              ? 'w-10 h-10'
+              ? 'w-11 h-11'
               : 'w-12 h-12 sm:w-16 sm:h-16'} flex items-center justify-center active:scale-95 transition-all relative overflow-hidden group rounded-full backdrop-blur-xl touch-manipulation {playButtonVariant ===
             'silver'
               ? 'bg-gradient-to-br from-white via-neutral-300 to-neutral-500 border-[2px] border-white text-neutral-800 shadow-[inset_0_2px_4px_rgba(255,255,255,0.9),inset_0_-4px_6px_rgba(0,0,0,0.2),0_4px_15px_rgba(0,0,0,0.5),0_0_25px_rgba(255,255,255,0.5)] hover:brightness-110'
@@ -1036,7 +1038,7 @@
           >
             {#if playing}
               <svg
-                class={isMinimized ? "w-4 h-4" : "w-6 h-6"}
+                class={isMinimized ? "w-5 h-5" : "w-6 h-6"}
                 fill="currentColor"
                 viewBox="0 0 24 24"
               >
@@ -1044,7 +1046,7 @@
               </svg>
             {:else}
               <svg
-                class="{isMinimized ? 'w-4 h-4' : 'w-6 h-6'} ml-1"
+                class="{isMinimized ? 'w-5 h-5' : 'w-6 h-6'} ml-1"
                 fill="currentColor"
                 viewBox="0 0 24 24"
               >
@@ -1056,13 +1058,13 @@
           <!-- NEXT BUTTON -->
           <button
             class="tech-button {isMinimized
-              ? 'w-6 h-6'
+              ? 'w-7 h-7'
               : 'w-8 h-8 sm:w-10 sm:h-10'} flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md touch-manipulation"
             onclick={handleNext}
             title="Next"
           >
             <svg
-              class={isMinimized ? "w-3.5 h-3.5" : "w-5 h-5"}
+              class={isMinimized ? "w-4 h-4" : "w-5 h-5"}
               fill="currentColor"
               viewBox="0 0 24 24"
             >
@@ -1142,7 +1144,9 @@
         <!-- Compact Mint/Share buttons (below controls when isOverlay) -->
         {#if isOverlay}
           <div
-            class="absolute bottom-2 left-0 right-0 z-40 flex justify-center gap-2 px-4"
+            class="absolute {isMinimized
+              ? 'bottom-4'
+              : 'bottom-2'} left-0 right-0 z-40 flex justify-center gap-2 px-4"
           >
             {#if onMint}
               <button
@@ -1154,7 +1158,9 @@
                   onMint?.();
                 }}
                 disabled={isMinting}
-                class="flex-[1.5] max-w-[200px] py-2.5 bg-[#d836ff]/80 backdrop-blur-md text-white text-xs font-pixel rounded-lg uppercase tracking-wider hover:bg-[#d836ff] transition-all shadow-lg hover:shadow-[#d836ff]/40"
+                class="{isMinimized
+                  ? 'flex-1 max-w-[120px] py-1.5 text-[10px]'
+                  : 'flex-[1.5] max-w-[200px] py-2.5 text-xs'} bg-[#d836ff]/80 backdrop-blur-md text-white font-pixel rounded-lg uppercase tracking-wider hover:bg-[#d836ff] transition-all shadow-lg hover:shadow-[#d836ff]/40"
               >
                 {isMinting ? "..." : "Mint"}
               </button>
@@ -1168,7 +1174,9 @@
                   }
                   onTrade?.();
                 }}
-                class="flex-[1.5] max-w-[200px] py-2.5 bg-[#2775ca]/80 backdrop-blur-md text-white text-xs font-pixel rounded-lg uppercase tracking-wider hover:bg-[#2775ca] transition-all shadow-lg hover:shadow-[#2775ca]/40"
+                class="{isMinimized
+                  ? 'flex-1 max-w-[120px] py-1.5 text-[10px]'
+                  : 'flex-[1.5] max-w-[200px] py-2.5 text-xs'} bg-[#2775ca]/80 backdrop-blur-md text-white font-pixel rounded-lg uppercase tracking-wider hover:bg-[#2775ca] transition-all shadow-lg hover:shadow-[#2775ca]/40"
               >
                 Trade
               </button>
@@ -1176,7 +1184,9 @@
             {#if onShare}
               <button
                 onclick={onShare}
-                class="px-6 py-2.5 bg-white/10 backdrop-blur-md text-white text-xs font-pixel rounded-lg uppercase tracking-wider border border-white/10 hover:bg-white/20 transition-all shadow-lg"
+                class="{isMinimized
+                  ? 'px-4 py-1.5 text-[10px]'
+                  : 'px-6 py-2.5 text-xs'} bg-white/10 backdrop-blur-md text-white font-pixel rounded-lg uppercase tracking-wider border border-white/10 hover:bg-white/20 transition-all shadow-lg"
               >
                 Share
               </button>
