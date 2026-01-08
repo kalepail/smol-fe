@@ -1,0 +1,329 @@
+<script lang="ts">
+    import { onMount } from "svelte";
+    import { fade, fly, scale } from "svelte/transition";
+    import { useAuthentication } from "../../hooks/useAuthentication";
+    import { userState } from "../../stores/user.svelte";
+    import Loader from "../ui/Loader.svelte";
+
+    // State
+    let step = $state<"intro" | "username" | "processing" | "success">("intro");
+    let username = $state("");
+    let error = $state<string | null>(null);
+
+    const authHook = useAuthentication();
+
+    // Feature highlights
+    const FEATURES = [
+        {
+            icon: "🎵",
+            title: "Create Music",
+            items: [
+                "Type a prompt, get a full song",
+                "AI-powered in ~6 minutes",
+                "No experience needed",
+            ],
+        },
+        {
+            icon: "💰",
+            title: "Earn Tips",
+            items: [
+                "Mint tracks on-chain",
+                "Receive $KALE from fans",
+                "Build your artist profile",
+            ],
+        },
+        {
+            icon: "🎨",
+            title: "Unlock Cosmetics",
+            items: [
+                "VIP badges & styles",
+                "Custom player themes",
+                "Early access perks",
+            ],
+        },
+    ];
+
+    // Rotating taglines
+    const TAGLINES = [
+        "got a song in your heart?",
+        "music is for everyone.",
+        "no instruments needed.",
+        "your voice, amplified.",
+    ];
+    let taglineIndex = $state(0);
+
+    onMount(() => {
+        // Redirect if already auth'd
+        if (userState.contractId) {
+            window.location.href = "/create";
+            return;
+        }
+
+        const interval = setInterval(() => {
+            taglineIndex = (taglineIndex + 1) % TAGLINES.length;
+        }, 3500);
+
+        return () => clearInterval(interval);
+    });
+
+    async function handleCreate() {
+        step = "username";
+    }
+
+    async function submitUsername() {
+        if (!username.trim()) return;
+        step = "processing";
+        error = null;
+
+        try {
+            await authHook.signUp(username);
+            step = "success";
+            setTimeout(() => {
+                window.location.href = "/create";
+            }, 1500);
+        } catch (e: any) {
+            console.error(e);
+            error = e.message || "Failed to create passkey";
+            step = "username";
+        }
+    }
+
+    async function handleLogin() {
+        step = "processing";
+        error = null;
+        try {
+            await authHook.login();
+            step = "success";
+            setTimeout(() => {
+                window.location.href = "/create";
+            }, 500);
+        } catch (e: any) {
+            console.error(e);
+            error = "Login cancelled or failed";
+            step = "intro";
+        }
+    }
+
+    function handleSkip() {
+        localStorage.setItem("smol_passkey_skipped", "true");
+        window.location.href = "/";
+    }
+
+    function handleKeydown(e: KeyboardEvent) {
+        if (step === "intro") {
+            if (e.key === "Enter" || e.key === " ") {
+                handleCreate();
+            }
+        } else if (step === "username") {
+            if (e.key === "Enter") {
+                submitUsername();
+            }
+            if (e.key === "Escape") {
+                step = "intro";
+            }
+        }
+    }
+</script>
+
+<svelte:window onkeydown={handleKeydown} />
+
+<div class="min-h-screen bg-transparent text-white overflow-y-auto font-mono">
+    <!-- CRT Scanline Effect -->
+    <div
+        class="pointer-events-none fixed inset-0 z-10 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] opacity-10"
+    ></div>
+
+    <main
+        class="relative z-30 flex flex-col items-center px-4 py-12 md:py-20 safe-area-inset-bottom"
+    >
+        <!-- HEADER -->
+        <div class="text-center mb-10 md:mb-16" in:fade={{ duration: 800 }}>
+            <!-- Rotating Tagline -->
+            <div class="h-8 flex items-center justify-center mb-4">
+                {#key taglineIndex}
+                    <p
+                        in:fly={{ y: 10, duration: 400, delay: 200 }}
+                        out:fly={{ y: -10, duration: 400 }}
+                        class="text-lime-400 font-pixel uppercase tracking-widest text-xs md:text-sm drop-shadow-[0_0_10px_rgba(132,204,22,0.5)]"
+                    >
+                        {TAGLINES[taglineIndex]}
+                    </p>
+                {/key}
+            </div>
+
+            <h1
+                class="text-3xl md:text-5xl font-pixel font-black tracking-tight uppercase text-transparent bg-clip-text bg-gradient-to-b from-lime-400 to-lime-600 drop-shadow-[0_4px_0_rgba(132,204,22,0.2)] mb-4"
+            >
+                Make Music Here
+            </h1>
+            <p
+                class="text-white/60 font-pixel text-xs md:text-sm max-w-md mx-auto leading-relaxed"
+            >
+                SMOL turns your ideas into songs. No instruments, no experience
+                needed — just your imagination.
+            </p>
+        </div>
+
+        <!-- FEATURE CARDS -->
+        {#if step === "intro"}
+            <div
+                class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 w-full max-w-3xl mb-10"
+                in:fade={{ duration: 500, delay: 200 }}
+            >
+                {#each FEATURES as feature, i}
+                    <div
+                        class="relative bg-black/30 backdrop-blur-sm border border-white/10 rounded-xl p-5 hover:border-lime-500/30 transition-all hover:bg-black/40 group"
+                        in:fly={{ y: 20, duration: 400, delay: 300 + i * 100 }}
+                    >
+                        <!-- Glow on hover -->
+                        <div
+                            class="absolute inset-0 rounded-xl bg-gradient-to-br from-lime-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                        ></div>
+
+                        <div class="relative z-10">
+                            <div class="text-3xl mb-3">{feature.icon}</div>
+                            <h3
+                                class="font-pixel text-lime-400 uppercase tracking-wider text-sm mb-3"
+                            >
+                                {feature.title}
+                            </h3>
+                            <ul class="space-y-1.5">
+                                {#each feature.items as item}
+                                    <li
+                                        class="text-white/50 text-xs font-pixel leading-relaxed flex items-start gap-2"
+                                    >
+                                        <span class="text-lime-500/60 mt-0.5"
+                                            >›</span
+                                        >
+                                        <span>{item}</span>
+                                    </li>
+                                {/each}
+                            </ul>
+                        </div>
+                    </div>
+                {/each}
+            </div>
+
+            <!-- CTAs -->
+            <div
+                class="flex flex-col items-center gap-4"
+                in:fade={{ duration: 400, delay: 600 }}
+            >
+                <!-- PRIMARY: CREATE -->
+                <button
+                    onclick={handleCreate}
+                    class="group relative py-4 px-10 bg-lime-500 text-black font-pixel font-bold uppercase tracking-widest text-sm rounded-lg
+                       hover:bg-lime-400 hover:-translate-y-1 hover:shadow-[0_8px_0_rgba(65,130,22,0.6)]
+                       active:translate-y-1 active:shadow-none
+                       transition-all duration-100 shadow-[0_4px_0_rgba(65,130,22,0.6)]
+                       focus:outline-none focus:ring-4 focus:ring-lime-400/40"
+                    aria-label="Create Passkey Account"
+                >
+                    <span class="flex items-center justify-center gap-2">
+                        🔐 Create Free Account
+                    </span>
+                </button>
+
+                <!-- SECONDARY: LOGIN -->
+                <button
+                    onclick={handleLogin}
+                    class="text-white/60 hover:text-white font-pixel uppercase tracking-wide text-xs py-2 px-4 rounded transition-colors
+                       focus:outline-none focus:text-white focus:bg-white/10"
+                >
+                    Already have an account? Login
+                </button>
+
+                <!-- SKIP -->
+                <button
+                    onclick={handleSkip}
+                    class="mt-6 text-white/30 hover:text-white/50 font-mono uppercase text-[10px] tracking-widest
+                       focus:outline-none focus:text-white"
+                >
+                    Explore first
+                </button>
+            </div>
+        {:else if step === "username"}
+            <div
+                class="w-full max-w-xs flex flex-col gap-4 items-center"
+                in:scale={{ duration: 300, start: 0.95 }}
+            >
+                <div
+                    class="text-white/80 font-pixel uppercase tracking-wide text-xs mb-2"
+                >
+                    Choose Your Artist Name
+                </div>
+
+                <input
+                    type="text"
+                    bind:value={username}
+                    placeholder="YOUR NAME"
+                    class="w-full bg-white/5 border-2 border-white/20 rounded-lg py-3 px-4 text-center font-pixel text-white uppercase tracking-widest placeholder:text-white/20
+                       focus:border-lime-500 focus:outline-none focus:bg-white/10 transition-colors"
+                    autofocus
+                    onkeydown={(e) => e.stopPropagation()}
+                />
+
+                {#if error}
+                    <p
+                        class="text-rose-400 text-xs font-mono text-center bg-rose-500/10 p-2 rounded w-full"
+                    >
+                        {error}
+                    </p>
+                {/if}
+
+                <div class="flex w-full gap-3 mt-4">
+                    <button
+                        onclick={() => (step = "intro")}
+                        class="flex-1 py-3 border-2 border-white/10 text-white/60 font-pixel uppercase text-xs rounded-lg hover:bg-white/5 hover:text-white transition-colors"
+                    >
+                        Back
+                    </button>
+                    <button
+                        onclick={submitUsername}
+                        disabled={!username.trim()}
+                        class="flex-[2] py-3 bg-lime-500 text-black font-pixel font-bold uppercase text-xs rounded-lg shadow-[0_4px_0_rgba(65,130,22,0.6)]
+                           hover:bg-lime-400 active:translate-y-1 active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed
+                           transition-all"
+                    >
+                        Create Account
+                    </button>
+                </div>
+            </div>
+        {:else if step === "processing"}
+            <div class="flex flex-col items-center gap-4" in:fade>
+                <Loader classNames="w-12 h-12" textColor="text-lime-500" />
+                <p
+                    class="text-lime-400 font-pixel animate-pulse text-xs uppercase tracking-widest"
+                >
+                    Setting up your studio...
+                </p>
+            </div>
+        {:else if step === "success"}
+            <div class="flex flex-col items-center gap-4 text-center" in:scale>
+                <div class="text-5xl">🎉</div>
+                <h2 class="text-2xl font-pixel uppercase text-lime-400">
+                    Welcome, Artist!
+                </h2>
+                <p class="text-white/60 font-mono text-xs">
+                    Opening the studio...
+                </p>
+            </div>
+        {/if}
+
+        <!-- Bottom note -->
+        {#if step === "intro"}
+            <p
+                class="mt-12 text-white/30 text-[10px] font-pixel text-center max-w-sm leading-relaxed"
+            >
+                Passkey login is secure, passwordless, and works across all your
+                devices. Your music, your keys.
+            </p>
+        {/if}
+    </main>
+</div>
+
+<style>
+    .safe-area-inset-bottom {
+        padding-bottom: env(safe-area-inset-bottom, 24px);
+    }
+</style>

@@ -2,6 +2,7 @@
   import type { SmolDetailResponse } from "../types/domain";
   import { onMount, onDestroy } from "svelte";
   import SmolGenerator from "./smol/SmolGenerator.svelte";
+  import CreatorSplash from "./onboarding/CreatorSplash.svelte";
   import SmolDisplay from "./smol/SmolDisplay.svelte";
   import MintTradeModal from "./MintTradeModal.svelte";
   import { userState } from "../stores/user.svelte";
@@ -408,15 +409,7 @@
   </div>
 {:else if !id}
   {#if !userState.contractId}
-    <div class="px-2 py-10 bg-slate-900">
-      <div class="flex flex-col items-center max-w-[1024px] mx-auto">
-        <h1
-          class="bg-rose-950 border-2 border-rose-400 rounded-none px-3 py-1.5 font-pixel tracking-wider text-xs"
-        >
-          Login or Create New Account
-        </h1>
-      </div>
-    </div>
+    <CreatorSplash />
   {:else}
     <SmolGenerator
       bind:prompt
