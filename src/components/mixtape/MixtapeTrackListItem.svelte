@@ -75,10 +75,13 @@
     </div>
 
     <div class="flex flex-col flex-1 min-w-0">
-        <span class="font-semibold truncate">{track.title ?? "Loading..."}</span
+        <span class="font-semibold line-clamp-3 break-words"
+            >{track.title ?? "Loading..."}</span
         >
         {#if track.creator}
-            <span class="text-xs text-slate-400 truncate">{track.creator}</span>
+            <span class="text-xs text-slate-400 line-clamp-3 break-words"
+                >{track.creator}</span
+            >
         {/if}
     </div>
 

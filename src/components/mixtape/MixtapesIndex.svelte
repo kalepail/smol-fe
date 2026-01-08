@@ -2,7 +2,10 @@
     import { onMount } from "svelte";
     import Loader from "../ui/Loader.svelte";
     import MixtapeCardsGrid from "./MixtapeCardsGrid.svelte";
-    import { listMixtapes, type MixtapeSummary } from "../../services/api/mixtapes";
+    import {
+        listMixtapes,
+        type MixtapeSummary,
+    } from "../../services/api/mixtapes";
 
     let mixtapes = $state<MixtapeSummary[]>([]);
     let loading = $state(true);
@@ -17,11 +20,16 @@
     });
 </script>
 
-<div class="mx-auto max-w-6xl px-4 py-8">
+<div class="mx-auto w-full max-w-[1024px] px-4 py-8">
     <header class="mb-8 flex flex-col gap-2">
-        <h1 class="text-3xl font-bold text-white">Mixtapes</h1>
-        <p class="text-sm text-slate-400">
-            Browse featured and published mixtapes. Publish your own to see it appear here.
+        <h1
+            class="text-3xl font-pixel font-bold uppercase tracking-widest text-[#d836ff] drop-shadow-[0_4px_0_rgba(216,54,255,0.2)]"
+        >
+            Mixtapes
+        </h1>
+        <p class="text-xs font-pixel uppercase tracking-wide text-slate-400">
+            Browse featured and published mixtapes. Publish your own to see it
+            appear here.
         </p>
     </header>
 
@@ -33,4 +41,3 @@
         <MixtapeCardsGrid {mixtapes} />
     {/if}
 </div>
-

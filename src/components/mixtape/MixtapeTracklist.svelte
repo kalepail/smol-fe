@@ -1,11 +1,11 @@
 <script lang="ts">
-  import type { MixtapeDetail } from '../../services/api/mixtapes';
-  import type { Smol } from '../../types/domain';
-  import Loader from '../ui/Loader.svelte';
-  import MiniAudioPlayer from '../audio/MiniAudioPlayer.svelte';
-  import LikeButton from '../ui/LikeButton.svelte';
-  import TokenBalancePill from '../ui/TokenBalancePill.svelte';
-  import { audioState } from '../../stores/audio.svelte';
+  import type { MixtapeDetail } from "../../services/api/mixtapes";
+  import type { Smol } from "../../types/domain";
+  import Loader from "../ui/Loader.svelte";
+  import MiniAudioPlayer from "../audio/MiniAudioPlayer.svelte";
+  import LikeButton from "../ui/LikeButton.svelte";
+  import TokenBalancePill from "../ui/TokenBalancePill.svelte";
+  import { audioState } from "../../stores/audio.svelte";
 
   interface Props {
     mixtape: MixtapeDetail;
@@ -22,29 +22,34 @@
     loadingTracks,
     onTrackClick,
     onPlayNext,
-    onLikeChanged
+    onLikeChanged,
   }: Props = $props();
 
   function truncateAddress(address: string | null): string {
-    if (!address) return '';
+    if (!address) return "";
     if (address.length <= 12) return address;
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   }
 </script>
 
 <section
-  class="rounded-2xl border border-slate-700 bg-slate-900/80 p-4 shadow-lg md:rounded-3xl md:p-6"
+  class="rounded-xl md:rounded-[2.5rem] border border-white/5 bg-black/20 backdrop-blur-md p-3 md:p-6 shadow-2xl"
 >
-  <header class="mb-4 flex items-center justify-between">
-    <h2 class="text-xl font-semibold text-white">Tracklist</h2>
-    <span class="text-xs uppercase tracking-wide text-slate-500"
-      >{mixtape.trackCount} Smol{mixtape.trackCount === 1 ? '' : 's'}</span
+  <header class="mb-4 flex items-center justify-between px-2">
+    <h2
+      class="text-lg md:text-xl font-pixel font-bold uppercase tracking-widest text-[#d836ff] drop-shadow-[0_2px_0_rgba(216,54,255,0.2)]"
+    >
+      Tracklist
+    </h2>
+    <span
+      class="text-[10px] md:text-xs font-pixel uppercase tracking-widest text-white/40"
+      >{mixtape.trackCount} TRK</span
     >
   </header>
 
   {#if mixtape.tracks.length === 0}
     <p
-      class="rounded border border-dashed border-slate-600 bg-slate-900/60 p-6 text-center text-sm text-slate-400"
+      class="rounded-xl border border-dashed border-white/10 bg-white/5 p-6 text-center text-[10px] font-pixel uppercase tracking-widest text-white/30"
     >
       Track details will appear here after the backend is connected.
     </p>
@@ -57,13 +62,13 @@
         {@const isCurrentlyPlaying =
           isCurrentTrack && audioState.playingId === track.Id}
         {@const isMinted = Boolean(
-          smolTrack?.Mint_Token && smolTrack?.Mint_Amm
+          smolTrack?.Mint_Token && smolTrack?.Mint_Amm,
         )}
         {@const balance = smolTrack?.balance || 0n}
         <li
-          class="flex items-stretch gap-3 rounded-xl border p-3 transition-colors cursor-pointer md:items-center md:p-4 {isCurrentTrack
-            ? 'border-lime-500 bg-slate-800'
-            : 'border-slate-700 bg-slate-800/80 hover:bg-slate-800/60'}"
+          class="flex items-stretch gap-3 rounded-lg md:rounded-2xl border p-2 md:p-4 transition-all cursor-pointer md:items-center group hover:-translate-y-[1px] {isCurrentTrack
+            ? 'border-lime-500/50 bg-lime-500/10 shadow-[0_0_20px_rgba(163,230,53,0.1)]'
+            : 'border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/10 hover:shadow-lg'}"
           onclick={() => onTrackClick(index)}
         >
           <a
@@ -79,7 +84,7 @@
             {:else if smolTrack?.Id}
               <img
                 src={`${import.meta.env.PUBLIC_API_URL}/image/${smolTrack.Id}.png?scale=4`}
-                alt={smolTrack.Title ?? 'Track'}
+                alt={smolTrack.Title ?? "Track"}
                 class="h-full w-full object-cover pixelated transition-transform group-hover:scale-110"
                 onerror={(e) => {
                   // @ts-ignore
@@ -98,18 +103,17 @@
 
           <div class="flex flex-1 flex-col gap-2 min-w-0">
             <div class="flex flex-col min-w-0">
-              <div class="font-semibold text-white truncate">
+              <div
+                class="font-pixel font-bold text-white uppercase tracking-wide text-xs md:text-sm line-clamp-3 break-words"
+              >
                 {#if isLoading}
                   Loading...
                 {:else}
-                  {smolTrack?.Title ?? 'Unknown Track'}
+                  {smolTrack?.Title ?? "Unknown Track"}
                 {/if}
               </div>
               {#if smolTrack?.Address}
-                <span
-                  class="text-xs text-slate-400 truncate"
-                  title={smolTrack.Address}
-                >
+                <span class="text-xs text-slate-400" title={smolTrack.Address}>
                   {truncateAddress(smolTrack.Address)}
                 </span>
               {/if}
@@ -117,14 +121,14 @@
                 <div class="mt-1 flex flex-wrap gap-1">
                   {#each smolTrack.lyrics.style.slice(0, 3) as tag}
                     <span
-                      class="text-[10px] bg-slate-700/50 text-slate-300 px-2 py-0.5 rounded-full"
+                      class="text-[8px] md:text-[10px] bg-white/5 text-white/40 px-2 py-0.5 rounded-md font-pixel uppercase tracking-wide border border-white/5"
                     >
                       {tag}
                     </span>
                   {/each}
                   {#if isMinted}
                     <span
-                      class="text-[10px] bg-emerald-400/20 text-emerald-300 px-2 py-0.5 rounded-full font-medium"
+                      class="text-[8px] md:text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-md font-pixel uppercase tracking-wide border border-emerald-500/20"
                     >
                       Minted
                     </span>
@@ -137,7 +141,7 @@
                 <div class="mt-1 flex flex-wrap gap-1">
                   {#if isMinted}
                     <span
-                      class="text-[10px] bg-emerald-400/20 text-emerald-300 px-2 py-0.5 rounded-full font-medium"
+                      class="text-[8px] md:text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-md font-pixel uppercase tracking-wide border border-emerald-500/20"
                     >
                       Minted
                     </span>
@@ -152,7 +156,10 @@
             <div class="flex items-center justify-between gap-2 md:hidden">
               <div class="flex items-center gap-2">
                 {#if mixtapeTracks[index]?.Song_1}
-                  <div class="relative z-2" onclick={(e) => e.stopPropagation()}>
+                  <div
+                    class="relative z-2"
+                    onclick={(e) => e.stopPropagation()}
+                  >
                     <MiniAudioPlayer
                       id={track.Id}
                       playing_id={audioState.playingId}

@@ -601,7 +601,7 @@
   </div>
 {:else}
   <div
-    class="mx-auto flex max-w-4xl flex-col gap-4 px-2 py-4 md:gap-8 md:px-4 md:py-8"
+    class="mx-auto flex w-full max-w-[1024px] flex-col gap-4 px-2 py-4 md:gap-8 md:px-4 md:py-8"
   >
     <MixtapeHeader
       {mixtape}

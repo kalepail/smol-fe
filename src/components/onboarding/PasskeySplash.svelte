@@ -3,6 +3,7 @@
     import { fade, fly, scale } from "svelte/transition";
     import { useAuthentication } from "../../hooks/useAuthentication";
     import { userState } from "../../stores/user.svelte";
+    import { setBackgroundAnimations } from "../../stores/background.svelte.ts";
     import Loader from "../ui/Loader.svelte";
 
     // State
@@ -56,6 +57,9 @@
     });
 
     onMount(() => {
+        // Enable high-performance background mode
+        setBackgroundAnimations(true);
+
         // Check if already auth'd or skipped - redirect if so
         const skipped = localStorage.getItem("smol_passkey_skipped");
         if (userState.contractId || (skipped && step !== "success")) {
@@ -74,6 +78,10 @@
             is_new_user: !localStorage.getItem("smol_passkey_skipped"),
             platform: getPlatform(),
         });
+
+        return () => {
+            setBackgroundAnimations(false);
+        };
     });
 
     function getPlatform() {
@@ -165,7 +173,7 @@
 <svelte:window onkeydown={handleKeydown} />
 
 <div
-    class="fixed inset-0 bg-transparent text-white overflow-y-auto font-mono z-[9999]"
+    class="fixed inset-0 bg-transparent text-white overflow-y-auto font-pixel z-[9999]"
 >
     <!-- Background Art (Handled globally by Layout/DynamicBackground) -->
 
@@ -256,10 +264,24 @@
                         Have a passkey? Login
                     </button>
 
+                    <!-- INFO TEXT -->
+                    <div class="mt-4 text-center space-y-1">
+                        <p
+                            class="text-[10px] md:text-xs text-lime-400/60 font-pixel"
+                        >
+                            NO PASSWORDS. INSTANT LOGIN.
+                        </p>
+                        <p
+                            class="text-[10px] md:text-xs text-lime-400/40 font-pixel"
+                        >
+                            SECURED BY YOUR DEVICE.
+                        </p>
+                    </div>
+
                     <!-- ESCAPE HATCH -->
                     <button
                         onclick={handleSkip}
-                        class="mt-4 md:mt-8 text-white/30 hover:text-white/50 font-mono uppercase text-[10px] tracking-widest
+                        class="mt-4 md:mt-8 text-white/30 hover:text-white/50 font-pixel uppercase text-[10px] tracking-widest
                            focus:outline-none focus:text-white"
                     >
                         Skip for now
@@ -330,7 +352,7 @@
                     <h2 class="text-2xl font-pixel uppercase text-lime-400">
                         Ready!
                     </h2>
-                    <p class="text-white/60 font-mono text-xs">
+                    <p class="text-white/60 font-pixel text-xs">
                         Entering the ecosystem...
                     </p>
                 </div>
