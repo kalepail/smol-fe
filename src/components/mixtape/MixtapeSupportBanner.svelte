@@ -55,7 +55,7 @@
             typeof balanceState.balance === "bigint" &&
             breakdown.totalUnits > balanceState.balance
         ) {
-            error = `Insufficient KALE balance. You need ${breakdown.totalKale} KALE.`;
+            error = `insufficient kale balance. you need ${breakdown.totalKale} kale.`;
             return;
         }
 
@@ -79,19 +79,19 @@
                 onDismiss();
             }, 2000);
         } else {
-            error = result.error || "Payment failed";
+            error = result.error || "payment failed";
             submitting = false;
         }
     }
 </script>
 
 <div
-    class="relative overflow-hidden rounded-2xl border border-lime-500/20 bg-gradient-to-br from-lime-950/40 via-black/60 to-emerald-950/40 p-5 md:p-6 backdrop-blur-md shadow-[0_0_30px_rgba(132,204,22,0.1)]"
+    class="relative overflow-hidden rounded-2xl border border-lime-500/20 bg-gradient-to-br from-lime-950/40 via-black/60 to-emerald-950/40 p-4 backdrop-blur-md shadow-[0_0_30px_rgba(132,204,22,0.1)]"
     transition:scale={{ start: 0.98, duration: 300 }}
 >
     <!-- Decorative Kale Icon -->
     <div
-        class="absolute -top-4 -right-4 w-24 h-24 opacity-10 pointer-events-none"
+        class="absolute -top-4 -right-4 w-20 h-20 opacity-10 pointer-events-none"
     >
         <img
             src="https://em-content.zobj.net/source/apple/354/leafy-green_1f96c.png"
@@ -103,14 +103,10 @@
     {#if success}
         <!-- Success State -->
         <div class="text-center py-4 font-pixel" transition:fade>
-            <div class="text-4xl mb-3">💚</div>
-            <h3
-                class="text-lg font-bold text-lime-400 mb-1 uppercase tracking-widest"
-            >
-                Thank You!
-            </h3>
-            <p class="text-white/60 text-sm uppercase tracking-wide">
-                You supported {uniqueArtists} artist{uniqueArtists !== 1
+            <div class="text-3xl mb-2">💚</div>
+            <h3 class="text-xs font-bold text-lime-400 mb-1">thank you!</h3>
+            <p class="text-white/60 text-[9px]">
+                you supported {uniqueArtists} artist{uniqueArtists !== 1
                     ? "s"
                     : ""}, the curator{#if uniqueMinters > 0}, and {uniqueMinters}
                     minter{uniqueMinters !== 1 ? "s" : ""}{/if}!
@@ -118,21 +114,19 @@
         </div>
     {:else}
         <!-- Header -->
-        <div class="flex items-start justify-between gap-4 mb-4">
+        <div class="flex items-start justify-between gap-4 mb-3">
             <div>
                 <h3
-                    class="text-sm md:text-base font-pixel font-bold uppercase tracking-widest text-lime-400 flex items-center gap-2"
+                    class="text-[10px] font-pixel font-bold text-lime-400 flex items-center gap-1.5"
                 >
                     <img
                         src="https://em-content.zobj.net/source/apple/354/leafy-green_1f96c.png"
                         alt="Kale"
-                        class="w-4 h-4 object-contain"
+                        class="w-3 h-3 object-contain"
                     />
-                    Support This Mixtape
+                    support this mixtape
                 </h3>
-                <p
-                    class="text-white/50 text-xs mt-1 font-pixel uppercase tracking-wide"
-                >
+                <p class="text-white/50 text-[9px] mt-0.5 font-pixel">
                     {tracks.length} track{tracks.length !== 1 ? "s" : ""} curated
                     by {curatorName}
                 </p>
@@ -140,12 +134,12 @@
 
             <!-- Close button -->
             <button
-                class="text-white/30 hover:text-white/60 transition-colors p-1"
+                class="text-white/30 hover:text-white/60 transition-colors p-0.5"
                 onclick={onDismiss}
-                title="Maybe later"
+                title="maybe later"
             >
                 <svg
-                    class="w-5 h-5"
+                    class="w-4 h-4"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -162,20 +156,20 @@
 
         <!-- Payment Breakdown -->
         <div
-            class="bg-black/40 rounded-xl p-3 mb-4 border border-white/5 text-xs space-y-1 font-pixel uppercase tracking-wide"
+            class="bg-black/40 rounded-lg p-2 mb-3 border border-white/5 text-[9px] space-y-0.5 font-pixel"
         >
             <div class="flex justify-between text-white/60">
-                <span>Price ({tracks.length} tracks × 100 🥬)</span>
-                <span class="text-white">{breakdown.totalKale} KALE</span>
+                <span>price ({tracks.length} × 100 🥬)</span>
+                <span class="text-white">{breakdown.totalKale} kale</span>
             </div>
             <div class="flex justify-between text-white/40">
-                <span>→ Curator (30%)</span>
+                <span>→ curator (30%)</span>
                 <span>{formatKaleAmount(breakdown.curatorShare)}</span>
             </div>
             {#if uniqueArtists > 0}
                 <div class="flex justify-between text-white/40">
                     <span
-                        >→ {uniqueArtists} Artist{uniqueArtists !== 1
+                        >→ {uniqueArtists} artist{uniqueArtists !== 1
                             ? "s"
                             : ""} (50%)</span
                     >
@@ -185,7 +179,7 @@
             {#if uniqueMinters > 0}
                 <div class="flex justify-between text-white/40">
                     <span
-                        >→ {uniqueMinters} Minter{uniqueMinters !== 1
+                        >→ {uniqueMinters} minter{uniqueMinters !== 1
                             ? "s"
                             : ""} (20%)</span
                     >
@@ -196,15 +190,15 @@
 
         <!-- Prealpha Warning -->
         <div
-            class="mb-4 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] text-center font-pixel uppercase tracking-wide"
+            class="mb-3 p-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[8px] text-center font-pixel"
         >
-            ⚠️ Prealpha Feature • Still Testing
+            ⚠️ prealpha feature • still testing
         </div>
 
         <!-- Error Message -->
         {#if error}
             <div
-                class="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs text-center"
+                class="mb-3 p-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-[9px] text-center font-pixel"
                 transition:fade
             >
                 {error}
@@ -212,37 +206,38 @@
         {/if}
 
         <!-- Action Buttons -->
-        <div class="flex gap-3">
+        <div class="flex gap-2">
             <button
-                class="flex-1 py-3 px-4 rounded-xl font-pixel font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2
-        {submitting
+                class="flex-1 py-1.5 px-2 rounded-lg font-pixel font-bold text-[9px] transition-all flex items-center justify-center gap-1
+                {submitting
                     ? 'bg-lime-700/50 text-lime-200 cursor-wait'
-                    : 'bg-lime-500 text-black hover:bg-lime-400 shadow-[0_0_20px_rgba(132,204,22,0.3)] active:scale-98'}"
+                    : 'bg-lime-500 text-black hover:bg-lime-400 shadow-[0_0_15px_rgba(132,204,22,0.3)]'}"
                 onclick={handleSupport}
                 disabled={submitting}
             >
                 {#if submitting}
-                    <Loader classNames="w-4 h-4" textColor="text-lime-200" />
-                    <span>{progressMessage || "Processing..."}</span>
+                    <Loader
+                        classNames="w-2.5 h-2.5"
+                        textColor="text-lime-200"
+                    />
+                    <span>{progressMessage || "processing..."}</span>
                 {:else}
-                    <span>Support ({breakdown.totalKale} 🥬)</span>
+                    <span>support ({breakdown.totalKale} 🥬)</span>
                 {/if}
             </button>
 
             <button
-                class="py-3 px-4 rounded-xl font-pixel font-bold text-xs uppercase tracking-widest text-white/40 hover:text-white/70 border border-white/10 hover:border-white/20 transition-all"
+                class="py-1.5 px-2 rounded-lg font-pixel font-bold text-[9px] text-white/40 hover:text-white/70 border border-white/10 hover:border-white/20 transition-all"
                 onclick={onDismiss}
                 disabled={submitting}
             >
-                Listen Free
+                listen free
             </button>
         </div>
 
         <!-- Altruistic Message -->
-        <p
-            class="text-center text-white/30 text-[10px] mt-4 font-pixel uppercase tracking-wide"
-        >
-            100% of your support goes directly to creators ✨
+        <p class="text-center text-white/30 text-[8px] mt-2 font-pixel">
+            100% goes directly to creators ✨
         </p>
     {/if}
 </div>
