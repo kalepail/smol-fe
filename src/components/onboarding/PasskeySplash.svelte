@@ -160,9 +160,20 @@
     class="fixed inset-0 bg-[#050505] text-white overflow-hidden font-mono z-[9999]"
 >
     <!-- Background Art / Gradient -->
-    <div
-        class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-900/20 via-black to-black opacity-50"
-    ></div>
+    <!-- Background Art -->
+    <div class="absolute inset-0 z-0">
+        <img
+            src="/kale_landscape.png"
+            alt="Pixel Art Kale Field"
+            class="w-full h-full object-cover opacity-50"
+            style="image-rendering: pixelated;"
+        />
+        <!-- Vignette/Darken for contrast -->
+        <div class="absolute inset-0 bg-black/40 mix-blend-multiply"></div>
+        <div
+            class="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/60 to-transparent"
+        ></div>
+    </div>
 
     <!-- CRT Scanline Effect -->
     <div
