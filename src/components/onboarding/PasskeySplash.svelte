@@ -193,9 +193,9 @@
             </div>
 
             <h1
-                class="text-4xl md:text-6xl font-pixel font-black tracking-tighter uppercase text-transparent bg-clip-text bg-gradient-to-b from-white to-white/50 drop-shadow-[0_4px_0_rgba(255,255,255,0.2)]"
+                class="text-4xl md:text-6xl font-pixel font-black tracking-tighter uppercase text-transparent bg-clip-text bg-gradient-to-b from-lime-400 to-lime-600 drop-shadow-[0_4px_0_rgba(132,204,22,0.2)]"
             >
-                SMOL<span class="text-[#d836ff]">.XYZ</span>
+                SMOL<span class="text-white">.XYZ</span>
             </h1>
         </div>
 
