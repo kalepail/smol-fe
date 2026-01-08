@@ -462,7 +462,7 @@
                                     <div class="space-y-4">
                                         {#each lyricsLines as line}
                                             <p
-                                                class="text-lg md:text-xl text-white/80 font-medium leading-relaxed hover:text-white transition-colors"
+                                                class="text-xs md:text-sm text-white/80 font-pixel leading-relaxed hover:text-white transition-colors"
                                             >
                                                 {line}
                                             </p>
