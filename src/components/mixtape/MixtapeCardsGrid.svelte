@@ -15,7 +15,11 @@
     import type { Smol } from "../../types/domain";
     import Loader from "../ui/Loader.svelte";
     import LikeButton from "../ui/LikeButton.svelte";
+    import MixtapeSupportBanner from "./MixtapeSupportBanner.svelte";
     import { navigate } from "astro:transitions/client";
+    import { userState } from "../../stores/user.svelte";
+    import { safeFetchSmols } from "../../services/api/smols";
+    import { fade } from "svelte/transition";
 
     const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
 
@@ -31,6 +35,11 @@
     let mixtapeTracks = $state<Smol[]>([]);
     let currentTrackIndex = $state(-1);
     let isPlayingAll = $state(false);
+
+    // Support modal state
+    let showSupportModal = $state(false);
+    let activeMixtapeCurator = $state<string | null>(null);
+    let supportModalDismissed = $state<Set<string>>(new Set());
 
     // Derived State
     const isAnyPlaying = $derived(
@@ -87,18 +96,33 @@
             const detail = await getMixtapeDetail(mixtapeId);
             if (!detail) throw new Error("Mixtape not found");
 
+            // Fetch snapshot to get Minted_By data
+            const snapshot = await safeFetchSmols();
+            const snapshotMap = new Map(snapshot.map((s) => [s.Id, s]));
+
             activeMixtapeId = mixtapeId;
-            mixtapeTracks = detail.tracks.map(
-                (t) =>
-                    ({
-                        Id: t.Id,
-                        Title: t.Title,
-                        Address: t.Address,
-                        Song_1: t.Song_1,
-                        Mint_Token: t.Mint_Token,
-                        Mint_Amm: t.Mint_Amm,
-                    }) as Smol,
-            );
+            activeMixtapeCurator = detail.creator;
+
+            mixtapeTracks = detail.tracks.map((t) => {
+                const snapshotTrack = snapshotMap.get(t.Id);
+                return {
+                    Id: t.Id,
+                    Title: t.Title,
+                    Address: t.Address,
+                    Song_1: t.Song_1,
+                    Mint_Token: t.Mint_Token,
+                    Mint_Amm: t.Mint_Amm,
+                    Minted_By: t.Minted_By || snapshotTrack?.Minted_By,
+                } as Smol;
+            });
+
+            // Show support modal if not dismissed and not the creator
+            if (
+                !supportModalDismissed.has(mixtapeId) &&
+                userState.contractId !== detail.creator
+            ) {
+                showSupportModal = true;
+            }
 
             // Setup audio state for the first track
             playbackHook.handlePlayAll();
@@ -558,6 +582,31 @@
         </div>
     {/if}
 </div>
+
+<!-- Support Modal Overlay -->
+{#if showSupportModal && activeMixtapeId && activeMixtapeCurator && mixtapeTracks.length > 0}
+    <div
+        class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+        transition:fade={{ duration: 200 }}
+        onclick={() => {
+            showSupportModal = false;
+            if (activeMixtapeId) supportModalDismissed.add(activeMixtapeId);
+        }}
+    >
+        <div class="w-full max-w-md" onclick={(e) => e.stopPropagation()}>
+            <MixtapeSupportBanner
+                curatorAddress={activeMixtapeCurator}
+                curatorName={activeMixtapeCurator.slice(0, 8) + "..."}
+                tracks={mixtapeTracks}
+                onDismiss={() => {
+                    showSupportModal = false;
+                    if (activeMixtapeId)
+                        supportModalDismissed.add(activeMixtapeId);
+                }}
+            />
+        </div>
+    </div>
+{/if}
 
 <style>
     @keyframes color-cycle {
