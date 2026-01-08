@@ -17,6 +17,7 @@
     import { sac } from "../../utils/passkey-kit";
     import { getTokenBalance } from "../../utils/balance";
     import MintTradeModal from "../MintTradeModal.svelte";
+    import TipArtistModal from "../artist/TipArtistModal.svelte";
 
     let { id }: { id: string } = $props();
 
@@ -28,6 +29,7 @@
     let error = $state<string | null>(null);
     let showTradeModal = $state(false);
     let minting = $state(false);
+    let showTipModal = $state(false);
     let activeTab = $state<"lyrics" | "metadata">("lyrics");
     let autoScroll = $state(false); // Enable auto-scroll (Default OFF)
     let tradeMintBalance = $state(0n); // Restored missing state
@@ -408,11 +410,23 @@
                             showMiniActions={false}
                             onTogglePublish={isOwner ? togglePublic : undefined}
                             isPublished={!!data.d1?.Public}
-                            likeOnArt={true}
+                            likeOnArt={false}
                             enableContextBack={true}
+                            overlayControlsOnMobile={true}
+                            onTip={() => {
+                                if (!isAuthenticated()) {
+                                    window.dispatchEvent(
+                                        new CustomEvent("smol:request-login"),
+                                    );
+                                    return;
+                                }
+                                showTipModal = true;
+                            }}
+                            onToggleLike={(idx, liked) => {}}
+                            onShare={share}
                         />
 
-                        <div class="mt-auto flex gap-4 w-full">
+                        <div class="mt-auto hidden lg:flex gap-4 w-full">
                             {#if minted}
                                 {#if tradeReady}
                                     <button
@@ -743,6 +757,13 @@
         </div>
     {/if}
 </div>
+
+{#if showTipModal && data?.d1}
+    <TipArtistModal
+        artistAddress={data.d1.Address || data.d1.Minted_By || ""}
+        onClose={() => (showTipModal = false)}
+    />
+{/if}
 
 {#if showTradeModal && data?.d1 && tradeReady}
     <MintTradeModal

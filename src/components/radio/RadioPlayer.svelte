@@ -33,6 +33,7 @@
     overlayControlsOnMobile = false,
     onShare,
     onShuffle,
+    onTip,
     onTogglePublish,
     isPublished,
     likeOnArt = false,
@@ -62,6 +63,7 @@
     overlayControlsOnMobile?: boolean; // legacy
     overlayControls?: boolean;
     onShare?: () => void;
+    onTip?: () => void;
     onShuffle?: () => void;
     onTogglePublish?: () => void;
     isPublished?: boolean;
@@ -1145,6 +1147,25 @@
               <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
             </svg>
           </button>
+
+          <!-- KALE TIP BUTTON (Right of Next) -->
+          {#if onTip}
+            <button
+              class="tech-button {isMinimized
+                ? 'w-7 h-7'
+                : 'w-8 h-8 sm:w-10 sm:h-10'} flex items-center justify-center active:scale-95 disabled:opacity-30 border rounded-full backdrop-blur-md transition-all duration-300 border-green-500/30 text-green-400 bg-green-500/10 hover:bg-green-500/20 shadow-[0_0_15px_rgba(74,222,128,0.1)] touch-manipulation"
+              onclick={onTip}
+              title="Tip Artist"
+            >
+              <img
+                src="https://em-content.zobj.net/source/apple/354/leafy-green_1f96c.png"
+                alt="Kale"
+                class="{isMinimized
+                  ? 'w-3.5 h-3.5'
+                  : 'w-4 h-4 sm:w-5 sm:h-5'} object-contain brightness-110 drop-shadow-[0_0_2px_rgba(74,222,128,0.5)]"
+              />
+            </button>
+          {/if}
 
           <!-- SHUFFLE BUTTON (mobile only when overlayControlsOnMobile) -->
           {#if onShuffle && overlayControlsOnMobile}
