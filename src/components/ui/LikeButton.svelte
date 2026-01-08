@@ -40,6 +40,9 @@
             const newLikedState = await toggleLike(smolId, localLiked);
             localLiked = newLikedState;
             dispatch("likeChanged", { smolId, liked: newLikedState });
+            if (newLikedState) {
+                window.dispatchEvent(new CustomEvent("smol:action-like"));
+            }
         } catch (error) {
             console.error("Failed to toggle like:", error);
             alert(

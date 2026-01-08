@@ -1130,7 +1130,11 @@
             'silver'
               ? 'bg-gradient-to-br from-white via-neutral-300 to-neutral-500 border-[2px] border-white text-neutral-800 shadow-[inset_0_2px_4px_rgba(255,255,255,0.9),inset_0_-4px_6px_rgba(0,0,0,0.2),0_4px_15px_rgba(0,0,0,0.5),0_0_25px_rgba(255,255,255,0.5)] hover:brightness-110'
               : 'border border-[#089981] text-[#089981] bg-[#089981]/10 shadow-[0_0_30px_rgba(8,153,129,0.4)] hover:bg-[#089981]/20 hover:text-white hover:shadow-[0_0_40px_rgba(8,153,129,0.6)]'}"
-            onclick={playPause}
+            onclick={(e) => {
+              if (!playing)
+                window.dispatchEvent(new CustomEvent("smol:action-play"));
+              playPause(e);
+            }}
             title={playing ? "Pause" : "Play"}
           >
             {#if playing}
@@ -1199,7 +1203,10 @@
               class="tech-button {isMinimized
                 ? 'w-7 h-7'
                 : 'w-8 h-8 sm:w-10 sm:h-10'} flex items-center justify-center active:scale-95 disabled:opacity-30 border rounded-full backdrop-blur-md transition-all duration-300 border-green-500/30 text-green-400 bg-green-500/10 hover:bg-green-500/20 shadow-[0_0_15px_rgba(74,222,128,0.1)] touch-manipulation"
-              onclick={onTip}
+              onclick={(e) => {
+                window.dispatchEvent(new CustomEvent("smol:action-tip"));
+                onTip && onTip(e);
+              }}
               title="Tip Artist"
             >
               <img
