@@ -410,13 +410,13 @@
       <div
         class="{isOverlay ? 'relative' : ''} w-full flex flex-col items-center"
       >
-        <!-- MINIMIZED CONTROL BAR (Mobile Only - OUTSIDE hidden container) -->
+        <!-- MINIMIZED HEADER BAR (Mobile Only - just song info + expand button) -->
         {#if isMinimized}
           <div
-            class="md:hidden w-full bg-black/60 backdrop-blur-md border border-white/10 rounded-xl p-3 mb-3"
+            class="md:hidden w-full bg-black/60 backdrop-blur-md border border-white/10 rounded-xl p-4 mb-3 min-h-[80px]"
           >
             <!-- Song Info Row with Expand Button -->
-            <div class="flex items-center gap-3 mb-3">
+            <div class="flex items-center gap-3">
               <img
                 src={coverUrl || "/placeholder.png"}
                 alt={songTitle}
@@ -450,60 +450,6 @@
                   />
                 </svg>
               </button>
-            </div>
-
-            <!-- Controls Row -->
-            <div class="flex items-center justify-center gap-4">
-              <!-- Previous -->
-              <button
-                class="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors active:scale-95"
-                onclick={() => onPrev?.()}
-                title="Previous"
-              >
-                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
-                </svg>
-              </button>
-
-              <!-- Play/Pause -->
-              <button
-                class="w-14 h-14 flex items-center justify-center rounded-full bg-lime-500 hover:bg-lime-400 text-slate-900 transition-colors active:scale-95"
-                onclick={() => togglePlayPause()}
-                title={playing ? "Pause" : "Play"}
-              >
-                {#if playing}
-                  <svg class="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
-                  </svg>
-                {:else}
-                  <svg
-                    class="w-7 h-7 ml-1"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                {/if}
-              </button>
-
-              <!-- Next -->
-              <button
-                class="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors active:scale-95"
-                onclick={() => onNext?.()}
-                title="Next"
-              >
-                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
-                </svg>
-              </button>
-            </div>
-
-            <!-- Progress Bar -->
-            <div class="mt-3 h-1 bg-white/10 rounded-full overflow-hidden">
-              <div
-                class="h-full bg-lime-500 transition-all duration-200"
-                style="width: {progress}%;"
-              ></div>
             </div>
           </div>
         {/if}
