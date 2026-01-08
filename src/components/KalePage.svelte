@@ -6,16 +6,73 @@
     class="min-h-[100dvh] w-full bg-slate-950 flex flex-col items-center justify-center p-4 pt-24 md:pt-4 overflow-hidden relative font-pixel"
 >
     <!-- Background Image Layer -->
-    <div class="absolute inset-0 z-0">
+    <div class="absolute inset-0 z-0 overflow-hidden">
         <img
             src="/images/kale-planet.png"
             alt="Planet Demeter"
-            class="w-full h-full object-cover scale-150 translate-y-20 opacity-40"
+            class="w-full h-full object-cover scale-110 translate-y-10 opacity-30 hover:scale-115 transition-transform duration-[30s]"
         />
         <div
-            class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-slate-950/80"
+            class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-slate-950/80"
         ></div>
+
+        <!-- Twinkling Stars -->
+        <div class="absolute inset-0 pointer-events-none">
+            {#each Array(40) as _, i}
+                <div
+                    class="absolute w-px h-px bg-white animate-pulse"
+                    style="top: {Math.random() * 100}%; left: {Math.random() *
+                        100}%; animation-delay: {Math.random() *
+                        5}s; opacity: {Math.random() * 0.7 + 0.3};"
+                ></div>
+            {/each}
+            {#each Array(10) as _, i}
+                <div
+                    class="absolute w-0.5 h-0.5 bg-lime-400 animate-pulse"
+                    style="top: {Math.random() * 100}%; left: {Math.random() *
+                        100}%; animation-delay: {Math.random() *
+                        7}s; opacity: {Math.random() * 0.5};"
+                ></div>
+            {/each}
+        </div>
+
+        <!-- Rare Shooting Star -->
+        <div class="shooting-star"></div>
     </div>
+
+    <style>
+        .shooting-star {
+            position: absolute;
+            top: -10%;
+            left: -10%;
+            width: 2px;
+            height: 2px;
+            background: white;
+            box-shadow:
+                0 0 4px white,
+                0 0 10px white;
+            animation: shoot 12s linear infinite;
+            opacity: 0;
+            z-index: 1;
+        }
+
+        @keyframes shoot {
+            0% {
+                transform: translate(0, 0) rotate(45deg) scaleX(1);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            30% {
+                transform: translate(120vw, 120vh) rotate(45deg) scaleX(20);
+                opacity: 0;
+            }
+            100% {
+                opacity: 0;
+            }
+        }
+    </style>
 
     <!-- Content Card -->
     <div class="max-w-4xl w-full relative z-10">
