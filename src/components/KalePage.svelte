@@ -3,9 +3,22 @@
 </script>
 
 <div
-    class="h-screen bg-gradient-to-br from-slate-950 via-emerald-950/20 to-slate-950 flex items-center justify-center p-4 overflow-hidden"
+    class="min-h-[100dvh] w-full bg-slate-950 flex flex-col items-center justify-center p-4 pt-24 md:pt-4 overflow-hidden relative font-pixel"
 >
-    <div class="max-w-4xl w-full">
+    <!-- Background Image Layer -->
+    <div class="absolute inset-0 z-0">
+        <img
+            src="/images/kale-planet.png"
+            alt="Planet Demeter"
+            class="w-full h-full object-cover scale-150 translate-y-20 opacity-40"
+        />
+        <div
+            class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-slate-950/80"
+        ></div>
+    </div>
+
+    <!-- Content Card -->
+    <div class="max-w-4xl w-full relative z-10">
         <!-- Header -->
         <div class="text-center mb-6">
             <div
@@ -16,7 +29,7 @@
             <h1 class="text-2xl md:text-3xl font-pixel text-lime-400 mb-1">
                 The Story of KALE
             </h1>
-            <p class="text-slate-500 text-xs font-pixel">
+            <p class="text-slate-500 text-xs font-pixel lowercase">
                 a collaborative proof of teamwork asset on Stellar
             </p>
         </div>
@@ -25,31 +38,34 @@
         <div class="grid md:grid-cols-3 gap-3 mb-6">
             <!-- Story Card -->
             <div
-                class="bg-gradient-to-br from-lime-950/40 via-black/60 to-emerald-950/40 rounded-xl border border-lime-500/20 p-4"
+                class="bg-gradient-to-br from-lime-950/40 via-black/60 to-emerald-950/40 rounded-xl border border-lime-500/20 p-4 font-pixel"
             >
                 <h2
                     class="text-sm font-pixel text-lime-400 mb-2 flex items-center gap-2"
                 >
                     🪐 The Lore
                 </h2>
-                <p class="text-slate-400 text-[10px] leading-relaxed">
-                    On a distant planet called <span class="text-lime-300"
-                        >Demeter</span
+                <p
+                    class="text-slate-400 text-[10px] leading-relaxed tracking-wide"
+                >
+                    On a distant planet called <span
+                        class="text-lime-300 text-[11px]">Demeter</span
                     >, scientists discovered
-                    <span class="text-lime-300">Kale-Corium</span> - a crystalline
-                    vegetable that could end universal hunger. To protect it from
-                    the villain Zebulon, they distributed farming across the cosmos.
+                    <span class="text-lime-300 text-[11px]">Kale-Corium</span> -
+                    a crystalline vegetable that could end universal hunger. To protect
+                    it from the villain Zebulon, they distributed farming across
+                    the cosmos.
                 </p>
             </div>
 
             <!-- How it Works Card -->
-            <div class="bg-black/40 rounded-xl border border-slate-700/50 p-4">
-                <h2
-                    class="text-sm font-pixel text-lime-400 mb-2 flex items-center gap-2"
-                >
+            <div
+                class="bg-black/40 rounded-xl border border-slate-700/50 p-4 font-pixel"
+            >
+                <h2 class="text-sm text-lime-400 mb-2 flex items-center gap-2">
                     🌱 How It Works
                 </h2>
-                <div class="space-y-1 text-[10px]">
+                <div class="space-y-1.5 text-[10px] tracking-wide">
                     <div class="flex gap-2">
                         <span class="text-lime-400">1.</span><span
                             class="text-slate-400"
@@ -76,37 +92,49 @@
 
             <!-- SMOL Integration Card -->
             <div
-                class="bg-gradient-to-r from-purple-950/30 to-lime-950/30 rounded-xl border border-purple-500/20 p-4"
+                class="bg-gradient-to-r from-purple-950/30 to-lime-950/30 rounded-xl border border-purple-500/20 p-4 font-pixel"
             >
                 <h2
                     class="text-sm font-pixel text-purple-400 mb-2 flex items-center gap-2"
                 >
                     🎵 KALE × SMOL
                 </h2>
-                <div class="grid grid-cols-2 gap-2 text-center">
+                <div
+                    class="grid grid-cols-2 gap-2 text-center mb-2 tracking-wide"
+                >
                     <div class="bg-black/40 rounded-lg p-2">
                         <div class="text-sm font-bold text-lime-400">
                             100 <KaleEmoji size="w-3 h-3" />
                         </div>
-                        <div class="text-[8px] text-slate-500">to mint</div>
+                        <div class="text-[8px] text-slate-500 uppercase">
+                            to mint
+                        </div>
                     </div>
                     <div class="bg-black/40 rounded-lg p-2">
                         <div class="text-sm font-bold text-lime-400">
                             ~33 <KaleEmoji size="w-3 h-3" />
                         </div>
-                        <div class="text-[8px] text-slate-500">to buy</div>
+                        <div class="text-[8px] text-slate-500 uppercase">
+                            to buy
+                        </div>
                     </div>
                 </div>
                 <!-- Tip Artists -->
-                <div class="mt-2 bg-black/40 rounded-lg p-2 text-center">
-                    <div class="text-[9px] text-slate-300">💚 Tip Artists</div>
+                <div
+                    class="bg-black/40 rounded-lg p-2 text-center mb-1 tracking-wider"
+                >
+                    <div class="text-[9px] text-slate-300 lowercase">
+                        💚 Tip Artists
+                    </div>
                     <div class="text-[7px] text-slate-500 mt-0.5">
                         100% goes to them
                     </div>
                 </div>
                 <!-- Support Mixtapes -->
-                <div class="mt-1 bg-black/40 rounded-lg p-2 text-center">
-                    <div class="text-[9px] text-slate-300">
+                <div
+                    class="bg-black/40 rounded-lg p-2 text-center tracking-wider"
+                >
+                    <div class="text-[9px] text-slate-300 lowercase">
                         🎧 Support Mixtapes
                     </div>
                     <div class="text-[7px] text-slate-500 mt-0.5">
@@ -129,7 +157,7 @@
                 </div>
                 <div class="flex-1 min-w-0">
                     <div
-                        class="text-[10px] text-slate-200 group-hover:text-lime-400 truncate"
+                        class="text-[10px] text-slate-200 group-hover:text-lime-400 truncate font-pixel lowercase"
                     >
                         Stellar Article
                     </div>
@@ -145,7 +173,7 @@
                 <KaleEmoji size="w-6 h-6" />
                 <div class="flex-1 min-w-0">
                     <div
-                        class="text-[10px] text-slate-200 group-hover:text-lime-400 truncate"
+                        class="text-[10px] text-slate-200 group-hover:text-lime-400 truncate font-pixel lowercase"
                     >
                         Kale Farm
                     </div>
@@ -163,7 +191,7 @@
                 </div>
                 <div class="flex-1 min-w-0">
                     <div
-                        class="text-[10px] text-slate-200 group-hover:text-lime-400 truncate"
+                        class="text-[10px] text-slate-200 group-hover:text-lime-400 truncate font-pixel lowercase"
                     >
                         Lobstr Wallet
                     </div>
@@ -181,7 +209,7 @@
                 </div>
                 <div class="flex-1 min-w-0">
                     <div
-                        class="text-[10px] text-slate-200 group-hover:text-lime-400 truncate"
+                        class="text-[10px] text-slate-200 group-hover:text-lime-400 truncate lowercase"
                     >
                         StellarX
                     </div>
@@ -199,7 +227,7 @@
                 </div>
                 <div class="flex-1 min-w-0">
                     <div
-                        class="text-[10px] text-slate-200 group-hover:text-lime-400 truncate"
+                        class="text-[10px] text-slate-200 group-hover:text-lime-400 truncate font-pixel lowercase"
                     >
                         Full Lore
                     </div>
@@ -208,7 +236,9 @@
         </div>
 
         <!-- Footer -->
-        <p class="text-center text-slate-600 text-[9px] italic">
+        <p
+            class="text-center text-slate-600 text-[10px] italic tracking-widest font-pixel"
+        >
             "In the fields of Demeter, every farmer matters." 🥬
         </p>
     </div>
