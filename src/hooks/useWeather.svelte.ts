@@ -29,11 +29,10 @@ export async function initWeather() {
 
     // Clever bypass: Use IP Geolocation to avoid permission prompt
     try {
-        const ipRes = await fetch('https://ipapi.co/json/');
+        // Switch to geojs.io which is more CORS-friendly on localhost
+        const ipRes = await fetch('https://get.geojs.io/v1/ip/geo.json');
         if (!ipRes.ok) throw new Error('IP Geo failed');
         const { latitude, longitude } = await ipRes.json();
-
-        console.log(`[Weather] Located via IP: ${latitude}, ${longitude}`);
 
         const response = await fetch(
             `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`
@@ -46,11 +45,10 @@ export async function initWeather() {
 
         weatherState.code = weathercode;
         weatherState.isDay = is_day === 1;
-        console.log("[Weather] Updated:", { weathercode, is_day });
 
     } catch (err: any) {
-        console.error("[Weather] Failed:", err);
-        // Fallback or just ignore (defaults to clear)
+        // Soften the console error for weather fetch failures
+        console.warn("[Weather] Service unavailable (this is normal if APIs are blocked):", err.message);
         weatherState.error = err.message;
     } finally {
         weatherState.loading = false;

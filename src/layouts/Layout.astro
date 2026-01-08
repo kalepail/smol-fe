@@ -94,7 +94,11 @@ if (token) {
 	</head>
 	<body class="bg-transparent text-white min-h-screen relative">
 		<!-- Global Dynamic Background (Pixel Kale Field) -->
-		<DynamicBackground client:only="svelte" />
+		<DynamicBackground 
+			client:only="svelte" 
+			disableWeather={Astro.url.pathname.startsWith('/mixtapes') || Astro.url.pathname.startsWith('/kale')} 
+			hidden={Astro.url.pathname.startsWith('/kale')}
+		/>
 
 		<Header _kid={_kid} _cid={_cid} client:load transition:persist="header" />
 		<GlobalVerification client:only="svelte" />

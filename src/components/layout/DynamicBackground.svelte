@@ -31,7 +31,18 @@
         size: 0.8 + Math.random() * 0.8 + "rem",
     }));
 
-    // Weather Simulation (Debug Mode)
+    // Weather Simulation
+    interface Props {
+        disableWeather?: boolean;
+        hidden?: boolean;
+    }
+
+    let { disableWeather = false, hidden = false }: Props = $props();
+
+    // Sky Logic
+    const hour = new Date().getHours();
+    const isNight = hour >= 20 || hour < 6;
+
     const SIMULATE_WEATHER = false;
     const WEATHER_TYPES = ["clear", "cloudy", "rain", "storm", "snow"] as const;
     let simIndex = $state(0);
@@ -42,7 +53,7 @@
                 simIndex = (simIndex + 1) % WEATHER_TYPES.length;
             }, 5000);
             return () => clearInterval(interval);
-        } else {
+        } else if (!disableWeather) {
             initWeather();
         }
     });
@@ -99,132 +110,137 @@
     }));
 </script>
 
-<div
-    class="fixed inset-0 z-[-1] overflow-hidden pointer-events-none select-none"
->
-    <!-- Dynamic Sky Gradient (Underlay) -->
-    {#if backgroundState.enableAnimations}
-        <div
-            class="absolute inset-0 {bgGradient} transition-colors duration-[2000ms]"
-        ></div>
-    {:else}
-        <!-- Premium Matte Plastic (Performance Mode) -->
-        <div class="absolute inset-0 bg-[#1e1e1e]">
-            <!-- Subtle Noise Texture -->
+{#if !hidden}
+    <div
+        class="fixed inset-0 z-[-1] overflow-hidden pointer-events-none select-none"
+    >
+        <!-- Dynamic Sky Gradient (Underlay) -->
+        {#if backgroundState.enableAnimations}
             <div
-                class="absolute inset-0 opacity-[0.03] mix-blend-overlay"
-                style="background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScxMDAnIGhlaWdodD0nMTAwJz48ZmlsdGVyIGlkPSdub2lzZSc+PGZlVHVyYnVsZW5jZSB0eXBlPSdmcmFjdGFsTm9pc2UnIGJhc2VGcmVxdWVuY3k9JzAuOCcgbnVtT2N0YXZlcz0nMycgc3RpdGNoVGlsZXM9J3N0aXRjaCcvPjwvZmlsdGVyPjxyZWN0IHdpZHRoPScxMDAlJyBoZWlnaHQ9JzEwMCUnIGZpbHRlcj0ndXJsKCUyM25vaXNlKScgb3BhY2l0eT0nMScvPjwvc3ZnPg==');"
+                class="absolute inset-0 {bgGradient} transition-colors duration-[2000ms]"
             ></div>
-            <!-- Vignette -->
-            <div
-                class="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)]"
-            ></div>
-        </div>
-    {/if}
-
-    <!-- Stars (Night Only, Clear Only) -->
-    {#if backgroundState.enableAnimations}
-        {#if isNight && !isCloudy}
-            <div class="absolute inset-0" transition:fade={{ duration: 2000 }}>
-                {#each stars as star}
-                    <div
-                        class="absolute bg-white rounded-full opacity-80 animate-pulse {star.size}"
-                        style="top: {star.top}; left: {star.left}; animation-delay: {star.delay};"
-                    ></div>
-                {/each}
-            </div>
-        {/if}
-
-        <!-- Sun (Day Only, Clear Only) -->
-        {#if !isNight && condition === "clear"}
-            <div
-                class="absolute top-[10%] left-[80%] w-32 h-32 bg-yellow-100/20 blur-[60px] rounded-full"
-                transition:fade={{ duration: 2000 }}
-            ></div>
-        {/if}
-
-        <!-- Clouds (Abstract CSS) -->
-        {#if isCloudy}
-            <div
-                class="absolute inset-0 opacity-40"
-                transition:fade={{ duration: 2000 }}
-            >
+        {:else}
+            <!-- Premium Matte Plastic (Performance Mode) -->
+            <div class="absolute inset-0 bg-[#1e1e1e]">
+                <!-- Subtle Noise Texture -->
                 <div
-                    class="absolute top-[10%] left-[-20%] w-[40%] h-[100px] bg-white/20 blur-[40px] rounded-full animate-float-slow"
+                    class="absolute inset-0 opacity-[0.03] mix-blend-overlay"
+                    style="background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScxMDAnIGhlaWdodD0nMTAwJz48ZmlsdGVyIGlkPSdub2lzZSc+PGZlVHVyYnVsZW5jZSB0eXBlPSdmcmFjdGFsTm9pc2UnIGJhc2VGcmVxdWVuY3k9JzAuOCcgbnVtT2N0YXZlcz0nMycgc3RpdGNoVGlsZXM9J3N0aXRjaCcvPjwvZmlsdGVyPjxyZWN0IHdpZHRoPScxMDAlJyBoZWlnaHQ9JzEwMCUnIGZpbHRlcj0ndXJsKCUyM25vaXNlKScgb3BhY2l0eT0nMScvPjwvc3ZnPg==');"
                 ></div>
+                <!-- Vignette -->
                 <div
-                    class="absolute top-[30%] right-[-20%] w-[50%] h-[120px] bg-white/10 blur-[50px] rounded-full animate-float-slower"
+                    class="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.4)_100%)]"
                 ></div>
             </div>
         {/if}
 
-        <!-- Kale Field (White Sky -> Transparent) -->
-        <img
-            src="/kale_landscape.png"
-            alt=""
-            class="absolute inset-0 w-full h-full object-cover mix-blend-multiply opacity-60"
-            style="image-rendering: pixelated;"
-        />
-
-        <!-- Magic Sparkles (Foreground Overlay) -->
-        <div class="absolute inset-0 z-10 pointer-events-none">
-            {#each sparkles as sparkle}
+        <!-- Stars (Night Only, Clear Only) -->
+        {#if backgroundState.enableAnimations}
+            {#if isNight && !isCloudy}
                 <div
-                    class="absolute w-[3px] h-[3px] bg-yellow-100 rounded-full animate-twinkle opacity-0"
-                    style="top: {sparkle.top}; left: {sparkle.left}; animation-delay: {sparkle.delay}; animation-duration: {sparkle.duration}; box-shadow: 0 0 6px gold;"
-                ></div>
-            {/each}
-            {#each musicNotes as note}
-                <div
-                    class="absolute text-[#FDDA24] animate-float-note opacity-0"
-                    style="top: {note.top}; left: {note.left}; font-size: {note.size}; animation-delay: {note.delay}; animation-duration: {note.duration}; text-shadow: 0 0 10px rgba(253, 218, 36, 0.8);"
+                    class="absolute inset-0"
+                    transition:fade={{ duration: 2000 }}
                 >
-                    {note.char}
+                    {#each stars as star}
+                        <div
+                            class="absolute bg-white rounded-full opacity-80 animate-pulse {star.size}"
+                            style="top: {star.top}; left: {star.left}; animation-delay: {star.delay};"
+                        ></div>
+                    {/each}
                 </div>
-            {/each}
-        </div>
+            {/if}
 
-        <!-- Rain -->
-        {#if isRaining}
-            <div class="absolute inset-0" transition:fade>
-                {#each drops as drop}
+            <!-- Sun (Day Only, Clear Only) -->
+            {#if !isNight && condition === "clear"}
+                <div
+                    class="absolute top-[10%] left-[80%] w-32 h-32 bg-yellow-100/20 blur-[60px] rounded-full"
+                    transition:fade={{ duration: 2000 }}
+                ></div>
+            {/if}
+
+            <!-- Clouds (Abstract CSS) -->
+            {#if isCloudy}
+                <div
+                    class="absolute inset-0 opacity-40"
+                    transition:fade={{ duration: 2000 }}
+                >
                     <div
-                        class="absolute w-[1px] h-[20px] bg-blue-200/40 opacity-50 animate-rain"
-                        style="left: {drop.left}; animation-delay: {drop.delay}; animation-duration: {drop.duration}; top: -20px;"
+                        class="absolute top-[10%] left-[-20%] w-[40%] h-[100px] bg-white/20 blur-[40px] rounded-full animate-float-slow"
+                    ></div>
+                    <div
+                        class="absolute top-[30%] right-[-20%] w-[50%] h-[120px] bg-white/10 blur-[50px] rounded-full animate-float-slower"
+                    ></div>
+                </div>
+            {/if}
+
+            <!-- Kale Field (White Sky -> Transparent) -->
+            <img
+                src="/kale_landscape.png"
+                alt=""
+                class="absolute inset-0 w-full h-full object-cover mix-blend-multiply opacity-60"
+                style="image-rendering: pixelated;"
+            />
+
+            <!-- Magic Sparkles (Foreground Overlay) -->
+            <div class="absolute inset-0 z-10 pointer-events-none">
+                {#each sparkles as sparkle}
+                    <div
+                        class="absolute w-[3px] h-[3px] bg-yellow-100 rounded-full animate-twinkle opacity-0"
+                        style="top: {sparkle.top}; left: {sparkle.left}; animation-delay: {sparkle.delay}; animation-duration: {sparkle.duration}; box-shadow: 0 0 6px gold;"
                     ></div>
                 {/each}
-            </div>
-        {/if}
-
-        <!-- Snow -->
-        {#if isSnowing}
-            <div class="absolute inset-0" transition:fade>
-                {#each drops as drop}
+                {#each musicNotes as note}
                     <div
-                        class="absolute w-[4px] h-[4px] bg-white opacity-80 rounded-full animate-snow"
-                        style="left: {drop.left}; animation-delay: {drop.delay}; animation-duration: {parseFloat(
-                            drop.duration,
-                        ) *
-                            3 +
-                            's'}; top: -20px;"
-                    ></div>
+                        class="absolute text-[#FDDA24] animate-float-note opacity-0"
+                        style="top: {note.top}; left: {note.left}; font-size: {note.size}; animation-delay: {note.delay}; animation-duration: {note.duration}; text-shadow: 0 0 10px rgba(253, 218, 36, 0.8);"
+                    >
+                        {note.char}
+                    </div>
                 {/each}
             </div>
-        {/if}
 
-        <!-- Global Vignette for UI Readability -->
-        <div
-            class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/20"
-        ></div>
+            <!-- Rain -->
+            {#if isRaining}
+                <div class="absolute inset-0" transition:fade>
+                    {#each drops as drop}
+                        <div
+                            class="absolute w-[1px] h-[20px] bg-blue-200/40 opacity-50 animate-rain"
+                            style="left: {drop.left}; animation-delay: {drop.delay}; animation-duration: {drop.duration}; top: -20px;"
+                        ></div>
+                    {/each}
+                </div>
+            {/if}
 
-        <!-- Storm Flash -->
-        {#if isStormy}
+            <!-- Snow -->
+            {#if isSnowing}
+                <div class="absolute inset-0" transition:fade>
+                    {#each drops as drop}
+                        <div
+                            class="absolute w-[4px] h-[4px] bg-white opacity-80 rounded-full animate-snow"
+                            style="left: {drop.left}; animation-delay: {drop.delay}; animation-duration: {parseFloat(
+                                drop.duration,
+                            ) *
+                                3 +
+                                's'}; top: -20px;"
+                        ></div>
+                    {/each}
+                </div>
+            {/if}
+
+            <!-- Global Vignette for UI Readability -->
             <div
-                class="absolute inset-0 bg-white/10 mix-blend-overlay animate-lightning opacity-0 pointer-events-none"
+                class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/20"
             ></div>
+
+            <!-- Storm Flash -->
+            {#if isStormy}
+                <div
+                    class="absolute inset-0 bg-white/10 mix-blend-overlay animate-lightning opacity-0 pointer-events-none"
+                ></div>
+            {/if}
         {/if}
-    {/if}
-</div>
+    </div>
+{/if}
 
 <style>
     @keyframes float-note {
