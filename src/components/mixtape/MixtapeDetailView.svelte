@@ -4,6 +4,7 @@
   import type { Smol } from "../../types/domain";
   import MixtapeHeader from "./MixtapeHeader.svelte";
   import MixtapeTracklist from "./MixtapeTracklist.svelte";
+  import MixtapeSupportBanner from "./MixtapeSupportBanner.svelte";
   import PurchaseModal from "./PurchaseModal.svelte";
   import {
     audioState,
@@ -43,6 +44,10 @@
   let isPurchasing = $state(false);
   let purchaseCurrentStep = $state("");
   let purchaseCompletedSteps = $state(new Set<string>());
+
+  // Support banner state (optional tip jar)
+  let showSupportBanner = $state(true);
+  let supportBannerDismissed = $state(false);
 
   // Initialize hooks
   const mintingHook = useMixtapeMinting();
@@ -639,6 +644,18 @@
       onPurchaseClick={handlePurchaseClick}
       onEdit={isCreator ? handleEdit : undefined}
     />
+
+    <!-- Support Banner (Optional Tip Jar) - only show if not creator and not dismissed -->
+    {#if showSupportBanner && !supportBannerDismissed && !isCreator && mixtapeTracks.length > 0}
+      <MixtapeSupportBanner
+        curatorAddress={mixtape.creator}
+        curatorName={mixtape.creator.slice(0, 8) + "..."}
+        tracks={mixtapeTracks}
+        onDismiss={() => {
+          supportBannerDismissed = true;
+        }}
+      />
+    {/if}
 
     <MixtapeTracklist
       {mixtape}
