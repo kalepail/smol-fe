@@ -8,6 +8,12 @@
     font-display: swap;
 }
 
+
+:root {
+    color-scheme: dark only;
+    background-color: #020617;
+}
+
 @layer base {
 
     /* Remove 300ms tap delay on mobile */
