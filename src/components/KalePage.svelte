@@ -61,8 +61,24 @@
                 transform: translate(0, 0) rotate(-45deg) scaleX(1);
                 opacity: 0;
             }
-            10% {
+            5% {
                 opacity: 1;
+            }
+            25% {
+                transform: translate(100vw, -100vh) rotate(-45deg) scaleX(15);
+                opacity: 1;
+                box-shadow:
+                    0 0 4px white,
+                    0 0 10px white;
+            }
+            27% {
+                transform: translate(110vw, -110vh) rotate(-45deg) scale(3)
+                    scaleX(1);
+                opacity: 1;
+                box-shadow:
+                    0 0 20px white,
+                    0 0 40px white;
+                background: #ccff00;
             }
             30% {
                 transform: translate(120vw, -120vh) rotate(-45deg) scaleX(20);
