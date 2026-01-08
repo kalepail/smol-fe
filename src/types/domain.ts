@@ -95,6 +95,7 @@ export interface SmolDetailResponse {
       lyrics?: string;
     };
     songs?: SongData[];
+    image?: boolean;
   };
   wf?: {
     status: 'queued' | 'running' | 'paused' | 'errored' | 'terminated' | 'complete' | 'waiting' | 'waitingForPause' | 'unknown';

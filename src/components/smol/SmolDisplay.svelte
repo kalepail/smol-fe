@@ -164,15 +164,17 @@
       <li>
         <h1 class="mb-2">Image:</h1>
 
-        <img
-          class="aspect-square object-contain pixelated w-[256px]"
-          src={`${import.meta.env.PUBLIC_API_URL}/image/${id}.png`}
-          onerror={(e) => {
-            // @ts-ignore
-            e.currentTarget.src = '/favicon.png';
-          }}
-          alt={kv_do?.lyrics?.title}
-        />
+        {#if kv_do?.image}
+          <img
+            class="aspect-square object-contain pixelated w-[256px]"
+            src={`${import.meta.env.PUBLIC_API_URL}/image/${id}.png`}
+            alt={kv_do?.lyrics?.title}
+          />
+        {:else}
+          <div class="aspect-square w-[256px] bg-slate-800 flex items-center justify-center">
+            <Loader />
+          </div>
+        {/if}
       </li>
 
       <li>

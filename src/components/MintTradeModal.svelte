@@ -25,10 +25,9 @@
     songId: string;
     title?: string;
     imageUrl?: string;
-    fallbackImage?: string;
   }
 
-  let { ammId, mintTokenId, songId, title, imageUrl, fallbackImage }: Props = $props();
+  let { ammId, mintTokenId, songId, title, imageUrl }: Props = $props();
 
   const dispatch = createEventDispatcher();
 
@@ -278,12 +277,6 @@
     scheduleSimulation();
   }
 
-  function handleImageError(event: Event) {
-    if (!fallbackImage) return;
-    const target = event.currentTarget as HTMLImageElement;
-    target.src = fallbackImage;
-  }
-
   async function executeSwap() {
     if (!cometClient || !mintTokenClient) return;
     if (!currentContractId || !currentKeyId) {
@@ -395,7 +388,6 @@
           src={imageUrl}
           alt={title ?? DISPLAY_TOKEN_NAME}
           class="h-12 w-12 flex-shrink-0 rounded object-cover"
-          onerror={handleImageError}
         />
       {/if}
       <div class="ml-3 mr-auto">

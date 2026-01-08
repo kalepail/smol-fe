@@ -56,7 +56,6 @@
       ? `${import.meta.env.PUBLIC_API_URL}/image/${tradeSongId}.png`
       : null
   );
-  const tradeImageFallback = '/favicon.png';
 
   // Effects
   $effect(() => {
@@ -495,7 +494,6 @@
     songId={tradeSongId}
     title={tradeTitle ?? undefined}
     imageUrl={tradeImageUrl ?? undefined}
-    fallbackImage={tradeImageFallback ?? undefined}
     on:close={handleTradeModalClose}
     on:complete={handleTradeModalComplete}
   />
