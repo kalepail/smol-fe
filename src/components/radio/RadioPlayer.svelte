@@ -441,10 +441,14 @@
               <div class="flex-1 min-w-0" data-role="player-mobile">
                 <AudioManager {playlist} />
                 <div class="flex flex-col h-full justify-end">
-                  <div class="text-white font-medium text-sm truncate">
+                  <div
+                    class="text-white font-pixel font-bold tracking-wide uppercase text-xs truncate"
+                  >
                     {songTitle}
                   </div>
-                  <div class="text-white/50 text-xs truncate">
+                  <div
+                    class="text-white/50 font-pixel tracking-wide uppercase text-[10px] truncate"
+                  >
                     {songTags || "Now Playing"}
                   </div>
                 </div>
