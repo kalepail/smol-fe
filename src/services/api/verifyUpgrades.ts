@@ -5,7 +5,7 @@ import { xdr, StrKey, scValToNative } from '@stellar/stellar-sdk';
 import { upgradesState, unlockUpgrade } from '../../stores/upgrades.svelte';
 import { getVIPAccess } from '../../utils/vip';
 
-const ADMIN_ADDRESS = "CBS5Z6IVHGLFUGLYJ6TA4URP4VD67QRXKJ4ZBRH63RBMQ5PO7TC6GJU5";
+const ADMIN_ADDRESS = "CBNORBI4DCE7LIC42FWMCIWQRULWAUGF2MH2Z7X2RNTFAYNXIACJ33IM";
 const SMOL_MART_AMOUNTS = {
     PREMIUM_HEADER: 100000,
     GOLDEN_KALE: 69420.67,
