@@ -1322,7 +1322,7 @@
 
             <!-- Time Machine (Live Clock Trigger) -->
             <button
-                class="hidden md:flex items-center gap-2 px-3 py-1 bg-black/40 hover:bg-fuchsia-500/20 text-fuchsia-400 border border-white/5 hover:border-fuchsia-500/50 rounded-md transition-all active:scale-95 mx-2 group/clock"
+                class="flex items-center gap-2 px-3 py-1 bg-black/40 hover:bg-fuchsia-500/20 text-fuchsia-400 border border-white/5 hover:border-fuchsia-500/50 rounded-md transition-all active:scale-95 mx-2 group/clock"
                 title="Time Machine: Click to Jump to Random Point in Timeline"
                 onclick={() => {
                     // Time Machine Logic
