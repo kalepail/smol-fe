@@ -192,7 +192,7 @@
         {@const isPlaying = isActive && audioState.playingId !== null}
 
         <article
-            class="group flex flex-col rounded-xl md:rounded-[1.2rem] border p-2 md:p-4 shadow-2xl transition-all duration-500 mx-auto w-full max-w-[400px] relative aspect-[4/2.5]
+            class="group flex flex-col rounded-xl md:rounded-[1.2rem] border p-2 md:p-4 shadow-2xl transition-all duration-500 mx-auto w-full max-w-[400px] relative
             {isActive
                 ? 'border-white/20 bg-[#111] shadow-[0_0_50px_rgba(255,255,255,0.15)] ring-1 ring-white/10'
                 : 'border-white/5 bg-black/40 backdrop-blur-md hover:bg-black/60 hover:-translate-y-1'}"
@@ -539,28 +539,23 @@
                 </div>
 
                 <div class="mt-auto flex flex-col gap-1.5 pt-3 relative z-10">
-                    <button
-                        class="w-full rounded-xl px-2 py-3 text-[9px] font-pixel font-bold uppercase tracking-widest transition-all duration-500
-                        {isActive
-                            ? 'bg-rose-500 border border-rose-500 text-white shadow-[0_0_15px_rgba(244,63,94,0.3)]'
-                            : 'bg-lime-400 border border-lime-400 text-black hover:bg-lime-500 hover:shadow-[0_0_20px_rgba(163,230,53,0.4)]'}"
-                        onclick={() => handlePlayToggle(mixtape.id)}
-                    >
-                        {#if isLoading}
-                            <div
-                                class="flex items-center justify-center gap-1.5"
-                            >
-                                <Loader classNames="w-3 h-3 text-black" />
-                                Loading...
-                            </div>
-                        {:else if isPlaying}
-                            Stop
-                        {:else if isActive}
-                            Resume
-                        {:else}
-                            Play
-                        {/if}
-                    </button>
+                    {#if !isActive}
+                        <button
+                            class="w-full rounded-xl px-2 py-3 text-[9px] font-pixel font-bold uppercase tracking-widest transition-all duration-500 bg-lime-400 border border-lime-400 text-black hover:bg-lime-500 hover:shadow-[0_0_20px_rgba(163,230,53,0.4)]"
+                            onclick={() => handlePlayToggle(mixtape.id)}
+                        >
+                            {#if isLoading}
+                                <div
+                                    class="flex items-center justify-center gap-1.5"
+                                >
+                                    <Loader classNames="w-3 h-3 text-black" />
+                                    Loading...
+                                </div>
+                            {:else}
+                                Play
+                            {/if}
+                        </button>
+                    {/if}
 
                     <a
                         class="w-full rounded-xl border border-white/5 bg-black/40 px-2 py-2 text-center text-[8px] font-pixel uppercase tracking-widest text-white/30 hover:text-white hover:bg-white/5 transition-all outline-none"
