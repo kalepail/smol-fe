@@ -13,6 +13,7 @@
 
   import UserBalance from "./UserBalance.svelte";
   import MixtapeModeToggle from "./MixtapeModeToggle.svelte";
+  import KaleEmoji from "../ui/KaleEmoji.svelte";
 
   const isAuthenticated = $derived(userState.contractId !== null);
   const currentPath = useCurrentPath();
@@ -20,6 +21,7 @@
   const authHook = useAuthentication();
 
   let creating = $state(false);
+  let showKaleInfo = $state(false);
 
   async function handleLogin() {
     await authHook.login();
@@ -210,6 +212,69 @@
       </span>
       <span>Store</span>
     </a>
+
+    <!-- What is KALE? Expandable -->
+    <div class="w-full">
+      <button
+        class="flex items-center gap-3 w-full hover:text-[#9ae600] transition-colors"
+        onclick={() => (showKaleInfo = !showKaleInfo)}
+        type="button"
+      >
+        <KaleEmoji size="w-4 h-4" />
+        <span class="flex-1 text-left">What is KALE?</span>
+        <svg
+          class="w-3 h-3 text-slate-400 transition-transform {showKaleInfo
+            ? 'rotate-180'
+            : ''}"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M19 9l-7 7-7-7"
+          />
+        </svg>
+      </button>
+      {#if showKaleInfo}
+        <div
+          class="mt-2 p-2 bg-black/40 rounded-lg text-[9px] text-slate-400 space-y-2"
+        >
+          <p>
+            KALE is a collaborative farming token on Stellar. Earn by staking,
+            mining, and harvesting.
+          </p>
+          <ul class="space-y-1 text-[8px]">
+            <li>
+              • <span class="text-lime-300">Minting:</span> 100 KALE per track
+            </li>
+            <li>
+              • <span class="text-lime-300">Buying:</span> ~33 KALE via AMM
+            </li>
+            <li>
+              • <span class="text-lime-300">Farm:</span>
+              <a
+                href="https://kalefarm.xyz"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-lime-400 underline">kalefarm.xyz</a
+              >
+            </li>
+            <li>
+              • <span class="text-lime-300">Trade:</span>
+              <a
+                href="https://stellarx.com/markets/KALE:GBDVX4VELCDSQ54KQJYTNHXAHFLBCA77ZY2USQBM4CSHTTV7DME7KALE/native"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-lime-400 underline">StellarX</a
+              >
+            </li>
+          </ul>
+        </div>
+      {/if}
+    </div>
 
     <!-- 4. Mixtapes Browser + Tiny Mode Toggle -->
     <div class="flex items-center gap-2">
