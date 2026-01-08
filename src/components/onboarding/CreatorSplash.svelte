@@ -48,7 +48,19 @@
         "got a song in your heart?",
         "music is for everyone.",
         "no instruments needed.",
-        "your voice, amplified.",
+        "your ideas, realized.",
+        "imagine it, hear it.",
+        "type it, play it.",
+        "from words to music.",
+        "creativity unlocked.",
+        "everyone's a songwriter.",
+        "no skills required.",
+        "the studio in your pocket.",
+        "insert prompt, receive banger.",
+        "spawn your soundtrack.",
+        "discover your sound.",
+        "mint your moment.",
+        "own what you create.",
     ];
     let taglineIndex = $state(0);
 
@@ -127,24 +139,26 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="min-h-screen bg-transparent text-white overflow-y-auto font-mono">
+<div class="min-h-screen bg-transparent text-white overflow-hidden font-mono">
     <!-- CRT Scanline Effect -->
     <div
         class="pointer-events-none fixed inset-0 z-10 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] opacity-10"
     ></div>
 
     <main
-        class="relative z-30 flex flex-col items-center px-4 py-12 md:py-20 safe-area-inset-bottom"
+        class="relative z-30 flex flex-col items-center justify-center min-h-screen px-4 py-4 md:py-8 safe-area-inset-bottom"
     >
         <!-- HEADER -->
-        <div class="text-center mb-10 md:mb-16" in:fade={{ duration: 800 }}>
+        <div class="text-center mb-4 md:mb-8" in:fade={{ duration: 800 }}>
             <!-- Rotating Tagline -->
-            <div class="h-8 flex items-center justify-center mb-4">
+            <div
+                class="h-6 md:h-8 flex items-center justify-center mb-2 md:mb-4"
+            >
                 {#key taglineIndex}
                     <p
                         in:fly={{ y: 10, duration: 400, delay: 200 }}
                         out:fly={{ y: -10, duration: 400 }}
-                        class="text-lime-400 font-pixel uppercase tracking-widest text-xs md:text-sm drop-shadow-[0_0_10px_rgba(132,204,22,0.5)]"
+                        class="text-lime-400 font-pixel uppercase tracking-widest text-[10px] md:text-sm drop-shadow-[0_0_10px_rgba(132,204,22,0.5)]"
                     >
                         {TAGLINES[taglineIndex]}
                     </p>
@@ -152,12 +166,12 @@
             </div>
 
             <h1
-                class="text-3xl md:text-5xl font-pixel font-black tracking-tight uppercase text-transparent bg-clip-text bg-gradient-to-b from-lime-400 to-lime-600 drop-shadow-[0_4px_0_rgba(132,204,22,0.2)] mb-4"
+                class="text-2xl md:text-5xl font-pixel font-black tracking-tight uppercase text-transparent bg-clip-text bg-gradient-to-b from-lime-400 to-lime-600 drop-shadow-[0_4px_0_rgba(132,204,22,0.2)] mb-2 md:mb-4"
             >
                 Make Music Here
             </h1>
             <p
-                class="text-white/60 font-pixel text-xs md:text-sm max-w-md mx-auto leading-relaxed"
+                class="text-white/60 font-pixel text-[10px] md:text-sm max-w-xs md:max-w-md mx-auto leading-relaxed hidden md:block"
             >
                 SMOL turns your ideas into songs. No instruments, no experience
                 needed — just your imagination.
@@ -167,12 +181,12 @@
         <!-- FEATURE CARDS -->
         {#if step === "intro"}
             <div
-                class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 w-full max-w-3xl mb-10"
+                class="grid grid-cols-3 gap-2 md:gap-6 w-full max-w-3xl mb-4 md:mb-6"
                 in:fade={{ duration: 500, delay: 200 }}
             >
                 {#each FEATURES as feature, i}
                     <div
-                        class="relative bg-black/30 backdrop-blur-sm border border-white/10 rounded-xl p-5 hover:border-lime-500/30 transition-all hover:bg-black/40 group"
+                        class="relative bg-black/30 backdrop-blur-sm border border-white/10 rounded-lg p-2 md:p-4 hover:border-lime-500/30 transition-all hover:bg-black/40 group"
                         in:fly={{ y: 20, duration: 400, delay: 300 + i * 100 }}
                     >
                         <!-- Glow on hover -->
@@ -180,9 +194,13 @@
                             class="absolute inset-0 rounded-xl bg-gradient-to-br from-lime-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
                         ></div>
 
-                        <div class="relative z-10">
+                        <div
+                            class="relative z-10 flex flex-col items-center md:items-start"
+                        >
                             <!-- Custom Pixel Art Icons -->
-                            <div class="w-10 h-10 mb-3">
+                            <div
+                                class="w-6 h-6 md:w-10 md:h-10 mb-1 md:mb-3 text-lime-400"
+                            >
                                 {#if feature.icon === "music"}
                                     <!-- Pixel Music Note -->
                                     <svg
@@ -375,11 +393,11 @@
                                 {/if}
                             </div>
                             <h3
-                                class="font-pixel text-lime-400 uppercase tracking-wider text-sm mb-3"
+                                class="font-pixel text-lime-400 uppercase tracking-wider text-[9px] md:text-sm mb-0 md:mb-3 text-center md:text-left"
                             >
                                 {feature.title}
                             </h3>
-                            <ul class="space-y-1.5">
+                            <ul class="space-y-1 hidden md:block">
                                 {#each feature.items as item}
                                     <li
                                         class="text-white/50 text-xs font-pixel leading-relaxed flex items-start gap-2"
@@ -505,10 +523,10 @@
         <!-- Bottom note -->
         {#if step === "intro"}
             <p
-                class="mt-12 text-white/30 text-[10px] font-pixel text-center max-w-sm leading-relaxed"
+                class="mt-6 md:mt-8 text-white/30 text-[10px] font-pixel text-center max-w-sm leading-relaxed"
             >
-                Passkey login is secure, passwordless, and works across all your
-                devices. Your music, your keys.
+                Passkey login is instant, secure, and passwordless. Works across
+                all your devices. Your music, your keys.
             </p>
         {/if}
     </main>
