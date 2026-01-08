@@ -1,12 +1,12 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { onMount } from "svelte";
 
     // Interface for individual song data expected via props
     interface SmolData {
         Id: string;
         Address: string; // Creator's address, crucial for grouping
-        Plays: number;   // Play count for the song
-        Views?: number;  // Optional: View count for the song
+        Plays: number; // Play count for the song
+        Views?: number; // Optional: View count for the song
     }
 
     // Interface for user data expected via props
@@ -41,20 +41,22 @@
         error = null;
 
         try {
+            const API_URL =
+                import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
             const response = await fetch(
-                `${import.meta.env.PUBLIC_API_URL}/playlist/${playlistName}?limit=100`
+                `${API_URL}/playlist/${playlistName}?limit=100`,
             );
 
             if (!response.ok) {
-                throw new Error('Failed to load leaderboard');
+                throw new Error("Failed to load leaderboard");
             }
 
             const data = await response.json();
             smols = data.smols || [];
             users = data.users || [];
         } catch (err) {
-            error = err instanceof Error ? err.message : 'Failed to load';
-            console.error('Failed to fetch leaderboard:', err);
+            error = err instanceof Error ? err.message : "Failed to load";
+            console.error("Failed to fetch leaderboard:", err);
         } finally {
             loading = false;
         }
@@ -91,38 +93,46 @@
 
         for (const smol of smols) {
             if (smol.Address) {
-                songCountsByAddress[smol.Address] = (songCountsByAddress[smol.Address] || 0) + 1;
-                if (typeof smol.Plays === 'number') {
-                    playCountsByAddress[smol.Address] = (playCountsByAddress[smol.Address] || 0) + smol.Plays;
+                songCountsByAddress[smol.Address] =
+                    (songCountsByAddress[smol.Address] || 0) + 1;
+                if (typeof smol.Plays === "number") {
+                    playCountsByAddress[smol.Address] =
+                        (playCountsByAddress[smol.Address] || 0) + smol.Plays;
                 }
-                if (typeof smol.Views === 'number') {
-                    viewCountsByAddress[smol.Address] = (viewCountsByAddress[smol.Address] || 0) + smol.Views;
+                if (typeof smol.Views === "number") {
+                    viewCountsByAddress[smol.Address] =
+                        (viewCountsByAddress[smol.Address] || 0) + smol.Views;
                 }
             } else {
                 console.warn("Smol object missing Address:", smol);
             }
         }
 
-        const processedEntries: LeaderboardEntry[] = users.map((user: UserData): LeaderboardEntry => {
-            const songCount = songCountsByAddress[user.Address] || 0;
-            const totalPlays = playCountsByAddress[user.Address] || 0;
-            const totalViews = viewCountsByAddress[user.Address] || 0;
+        const processedEntries: LeaderboardEntry[] = users.map(
+            (user: UserData): LeaderboardEntry => {
+                const songCount = songCountsByAddress[user.Address] || 0;
+                const totalPlays = playCountsByAddress[user.Address] || 0;
+                const totalViews = viewCountsByAddress[user.Address] || 0;
 
-            // Calculate weighted total points
-            const totalPoints = (songCount * 5) + (totalViews * 1) + (totalPlays * 2);
+                // Calculate weighted total points
+                const totalPoints =
+                    songCount * 5 + totalViews * 1 + totalPlays * 2;
 
-            return {
-                username: user.Username,
-                address: user.Address,
-                songCount,
-                totalPlays,
-                totalViews,
-                totalPoints
-            };
-        });
+                return {
+                    username: user.Username,
+                    address: user.Address,
+                    songCount,
+                    totalPlays,
+                    totalViews,
+                    totalPoints,
+                };
+            },
+        );
 
         // Filter out entries where username is "kalepail"
-        const filteredEntries = processedEntries.filter(entry => entry.username !== "kalepail");
+        const filteredEntries = processedEntries.filter(
+            (entry) => entry.username !== "kalepail",
+        );
 
         filteredEntries.sort((a, b) => {
             // Sort by total points first
@@ -161,7 +171,9 @@
         {:else if error}
             <p class="text-center text-red-500 py-8">{error}</p>
         {:else if !leaderboardData || leaderboardData.length === 0}
-            <p class="text-center text-slate-400 py-8">No leaderboard data available yet.</p>
+            <p class="text-center text-slate-400 py-8">
+                No leaderboard data available yet.
+            </p>
         {:else}
             <div class="relative overflow-hidden shadow-lg rounded-lg">
                 <!-- Bottom shadow -->
@@ -182,24 +194,56 @@
                     >
                         <!-- Sticky header wrapper -->
                         <div class="sticky top-0 z-20">
-                            <table class="w-full bg-slate-800 border-t border-x border-slate-700">
+                            <table
+                                class="w-full bg-slate-800 border-t border-x border-slate-700"
+                            >
                                 <thead class="bg-slate-700">
                                     <tr>
-                                        <th class="text-left py-3 px-4 font-semibold uppercase tracking-wider text-sm" style="width: 100px;">Rank</th>
-                                        <th class="text-left py-3 px-4 font-semibold uppercase tracking-wider text-sm" style="width: 140px;">Username</th>
-                                        <th class="text-right py-3 px-4 font-semibold uppercase tracking-wider text-sm" style="width: 180px;">
+                                        <th
+                                            class="text-left py-3 px-4 font-semibold uppercase tracking-wider text-sm"
+                                            style="width: 100px;">Rank</th
+                                        >
+                                        <th
+                                            class="text-left py-3 px-4 font-semibold uppercase tracking-wider text-sm"
+                                            style="width: 140px;">Username</th
+                                        >
+                                        <th
+                                            class="text-right py-3 px-4 font-semibold uppercase tracking-wider text-sm"
+                                            style="width: 180px;"
+                                        >
                                             <div>Smols Created</div>
-                                            <div class="text-xs font-normal text-slate-400">(5 pts each)</div>
+                                            <div
+                                                class="text-xs font-normal text-slate-400"
+                                            >
+                                                (5 pts each)
+                                            </div>
                                         </th>
-                                        <th class="text-right py-3 px-4 font-semibold uppercase tracking-wider text-sm" style="width: 160px;">
+                                        <th
+                                            class="text-right py-3 px-4 font-semibold uppercase tracking-wider text-sm"
+                                            style="width: 160px;"
+                                        >
                                             <div>Total Views</div>
-                                            <div class="text-xs font-normal text-slate-400">(1 pt each)</div>
+                                            <div
+                                                class="text-xs font-normal text-slate-400"
+                                            >
+                                                (1 pt each)
+                                            </div>
                                         </th>
-                                        <th class="text-right py-3 px-4 font-semibold uppercase tracking-wider text-sm" style="width: 160px;">
+                                        <th
+                                            class="text-right py-3 px-4 font-semibold uppercase tracking-wider text-sm"
+                                            style="width: 160px;"
+                                        >
                                             <div>Total Plays</div>
-                                            <div class="text-xs font-normal text-slate-400">(2 pts each)</div>
+                                            <div
+                                                class="text-xs font-normal text-slate-400"
+                                            >
+                                                (2 pts each)
+                                            </div>
                                         </th>
-                                        <th class="text-right py-3 px-4 font-bold uppercase tracking-wider text-sm text-amber-400" style="width: 110px;">Total</th>
+                                        <th
+                                            class="text-right py-3 px-4 font-bold uppercase tracking-wider text-sm text-amber-400"
+                                            style="width: 110px;">Total</th
+                                        >
                                     </tr>
                                 </thead>
                             </table>
@@ -213,16 +257,44 @@
                         </div>
 
                         <!-- Table body (separate table for proper alignment) -->
-                        <table class="w-full bg-slate-800 border-slate-700 -mt-[1px]">
+                        <table
+                            class="w-full bg-slate-800 border-slate-700 -mt-[1px]"
+                        >
                             <tbody class="divide-y divide-slate-600">
                                 {#each leaderboardData as entry, index (entry.address)}
-                                    <tr class="hover:bg-slate-750 transition-colors duration-150">
-                                        <td class="py-3 px-4 text-slate-300 whitespace-nowrap" style="width: 100px;">{index + 1}</td>
-                                        <td class="py-3 px-4 font-medium whitespace-nowrap" style="width: 140px;">{entry.username}</td>
-                                        <td class="py-3 px-4 text-right text-slate-300 whitespace-nowrap" style="width: 180px;">{entry.songCount.toLocaleString()}</td>
-                                        <td class="py-3 px-4 text-right text-slate-300 whitespace-nowrap" style="width: 160px;">{entry.totalViews.toLocaleString()}</td>
-                                        <td class="py-3 px-4 text-right text-slate-300 whitespace-nowrap" style="width: 160px;">{entry.totalPlays.toLocaleString()}</td>
-                                        <td class="py-3 px-4 text-right font-bold text-amber-400 whitespace-nowrap" style="width: 110px;">{entry.totalPoints.toLocaleString()}</td>
+                                    <tr
+                                        class="hover:bg-slate-750 transition-colors duration-150"
+                                    >
+                                        <td
+                                            class="py-3 px-4 text-slate-300 whitespace-nowrap"
+                                            style="width: 100px;"
+                                            >{index + 1}</td
+                                        >
+                                        <td
+                                            class="py-3 px-4 font-medium whitespace-nowrap"
+                                            style="width: 140px;"
+                                            >{entry.username}</td
+                                        >
+                                        <td
+                                            class="py-3 px-4 text-right text-slate-300 whitespace-nowrap"
+                                            style="width: 180px;"
+                                            >{entry.songCount.toLocaleString()}</td
+                                        >
+                                        <td
+                                            class="py-3 px-4 text-right text-slate-300 whitespace-nowrap"
+                                            style="width: 160px;"
+                                            >{entry.totalViews.toLocaleString()}</td
+                                        >
+                                        <td
+                                            class="py-3 px-4 text-right text-slate-300 whitespace-nowrap"
+                                            style="width: 160px;"
+                                            >{entry.totalPlays.toLocaleString()}</td
+                                        >
+                                        <td
+                                            class="py-3 px-4 text-right font-bold text-amber-400 whitespace-nowrap"
+                                            style="width: 110px;"
+                                            >{entry.totalPoints.toLocaleString()}</td
+                                        >
                                     </tr>
                                 {/each}
                             </tbody>

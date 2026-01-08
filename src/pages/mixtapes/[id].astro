@@ -11,7 +11,8 @@ let image_url: string | null = null;
 
 if (id) {
     try {
-        const data = await fetch(`${import.meta.env.PUBLIC_API_URL}/mixtapes/${id}`, {
+        const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
+        const data = await fetch(`${API_URL}/mixtapes/${id}`, {
             headers: {
                 Cookie: Astro.request.headers.get('cookie') ?? '',
             }
@@ -26,7 +27,7 @@ if (id) {
 
             // Use first track's image as mixtape cover
             if (data.Smols?.[0]?.Id) {
-                image_url = `${import.meta.env.PUBLIC_API_URL}/image/${data.Smols[0].Id}.png`;
+                image_url = `${API_URL}/image/${data.Smols[0].Id}.png`;
             }
         }
     } catch (error) {

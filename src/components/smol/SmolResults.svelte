@@ -20,6 +20,8 @@
 
     let { id }: { id: string } = $props();
 
+    const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
+
     // Data State
     let data = $state<SmolDetailResponse | null>(null);
     let loading = $state(true);
@@ -78,9 +80,9 @@
 
         let audioUrl = "";
         if (selectedVersionId) {
-            audioUrl = `${import.meta.env.PUBLIC_API_URL}/song/${selectedVersionId}.mp3`;
+            audioUrl = `${API_URL}/song/${selectedVersionId}.mp3`;
         } else if (data?.d1?.Song_1) {
-            audioUrl = `${import.meta.env.PUBLIC_API_URL}/song/${data.d1.Song_1}.mp3`;
+            audioUrl = `${API_URL}/song/${data.d1.Song_1}.mp3`;
         }
 
         return {
@@ -116,7 +118,7 @@
     async function fetchData() {
         loading = true;
         try {
-            const res = await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
+            const res = await fetch(`${API_URL}/${id}`, {
                 credentials: "include",
             });
             if (!res.ok) throw new Error("Failed to load track");
@@ -180,7 +182,9 @@
                     id,
                     contractId: userState.contractId,
                     keyId: userState.keyId!,
-                    smolContractId: import.meta.env.PUBLIC_SMOL_CONTRACT_ID!,
+                    smolContractId:
+                        import.meta.env.PUBLIC_SMOL_CONTRACT_ID ||
+                        "CBRNUVLGFM5OYWAGZVGU7CTMP2UJLKZCLFY2ANUCK5UGKND6BBAA5PLA",
                     rpcUrl: import.meta.env.PUBLIC_RPC_URL!,
                     networkPassphrase: import.meta.env
                         .PUBLIC_NETWORK_PASSPHRASE!,
@@ -197,7 +201,7 @@
     }
 
     async function togglePublic() {
-        await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
+        await fetch(`${API_URL}/${id}`, {
             method: "PUT",
             credentials: "include",
         });
@@ -206,7 +210,7 @@
 
     async function deleteSong() {
         if (!confirm("Delete this song?")) return;
-        await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
+        await fetch(`${API_URL}/${id}`, {
             method: "DELETE",
             credentials: "include",
         });
@@ -746,7 +750,7 @@
         mintTokenId={data.d1.Mint_Token!}
         songId={id}
         title={data.d1.Title}
-        imageUrl={`${import.meta.env.PUBLIC_API_URL}/image/${id}.png?scale=8`}
+        imageUrl={`${API_URL}/image/${id}.png?scale=8`}
         on:close={() => (showTradeModal = false)}
         on:complete={() => {
             fetchData();

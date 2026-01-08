@@ -18,4 +18,6 @@ export const sac = new SACClient({
     networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
 });
 
-export const kale = sac.getSACClient(import.meta.env.PUBLIC_KALE_SAC_ID);
+export const kale = sac.getSACClient(
+    import.meta.env.PUBLIC_KALE_SAC_ID || "CAS3J7GYLGXMF6TDJBBYABC3M2OX6COCCFDDB6J6W3F7X47X62N3C4A5"
+);

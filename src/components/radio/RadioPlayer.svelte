@@ -151,6 +151,7 @@
   let isFullscreen = $state(false);
   let showControls = $state(true);
   let showQueue = $state(false);
+  let isMinimized = $state(false); // Mobile minimize mode - hide art, show playlist
   let controlsTimeout: number | null = null;
 
   function toggleFullscreen() {
@@ -409,13 +410,96 @@
       <div
         class="{isOverlay ? 'relative' : ''} w-full flex flex-col items-center"
       >
-        <!-- MERGED ALBUM ART + VISUALIZER -->
+        <!-- MERGED ALBUM ART + VISUALIZER (hidden on mobile when minimized) -->
         <div
           class="relative shrink-0 shadow-2xl mx-auto transition-all duration-500 rounded-2xl overflow-hidden bg-black/40 border border-white/10 flex items-center justify-center w-full {isFullscreen
             ? 'max-h-[85vh] max-w-[85vh]'
-            : 'max-w-full lg:max-h-[400px] aspect-square min-h-[320px]'}"
+            : 'max-w-full lg:max-h-[400px] aspect-square min-h-[320px]'} {isMinimized
+            ? 'hidden md:flex'
+            : ''}"
           style="transform: translateZ(0); -webkit-transform: translateZ(0); -webkit-backdrop-filter: blur(10px);"
         >
+          <!-- MINIMIZED CONTROL BAR (Mobile Only) -->
+          {#if isMinimized}
+            <div
+              class="md:hidden w-full bg-black/60 backdrop-blur-md border border-white/10 rounded-xl p-3 mb-3"
+            >
+              <!-- Song Info Row -->
+              <div class="flex items-center gap-3 mb-3">
+                <img
+                  src={coverUrl || "/placeholder.png"}
+                  alt={songTitle}
+                  class="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                />
+                <div class="flex-1 min-w-0">
+                  <div class="text-white font-medium text-sm truncate">
+                    {songTitle}
+                  </div>
+                  <div class="text-white/50 text-xs truncate">
+                    {songTags || "Now Playing"}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Controls Row -->
+              <div class="flex items-center justify-center gap-4">
+                <!-- Previous -->
+                <button
+                  class="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors active:scale-95"
+                  onclick={() => onPrev?.()}
+                  title="Previous"
+                >
+                  <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+                  </svg>
+                </button>
+
+                <!-- Play/Pause -->
+                <button
+                  class="w-14 h-14 flex items-center justify-center rounded-full bg-lime-500 hover:bg-lime-400 text-slate-900 transition-colors active:scale-95"
+                  onclick={() => togglePlayPause()}
+                  title={playing ? "Pause" : "Play"}
+                >
+                  {#if playing}
+                    <svg
+                      class="w-7 h-7"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                    </svg>
+                  {:else}
+                    <svg
+                      class="w-7 h-7 ml-1"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  {/if}
+                </button>
+
+                <!-- Next -->
+                <button
+                  class="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors active:scale-95"
+                  onclick={() => onNext?.()}
+                  title="Next"
+                >
+                  <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Progress Bar -->
+              <div class="mt-3 h-1 bg-white/10 rounded-full overflow-hidden">
+                <div
+                  class="h-full bg-lime-500 transition-all duration-200"
+                  style="width: {progress}%;"
+                ></div>
+              </div>
+            </div>
+          {/if}
           <!-- TOP SCRUBBER (mobile only when overlayControlsOnMobile) -->
           {#if overlayControlsOnMobile}
             <div
@@ -595,6 +679,41 @@
                 </svg>
               </button>
             {/if}
+
+            <!-- Mobile Minimize Button (toggles album art collapse) -->
+            <button
+              class="md:hidden tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/40 backdrop-blur-md rounded-lg border border-white/10 hover:border-white/30 {isMinimized
+                ? 'text-lime-400 border-lime-500/50'
+                : ''}"
+              onclick={(e) => {
+                e.stopPropagation();
+                isMinimized = !isMinimized;
+              }}
+              title={isMinimized ? "Show Album Art" : "Show Playlist"}
+            >
+              <svg
+                class="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                {#if isMinimized}
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                {:else}
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M20 12H4"
+                  />
+                {/if}
+              </svg>
+            </button>
 
             <button
               class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/40 backdrop-blur-md rounded-lg border border-white/10 hover:border-white/30"

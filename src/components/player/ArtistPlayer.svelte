@@ -16,6 +16,7 @@
   let shuffleEnabled = $state(false);
   let currentIndex = $state(0);
   let internalPlaylist = $state<Smol[]>([]);
+  let isMinimized = $state(false); // Mobile minimize state
 
   // Initialize playlist on mount only
   $effect(() => {
@@ -420,6 +421,35 @@
       </div>
     </div>
 
+    <!-- Mobile Minimize Button -->
+    <button
+      class="md:hidden w-10 h-10 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 transition-colors text-white/70 hover:text-white touch-manipulation active:scale-90"
+      onclick={() => (isMinimized = !isMinimized)}
+      title={isMinimized ? "Expand" : "Minimize"}
+    >
+      <svg
+        class="w-5 h-5"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        viewBox="0 0 24 24"
+      >
+        {#if isMinimized}
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+          />
+        {:else}
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5l5.25 5.25"
+          />
+        {/if}
+      </svg>
+    </button>
+
     <!-- Like Button -->
     <button
       class="w-10 h-10 flex items-center justify-center rounded-full transition-colors {isLiked
@@ -445,8 +475,8 @@
     </button>
   </div>
 
-  <!-- Expanded Section: Album Art + Up Next -->
-  {#if currentSong}
+  <!-- Expanded Section: Album Art + Up Next (hidden when minimized on mobile) -->
+  {#if currentSong && !isMinimized}
     <div class="flex gap-4 mt-4 pt-4 border-t border-white/10">
       <!-- Album Art -->
       <div class="flex-shrink-0">
@@ -502,7 +532,7 @@
       ></canvas>
     </div>
 
-    <!-- Up Next -->
+    <!-- Up Next (compact) -->
     <div class="flex-1 min-w-0 mt-4">
       <h4 class="text-xs font-bold text-white/50 uppercase tracking-wider mb-2">
         Up Next
@@ -525,6 +555,35 @@
         {#if internalPlaylist.length <= currentIndex + 1}
           <div class="text-white/30 text-sm italic">End of playlist</div>
         {/if}
+      </div>
+    </div>
+  {/if}
+
+  <!-- Full Playlist (Mobile Minimized Mode) -->
+  {#if isMinimized && currentSong}
+    <div class="mt-4 pt-4 border-t border-white/10">
+      <h4 class="text-xs font-bold text-white/50 uppercase tracking-wider mb-2">
+        Full Playlist ({internalPlaylist.length} tracks)
+      </h4>
+      <div class="playlist-scroll space-y-1 max-h-64 overflow-y-auto">
+        {#each internalPlaylist as track, i}
+          <button
+            class="w-full text-left text-sm truncate py-2 px-3 rounded transition-colors flex items-center gap-2 {currentIndex ===
+            i
+              ? 'bg-lime-500/20 text-lime-400'
+              : 'text-white/70 hover:bg-white/5'}"
+            onclick={() => {
+              currentIndex = i;
+              selectSong(track);
+            }}
+          >
+            <span class="w-6 text-right text-white/40 text-xs">{i + 1}</span>
+            <span class="flex-1 truncate">{track.Title}</span>
+            {#if currentIndex === i}
+              <span class="text-lime-400">▸</span>
+            {/if}
+          </button>
+        {/each}
       </div>
     </div>
   {/if}
@@ -562,8 +621,23 @@
 
   /* Firefox */
   .lyrics-scroll,
-  .upnext-scroll {
+  .upnext-scroll,
+  .playlist-scroll {
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  }
+
+  .playlist-scroll::-webkit-scrollbar {
+    width: 4px;
+  }
+  .playlist-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .playlist-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+  }
+  .playlist-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
   }
 </style>

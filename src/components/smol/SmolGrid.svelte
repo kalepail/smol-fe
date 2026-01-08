@@ -36,6 +36,8 @@
     onSmolClick,
   }: Props = $props();
 
+  const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
+
   let results = $state<Smol[]>([]);
   let cursor = $state<string | null>(null);
   let hasMore = $state(false);
@@ -138,9 +140,7 @@
         );
       } else {
         // Fetch smols from API for other endpoints
-        const baseUrl = endpoint
-          ? `${import.meta.env.PUBLIC_API_URL}/${endpoint}`
-          : import.meta.env.PUBLIC_API_URL;
+        const baseUrl = endpoint ? `${API_URL}/${endpoint}` : API_URL;
         const url = new URL(baseUrl, window.location.origin);
         url.searchParams.set("limit", "100");
 
@@ -207,8 +207,54 @@
     }
   }
 
+  /**
+   * Background hydration: Fetch recent songs individually when bulk API fails.
+   * This catches new mints that aren't in the snapshot yet.
+   */
+  async function hydrateLiveSongs() {
+    // Only run for homepage (no endpoint) and if we have snapshot data
+    if (endpoint || !results.length) return;
+
+    try {
+      // Fetch the most recent song IDs from the API root (small request)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      const response = await fetch(`${API_URL}?limit=10`, {
+        credentials: "include",
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) return;
+
+      const data = await response.json();
+      const liveSongs = data.smols || data || [];
+
+      if (!Array.isArray(liveSongs) || liveSongs.length === 0) return;
+
+      // Find songs in live that aren't in snapshot
+      const existingIds = new Set(results.map((s) => s.Id));
+      const newSongs = liveSongs.filter((s: Smol) => !existingIds.has(s.Id));
+
+      if (newSongs.length > 0) {
+        console.log(
+          `[SmolGrid] Found ${newSongs.length} new live songs, merging...`,
+        );
+        // Prepend new songs to results
+        results = [...newSongs, ...results];
+      }
+    } catch (e) {
+      // Silently fail - snapshot is already showing
+      console.debug("[SmolGrid] Live hydration skipped:", e);
+    }
+  }
+
   onMount(() => {
-    fetchInitialData();
+    fetchInitialData().then(() => {
+      // Background hydration after initial load
+      hydrateLiveSongs();
+    });
 
     // Register the songNext callback for this page
     registerSongNextCallback(songNext);
@@ -259,7 +305,7 @@
 
   $effect(() => {
     const song = audioState.currentSong;
-    mediaHook.updateMediaMetadata(song, import.meta.env.PUBLIC_API_URL);
+    mediaHook.updateMediaMetadata(song, API_URL);
   });
 
   // Speculative Image Preloading: Load images for the NEXT page of results
@@ -273,7 +319,7 @@
       const preload = () => {
         nextBatch.forEach((smol) => {
           const img = new Image();
-          img.src = `${import.meta.env.PUBLIC_API_URL}/image/${smol.Id}.png`;
+          img.src = `${API_URL}/image/${smol.Id}.png`;
         });
       };
 
@@ -296,7 +342,7 @@
       title: smol.Title ?? "Untitled Smol",
       creator:
         smol.Creator ?? smol.Username ?? smol.artist ?? smol.author ?? null,
-      coverUrl: `${import.meta.env.PUBLIC_API_URL}/image/${smol.Id}.png`,
+      coverUrl: `${API_URL}/image/${smol.Id}.png`,
     };
   }
 
@@ -435,7 +481,7 @@
   </div>
 {/if}
 
-{#if hasMore || loadingMore}
+{#if canLoadMore || loadingMore}
   <div bind:this={scrollTrigger} class="flex justify-center mb-20 py-8">
     {#if loadingMore}
       <div class="text-lime-500">Loading...</div>

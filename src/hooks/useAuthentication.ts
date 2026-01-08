@@ -14,6 +14,7 @@ interface CreateResult extends ConnectResult {
 }
 
 export function useAuthentication() {
+  const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
   async function login() {
     const rpId = getDomain(window.location.hostname);
     const {
@@ -24,7 +25,7 @@ export function useAuthentication() {
       rpId: rpId !== null ? rpId : undefined,
     });
 
-    const jwt = await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {
+    const jwt = await fetch(`${API_URL}/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -70,7 +71,7 @@ export function useAuthentication() {
       rpId: rpId !== null ? rpId : undefined,
     });
 
-    const jwt = await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {
+    const jwt = await fetch(`${API_URL}/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -135,7 +136,7 @@ export function useAuthentication() {
       }
     });
 
-    await fetch(`${import.meta.env.PUBLIC_API_URL}/logout`, {
+    await fetch(`${API_URL}/logout`, {
       method: 'POST',
     });
 
