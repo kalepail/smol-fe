@@ -161,21 +161,16 @@
         <p>{kv_do && kv_do?.payload?.prompt}</p>
       </li>
 
-      <li>
-        <h1 class="mb-2">Image:</h1>
-
-        {#if kv_do?.image}
+      {#if kv_do?.image}
+        <li>
+          <h1 class="mb-2">Image:</h1>
           <img
             class="aspect-square object-contain pixelated w-[256px]"
             src={`${import.meta.env.PUBLIC_API_URL}/image/${id}.png`}
             alt={kv_do?.lyrics?.title}
           />
-        {:else}
-          <div class="aspect-square w-[256px] bg-slate-800 flex items-center justify-center">
-            <Loader />
-          </div>
-        {/if}
-      </li>
+        </li>
+      {/if}
 
       <li>
         <h1>Description:</h1>
