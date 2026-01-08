@@ -1913,23 +1913,30 @@
                             <!-- Time Machine (Live Clock Trigger) -->
                             <button
                                 class="flex items-center gap-1.5 px-2 py-1 rounded bg-black/40 hover:bg-fuchsia-500/20 text-fuchsia-400 border border-white/10 hover:border-fuchsia-500/50 transition-all group/clock shrink-0"
-                                title="Time Machine: Click to Jump to Random Point in Timeline"
+                                title="Time Machine: Click to Jump to Random Point in Timeline (Canon Mode)"
                                 onclick={() => {
-                                    // Time Machine Logic
+                                    // Time Machine: Switch to Canon, Jump Randomly, Play
                                     shuffleEnabled = false;
-                                    let list = liveDiscography; // Use live version
-                                    if (activeModule === "minted")
-                                        list = minted ?? [];
-                                    if (activeModule === "collected")
-                                        list = collected ?? [];
+                                    activeModule = "discography";
+                                    sortMode = "canon";
 
-                                    if (list.length > 0) {
-                                        const randomIdx = Math.floor(
-                                            Math.random() * list.length,
-                                        );
-                                        selectSong(list[randomIdx]);
-                                        currentIndex = randomIdx;
-                                    }
+                                    // Wait for reactive sort update
+                                    setTimeout(() => {
+                                        let list = liveDiscography;
+                                        if (list.length > 0) {
+                                            const randomIdx = Math.floor(
+                                                Math.random() * list.length,
+                                            );
+                                            const song = list[randomIdx];
+                                            selectSong(song);
+                                            currentIndex = randomIdx;
+
+                                            // Force Play
+                                            if (!isPlaying()) {
+                                                togglePlayPause();
+                                            }
+                                        }
+                                    }, 50);
                                 }}
                             >
                                 <span

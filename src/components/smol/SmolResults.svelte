@@ -394,6 +394,13 @@
                                     );
                                 }
                             }}
+                            onPrev={() => {
+                                // Restart song on "Previous" click
+                                if (audioState.audioElement) {
+                                    audioState.audioElement.currentTime = 0;
+                                    if (!isPlaying()) togglePlayPause();
+                                }
+                            }}
                             onTrade={tradeReady
                                 ? () => (showTradeModal = true)
                                 : undefined}

@@ -1165,7 +1165,31 @@
             </svg>
           </button>
 
-          <!-- KALE TIP BUTTON (Right of Next) -->
+          <!-- REPLAY BUTTON -->
+          <button
+            class="tech-button {isMinimized
+              ? 'w-7 h-7'
+              : 'w-8 h-8 sm:w-10 sm:h-10'} flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md touch-manipulation"
+            onclick={(e) => {
+              if (audioState.audioElement) {
+                audioState.audioElement.currentTime = 0;
+                if (!playing) playPause();
+              }
+            }}
+            title="Replay Song"
+          >
+            <svg
+              class={isMinimized ? "w-3.5 h-3.5" : "w-4 h-4"}
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"
+              />
+            </svg>
+          </button>
+
+          <!-- KALE TIP BUTTON (Right of Replay) -->
           {#if onTip}
             <button
               class="tech-button {isMinimized
