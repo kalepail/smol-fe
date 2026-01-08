@@ -485,7 +485,7 @@
 
                 <!-- Artist Page (Green Profile) -->
                 <a
-                  href={`/artist/${currentSong?.Address || ""}`}
+                  href={`/artist/${currentSong?.Address || ""}${currentSong?.Id ? `?play=${currentSong.Id}` : ""}`}
                   class="w-7 h-7 flex items-center justify-center rounded-full bg-[#089981]/10 hover:bg-[#089981]/20 border border-[#089981]/30 text-[#089981] transition-colors active:scale-95"
                   onclick={(e) => e.stopPropagation()}
                   title="Artist Profile"
