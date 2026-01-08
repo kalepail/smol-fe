@@ -72,12 +72,13 @@
                     0 0 10px white;
             }
             27% {
-                transform: translate(110vw, -110vh) rotate(-45deg) scale(3)
+                transform: translate(110vw, -110vh) rotate(-45deg) scale(6)
                     scaleX(1);
                 opacity: 1;
                 box-shadow:
-                    0 0 20px white,
-                    0 0 40px white;
+                    0 0 40px white,
+                    0 0 80px white,
+                    0 0 120px #ccff00;
                 background: #ccff00;
             }
             30% {
