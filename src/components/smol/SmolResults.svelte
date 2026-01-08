@@ -426,37 +426,7 @@
                             onShare={share}
                         />
 
-                        <div class="mt-auto hidden lg:flex gap-4 w-full">
-                            {#if minted}
-                                {#if tradeReady}
-                                    <button
-                                        onclick={() => (showTradeModal = true)}
-                                        class="flex-1 flex items-center justify-center gap-2 py-3 bg-[#2775ca] hover:brightness-110 text-white font-bold rounded-xl transition-all uppercase tracking-widest text-xs"
-                                    >
-                                        Trade <TokenBalancePill
-                                            balance={tradeMintBalance}
-                                        />
-                                    </button>
-                                {/if}
-                            {:else}
-                                <button
-                                    onclick={triggerMint}
-                                    disabled={minting}
-                                    class="flex-1 py-3 bg-[#d836ff] hover:brightness-110 disabled:opacity-50 text-white font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
-                                >
-                                    {#if minting}<Loader
-                                            classNames="w-4 h-4"
-                                            textColor="text-white"
-                                        />{/if}
-                                    {minting ? "Minting..." : "Mint Track"}
-                                </button>
-                            {/if}
-                            <button
-                                onclick={share}
-                                class="px-6 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl border border-white/5 transition-all text-xs uppercase tracking-widest"
-                                >Share</button
-                            >
-                        </div>
+                        <!-- Desktop Action Bar Removed -->
                     </div>
 
                     <!-- Right: Info/Lyrics Column -->

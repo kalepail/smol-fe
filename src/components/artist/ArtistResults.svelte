@@ -875,9 +875,17 @@
     }
 
     function share() {
-        const url = currentSong?.Id
-            ? `${window.location.origin}/${currentSong.Id}`
-            : window.location.href;
+        let url = window.location.href; // Default to current page (artist profile)
+        
+        // If a song is selected/playing, append ?play=ID to the artist URL
+        if (currentSong?.Id && address) {
+             const baseUrl = `${window.location.origin}/artist/${address}`;
+             url = `${baseUrl}?play=${currentSong.Id}`;
+        } else if (currentSong?.Id) {
+             // Fallback if address is missing (rare)
+             url = `${window.location.origin}/${currentSong.Id}`;
+        }
+
         navigator
             .share?.({
                 title: currentSong?.Title || "SMOL Artist",
