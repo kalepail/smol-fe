@@ -8,10 +8,6 @@
     } from "../../hooks/useWeather.svelte";
     import { backgroundState } from "../../stores/background.svelte.ts";
 
-    // Sky Logic
-    const hour = new Date().getHours();
-    const isNight = hour >= 20 || hour < 6;
-
     // Sparkles Generation (Magic/Music Vibe)
     const sparkles = Array.from({ length: 20 }).map(() => ({
         top: Math.random() * 100 + "%",
