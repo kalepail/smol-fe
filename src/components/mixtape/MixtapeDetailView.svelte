@@ -381,13 +381,25 @@
           },
         );
 
-        // Wait for all tracks to be minted
+        // Wait for tracks to be minted (with progress updates)
         const startTime = Date.now();
-        while (Date.now() - startTime < MINT_POLL_TIMEOUT) {
-          const allMinted = mixtapeTracks.every((track) => {
-            return track?.Mint_Token && track?.Mint_Amm;
-          });
+        let lastMintedCount = 0;
 
+        while (Date.now() - startTime < MINT_POLL_TIMEOUT) {
+          const mintedCount = mixtapeTracks.filter(
+            (track) => track?.Mint_Token && track?.Mint_Amm,
+          ).length;
+          const totalTracks = mixtapeTracks.length;
+
+          // Log progress if changed
+          if (mintedCount !== lastMintedCount) {
+            console.log(
+              `Minting progress: ${mintedCount}/${totalTracks} tracks minted`,
+            );
+            lastMintedCount = mintedCount;
+          }
+
+          const allMinted = mintedCount === totalTracks;
           if (allMinted) break;
 
           await new Promise((resolve) =>
@@ -395,14 +407,25 @@
           );
         }
 
-        const unmintedTracks = mixtapeTracks.filter((track) => {
-          return track && !track.Mint_Token;
-        });
+        const mintedTracks = mixtapeTracks.filter(
+          (track) => track?.Mint_Token && track?.Mint_Amm,
+        );
+        const unmintedTracks = mixtapeTracks.filter(
+          (track) => track && !track.Mint_Token,
+        );
 
+        // Partial success handling - don't throw, just log and continue with minted tracks
         if (unmintedTracks.length > 0) {
-          throw new Error(
-            `Some tracks are still minting. Please wait and try again.`,
+          console.warn(
+            `Partial mint: ${mintedTracks.length}/${mixtapeTracks.length} tracks minted. ${unmintedTracks.length} tracks still pending.`,
           );
+          // If ALL tracks failed, that's a real problem
+          if (mintedTracks.length === 0) {
+            throw new Error(
+              "No tracks were minted. Please check your connection and try again.",
+            );
+          }
+          // Otherwise continue with partial mint - user can buy what's ready
         }
 
         purchaseCompletedSteps.add("mint");
