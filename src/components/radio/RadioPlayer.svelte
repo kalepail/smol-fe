@@ -648,8 +648,8 @@
             ></canvas>
           </div>
 
-          <!-- CONTEXT AWARE BACK BUTTON (BOTTOM LEFT) -->
-          {#if backContext && !isFullscreen}
+          <!-- CONTEXT AWARE BACK BUTTON (BOTTOM LEFT) - Hidden on Song ID pages -->
+          {#if backContext && !isFullscreen && !window.location.pathname.match(/^\/[a-f0-9]{64}$/i)}
             <div
               class="absolute bottom-4 left-4 z-40 animate-in fade-in zoom-in duration-300"
             >
