@@ -1297,9 +1297,48 @@
                         ? 'text-lime-400'
                         : 'text-white/40 hover:text-white'} whitespace-nowrap"
                 >
-                    Collected
                 </button>
             </div>
+
+            <!-- Time Machine (Canon Sort + Random Jump) -->
+            <button
+                class="hidden md:flex items-center gap-1.5 px-3 py-1 bg-fuchsia-500/10 hover:bg-fuchsia-500/20 text-fuchsia-400 border border-fuchsia-500/30 rounded-full transition-all active:scale-95 text-[10px] font-pixel tracking-wider whitespace-nowrap mx-2"
+                title="Time Machine: Canon Sort & Random Jump"
+                onclick={() => {
+                    // 1. Disable Shuffle (to revert to Canon/ID sort usually)
+                    shuffleEnabled = false;
+
+                    // 2. Identify current list
+                    let list = discography;
+                    if (activeModule === "minted") list = minted;
+                    if (activeModule === "collected") list = collected;
+
+                    if (list.length > 0) {
+                        // 3. Jump to random index
+                        const randomIdx = Math.floor(
+                            Math.random() * list.length,
+                        );
+                        selectSong(list[randomIdx]);
+                        currentIndex = randomIdx;
+                    }
+                }}
+            >
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke-width="2"
+                    stroke="currentColor"
+                    class="w-3.5 h-3.5"
+                >
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"
+                    />
+                </svg>
+                Time Machine
+            </button>
 
             <!-- Search Input (Desktop Only) -->
             <div
