@@ -10,7 +10,7 @@
         <img
             src="/images/kale-planet.png"
             alt="Planet Demeter"
-            class="w-full h-full object-cover scale-[1.7] md:scale-125 -translate-y-24 md:-translate-y-12 opacity-30 transition-transform duration-[30s]"
+            class="w-full h-full object-cover scale-[1.4] md:scale-115 -translate-y-16 md:-translate-y-8 opacity-30 transition-transform duration-[30s]"
         />
         <div
             class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-slate-950/80"
