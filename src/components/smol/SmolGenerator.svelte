@@ -37,16 +37,45 @@
         onSubmit();
       }}
     >
-      <textarea
-        class="p-2 mb-3 w-full bg-slate-800 text-white border-2 border-slate-700 rounded-none focus:border-lime-500 outline-none font-pixel tracking-widest text-xs leading-relaxed"
-        placeholder={`Write an epic prompt\nfor an even epic'er gen!`}
-        rows="4"
-        bind:value={prompt}
-        oninput={(e) => {
-          const target = e.currentTarget as HTMLTextAreaElement;
-          onPromptChange(target.value);
-        }}
-      ></textarea>
+      <div class="relative w-full mb-3">
+        <textarea
+          class="p-2 w-full bg-slate-800 text-white border-2 border-slate-700 rounded-none focus:border-lime-500 outline-none font-pixel tracking-widest text-xs leading-relaxed pr-8"
+          placeholder={`Write an epic prompt\nfor an even epic'er gen!`}
+          rows="4"
+          bind:value={prompt}
+          oninput={(e) => {
+            const target = e.currentTarget as HTMLTextAreaElement;
+            onPromptChange(target.value);
+          }}
+        ></textarea>
+        <!-- Tappable Paste Button -->
+        <button
+          type="button"
+          onclick={async () => {
+            try {
+              const text = await navigator.clipboard.readText();
+              if (text) onPromptChange(text);
+            } catch (e) {
+              console.error("Paste failed", e);
+            }
+          }}
+          class="absolute top-2 right-2 p-1.5 text-slate-400 hover:text-white bg-slate-700/50 hover:bg-slate-700 border border-transparent hover:border-slate-500 rounded transition-all active:scale-95"
+          title="Paste from Clipboard"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 16 16"
+            fill="currentColor"
+            class="w-3.5 h-3.5"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M11.986 3H12a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h.014A2.25 2.25 0 0 1 7.5 1h1a2.25 2.25 0 0 1 3.486 2ZM12 4a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h.75a.75.75 0 0 0 .75-.75V2.25h4v1a.75.75 0 0 0 .75.75H12Z"
+              clip-rule="evenodd"
+            />
+          </svg>
+        </button>
+      </div>
       <small
         class="text-[10px] font-pixel text-slate-400 self-end mb-2 tracking-wider"
       >

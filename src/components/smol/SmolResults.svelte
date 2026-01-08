@@ -17,6 +17,7 @@
     import { sac } from "../../utils/passkey-kit";
     import { getTokenBalance } from "../../utils/balance";
     import MintTradeModal from "../MintTradeModal.svelte";
+    import TipArtistModal from "../artist/TipArtistModal.svelte";
 
     let { id }: { id: string } = $props();
 
@@ -28,6 +29,7 @@
     let error = $state<string | null>(null);
     let showTradeModal = $state(false);
     let minting = $state(false);
+    let showTipModal = $state(false);
     let activeTab = $state<"lyrics" | "metadata">("lyrics");
     let autoScroll = $state(false); // Enable auto-scroll (Default OFF)
     let tradeMintBalance = $state(0n); // Restored missing state
@@ -392,6 +394,13 @@
                                     );
                                 }
                             }}
+                            onPrev={() => {
+                                // Restart song on "Previous" click
+                                if (audioState.audioElement) {
+                                    audioState.audioElement.currentTime = 0;
+                                    if (!isPlaying()) togglePlayPause();
+                                }
+                            }}
                             onTrade={tradeReady
                                 ? () => (showTradeModal = true)
                                 : undefined}
@@ -408,41 +417,23 @@
                             showMiniActions={false}
                             onTogglePublish={isOwner ? togglePublic : undefined}
                             isPublished={!!data.d1?.Public}
-                            likeOnArt={true}
+                            likeOnArt={false}
                             enableContextBack={true}
+                            overlayControlsOnMobile={true}
+                            onTip={() => {
+                                if (!isAuthenticated()) {
+                                    window.dispatchEvent(
+                                        new CustomEvent("smol:request-login"),
+                                    );
+                                    return;
+                                }
+                                showTipModal = true;
+                            }}
+                            onToggleLike={(idx, liked) => {}}
+                            onShare={share}
                         />
 
-                        <div class="mt-auto flex gap-4 w-full">
-                            {#if minted}
-                                {#if tradeReady}
-                                    <button
-                                        onclick={() => (showTradeModal = true)}
-                                        class="flex-1 flex items-center justify-center gap-2 py-3 bg-[#2775ca] hover:brightness-110 text-white font-bold rounded-xl transition-all uppercase tracking-widest text-xs"
-                                    >
-                                        Trade <TokenBalancePill
-                                            balance={tradeMintBalance}
-                                        />
-                                    </button>
-                                {/if}
-                            {:else}
-                                <button
-                                    onclick={triggerMint}
-                                    disabled={minting}
-                                    class="flex-1 py-3 bg-[#d836ff] hover:brightness-110 disabled:opacity-50 text-white font-bold rounded-xl transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
-                                >
-                                    {#if minting}<Loader
-                                            classNames="w-4 h-4"
-                                            textColor="text-white"
-                                        />{/if}
-                                    {minting ? "Minting..." : "Mint Track"}
-                                </button>
-                            {/if}
-                            <button
-                                onclick={share}
-                                class="px-6 py-3 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl border border-white/5 transition-all text-xs uppercase tracking-widest"
-                                >Share</button
-                            >
-                        </div>
+                        <!-- Desktop Action Bar Removed -->
                     </div>
 
                     <!-- Right: Info/Lyrics Column -->
@@ -743,6 +734,13 @@
         </div>
     {/if}
 </div>
+
+{#if showTipModal && data?.d1}
+    <TipArtistModal
+        artistAddress={data.d1.Address || data.d1.Minted_By || ""}
+        onClose={() => (showTipModal = false)}
+    />
+{/if}
 
 {#if showTradeModal && data?.d1 && tradeReady}
     <MintTradeModal

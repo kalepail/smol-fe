@@ -11,6 +11,7 @@
   import { navigate } from "astro:transitions/client";
 
   import LikeButton from "../ui/LikeButton.svelte";
+  import AudioManager from "../audio/AudioManager.svelte";
   import { userState } from "../../stores/user.svelte";
 
   let {
@@ -33,6 +34,7 @@
     overlayControlsOnMobile = false,
     onShare,
     onShuffle,
+    onTip,
     onTogglePublish,
     isPublished,
     likeOnArt = false,
@@ -62,6 +64,7 @@
     overlayControlsOnMobile?: boolean; // legacy
     overlayControls?: boolean;
     onShare?: () => void;
+    onTip?: () => void;
     onShuffle?: () => void;
     onTogglePublish?: () => void;
     isPublished?: boolean;
@@ -376,7 +379,16 @@
     const clickProgress = Math.max(0, Math.min(100, (x / rect.width) * 100));
     seek(clickProgress);
   }
+
+  function onWindowKeydown(e: KeyboardEvent) {
+    if (e.code === "Space" && e.target === document.body) {
+      e.preventDefault();
+      playPause();
+    }
+  }
 </script>
+
+<svelte:window onkeydown={onWindowKeydown} />
 
 <div
   bind:this={containerRef}
@@ -387,6 +399,9 @@
     : ''}"
   onmousemove={handleMouseMove}
 >
+  <!-- AudioManager works fine inside div -->
+  <AudioManager {playlist} />
+
   <!-- FULLSCREEN BACKGROUND (BLURRED ART) -->
   {#if isFullscreen && coverUrl}
     <div class="absolute inset-0 z-0">
@@ -410,6 +425,132 @@
       <div
         class="{isOverlay ? 'relative' : ''} w-full flex flex-col items-center"
       >
+        <!-- MINIMIZED HEADER BAR (Mobile Only - just song info + expand button) -->
+        {#if isMinimized}
+          <div
+            class="md:hidden w-full bg-black/60 backdrop-blur-md border border-white/10 rounded-xl p-4 mb-3 min-h-[160px]"
+          >
+            <!-- Song Info Row with Expand Button -->
+            <div class="flex items-center gap-3">
+              <img
+                src={coverUrl || "/placeholder.png"}
+                alt={songTitle}
+                class="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+              />
+              <!-- Main Player View -->
+              <div class="flex-1 min-w-0" data-role="player-mobile">
+                <AudioManager {playlist} />
+                <div class="flex flex-col h-full justify-end">
+                  <div
+                    class="text-white font-pixel font-bold tracking-wide uppercase text-xs truncate"
+                  >
+                    {songTitle}
+                  </div>
+                  <div
+                    class="text-white/50 font-pixel tracking-wide uppercase text-[10px] truncate"
+                  >
+                    {songTags || "Now Playing"}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Extra Mobile Buttons (Radio, Song, Artist) -->
+              <div class="flex items-center gap-2 mr-2 relative z-50">
+                <!-- Radio / Regenerate (Orange Tower) -->
+                {#if onRegenerate}
+                  <button
+                    class="w-7 h-7 flex items-center justify-center rounded-full bg-[#f7931a]/10 hover:bg-[#f7931a]/20 border border-[#f7931a]/30 text-[#f7931a] transition-colors active:scale-95"
+                    onclick={(e) => {
+                      e.stopPropagation();
+                      handleRegenerate();
+                    }}
+                    title="Send to Radio"
+                  >
+                    <svg
+                      class="w-3.5 h-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"
+                      />
+                    </svg>
+                  </button>
+                {/if}
+
+                <!-- Song ID (Pink Double Note) -->
+                <a
+                  href={`/${currentSong?.Id || ""}`}
+                  class="w-7 h-7 flex items-center justify-center rounded-full bg-[#d836ff]/10 hover:bg-[#d836ff]/20 border border-[#d836ff]/30 text-[#d836ff] transition-colors active:scale-95"
+                  onclick={(e) => e.stopPropagation()}
+                  title="Song Details"
+                >
+                  <svg
+                    class="w-3.5 h-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
+                    />
+                  </svg>
+                </a>
+
+                <!-- Artist Page (Green Profile) -->
+                <a
+                  href={`/artist/${currentSong?.Address || ""}${currentSong?.Id ? `?play=${currentSong.Id}` : ""}`}
+                  class="w-7 h-7 flex items-center justify-center rounded-full bg-[#089981]/10 hover:bg-[#089981]/20 border border-[#089981]/30 text-[#089981] transition-colors active:scale-95"
+                  onclick={(e) => e.stopPropagation()}
+                  title="Artist Profile"
+                >
+                  <svg
+                    class="w-3.5 h-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                    />
+                  </svg>
+                </a>
+              </div>
+
+              <!-- Expand Button -->
+              <button
+                class="w-10 h-10 flex items-center justify-center rounded-full bg-lime-500/20 hover:bg-lime-500/30 text-lime-400 transition-colors active:scale-95"
+                onclick={() => (isMinimized = false)}
+                title="Expand Player"
+              >
+                <svg
+                  class="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        {/if}
+
         <!-- MERGED ALBUM ART + VISUALIZER (hidden on mobile when minimized) -->
         <div
           class="relative shrink-0 shadow-2xl mx-auto transition-all duration-500 rounded-2xl overflow-hidden bg-black/40 border border-white/10 flex items-center justify-center w-full {isFullscreen
@@ -419,87 +560,6 @@
             : ''}"
           style="transform: translateZ(0); -webkit-transform: translateZ(0); -webkit-backdrop-filter: blur(10px);"
         >
-          <!-- MINIMIZED CONTROL BAR (Mobile Only) -->
-          {#if isMinimized}
-            <div
-              class="md:hidden w-full bg-black/60 backdrop-blur-md border border-white/10 rounded-xl p-3 mb-3"
-            >
-              <!-- Song Info Row -->
-              <div class="flex items-center gap-3 mb-3">
-                <img
-                  src={coverUrl || "/placeholder.png"}
-                  alt={songTitle}
-                  class="w-12 h-12 rounded-lg object-cover flex-shrink-0"
-                />
-                <div class="flex-1 min-w-0">
-                  <div class="text-white font-medium text-sm truncate">
-                    {songTitle}
-                  </div>
-                  <div class="text-white/50 text-xs truncate">
-                    {songTags || "Now Playing"}
-                  </div>
-                </div>
-              </div>
-
-              <!-- Controls Row -->
-              <div class="flex items-center justify-center gap-4">
-                <!-- Previous -->
-                <button
-                  class="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors active:scale-95"
-                  onclick={() => onPrev?.()}
-                  title="Previous"
-                >
-                  <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
-                  </svg>
-                </button>
-
-                <!-- Play/Pause -->
-                <button
-                  class="w-14 h-14 flex items-center justify-center rounded-full bg-lime-500 hover:bg-lime-400 text-slate-900 transition-colors active:scale-95"
-                  onclick={() => togglePlayPause()}
-                  title={playing ? "Pause" : "Play"}
-                >
-                  {#if playing}
-                    <svg
-                      class="w-7 h-7"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
-                    </svg>
-                  {:else}
-                    <svg
-                      class="w-7 h-7 ml-1"
-                      fill="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path d="M8 5v14l11-7z" />
-                    </svg>
-                  {/if}
-                </button>
-
-                <!-- Next -->
-                <button
-                  class="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors active:scale-95"
-                  onclick={() => onNext?.()}
-                  title="Next"
-                >
-                  <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
-                  </svg>
-                </button>
-              </div>
-
-              <!-- Progress Bar -->
-              <div class="mt-3 h-1 bg-white/10 rounded-full overflow-hidden">
-                <div
-                  class="h-full bg-lime-500 transition-all duration-200"
-                  style="width: {progress}%;"
-                ></div>
-              </div>
-            </div>
-          {/if}
           <!-- TOP SCRUBBER (mobile only when overlayControlsOnMobile) -->
           {#if overlayControlsOnMobile}
             <div
@@ -1008,7 +1068,9 @@
         <!-- Controls (below art in standard, absolute on art for overlayControlsOnMobile on mobile) -->
         <div
           class="flex items-center justify-center gap-2 sm:gap-4 md:gap-6 transition-all duration-500 {isOverlay
-            ? 'absolute bottom-14 left-0 right-0 z-40'
+            ? isMinimized
+              ? 'absolute bottom-16 left-0 right-0 z-40'
+              : 'absolute bottom-14 left-0 right-0 z-40'
             : 'mt-1 pb-0'} {isFullscreen
             ? showControls
               ? 'opacity-100 translate-y-0'
@@ -1038,7 +1100,9 @@
           {/if}
 
           <button
-            class="tech-button w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md touch-manipulation"
+            class="tech-button {isMinimized
+              ? 'w-7 h-7'
+              : 'w-8 h-8 sm:w-10 sm:h-10'} flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md touch-manipulation"
             onclick={(e) => {
               if (backContext && enableContextBack) {
                 window.history.back();
@@ -1050,25 +1114,43 @@
               ? backContext.label
               : "Previous"}
           >
-            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <svg
+              class={isMinimized ? "w-4 h-4" : "w-5 h-5"}
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
             </svg>
           </button>
 
           <button
-            class="tech-button w-12 h-12 sm:w-16 sm:h-16 flex items-center justify-center active:scale-95 transition-all relative overflow-hidden group rounded-full backdrop-blur-xl touch-manipulation {playButtonVariant ===
+            class="tech-button {isMinimized
+              ? 'w-11 h-11'
+              : 'w-12 h-12 sm:w-16 sm:h-16'} flex items-center justify-center active:scale-95 transition-all relative overflow-hidden group rounded-full backdrop-blur-xl touch-manipulation {playButtonVariant ===
             'silver'
               ? 'bg-gradient-to-br from-white via-neutral-300 to-neutral-500 border-[2px] border-white text-neutral-800 shadow-[inset_0_2px_4px_rgba(255,255,255,0.9),inset_0_-4px_6px_rgba(0,0,0,0.2),0_4px_15px_rgba(0,0,0,0.5),0_0_25px_rgba(255,255,255,0.5)] hover:brightness-110'
               : 'border border-[#089981] text-[#089981] bg-[#089981]/10 shadow-[0_0_30px_rgba(8,153,129,0.4)] hover:bg-[#089981]/20 hover:text-white hover:shadow-[0_0_40px_rgba(8,153,129,0.6)]'}"
-            onclick={playPause}
+            onclick={(e) => {
+              if (!playing)
+                window.dispatchEvent(new CustomEvent("smol:action-play"));
+              playPause(e);
+            }}
             title={playing ? "Pause" : "Play"}
           >
             {#if playing}
-              <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+              <svg
+                class={isMinimized ? "w-5 h-5" : "w-6 h-6"}
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
               </svg>
             {:else}
-              <svg class="w-6 h-6 ml-1" fill="currentColor" viewBox="0 0 24 24">
+              <svg
+                class="{isMinimized ? 'w-5 h-5' : 'w-6 h-6'} ml-1"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path d="M8 5v14l11-7z" />
               </svg>
             {/if}
@@ -1076,14 +1158,66 @@
 
           <!-- NEXT BUTTON -->
           <button
-            class="tech-button w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md touch-manipulation"
+            class="tech-button {isMinimized
+              ? 'w-7 h-7'
+              : 'w-8 h-8 sm:w-10 sm:h-10'} flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md touch-manipulation"
             onclick={handleNext}
             title="Next"
           >
-            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+            <svg
+              class={isMinimized ? "w-4 h-4" : "w-5 h-5"}
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
             </svg>
           </button>
+
+          <!-- REPLAY BUTTON -->
+          <button
+            class="tech-button {isMinimized
+              ? 'w-7 h-7'
+              : 'w-8 h-8 sm:w-10 sm:h-10'} flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md touch-manipulation"
+            onclick={(e) => {
+              if (audioState.audioElement) {
+                audioState.audioElement.currentTime = 0;
+                if (!playing) playPause();
+              }
+            }}
+            title="Replay Song"
+          >
+            <svg
+              class={isMinimized ? "w-3.5 h-3.5" : "w-4 h-4"}
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"
+              />
+            </svg>
+          </button>
+
+          <!-- KALE TIP BUTTON (Right of Replay) -->
+          {#if onTip}
+            <button
+              class="tech-button {isMinimized
+                ? 'w-7 h-7'
+                : 'w-8 h-8 sm:w-10 sm:h-10'} flex items-center justify-center active:scale-95 disabled:opacity-30 border rounded-full backdrop-blur-md transition-all duration-300 border-green-500/30 text-green-400 bg-green-500/10 hover:bg-green-500/20 shadow-[0_0_15px_rgba(74,222,128,0.1)] touch-manipulation"
+              onclick={(e) => {
+                window.dispatchEvent(new CustomEvent("smol:action-tip"));
+                onTip && onTip(e);
+              }}
+              title="Tip Artist"
+            >
+              <img
+                src="https://em-content.zobj.net/source/apple/354/leafy-green_1f96c.png"
+                alt="Kale"
+                class="{isMinimized
+                  ? 'w-3.5 h-3.5'
+                  : 'w-4 h-4 sm:w-5 sm:h-5'} object-contain brightness-110 drop-shadow-[0_0_2px_rgba(74,222,128,0.5)]"
+              />
+            </button>
+          {/if}
 
           <!-- SHUFFLE BUTTON (mobile only when overlayControlsOnMobile) -->
           {#if onShuffle && overlayControlsOnMobile}
@@ -1157,7 +1291,9 @@
         <!-- Compact Mint/Share buttons (below controls when isOverlay) -->
         {#if isOverlay}
           <div
-            class="absolute bottom-2 left-0 right-0 z-40 flex justify-center gap-2 px-4"
+            class="absolute {isMinimized
+              ? 'bottom-4'
+              : 'bottom-2'} left-0 right-0 z-40 flex justify-center gap-2 px-4"
           >
             {#if onMint}
               <button
@@ -1169,7 +1305,9 @@
                   onMint?.();
                 }}
                 disabled={isMinting}
-                class="flex-[1.5] max-w-[200px] py-2.5 bg-[#d836ff]/80 backdrop-blur-md text-white text-xs font-pixel rounded-lg uppercase tracking-wider hover:bg-[#d836ff] transition-all shadow-lg hover:shadow-[#d836ff]/40"
+                class="{isMinimized
+                  ? 'flex-1 max-w-[120px] py-1.5 text-[10px]'
+                  : 'flex-[1.5] max-w-[200px] py-2.5 text-xs'} bg-[#d836ff]/80 backdrop-blur-md text-white font-pixel rounded-lg uppercase tracking-wider hover:bg-[#d836ff] transition-all shadow-lg hover:shadow-[#d836ff]/40"
               >
                 {isMinting ? "..." : "Mint"}
               </button>
@@ -1183,7 +1321,9 @@
                   }
                   onTrade?.();
                 }}
-                class="flex-[1.5] max-w-[200px] py-2.5 bg-[#2775ca]/80 backdrop-blur-md text-white text-xs font-pixel rounded-lg uppercase tracking-wider hover:bg-[#2775ca] transition-all shadow-lg hover:shadow-[#2775ca]/40"
+                class="{isMinimized
+                  ? 'flex-1 max-w-[120px] py-1.5 text-[10px]'
+                  : 'flex-[1.5] max-w-[200px] py-2.5 text-xs'} bg-[#2775ca]/80 backdrop-blur-md text-white font-pixel rounded-lg uppercase tracking-wider hover:bg-[#2775ca] transition-all shadow-lg hover:shadow-[#2775ca]/40"
               >
                 Trade
               </button>
@@ -1191,7 +1331,9 @@
             {#if onShare}
               <button
                 onclick={onShare}
-                class="px-6 py-2.5 bg-white/10 backdrop-blur-md text-white text-xs font-pixel rounded-lg uppercase tracking-wider border border-white/10 hover:bg-white/20 transition-all shadow-lg"
+                class="{isMinimized
+                  ? 'px-4 py-1.5 text-[10px]'
+                  : 'px-6 py-2.5 text-xs'} bg-white/10 backdrop-blur-md text-white font-pixel rounded-lg uppercase tracking-wider border border-white/10 hover:bg-white/20 transition-all shadow-lg"
               >
                 Share
               </button>

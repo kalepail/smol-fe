@@ -138,6 +138,25 @@
     let initialPlayHandled = $state(false);
     let isUrlStateLoaded = $state(false);
     let initialScrollHandled = $state(false);
+
+    // Time Machine Clock State
+    let timeString = $state("");
+
+    onMount(() => {
+        // Start Clock
+        timeString = new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+        });
+        const interval = setInterval(() => {
+            timeString = new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+            });
+        }, 1000);
+
+        return () => clearInterval(interval);
+    });
     let shuffleSeed = $state(Date.now());
     let collageImages = $state<string[]>([]);
     let searchQuery = $state("");
@@ -218,6 +237,11 @@
             const seedParam = urlParams.get("seed");
             if (seedParam) {
                 shuffleSeed = parseInt(seedParam, 10);
+            }
+
+            const gridParam = urlParams.get("grid");
+            if (gridParam === "true") {
+                showGridView = true;
             }
 
             // Handle Auto-Play (?play=id)
@@ -318,12 +342,23 @@
             params.set("seed", shuffleSeed.toString());
         } else {
             params.delete("shuffle");
-            params.delete("seed");
         }
 
-        // Preserve 'from' if it exists (though not typically used on Artist page)
-        // Clean up 'play' param if it exists (one-time use)
-        params.delete("play");
+        // Sync Grid Mode
+        if (showGridView) {
+            params.set("grid", "true");
+        } else {
+            params.delete("grid");
+        }
+
+        // Sync Play Param (Reflect current song)
+        if (currentSong?.Id) {
+            params.set("play", currentSong.Id);
+        } else {
+            params.delete("play");
+        }
+
+        // Preserve 'from' if it exists
 
         window.history.replaceState(history.state, "", url.toString());
     });
@@ -861,9 +896,17 @@
     }
 
     function share() {
-        const url = currentSong?.Id
-            ? `${window.location.origin}/${currentSong.Id}`
-            : window.location.href;
+        let url = window.location.href; // Default to current page (artist profile)
+
+        // If a song is selected/playing, append ?play=ID to the artist URL
+        if (currentSong?.Id && address) {
+            const baseUrl = `${window.location.origin}/artist/${address}`;
+            url = `${baseUrl}?play=${currentSong.Id}`;
+        } else if (currentSong?.Id) {
+            // Fallback if address is missing (rare)
+            url = `${window.location.origin}/${currentSong.Id}`;
+        }
+
         navigator
             .share?.({
                 title: currentSong?.Title || "SMOL Artist",
@@ -1866,15 +1909,53 @@
                         >
                             {playlistTitle} ({displayPlaylist.length})
                         </h3>
-                        <button
-                            onclick={() => (tagsExpanded = !tagsExpanded)}
-                            class="flex items-center gap-1.5 px-2 py-1 rounded bg-white/10 hover:bg-lime-500/20 border border-white/10 hover:border-lime-500/50 transition-all"
-                        >
-                            <span
-                                class="text-[8px] text-lime-400 font-pixel uppercase tracking-wide"
-                                >{tagsExpanded ? "▼" : "▶"} Tags</span
+                        <div class="flex items-center gap-2">
+                            <!-- Time Machine (Live Clock Trigger) -->
+                            <button
+                                class="flex items-center gap-1.5 px-2 py-1 rounded bg-black/40 hover:bg-fuchsia-500/20 text-fuchsia-400 border border-white/10 hover:border-fuchsia-500/50 transition-all group/clock shrink-0"
+                                title="Time Machine: Click to Jump to Random Point in Timeline (Canon Mode)"
+                                onclick={() => {
+                                    // Time Machine: Switch to Canon, Jump Randomly, Play
+                                    shuffleEnabled = false;
+                                    activeModule = "discography";
+                                    sortMode = "canon";
+
+                                    // Wait for reactive sort update
+                                    setTimeout(() => {
+                                        let list = liveDiscography;
+                                        if (list.length > 0) {
+                                            const randomIdx = Math.floor(
+                                                Math.random() * list.length,
+                                            );
+                                            const song = list[randomIdx];
+                                            selectSong(song);
+                                            currentIndex = randomIdx;
+
+                                            // Force Play
+                                            if (!isPlaying()) {
+                                                togglePlayPause();
+                                            }
+                                        }
+                                    }, 50);
+                                }}
                             >
-                        </button>
+                                <span
+                                    class="text-[8px] font-pixel tracking-widest tabular-nums opacity-80 group-hover/clock:opacity-100 group-hover/clock:text-fuchsia-300 uppercase"
+                                >
+                                    {timeString}
+                                </span>
+                            </button>
+
+                            <button
+                                onclick={() => (tagsExpanded = !tagsExpanded)}
+                                class="flex items-center gap-1.5 px-2 py-1 rounded bg-white/10 hover:bg-lime-500/20 border border-white/10 hover:border-lime-500/50 transition-all"
+                            >
+                                <span
+                                    class="text-[8px] text-lime-400 font-pixel uppercase tracking-wide"
+                                    >{tagsExpanded ? "▼" : "▶"} Tags</span
+                                >
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Tags Filter Cloud (Artist Scoped) -->
