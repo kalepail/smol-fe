@@ -100,11 +100,10 @@
                 <!-- Tipping & Splits -->
                 <div class="mt-2 bg-black/40 rounded-lg p-2 text-center">
                     <div class="text-[9px] text-slate-300">
-                        💚 <span class="text-purple-300">Tip artists</span> •
-                        <span class="text-lime-300">Support mixtapes</span>
+                        💚 Support artists, curators & minters
                     </div>
                     <div class="text-[7px] text-slate-500 mt-0.5">
-                        curators 30% • artists 50% • minters 20%
+                        50% • 30% • 20%
                     </div>
                 </div>
             </div>
