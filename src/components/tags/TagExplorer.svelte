@@ -203,9 +203,6 @@
 
     $effect(() => {
         if (!hasLoggedTags && shouldLogTagDiagnostics() && tagMeta) {
-            console.log(
-                `[Tags] Tag counts (snapshot=${tagMeta.snapshotTagsCount}, live=${tagMeta.liveTagsCount}, final=${tagMeta.finalTagsCount}, source=${tagMeta.dataSourceUsed})`,
-            );
             hasLoggedTags = true;
         }
     });
@@ -559,13 +556,11 @@
                                         <button
                                             class="text-[#ff424c] hover:scale-110 transition-transform"
                                             onclick={togglePlayPause}
-                                            title={isPlaying(
-                                                audioState.currentSong.Id,
-                                            )
+                                            title={isPlaying()
                                                 ? "Pause"
                                                 : "Play"}
                                         >
-                                            {#if isPlaying(audioState.currentSong.Id)}
+                                            {#if isPlaying()}
                                                 <svg
                                                     class="size-5"
                                                     fill="currentColor"
@@ -686,7 +681,9 @@
                                 class="pt-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 pb-20"
                             >
                                 {#each filteredSmols as song (song.Id)}
-                                    <button
+                                    <div
+                                        role="button"
+                                        tabindex="0"
                                         id="song-{song.Id}"
                                         in:fade={{ duration: 200 }}
                                         class="flex flex-col gap-2 group text-left w-full relative"
@@ -704,9 +701,7 @@
                                         {#if audioState.currentSong?.Id === song.Id}
                                             <!-- Outer Ambient Glow -->
                                             <div
-                                                class="absolute -inset-2 rounded-2xl blur-xl transition-opacity duration-500 animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_0deg,#ff424c,#d1d5db,#ff424c,#d1d5db)] {isPlaying(
-                                                    song.Id,
-                                                )
+                                                class="absolute -inset-2 rounded-2xl blur-xl transition-opacity duration-500 animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_0deg,#ff424c,#d1d5db,#ff424c,#d1d5db)] {isPlaying()
                                                     ? 'opacity-50'
                                                     : 'opacity-30'}"
                                             ></div>
@@ -719,9 +714,7 @@
                                             {#if audioState.currentSong?.Id === song.Id}
                                                 <!-- Spinning Lightwire Background for Border -->
                                                 <div
-                                                    class="absolute inset-[-100%] bg-[conic-gradient(from_0deg,#ff424c,#d1d5db,#ff424c,#d1d5db)] transition-opacity duration-500 animate-[spin_4s_linear_infinite] {isPlaying(
-                                                        song.Id,
-                                                    )
+                                                    class="absolute inset-[-100%] bg-[conic-gradient(from_0deg,#ff424c,#d1d5db,#ff424c,#d1d5db)] transition-opacity duration-500 animate-[spin_4s_linear_infinite] {isPlaying()
                                                         ? 'opacity-100'
                                                         : 'opacity-50'}"
                                                 ></div>
@@ -787,13 +780,26 @@
                                                     {/if}
 
                                                     <!-- Bottom Right: Song Detail -->
-                                                    <button
-                                                        class="absolute bottom-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 transition-all shadow-[0_0_10px_rgba(216,54,255,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(216,54,255,0.5)]"
+                                                    <div
+                                                        role="button"
+                                                        tabindex="0"
+                                                        class="absolute bottom-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 transition-all shadow-[0_0_10px_rgba(216,54,255,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(216,54,255,0.5)] cursor-pointer"
                                                         onclick={(e) => {
                                                             e.stopPropagation();
                                                             navigate(
                                                                 `/${song.Id}?from=tags`,
                                                             );
+                                                        }}
+                                                        onkeydown={(e) => {
+                                                            if (
+                                                                e.key ===
+                                                                "Enter"
+                                                            ) {
+                                                                e.stopPropagation();
+                                                                navigate(
+                                                                    `/${song.Id}?from=tags`,
+                                                                );
+                                                            }
                                                         }}
                                                         title="View Song Details"
                                                     >
@@ -806,7 +812,7 @@
                                                                 d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
                                                             />
                                                         </svg>
-                                                    </button>
+                                                    </div>
                                                 {/if}
                                             </div>
                                         </div>
@@ -814,7 +820,7 @@
                                             class="text-[9px] font-pixel text-white/60 truncate group-hover:text-white transition-colors"
                                             >{song.Title || "Untitled"}</span
                                         >
-                                    </button>
+                                    </div>
                                 {/each}
                             </div>
                         </div>

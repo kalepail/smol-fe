@@ -132,7 +132,7 @@
         }
       }
     } catch (e) {
-      console.error("AI Assist failed:", e);
+      // console.error("AI Assist failed:", e);
     } finally {
       isAiLoading = false;
     }
@@ -149,7 +149,7 @@
       tagStats = snap.tags;
       tagMeta = snap.meta;
     } catch (e) {
-      console.error("Failed to load snapshot tags:", e);
+      // console.error("Failed to load snapshot tags:", e);
     }
 
     // 0. USE SNAPSHOT DIRECTLY (Backend-Independent)
@@ -158,23 +158,23 @@
     try {
       isLoadingSmols = true;
       smols = await getFullSnapshot();
-      if (import.meta.env.DEV) {
-        console.log(
-          `[Radio] Loaded ${smols.length} smols from snapshot (backend-independent)`,
-        );
-      }
+      // if (import.meta.env.DEV) {
+      //   console.log(
+      //     `[Radio] Loaded ${smols.length} smols from snapshot (backend-independent)`,
+      //   );
+      // }
 
       liveSmols = await safeFetchSmols();
       if (liveSmols.length > 0) {
         smols = liveSmols;
-        if (import.meta.env.DEV) {
-          console.log(
-            `[Radio] Hydrated ${smols.length} smols with live data + snapshot merge`,
-          );
-        }
+        // if (import.meta.env.DEV) {
+        //   console.log(
+        //     `[Radio] Hydrated ${smols.length} smols with live data + snapshot merge`,
+        //   );
+        // }
       }
     } catch (e) {
-      console.error("[Radio] Failed to load snapshot:", e);
+      // console.error("[Radio] Failed to load snapshot:", e);
       smols = [];
     } finally {
       isLoadingSmols = false;
@@ -185,7 +185,7 @@
       tagStats = unified.tags;
       tagMeta = unified.meta;
     } catch (error) {
-      console.error("[Radio] Failed to load unified tags", error);
+      // console.error("[Radio] Failed to load unified tags", error);
     }
 
     // 1. Load persisted state
@@ -220,7 +220,7 @@
           );
         }
       } catch (e) {
-        console.error("Failed to restore radio state:", e);
+        // console.error("Failed to restore radio state:", e);
       }
     }
 
@@ -321,7 +321,7 @@
   $effect(() => {
     if (!import.meta.env.DEV || hasLoggedCloud) return;
     if (showCloud) {
-      console.log("[Radio] Rendering NEW tag cloud (RadioBuilder)");
+      // console.log("[Radio] Rendering NEW tag cloud (RadioBuilder)");
       hasLoggedCloud = true;
     }
   });
@@ -329,13 +329,13 @@
   $effect(() => {
     if (hasLoggedTags || !shouldLogTagDiagnostics()) return;
     if (tagMeta) {
-      console.log(
-        `[Radio] Tag counts (snapshot=${tagMeta.snapshotTagsCount}, live=${tagMeta.liveTagsCount}, final=${tagMeta.finalTagsCount}, source=${tagMeta.dataSourceUsed})`,
-      );
+      // console.log(
+      //   `[Radio] Tag counts (snapshot=${tagMeta.snapshotTagsCount}, live=${tagMeta.liveTagsCount}, final=${tagMeta.finalTagsCount}, source=${tagMeta.dataSourceUsed})`,
+      // );
       if (tagMeta.finalTagsCount < tagMeta.snapshotTagsCount) {
-        console.warn(
-          "[Radio] finalTagsCount < snapshotTagsCount (should never happen)",
-        );
+        // console.warn(
+        //   "[Radio] finalTagsCount < snapshotTagsCount (should never happen)",
+        // );
       }
       hasLoggedTags = true;
     }
@@ -500,13 +500,13 @@
           suggestCache.set(input.toLowerCase(), suggestions);
         }
       } catch (e) {
-        console.warn("[AI] API failed, using fallback", e);
+        // console.warn("[AI] API failed, using fallback", e);
       }
     }
 
     // 3. Local Fallback if API returned nothing
     if (suggestions.length === 0) {
-      console.log("[AI] Using local fallback");
+      // console.log("[AI] Using local fallback");
       suggestions = localTagMatch(input);
     }
 
@@ -645,9 +645,9 @@
       })
       .filter((s) => s.score > 0);
 
-    console.log(
-      `[AI] Generated ${scored.length} candidates. History size: ${recentlyGeneratedIds.size}`,
-    );
+    // console.log(
+    //   `[AI] Generated ${scored.length} candidates. History size: ${recentlyGeneratedIds.size}`,
+    // );
 
     const isGlobalShuffle = normalizedSelected.length === 0;
     let selected: Smol[] = [];
@@ -680,9 +680,9 @@
     if (selected.length > 0) {
       // Update history for next time
       recentlyGeneratedIds = new Set(selected.map((s) => s.Id));
-      console.log(
-        `[AI] Updated history. New size: ${recentlyGeneratedIds.size}`,
-      );
+      // console.log(
+      //   `[AI] Updated history. New size: ${recentlyGeneratedIds.size}`,
+      // );
       playSongAtIndex(0);
     }
 
@@ -770,7 +770,7 @@
       await publishMixtape(draft);
       alert("Mixtape saved successfully! 💾");
     } catch (e) {
-      console.error("Failed to save mixtape", e);
+      // console.error("Failed to save mixtape", e);
       alert("Failed to save mixtape. See console.");
     } finally {
       isSavingMixtape = false;

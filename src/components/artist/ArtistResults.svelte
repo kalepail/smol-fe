@@ -71,8 +71,8 @@
                 );
                 disco.sort(
                     (a, b) =>
-                        new Date(b.Created_At).getTime() -
-                        new Date(a.Created_At).getTime(),
+                        new Date(b.Created_At || 0).getTime() -
+                        new Date(a.Created_At || 0).getTime(),
                 );
                 liveDiscography = disco;
                 livePublishedCount = disco.length;
@@ -90,8 +90,8 @@
                 );
                 collectedItems.sort(
                     (a, b) =>
-                        new Date(b.Created_At).getTime() -
-                        new Date(a.Created_At).getTime(),
+                        new Date(b.Created_At || 0).getTime() -
+                        new Date(a.Created_At || 0).getTime(),
                 );
                 liveCollected = collectedItems;
                 liveCollectedCount = collectedItems.length;
@@ -1133,11 +1133,9 @@
                         <button
                             class="tech-button w-9 h-9 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-xl border border-[#089981] text-[#089981] bg-[#089981]/10 shadow-[0_0_20px_rgba(8,153,129,0.4)] hover:bg-[#089981]/20 hover:text-white"
                             onclick={togglePlayPause}
-                            title={isPlaying(currentSong?.Id)
-                                ? "Pause"
-                                : "Play"}
+                            title={isPlaying() ? "Pause" : "Play"}
                         >
-                            {#if isPlaying(currentSong?.Id)}
+                            {#if isPlaying()}
                                 <svg
                                     class="w-4 h-4"
                                     fill="currentColor"
@@ -1728,7 +1726,9 @@
                         class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 md:gap-4 pb-20"
                     >
                         {#each visiblePlaylist as song, index (song.Id)}
-                            <button
+                            <div
+                                role="button"
+                                tabindex="0"
                                 id="song-{song.Id}"
                                 in:fade={{ duration: 200 }}
                                 class="flex flex-col gap-2 group text-left w-full relative"
@@ -1749,9 +1749,7 @@
                                     <!-- Outer Ambient Glow -->
                                     <!-- Outer Ambient Glow -->
                                     <div
-                                        class="absolute -inset-2 rounded-2xl blur-xl transition-opacity duration-500 animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_0deg,#10b981,#a855f7,#f97316,#10b981)] {isPlaying(
-                                            song.Id,
-                                        )
+                                        class="absolute -inset-2 rounded-2xl blur-xl transition-opacity duration-500 animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_0deg,#10b981,#a855f7,#f97316,#10b981)] {isPlaying()
                                             ? 'opacity-50'
                                             : 'opacity-30'}"
                                     ></div>
@@ -1765,9 +1763,7 @@
                                         <!-- Spinning Lightwire Background for Border -->
                                         <!-- Spinning Lightwire Background for Border -->
                                         <div
-                                            class="absolute inset-[-100%] bg-[conic-gradient(from_0deg,#10b981,#a855f7,#f97316,#10b981)] transition-opacity duration-500 animate-[spin_4s_linear_infinite] {isPlaying(
-                                                song.Id,
-                                            )
+                                            class="absolute inset-[-100%] bg-[conic-gradient(from_0deg,#10b981,#a855f7,#f97316,#10b981)] transition-opacity duration-500 animate-[spin_4s_linear_infinite] {isPlaying()
                                                 ? 'opacity-100'
                                                 : 'opacity-50'}"
                                         ></div>
@@ -1812,13 +1808,22 @@
                                             </div>
 
                                             <!-- Bottom Right: Song Detail -->
-                                            <button
-                                                class="absolute bottom-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 transition-all shadow-[0_0_10px_rgba(216,54,255,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(216,54,255,0.5)]"
+                                            <div
+                                                role="button"
+                                                class="absolute bottom-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 transition-all shadow-[0_0_10px_rgba(216,54,255,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(216,54,255,0.5)] cursor-pointer"
                                                 onclick={(e) => {
                                                     e.stopPropagation();
                                                     navigate(
                                                         `/${song.Id}?from=artist`,
                                                     );
+                                                }}
+                                                onkeydown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                        e.stopPropagation();
+                                                        navigate(
+                                                            `/${song.Id}?from=artist`,
+                                                        );
+                                                    }
                                                 }}
                                                 title="View Song Details"
                                             >
@@ -1831,7 +1836,7 @@
                                                         d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
                                                     />
                                                 </svg>
-                                            </button>
+                                            </div>
                                         {/if}
                                     </div>
                                 </div>
@@ -1839,7 +1844,7 @@
                                     class="text-[9px] font-pixel text-white/60 truncate group-hover:text-white transition-colors"
                                     >{song.Title || "Untitled"}</span
                                 >
-                            </button>
+                            </div>
                         {/each}
                     </div>
                 </div>

@@ -17,7 +17,7 @@ export async function getSnapshotAsync(): Promise<Smol[]> {
     // Support both legacy array and new structured object { songs: [], tagGraph: {} }
     const songs = Array.isArray(data) ? data : (data.songs || []);
     cachedSnapshot = songs;
-    return cachedSnapshot;
+    return cachedSnapshot!;
   } catch (e) {
     console.error('[getSnapshotAsync] Failed to load snapshot:', e);
     return [];
@@ -59,15 +59,20 @@ export async function mergeSmolsWithSnapshot(liveSmols: Smol[]): Promise<Smol[]>
         newSmol.Tags && newSmol.Tags.length > 0
           ? newSmol.Tags
           : oldSmol?.Tags || [],
-      Address: newSmol.Address || oldSmol?.Address || null,
-      Minted_By: newSmol.Minted_By || oldSmol?.Minted_By || null,
+      Address: newSmol.Address || oldSmol?.Address || undefined,
+      Minted_By: newSmol.Minted_By || oldSmol?.Minted_By || undefined,
     };
   });
 
   const liveIds = new Set(liveSmols.map((s) => s.Id));
   snapshot.forEach((oldSmol) => {
     if (!liveIds.has(oldSmol.Id)) {
-      merged.push(oldSmol);
+      merged.push({
+        ...oldSmol,
+        Tags: oldSmol.Tags || [],
+        Address: oldSmol.Address || undefined,
+        Minted_By: oldSmol.Minted_By || undefined
+      });
     }
   });
 

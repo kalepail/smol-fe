@@ -139,20 +139,23 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="min-h-screen bg-transparent text-white overflow-hidden font-mono">
+<div class="min-h-screen bg-transparent text-white overflow-y-auto font-mono">
     <!-- CRT Scanline Effect -->
     <div
         class="pointer-events-none fixed inset-0 z-10 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] opacity-10"
     ></div>
 
     <main
-        class="relative z-30 flex flex-col items-center justify-center min-h-screen px-4 py-4 md:py-8 safe-area-inset-bottom"
+        class="relative z-30 flex flex-col items-center justify-center min-h-screen px-4 py-4 safe-area-inset-bottom"
     >
         <!-- HEADER -->
-        <div class="text-center mb-4 md:mb-8" in:fade={{ duration: 800 }}>
+        <div
+            class="text-center mb-2 md:mb-6 shrink-0"
+            in:fade={{ duration: 800 }}
+        >
             <!-- Rotating Tagline -->
             <div
-                class="h-6 md:h-8 flex items-center justify-center mb-2 md:mb-4"
+                class="h-5 md:h-8 flex items-center justify-center mb-1 md:mb-4"
             >
                 {#key taglineIndex}
                     <p
@@ -166,7 +169,7 @@
             </div>
 
             <h1
-                class="text-2xl md:text-5xl font-pixel font-black tracking-tight uppercase text-transparent bg-clip-text bg-gradient-to-b from-lime-400 to-lime-600 drop-shadow-[0_4px_0_rgba(132,204,22,0.2)] mb-2 md:mb-4"
+                class="text-xl md:text-4xl font-pixel font-black tracking-tight uppercase text-transparent bg-clip-text bg-gradient-to-b from-lime-400 to-lime-600 drop-shadow-[0_4px_0_rgba(132,204,22,0.2)] mb-1 md:mb-3"
             >
                 Make Music Here
             </h1>
@@ -181,7 +184,7 @@
         <!-- FEATURE CARDS -->
         {#if step === "intro"}
             <div
-                class="grid grid-cols-3 gap-2 md:gap-6 w-full max-w-3xl mb-4 md:mb-6"
+                class="grid grid-cols-3 gap-2 md:gap-4 w-full max-w-2xl mb-3 md:mb-5 shrink-0"
                 in:fade={{ duration: 500, delay: 200 }}
             >
                 {#each FEATURES as feature, i}
@@ -422,7 +425,7 @@
                 <!-- PRIMARY: CREATE -->
                 <button
                     onclick={handleCreate}
-                    class="group relative py-4 px-10 bg-lime-500 text-black font-pixel font-bold uppercase tracking-widest text-sm rounded-lg
+                    class="group relative py-3 md:py-4 px-10 bg-lime-500 text-black font-pixel font-bold uppercase tracking-widest text-sm rounded-lg
                        hover:bg-lime-400 hover:-translate-y-1 hover:shadow-[0_8px_0_rgba(65,130,22,0.6)]
                        active:translate-y-1 active:shadow-none
                        transition-all duration-100 shadow-[0_4px_0_rgba(65,130,22,0.6)]
@@ -446,7 +449,7 @@
                 <!-- SKIP -->
                 <button
                     onclick={handleSkip}
-                    class="mt-6 text-white/30 hover:text-white/50 font-mono uppercase text-[10px] tracking-widest
+                    class="mt-3 md:mt-6 text-white/30 hover:text-white/50 font-mono uppercase text-[10px] tracking-widest
                        focus:outline-none focus:text-white"
                 >
                     Explore first
@@ -523,7 +526,7 @@
         <!-- Bottom note -->
         {#if step === "intro"}
             <p
-                class="mt-6 md:mt-8 text-white/30 text-[10px] font-pixel text-center max-w-sm leading-relaxed"
+                class="mt-3 md:mt-8 text-white/30 text-[10px] font-pixel text-center max-w-sm leading-relaxed shrink-0"
             >
                 Passkey login is instant, secure, and passwordless. Works across
                 all your devices. Your music, your keys.

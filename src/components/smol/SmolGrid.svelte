@@ -135,9 +135,6 @@
         }
         hasMore = false;
         cursor = null;
-        console.log(
-          `[SmolGrid] Loaded ${results.length} collected items from snapshot`,
-        );
       } else {
         // Fetch smols from API for other endpoints
         const baseUrl = endpoint ? `${API_URL}/${endpoint}` : API_URL;
@@ -238,9 +235,6 @@
       const newSongs = liveSongs.filter((s: Smol) => !existingIds.has(s.Id));
 
       if (newSongs.length > 0) {
-        console.log(
-          `[SmolGrid] Found ${newSongs.length} new live songs, merging...`,
-        );
         // Prepend new songs to results
         results = [...newSongs, ...results];
       }

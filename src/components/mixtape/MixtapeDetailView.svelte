@@ -409,13 +409,12 @@
       }
 
       // Refresh balances after minting
-      console.log("Refreshing balances after minting...");
+
       await balancesHook.refreshAllBalances(
         mixtapeTracks,
         userState.contractId,
         handleBalanceUpdated,
       );
-      console.log("Balances refreshed");
 
       // Build tokens array for swap_them_in
       const tokensOut: string[] = [];
@@ -428,8 +427,6 @@
           tokensOut.push(track.Mint_Token);
         }
       }
-
-      console.log("Tracks to purchase:", tokensOut.length);
 
       // Step 2: Purchase remaining tracks
       if (tokensOut.length > 0) {

@@ -11,7 +11,7 @@
     let error = $state<string | null>(null);
     let audioMuted = $state(true);
     let audioInitialized = $state(false);
-    let audioEl: HTMLAudioElement;
+    let audioEl: HTMLAudioElement | undefined = undefined;
 
     const authHook = useAuthentication();
 
@@ -157,7 +157,7 @@
 <svelte:window onkeydown={handleKeydown} />
 
 <div
-    class="fixed inset-0 bg-transparent text-white overflow-hidden font-mono z-[9999]"
+    class="fixed inset-0 bg-transparent text-white overflow-y-auto font-mono z-[9999]"
 >
     <!-- Background Art (Handled globally by Layout/DynamicBackground) -->
 
@@ -172,12 +172,17 @@
     ></div>
 
     <main
-        class="relative z-30 h-full flex flex-col items-center justify-center p-6 safe-area-inset-bottom"
+        class="relative z-30 min-h-screen flex flex-col items-center justify-center p-6 safe-area-inset-bottom"
     >
         <!-- HEADER -->
-        <div class="mb-12 text-center" in:fade={{ duration: 800 }}>
+        <div
+            class="mb-6 md:mb-8 text-center shrink-0"
+            in:fade={{ duration: 800 }}
+        >
             <!-- Rotating One-Liner -->
-            <div class="h-8 flex items-center justify-center mb-6">
+            <div
+                class="h-6 md:h-8 flex items-center justify-center mb-2 md:mb-6"
+            >
                 {#key taglineIndex}
                     <p
                         in:fly={{ y: 10, duration: 400, delay: 200 }}
@@ -190,7 +195,7 @@
             </div>
 
             <h1
-                class="text-4xl md:text-6xl font-pixel font-black tracking-tighter uppercase text-transparent bg-clip-text bg-gradient-to-b from-lime-400 to-lime-600 drop-shadow-[0_4px_0_rgba(132,204,22,0.2)]"
+                class="text-3xl md:text-5xl font-pixel font-black tracking-tighter uppercase text-transparent bg-clip-text bg-gradient-to-b from-lime-400 to-lime-600 drop-shadow-[0_4px_0_rgba(132,204,22,0.2)]"
             >
                 SMOL.XYZ
             </h1>
@@ -198,11 +203,11 @@
 
         <!-- CONTENT CONTAINER -->
         <div
-            class="w-full max-w-md relative min-h-[300px] flex flex-col items-center"
+            class="w-full max-w-md relative min-h-[200px] md:min-h-[300px] flex flex-col items-center justify-center"
         >
             {#if step === "intro"}
                 <div
-                    class="w-full flex flex-col items-center gap-6"
+                    class="w-full flex flex-col items-center gap-3 md:gap-6"
                     in:fade={{ duration: 300 }}
                 >
                     <!-- PRIMARY CTA: CREATE PASSKEY -->
@@ -234,7 +239,7 @@
                     <!-- ESCAPE HATCH -->
                     <button
                         onclick={handleSkip}
-                        class="mt-8 text-white/30 hover:text-white/50 font-mono uppercase text-[10px] tracking-widest
+                        class="mt-4 md:mt-8 text-white/30 hover:text-white/50 font-mono uppercase text-[10px] tracking-widest
                            focus:outline-none focus:text-white"
                     >
                         Skip for now

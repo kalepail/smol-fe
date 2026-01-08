@@ -167,11 +167,6 @@ export function useMixtapeMinting() {
       throw new Error('Failed to build signed coin_them transaction');
     }
 
-    console.log('Batch Mint Transaction XDR:', xdrString);
-    console.log(
-      'Tracks in batch:',
-      tracksWithData.map(({ track }) => track.Id)
-    );
 
     // Submit to backend
     const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/mint`, {
@@ -253,16 +248,9 @@ export function useMixtapeMinting() {
       chunks.push(tracksWithData.slice(i, i + CHUNK_SIZE));
     }
 
-    console.log(
-      `Processing ${tracksWithData.length} mints in ${chunks.length} batch(es) of up to ${CHUNK_SIZE}`
-    );
-
     // Process each chunk sequentially
     for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
       const chunk = chunks[chunkIndex];
-      console.log(
-        `Processing batch ${chunkIndex + 1}/${chunks.length} with ${chunk.length} track(s)`
-      );
 
       try {
         await mintBatch(

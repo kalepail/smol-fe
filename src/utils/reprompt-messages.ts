@@ -30,15 +30,14 @@ export const REPROMPT_MESSAGES = [
 ];
 
 export function getRepromptMessage() {
-    // Deterministic rotation based on index stored in local storage
-    const currentIdx = parseInt(localStorage.getItem('smol_reprompt_index') || '0', 10);
-    const msg = REPROMPT_MESSAGES[currentIdx % REPROMPT_MESSAGES.length];
+    // Random selection
+    const index = Math.floor(Math.random() * REPROMPT_MESSAGES.length);
+    const msg = REPROMPT_MESSAGES[index];
 
-    // Increment for next time (but only after showing? Logic in component.)
-    return { msg, index: currentIdx };
+    return { msg, index };
 }
 
 export function incrementRepromptIndex() {
-    const currentIdx = parseInt(localStorage.getItem('smol_reprompt_index') || '0', 10);
-    localStorage.setItem('smol_reprompt_index', (currentIdx + 1).toString());
+    // No-op for random strategy, kept for compatibility if needed
+    // or can be removed if we clean up the component
 }

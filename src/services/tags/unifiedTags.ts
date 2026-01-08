@@ -81,8 +81,8 @@ export async function getUnifiedTags(options?: {
       return {
         ...newSmol,
         Tags: newSmol.Tags && newSmol.Tags.length > 0 ? newSmol.Tags : oldSmol?.Tags || [],
-        Address: newSmol.Address || oldSmol?.Address || null,
-        Minted_By: newSmol.Minted_By || oldSmol?.Minted_By || null,
+        Address: newSmol.Address || oldSmol?.Address || undefined,
+        Minted_By: newSmol.Minted_By || oldSmol?.Minted_By || undefined,
       };
     });
     const liveIds = new Set(liveSmols.map((s) => s.Id));

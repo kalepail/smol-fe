@@ -138,7 +138,18 @@
   }
 
   function handleEnded() {
-    playNextSong();
+    if (audioState.repeatMode === "one" && audioState.audioElement) {
+      // Loop endlessly
+      audioState.audioElement.currentTime = 0;
+      audioState.audioElement.play();
+    } else if (audioState.repeatMode === "once" && audioState.audioElement) {
+      // Replay once then disable repeat
+      audioState.audioElement.currentTime = 0;
+      audioState.audioElement.play();
+      audioState.repeatMode = "off";
+    } else {
+      playNextSong();
+    }
   }
 
   function handleLikeChanged(liked: boolean) {

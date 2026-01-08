@@ -17,6 +17,7 @@ export const audioState = $state<{
   analyser: AnalyserNode | null;
   sourceNode: MediaElementAudioSourceNode | null;
   duration: number;
+  repeatMode: "off" | "once" | "one";
 }>({
   playingId: null,
   currentSong: null,
@@ -27,6 +28,7 @@ export const audioState = $state<{
   analyser: null,
   sourceNode: null,
   duration: 0,
+  repeatMode: "off",
 });
 
 function isIOSDevice() {
@@ -130,6 +132,16 @@ export function togglePlayPause() {
 }
 
 /**
+ * Toggle repeat mode: off -> once -> one -> off
+ */
+export function toggleRepeatMode() {
+  const modes: ("off" | "once" | "one")[] = ["off", "once", "one"];
+  const currentIdx = modes.indexOf(audioState.repeatMode);
+  const nextIdx = (currentIdx + 1) % modes.length;
+  audioState.repeatMode = modes[nextIdx];
+}
+
+/**
  * Reset audio state to initial values
  */
 export function resetAudioState() {
@@ -187,7 +199,6 @@ export function initAudioContext(force = false) {
     // Check if the cached source is linked to the CURRENT audio element
     // If we re-mounted, the element changed, so the old source is invalid for the new element.
     if (cached.source.mediaElement !== audioElement) {
-      console.log("[AudioStore] Element changed, creating new source...");
       try {
         const newSource = cached.context.createMediaElementSource(audioElement);
         newSource.connect(cached.analyser);
@@ -261,11 +272,10 @@ export function initAudioContext(force = false) {
       source: source
     };
 
-    console.log("[AudioStore] Initialized Web Audio Context (iOS friendly)");
 
     // Resume immediately if suspended (may fail without gesture, but worth a try)
     if (ctx.state === 'suspended') {
-      ctx.resume().catch(e => console.warn("[AudioStore] Failed to auto-resume:", e));
+      ctx.resume().catch(e => { /* ignore */ });
     }
   } catch (err) {
     console.warn("Failed to init Audio Context:", err);

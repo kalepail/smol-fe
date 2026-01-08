@@ -2,10 +2,7 @@
     import { onMount, tick } from "svelte";
     import { fade, fly } from "svelte/transition";
     import { userState } from "../../stores/user.svelte";
-    import {
-        getRepromptMessage,
-        incrementRepromptIndex,
-    } from "../../utils/reprompt-messages";
+    import { getRepromptMessage } from "../../utils/reprompt-messages";
 
     let show = $state(false);
     let message = $state("");
@@ -51,8 +48,6 @@
         show = false;
         // Set timestamp
         localStorage.setItem("smol_reprompt_timestamp", Date.now().toString());
-        // Increment index
-        incrementRepromptIndex();
 
         console.log("[Analytics] passkey_reprompt_dismiss", {
             message_index: msgIndex,

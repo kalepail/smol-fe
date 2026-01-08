@@ -211,7 +211,7 @@ export async function getMixtapeDetail(
   if (savedOrderJson) {
     try {
       const savedOrder: string[] = JSON.parse(savedOrderJson);
-      console.log('[MOCK] Found saved track order:', savedOrder);
+
       // Reorder tracks based on saved order
       const trackMap = new Map(data.Smols.map((t) => [t.Id, t]));
       orderedTracks = savedOrder
