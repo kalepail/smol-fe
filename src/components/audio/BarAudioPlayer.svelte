@@ -157,9 +157,36 @@
       audioState.currentSong.Liked = liked;
     }
   }
+  let pathname = $state(window.location.pathname);
+
+  // Update pathname on navigation (for View Transitions/SPA nav)
+  $effect(() => {
+    const handlePopState = () => {
+      pathname = window.location.pathname;
+    };
+    window.addEventListener("popstate", handlePopState);
+
+    // Also need to hook into Astro's navigation events if possible,
+    // or just rely on the component re-mounting if pages are not persistent.
+    // Since this is a specialized requested, we'll just check window location reactively.
+    const interval = setInterval(() => {
+      if (pathname !== window.location.pathname) {
+        pathname = window.location.pathname;
+      }
+    }, 100);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      clearInterval(interval);
+    };
+  });
+
+  const isMixtapesIndex = $derived(
+    pathname === "/mixtapes" || pathname === "/mixtapes/",
+  );
 </script>
 
-{#if audioState.currentSong}
+{#if audioState.currentSong && !isMixtapesIndex}
   <div
     class="fixed z-[150] p-2 bottom-2 lg:w-full left-4 right-4 lg:max-w-1/2 lg:min-w-[300px] lg:left-1/2 lg:-translate-x-1/2 rounded-md bg-slate-950/50 backdrop-blur-lg border border-white/20 shadow-lg"
     transition:fade={{ duration: 200 }}

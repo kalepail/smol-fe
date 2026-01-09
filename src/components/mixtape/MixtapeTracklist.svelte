@@ -25,6 +25,8 @@
     onLikeChanged,
   }: Props = $props();
 
+  const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
+
   function truncateAddress(address: string | null): string {
     if (!address) return "";
     if (address.length <= 12) return address;
@@ -83,13 +85,19 @@
               </div>
             {:else if smolTrack?.Id}
               <img
-                src={`${import.meta.env.PUBLIC_API_URL}/image/${smolTrack.Id}.png?scale=4`}
+                src={`${API_URL}/image/${smolTrack.Id}.png?scale=4`}
                 alt={smolTrack.Title ?? "Track"}
                 class="h-full w-full object-cover pixelated transition-transform group-hover:scale-110"
                 onerror={(e) => {
-                  // @ts-ignore
-                  e.currentTarget.src =
-                    'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect fill="%23334155" width="64" height="64"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="%2394a3b8" font-family="monospace" font-size="12">SMOL</text></svg>';
+                  const target = e.currentTarget as HTMLImageElement;
+                  if (!target.src.includes("smols")) {
+                    // Try alternative endpoint first
+                    target.src = `https://api.smol.xyz/smols/${smolTrack.Id}/image?scale=4`;
+                  } else {
+                    // Fallback to placeholder
+                    target.src =
+                      'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect fill="%23334155" width="64" height="64"/><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="%2394a3b8" font-family="monospace" font-size="12">SMOL</text></svg>';
+                  }
                 }}
               />
             {:else}
