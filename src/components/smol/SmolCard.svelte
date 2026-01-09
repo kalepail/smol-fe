@@ -75,6 +75,18 @@
       loading="lazy"
     />
 
+    <a
+      class={`absolute inset-0 z-0 ${mixtapeModeState.active ? "pointer-events-none" : ""}`}
+      href={`/${smol.Id}`}
+      aria-label={smol.Title}
+      onclick={(e) => {
+        if (onSmolClick) {
+          e.preventDefault();
+          onSmolClick(smol);
+        }
+      }}
+    ></a>
+
     {#if smol.Mint_Token}
       <a
         href={`https://stellar.expert/explorer/public/contract/${smol.Mint_Token}`}
@@ -89,12 +101,12 @@
     {#if mixtapeModeState.active && isVisible}
       {#if isInMixtape}
         <span
-          class="absolute left-1.5 top-1.5 rounded-full bg-lime-400 px-2 py-1 text-xs font-semibold text-slate-950"
+          class="absolute left-1.5 top-1.5 rounded-full bg-lime-400 px-2 py-1 text-xs font-semibold text-slate-950 z-10"
           >Added</span
         >
       {:else}
         <button
-          class="absolute left-1.5 top-1.5 rounded-full bg-slate-950/70 px-2 py-1 text-xs text-lime-300 ring-1 ring-lime-400/60 backdrop-blur hover:bg-slate-950/90"
+          class="absolute left-1.5 top-1.5 rounded-full bg-slate-950/70 px-2 py-1 text-xs text-lime-300 ring-1 ring-lime-400/60 backdrop-blur hover:bg-slate-950/90 z-10"
           onclick={(e) => {
             e.stopPropagation();
             onAddToMixtape();
@@ -104,7 +116,7 @@
     {/if}
 
     <div
-      class="absolute z-2 right-0 bottom-0 rounded-tl-lg backdrop-blur-xs {!smol.Liked &&
+      class="absolute z-10 right-0 bottom-0 rounded-tl-lg backdrop-blur-xs {!smol.Liked &&
         'opacity-100 md:opacity-0 md:group-hover:opacity-100'}"
     >
       <LikeButton
@@ -115,18 +127,6 @@
         on:likeChanged={(e) => onLikeChanged(e.detail.liked)}
       />
     </div>
-
-    <a
-      class={`absolute inset-0 ${mixtapeModeState.active ? "pointer-events-none" : ""}`}
-      href={`/${smol.Id}`}
-      aria-label={smol.Title}
-      onclick={(e) => {
-        if (onSmolClick) {
-          e.preventDefault();
-          onSmolClick(smol);
-        }
-      }}
-    ></a>
   </div>
 
   <div
