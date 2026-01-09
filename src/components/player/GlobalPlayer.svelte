@@ -604,7 +604,7 @@
             >
                 <!-- Rainbow Gradient Background/Border -->
                 <div
-                    class="absolute inset-0 bg-[conic-gradient(from_0deg,#10b981,#a855f7,#f97316,#10b981)] animate-[spin_4s_linear_infinite] opacity-70 group-hover:opacity-100 transition-opacity"
+                    class="absolute inset-[-100%] bg-[conic-gradient(from_0deg,#10b981,#a855f7,#f97316,#10b981)] animate-[spin_4s_linear_infinite] opacity-70 group-hover:opacity-100 transition-opacity"
                 ></div>
 
                 <!-- Inner Mask -->
@@ -797,6 +797,76 @@
                                                 class="absolute inset-0 flex items-center justify-center z-10"
                                             >
                                                 <MiniVisualizer />
+                                            </div>
+
+                                            <!-- Top Left: Artist Profile -->
+                                            <div
+                                                role="button"
+                                                class="absolute top-2 left-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-white/20 text-white/90 hover:bg-white/10 transition-all shadow-[0_0_10px_rgba(255,255,255,0.1)] active:scale-95 hover:shadow-[0_0_15px_rgba(255,255,255,0.2)] cursor-pointer"
+                                                onclick={(e) => {
+                                                    e.stopPropagation();
+                                                    navigate(
+                                                        `/artist/${song.Address}`,
+                                                    );
+                                                }}
+                                                onkeydown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                        e.stopPropagation();
+                                                        navigate(
+                                                            `/artist/${song.Address}`,
+                                                        );
+                                                    }
+                                                }}
+                                                title="View Artist Profile"
+                                            >
+                                                <svg
+                                                    class="w-4 h-4"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                    stroke-width="1.5"
+                                                >
+                                                    <path
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"
+                                                    />
+                                                </svg>
+                                            </div>
+
+                                            <!-- Top Right: Send to Radio -->
+                                            <div
+                                                role="button"
+                                                class="absolute top-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/20 transition-all shadow-[0_0_10px_rgba(6,182,212,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(6,182,212,0.5)] cursor-pointer"
+                                                onclick={(e) => {
+                                                    e.stopPropagation();
+                                                    navigate(
+                                                        `/radio?artist=${song.Address}`,
+                                                    );
+                                                }}
+                                                onkeydown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                        e.stopPropagation();
+                                                        navigate(
+                                                            `/radio?artist=${song.Address}`,
+                                                        );
+                                                    }
+                                                }}
+                                                title="Start Artist Radio"
+                                            >
+                                                <svg
+                                                    class="w-4 h-4"
+                                                    fill="none"
+                                                    viewBox="0 0 24 24"
+                                                    stroke="currentColor"
+                                                    stroke-width="1.5"
+                                                >
+                                                    <path
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        d="M9.348 14.652a3.75 3.75 0 0 1 0-5.304m5.304 0a3.75 3.75 0 0 1 0 5.304m-7.425 2.121a6.75 6.75 0 0 1 0-9.546m9.546 0a6.75 6.75 0 0 1 0 9.546M5.106 18.894c-3.808-3.807-3.808-9.98 0-13.788m13.788 0c3.808 3.807 3.808 9.98 0 13.788M12 10.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"
+                                                    />
+                                                </svg>
                                             </div>
 
                                             <!-- Bottom Left: Like Button -->
