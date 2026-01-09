@@ -88,9 +88,15 @@
 
     // Auto-scroll to playing song when returning to grid view or changing song
     $effect(() => {
-        if (showGridView && audioState.playingId && displayPlaylist.length > 0) {
-            const idx = displayPlaylist.findIndex(s => s.Id === audioState.playingId);
-            
+        if (
+            showGridView &&
+            audioState.playingId &&
+            displayPlaylist.length > 0
+        ) {
+            const idx = displayPlaylist.findIndex(
+                (s) => s.Id === audioState.playingId,
+            );
+
             // If the song is outside the current rendered window, expand the limit
             if (idx !== -1 && idx >= gridLimit) {
                 gridLimit = idx + 20; // Ensure it's rendered with a small buffer
@@ -1118,7 +1124,8 @@
             class="relative flex-1 min-h-0 landscape:min-h-0 landscape:h-auto md:landscape:h-full flex flex-col"
         >
             {#if showGridView}
-                                class="absolute inset-0 z-50 bg-[#121212] p-2 md:p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto dark-scrollbar pb-[env(safe-area-inset-bottom)]"
+                <div
+                    class="absolute inset-0 z-50 bg-[#121212] p-2 md:p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto dark-scrollbar pb-[env(safe-area-inset-bottom)]"
                     onscroll={handleGridScroll}
                     style="contain: content;"
                 >
