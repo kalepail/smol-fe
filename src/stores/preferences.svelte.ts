@@ -32,7 +32,7 @@ export const THEMES: Record<GlowTheme, { name: string, gradient: string, color: 
         name: 'Technicolor',
         gradient: '',
         color: '#f59e0b',
-        style: 'background: conic-gradient(from 0deg, #ff0000, #ff8000, #ffff00, #00ff00, #00ffff, #0000ff, #8000ff, #ff00ff, #ff0000)'
+        style: 'background: conic-gradient(from 0deg, #ffffff, #ff0080, #ff8c00, #ffe600, #1aff00, #00ffff, #0080ff, #8000ff, #ff00ff, #ffffff)'
     },
     neural: {
         name: 'Neural',
