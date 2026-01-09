@@ -140,7 +140,7 @@
         <div class="w-full h-full relative">
           <!-- Share Button (Bottom Center) -->
           <button
-            class="absolute left-1/2 bottom-2 -translate-x-1/2 w-8 h-8 flex items-center justify-center rounded-full bg-transparent border border-white/20 text-white hover:bg-white hover:text-black transition-all active:scale-90 shadow-xl z-50 pointer-events-auto"
+            class="absolute bottom-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/10 border-2 border-[#d836ff] text-[#d836ff] hover:bg-[#d836ff] hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(216,54,255,0.3)] pointer-events-auto"
             onclick={(e) => {
               e.stopPropagation();
               navigator
@@ -176,7 +176,7 @@
           <!-- Top Left: Artist -->
           <a
             href={`/artist/${smol.Address}`}
-            class="absolute top-2 left-2 w-8 h-8 flex items-center justify-center rounded-full bg-transparent border-2 border-green-500 text-green-500 hover:bg-green-500 hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(34,197,94,0.3)] pointer-events-auto"
+            class="absolute top-2 left-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-green-500 text-green-500 hover:bg-green-500 hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(34,197,94,0.3)] pointer-events-auto"
             onclick={(e) => e.stopPropagation()}
             title="Go to Artist"
           >
@@ -198,7 +198,7 @@
           <!-- Top Right: Radio -->
           <a
             href={`/radio?seed=${smol.Id}`}
-            class="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-transparent border-2 border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(249,115,22,0.3)] pointer-events-auto"
+            class="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(249,115,22,0.3)] pointer-events-auto"
             onclick={(e) => e.stopPropagation()}
             title="Start Radio"
           >
@@ -219,7 +219,7 @@
 
           <!-- Bottom Left: Like -->
           <div
-            class="absolute bottom-2 left-2 w-8 h-8 flex items-center justify-center rounded-full bg-transparent border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(239,68,68,0.3)] pointer-events-auto"
+            class="absolute bottom-2 left-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(239,68,68,0.3)] pointer-events-auto"
             onclick={(e) => {
               e.stopPropagation();
             }}
@@ -250,7 +250,7 @@
           <!-- Bottom Right: Song Detail -->
           <div
             role="button"
-            class="absolute bottom-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-transparent border-2 border-[#d836ff] text-[#d836ff] hover:bg-[#d836ff] hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(216,54,255,0.3)] pointer-events-auto"
+            class="absolute bottom-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-[#d836ff] text-[#d836ff] hover:bg-[#d836ff] hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(216,54,255,0.3)] pointer-events-auto"
             onclick={(e) => {
               e.stopPropagation();
               navigate(`/${smol.Id}`);
@@ -272,39 +272,6 @@
               />
             </svg>
           </div>
-        </div>                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"
-                />
-              </svg>
-            </button>
-          </div>
-
-          <!-- Bottom Right: Song/Mint -->
-          <a
-            href={`/${smol.Id}`}
-            class="flex items-center justify-center rounded-full bg-slate-900/80 border-2 border-[#d836ff] text-[#d836ff] hover:bg-[#d836ff] hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(216,54,255,0.3)] aspect-square pointer-events-auto"
-            onclick={(e) => {
-              // Let it navigate to song page
-              if (e.target !== e.currentTarget) e.stopPropagation();
-            }}
-            title="View Song"
-          >
-            <svg
-              class="w-6 h-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163z"
-              />
-            </svg>
-          </a>
         </div>
       </div>
     {/if}

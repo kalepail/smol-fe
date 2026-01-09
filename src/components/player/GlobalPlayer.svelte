@@ -1184,7 +1184,7 @@
                                                 >
                                                     <!-- Share Button (Bottom Center) -->
                                                     <button
-                                                        class="absolute left-1/2 bottom-2 -translate-x-1/2 w-8 h-8 flex items-center justify-center rounded-full bg-transparent border border-white/20 text-white hover:bg-white hover:text-black transition-all active:scale-90 shadow-xl z-50 pointer-events-auto"
+                                                        class="absolute bottom-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/10 border-2 border-[#d836ff] text-[#d836ff] hover:bg-[#d836ff] hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(216,54,255,0.3)] pointer-events-auto"
                                                         onclick={(e) => {
                                                             e.stopPropagation();
                                                             const url = `${window.location.origin}/${song.Id}`;
@@ -1215,7 +1215,7 @@
                                                     <!-- Top Left: Artist -->
                                                     <div
                                                         role="button"
-                                                        class="absolute top-2 left-2 w-8 h-8 flex items-center justify-center rounded-full bg-transparent border-2 border-green-500 text-green-500 hover:bg-green-500 hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(34,197,94,0.3)] pointer-events-auto"
+                                                        class="absolute top-2 left-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-green-500 text-green-500 hover:bg-green-500 hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(34,197,94,0.3)] pointer-events-auto"
                                                         onclick={(e) => {
                                                             e.stopPropagation();
                                                             navigate(
@@ -1243,7 +1243,7 @@
                                                     <!-- Top Right: Radio -->
                                                     <div
                                                         role="button"
-                                                        class="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-transparent border-2 border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(249,115,22,0.3)] pointer-events-auto"
+                                                        class="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(249,115,22,0.3)] pointer-events-auto"
                                                         onclick={(e) => {
                                                             e.stopPropagation();
                                                             navigate(
@@ -1270,7 +1270,7 @@
 
                                                     <!-- Bottom Left: Like -->
                                                     <div
-                                                        class="absolute bottom-2 left-2 w-8 h-8 flex items-center justify-center rounded-full bg-transparent border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(239,68,68,0.3)] pointer-events-auto"
+                                                        class="absolute bottom-2 left-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(239,68,68,0.3)] pointer-events-auto"
                                                         role="button"
                                                         tabindex="0"
                                                         onclick={(e) =>
@@ -1298,7 +1298,7 @@
                                                     <!-- Bottom Right: Song Detail -->
                                                     <div
                                                         role="button"
-                                                        class="absolute bottom-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-transparent border-2 border-[#d836ff] text-[#d836ff] hover:bg-[#d836ff] hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(216,54,255,0.3)] pointer-events-auto"
+                                                        class="absolute bottom-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-[#d836ff] text-[#d836ff] hover:bg-[#d836ff] hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(216,54,255,0.3)] pointer-events-auto"
                                                         onclick={(e) => {
                                                             e.stopPropagation();
                                                             navigate(
