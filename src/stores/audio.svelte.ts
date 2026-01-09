@@ -33,7 +33,124 @@ export const audioState = $state<{
   repeatMode: "off",
 });
 
-// ... existing code ...
+function isIOSDevice() {
+  if (typeof navigator === 'undefined') return false;
+  const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+  const isAppleMobile = /iPad|iPhone|iPod/.test(userAgent);
+  const isIPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+  return isAppleMobile || isIPadOS;
+}
+
+function teardownAudioContext() {
+  if (audioState.sourceNode) {
+    try {
+      audioState.sourceNode.disconnect();
+    } catch (e) { /* ignore */ }
+  }
+  if (audioState.audioContext) {
+    try {
+      audioState.audioContext.close();
+    } catch (e) { /* ignore */ }
+  }
+  audioState.audioContext = null;
+  audioState.analyser = null;
+  audioState.sourceNode = null;
+  (window as any).__SMOL_AUDIO_CONTEXT__ = null;
+}
+
+/**
+ * Derived state function: Check if audio is currently playing
+ */
+export function isPlaying(): boolean {
+  return (
+    audioState.playingId !== null &&
+    audioState.currentSong !== null &&
+    audioState.playingId === audioState.currentSong.Id
+  );
+}
+
+/**
+ * Set the audio element reference (called from component on mount)
+ */
+export function setAudioElement(element: HTMLAudioElement | null) {
+  audioState.audioElement = element;
+  if (element && isIOSDevice()) {
+    teardownAudioContext();
+  }
+}
+
+/**
+ * Update progress (called from component's event handlers)
+ */
+export function updateProgress(currentTime: number, duration: number) {
+  audioState.duration = duration;
+  if (duration > 0) {
+    audioState.progress = (currentTime / duration) * 100;
+  } else {
+    audioState.progress = 0;
+  }
+}
+
+/**
+ * Seek to a specific progress percentage (0-100)
+ */
+export function seek(progress: number) {
+  const audio = audioState.audioElement;
+  if (!audio || !audio.duration) return;
+
+  const newTime = (progress / 100) * audio.duration;
+  audio.currentTime = newTime;
+  audioState.progress = progress;
+}
+
+/**
+ * Select a song and mark it to play
+ */
+export function selectSong(songData: Smol | null) {
+  if (songData) {
+    audioState.currentSong = songData;
+    audioState.playingId = songData.Id;
+  } else {
+    audioState.currentSong = null;
+    audioState.playingId = null;
+  }
+}
+
+/**
+ * Toggle play/pause state
+ */
+export function togglePlayPause() {
+  const { playingId, currentSong } = audioState;
+
+  if (currentSong) {
+    if (playingId === currentSong.Id) {
+      // Pause
+      audioState.playingId = null;
+    } else {
+      // Play
+      audioState.playingId = currentSong.Id;
+    }
+  }
+}
+
+/**
+ * Toggle repeat mode: off -> once -> one -> off
+ */
+export function toggleRepeatMode() {
+  const modes: ("off" | "once" | "one")[] = ["off", "once", "one"];
+  const currentIdx = modes.indexOf(audioState.repeatMode);
+  const nextIdx = (currentIdx + 1) % modes.length;
+  audioState.repeatMode = modes[nextIdx];
+}
+
+/**
+ * Reset audio state to initial values
+ */
+export function resetAudioState() {
+  audioState.playingId = null;
+  audioState.currentSong = null;
+  audioState.progress = 0;
+}
 
 /**
  * Register a callback for playing the next song
