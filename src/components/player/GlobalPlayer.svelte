@@ -897,7 +897,7 @@
                                 onclick={() => handleSelect(index)}
                                 onkeydown={() => {}}
                             >
-                                {#if currentSong && song.Id === currentSong.Id}
+
                                 <!-- Outer Ambient Glow (Disabled in Fast Mode) -->
                                 {#if currentSong && song.Id === currentSong.Id && renderMode === 'thinking'}
                                     <div
