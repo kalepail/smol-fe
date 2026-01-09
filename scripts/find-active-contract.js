@@ -1,7 +1,7 @@
 
 import { rpc, Horizon, scValToNative, xdr, nativeToScVal } from '@stellar/stellar-sdk';
 
-const KALE_SAC = 'CAS3J7GYLGXMF6TDJBBYABC3M2OX6COCCFDDB6J6W3F7X47X62N3C4A5';
+const KALE_SAC = 'CB23WRDQWGSP6YPMY4UV5C4OW5CBTXKYN3XEATG7KJEZCXMJBYEHOUOV';
 const RPC_URL = 'https://rpc.lightsail.network/';
 
 async function rpcCall(method, params = {}) {
