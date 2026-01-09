@@ -86,6 +86,24 @@
         return () => clearInterval(interval);
     });
 
+    // Auto-scroll to playing song when returning to grid view
+    $effect(() => {
+        if (showGridView && audioState.playingId) {
+            // Tiny timeout to ensure DOM is ready if it was just unhidden
+            setTimeout(() => {
+                const el = document.getElementById(
+                    `song-card-${audioState.playingId}`,
+                );
+                if (el) {
+                    el.scrollIntoView({
+                        behavior: "smooth",
+                        block: "center",
+                    });
+                }
+            }, 100);
+        }
+    });
+
     // Auto-fallback locked themes to technicolor
     $effect(() => {
         const isHolidayLocked =
@@ -1104,6 +1122,7 @@
                             <div
                                 role="button"
                                 tabindex="0"
+                                id="song-card-{song.Id}"
                                 class="flex flex-col gap-2 group text-left w-full relative transition-opacity duration-300 {currentSong &&
                                 song.Id !== currentSong.Id &&
                                 isPlaying()
