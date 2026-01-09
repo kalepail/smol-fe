@@ -11,8 +11,6 @@
     import { sac } from "../../utils/passkey-kit";
     import { getTokenBalance } from "../../utils/balance";
 
-    import { preferences } from "../../stores/preferences.svelte";
-
     let {
         generatedPlaylist: playlist = [],
         selectedTags = [],
@@ -96,9 +94,6 @@
     // Confetti logic for Global Mode
     let lastGlobalState = $state(false);
     $effect(() => {
-        // Disable confetti in Fast Mode
-        if (preferences.renderMode === "fast") return;
-
         if (isGlobalShuffle && !lastGlobalState) {
             // Triple burst for maximum impact!
             const count = 200;
@@ -166,9 +161,18 @@
     }
 
     function share() {
-        const url = currentSong?.Id
-            ? `${window.location.origin}/${currentSong.Id}`
-            : window.location.href;
+        let url = window.location.href;
+
+        if (currentSong?.Id) {
+            if (currentSong.Address) {
+                // Prefer Artist Page Deep Link (Rich Context)
+                url = `${window.location.origin}/artist/${currentSong.Address}?play=${currentSong.Id}`;
+            } else {
+                // Fallback to generic song ID route
+                url = `${window.location.origin}/${currentSong.Id}`;
+            }
+        }
+
         navigator
             .share?.({
                 title: currentSong?.Title || "SMOL Radio",
@@ -185,12 +189,8 @@
     class="h-full flex flex-col gap-2 p-2 lg:p-4 lg:gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700 font-mono overflow-hidden pb-[env(safe-area-inset-bottom)]"
 >
     <div
-        class="flex flex-col flex-1 min-h-0 border border-white/5 bg-[#1d1d1d] max-w-6xl mx-auto overflow-hidden rounded-[32px] lg:rounded-xl w-full
-        {preferences.renderMode === 'thinking' ? 'reactive-glass' : ''}"
+        class="reactive-glass flex flex-col flex-1 min-h-0 border border-white/5 bg-[#1d1d1d] max-w-6xl mx-auto overflow-hidden rounded-[32px] lg:rounded-xl w-full"
         onmousemove={(e) => {
-            // Disable mousemove hover calculation in Fast Mode
-            if (preferences.renderMode === "fast") return;
-
             const el = e.currentTarget as HTMLElement;
             const rect = el.getBoundingClientRect();
             el.style.setProperty("--mouse-x", `${e.clientX - rect.left}px`);

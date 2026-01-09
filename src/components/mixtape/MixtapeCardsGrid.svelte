@@ -258,7 +258,6 @@
 
 <div
     class="grid gap-8 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 place-items-center"
-    style="contain: content;"
 >
     {#each mixtapes as mixtape (mixtape.id)}
         {@const isActive = activeMixtapeId === mixtape.id}
@@ -266,20 +265,14 @@
         {@const isPlaying = isActive && audioState.playingId !== null}
 
         <article
-            class="group flex flex-col rounded-xl md:rounded-[1.2rem] border p-2 md:p-4 transition-all duration-500 mx-auto w-full max-w-[400px] relative
+            class="group flex flex-col rounded-xl md:rounded-[1.2rem] border p-2 md:p-4 shadow-2xl transition-all duration-500 mx-auto w-full max-w-[400px] relative
             {isActive
-                ? 'border-white/20 bg-[#111] ring-1 ring-white/10'
-                : 'border-white/5 bg-black/40'}
-            {preferences.renderMode === 'thinking' && !isActive
-                ? 'backdrop-blur-md hover:bg-black/60 hover:-translate-y-1'
-                : ''}
-            {preferences.renderMode === 'thinking' && isActive
-                ? 'shadow-[0_0_50px_rgba(255,255,255,0.15)] shadow-2xl'
-                : 'shadow-md'}"
+                ? 'border-white/20 bg-[#111] shadow-[0_0_50px_rgba(255,255,255,0.15)] ring-1 ring-white/10'
+                : 'border-white/5 bg-black/40 backdrop-blur-md hover:bg-black/60 hover:-translate-y-1'}"
             onclick={() => handlePlayToggle(mixtape.id)}
         >
             <!-- HDR Arcade Button Glow (Razor Thin Rainbow) -->
-            {#if isActive && !isLoading && preferences.renderMode === "thinking"}
+            {#if isActive && !isLoading}
                 <!-- Intense Tight HDR Glow -->
                 <div
                     class="absolute -inset-2 rounded-xl md:rounded-[1.5rem] blur-[15px] opacity-90 animate-color-cycle pointer-events-none z-0 saturate-150 brightness-125 {THEMES[
@@ -309,14 +302,8 @@
             <div
                 class="relative flex flex-col gap-3 p-3 rounded-xl md:rounded-[1.5rem] bg-[#111] border transition-all duration-300 group z-10
                 {isActive
-                    ? 'border-transparent'
-                    : 'border-white/10 hover:border-white/20 bg-black/40'}
-                {preferences.renderMode === 'thinking' && isActive
-                    ? 'shadow-[0_0_40px_rgba(255,255,255,0.05)]'
-                    : ''}
-                {preferences.renderMode === 'thinking' && !isActive
-                    ? 'shadow-2xl backdrop-blur-md'
-                    : 'shadow-sm'}"
+                    ? 'border-transparent shadow-[0_0_40px_rgba(255,255,255,0.05)]'
+                    : 'border-white/10 hover:border-white/20 shadow-2xl backdrop-blur-md bg-black/40'}"
             >
                 <!-- Cover Visualization (Hardware Overlay) -->
                 <div

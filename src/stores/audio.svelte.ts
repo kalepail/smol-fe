@@ -158,28 +158,12 @@ export function registerSongNextCallback(callback: (() => void) | null) {
   audioState.songNextCallback = callback;
 }
 
+/**
+ * Call the registered next song callback if it exists
+ */
 export function playNextSong() {
   if (audioState.songNextCallback) {
     audioState.songNextCallback();
-  }
-}
-
-/**
- * Register a callback for playing the previous song
- */
-export function registerSongPrevCallback(callback: (() => void) | null) {
-  (audioState as any).songPrevCallback = callback;
-}
-
-/**
- * Call the registered prev song callback if it exists
- */
-export function playPrevSong() {
-  if ((audioState as any).songPrevCallback) {
-    (audioState as any).songPrevCallback();
-  } else if (audioState.audioElement) {
-    // Default fallback: restart song
-    audioState.audioElement.currentTime = 0;
   }
 }
 
