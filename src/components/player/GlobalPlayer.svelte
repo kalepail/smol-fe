@@ -973,10 +973,10 @@
                                             />
                                         </div>
 
-                                        <!-- Bottom Center: Share Button (Barely Visible) -->
+                                        <!-- Bottom Center: Share Button (X Style - No Ring) -->
                                         <div
                                             role="button"
-                                            class="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/20 backdrop-blur-sm border border-white/5 text-white/20 hover:text-white hover:bg-black/60 hover:border-white/20 transition-all cursor-pointer opacity-0 group-hover:opacity-100 duration-300 active:scale-95"
+                                            class="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 flex items-center justify-center w-8 h-8 text-white/30 hover:text-white transition-all cursor-pointer opacity-0 group-hover:opacity-100 duration-300 active:scale-95"
                                             onclick={(e) => {
                                                 e.stopPropagation();
                                                 const url = `${window.location.origin}/${song.Id}`;
@@ -1002,7 +1002,7 @@
                                             title="Share Song"
                                         >
                                             <svg
-                                                class="w-3.5 h-3.5"
+                                                class="w-4 h-4"
                                                 fill="none"
                                                 viewBox="0 0 24 24"
                                                 stroke="currentColor"
@@ -1011,7 +1011,7 @@
                                                 <path
                                                     stroke-linecap="round"
                                                     stroke-linejoin="round"
-                                                    d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z"
+                                                    d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"
                                                 />
                                             </svg>
                                         </div>
