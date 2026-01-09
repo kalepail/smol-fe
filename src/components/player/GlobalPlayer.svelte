@@ -819,8 +819,8 @@
                                                 ? 'bg-white/10 text-white'
                                                 : 'text-white/40 hover:text-white hover:bg-white/5'}"
                                         >
-                                            <span class="text-xs font-medium"
-                                                >Fast</span
+                                            <span class="text-[8px] font-pixel"
+                                                >fast</span
                                             >
                                             {#if preferences.renderMode === "fast"}
                                                 <div
@@ -838,8 +838,8 @@
                                                 ? 'bg-white/10 text-white'
                                                 : 'text-white/40 hover:text-white hover:bg-white/5'}"
                                         >
-                                            <span class="text-xs font-medium"
-                                                >Thinking</span
+                                            <span class="text-[8px] font-pixel"
+                                                >thinking</span
                                             >
                                             {#if preferences.renderMode === "thinking"}
                                                 <div
@@ -888,7 +888,7 @@
                                                     class="flex flex-col items-start"
                                                 >
                                                     <span
-                                                        class="text-xs font-medium flex items-center gap-2"
+                                                        class="text-[8px] font-pixel flex items-center gap-2"
                                                     >
                                                         {theme.name}
                                                         {#if key === "halloween"}
