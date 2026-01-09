@@ -135,6 +135,20 @@
             }
         }
     }
+    function typewriter(node: HTMLElement, { speed = 1 }: { speed?: number }) {
+        const text = node.textContent ?? "";
+        const duration = text.length * 50 * (1 / speed); // ~50ms per char
+
+        return {
+            duration,
+            tick: (t: number) => {
+                const i = Math.trunc(text.length * t);
+                node.textContent = text.slice(0, i);
+            },
+        };
+    }
+
+    // ... existing onMount ...
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -159,9 +173,9 @@
             >
                 {#key taglineIndex}
                     <p
-                        in:fly={{ y: 10, duration: 400, delay: 200 }}
-                        out:fly={{ y: -10, duration: 400 }}
-                        class="text-lime-400 font-pixel uppercase tracking-widest text-[10px] md:text-sm drop-shadow-[0_0_10px_rgba(132,204,22,0.5)]"
+                        in:typewriter={{ speed: 1.2 }}
+                        out:fade={{ duration: 200 }}
+                        class="text-lime-400 font-pixel uppercase tracking-widest text-[10px] md:text-sm drop-shadow-[0_0_10px_rgba(132,204,22,0.5)] border-r-2 border-lime-400 pr-1 animate-[blink_1s_step-end_infinite]"
                     >
                         {TAGLINES[taglineIndex]}
                     </p>
