@@ -92,7 +92,7 @@
         href={`https://stellar.expert/explorer/public/contract/${smol.Mint_Token}`}
         target="_blank"
         rel="noopener noreferrer"
-        class="absolute right-1.5 top-1.5 rounded-full bg-amber-400 px-2 py-1 text-xs font-bold text-slate-950 shadow-lg border border-amber-300 z-10 hover:bg-amber-300 transition-colors"
+        class="absolute right-1.5 top-1.5 rounded-full bg-amber-400 px-2 py-1 text-xs font-bold text-slate-950 shadow-lg border border-amber-300 z-50 hover:bg-amber-300 transition-colors"
         title="View on Stellar Expert"
         onclick={(e) => e.stopPropagation()}>M</a
       >
@@ -101,12 +101,12 @@
     {#if mixtapeModeState.active && isVisible}
       {#if isInMixtape}
         <span
-          class="absolute left-1.5 top-1.5 rounded-full bg-lime-400 px-2 py-1 text-xs font-semibold text-slate-950 z-10"
+          class="absolute left-1.5 top-1.5 rounded-full bg-lime-400 px-2 py-1 text-xs font-semibold text-slate-950 z-50"
           >Added</span
         >
       {:else}
         <button
-          class="absolute left-1.5 top-1.5 rounded-full bg-slate-950/70 px-2 py-1 text-xs text-lime-300 ring-1 ring-lime-400/60 backdrop-blur hover:bg-slate-950/90 z-10"
+          class="absolute left-1.5 top-1.5 rounded-full bg-slate-950/70 px-2 py-1 text-xs text-lime-300 ring-1 ring-lime-400/60 backdrop-blur hover:bg-slate-950/90 z-50"
           onclick={(e) => {
             e.stopPropagation();
             onAddToMixtape();
@@ -116,7 +116,7 @@
     {/if}
 
     <div
-      class="absolute z-10 right-0 bottom-0 rounded-tl-lg backdrop-blur-xs {!smol.Liked &&
+      class="absolute z-50 right-0 bottom-0 rounded-tl-lg backdrop-blur-xs {!smol.Liked &&
         'opacity-100 md:opacity-0 md:group-hover:opacity-100'}"
     >
       <LikeButton
