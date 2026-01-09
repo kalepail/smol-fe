@@ -103,9 +103,8 @@
       {/if}
     {/if}
 
-    <div
       class="absolute z-2 right-0 bottom-0 rounded-tl-lg backdrop-blur-xs {!smol.Liked &&
-        'opacity-0 group-hover:opacity-100'}"
+        'opacity-100 md:opacity-0 md:group-hover:opacity-100'}"
     >
       <LikeButton
         smolId={smol.Id}
@@ -133,7 +132,7 @@
     class="flex items-center relative p-2 flex-1 overflow-hidden cursor-pointer touch-manipulation active:bg-slate-600/50 transition-colors duration-75"
     onclick={toggleSongSelection}
   >
-    <h1 class="relative z-1 leading-4 text-sm text-white line-clamp-2">
+    <h1 class="relative z-1 leading-4 text-sm text-white line-clamp-2 flex-1 min-w-0 pr-2">
       {smol.Title}
     </h1>
     <img
@@ -144,15 +143,15 @@
       loading="lazy"
     />
     <div class="relative z-2 pl-2 ml-auto">
-      <MiniAudioPlayer
-        id={smol.Id}
-        playing_id={audioState.playingId}
-        songToggle={toggleSongSelection}
-        songNext={() => {}}
-        progress={audioState.currentSong?.Id === smol.Id
-          ? audioState.progress
-          : 0}
-      />
+      {#if audioState.currentSong?.Id === smol.Id}
+        <MiniAudioPlayer
+          id={smol.Id}
+          playing_id={audioState.playingId}
+          songToggle={toggleSongSelection}
+          songNext={() => {}}
+          progress={audioState.progress}
+        />
+      {/if}
     </div>
   </div>
 </div>
