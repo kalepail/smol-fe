@@ -1,0 +1,983 @@
+<script lang="ts">
+    import { onMount, untrack, tick } from "svelte";
+    import {
+        audioState,
+        selectSong,
+        registerSongNextCallback,
+        isPlaying,
+        togglePlayPause,
+    } from "../../stores/audio.svelte";
+    import { navigate } from "astro:transitions/client";
+    import RadioPlayer from "../radio/RadioPlayer.svelte";
+    import { userState } from "../../stores/user.svelte";
+    import LikeButton from "../ui/LikeButton.svelte";
+    import { useSmolMinting } from "../../hooks/useSmolMinting";
+    import MintTradeModal from "../MintTradeModal.svelte";
+    import { getTokenBalance } from "../../utils/balance";
+    import TipArtistModal from "../artist/TipArtistModal.svelte";
+    import { sac } from "../../utils/passkey-kit";
+    import {
+        safeFetchSmols,
+        likeSmol,
+        unlikeSmol,
+    } from "../../services/api/smols";
+    import { fly, fade, scale } from "svelte/transition";
+    import MiniVisualizer from "../ui/MiniVisualizer.svelte";
+    import { backOut } from "svelte/easing";
+    import type { Smol } from "../../types/domain";
+
+    const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
+
+    let liveDiscography = $state<Smol[]>([]);
+    let isLoadingLive = $state(false);
+    let liveTopTags = $state<string[]>([]);
+
+    // Navigation / View State
+    let activeModule = $state<"all" | "minted" | "tags">("all");
+    let selectedTags = $state<string[]>([]);
+    let shuffleEnabled = $state(false);
+    let currentIndex = $state(0);
+    let minting = $state(false);
+    let showTradeModal = $state(false);
+    let showGridView = $state(true);
+    let tagsExpanded = $state(false);
+    let sortMode = $state<"latest" | "canon" | "shuffle">("latest");
+    let showSortDropdown = $state(false);
+    let showTipModal = $state(false);
+    let selectedVersionId = $state<string | null>(null);
+    let isGeneratingMix = $state(false);
+    let initialPlayHandled = $state(false);
+    let isUrlStateLoaded = $state(false);
+    let initialScrollHandled = $state(false);
+
+    // Time Machine Clock State
+    let timeString = $state("");
+    let shuffleSeed = $state(Date.now());
+    let collageImages = $state<string[]>([]);
+    let searchQuery = $state("");
+    let isSearchingMobile = $state(false);
+    let showSearchMenu = $state(false);
+
+    onMount(() => {
+        // Start Clock
+        const updateTime = () => {
+            timeString = new Date().toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+            });
+        };
+        updateTime();
+        const interval = setInterval(updateTime, 1000);
+
+        // Fetch Global Data
+        hydrateGlobalData();
+
+        return () => clearInterval(interval);
+    });
+
+    // Determine current artist context (for Header/Tipping)
+    const currentSong = $derived(audioState.currentSong);
+    const currentArtistAddress = $derived(currentSong?.Address);
+
+    // Fetch artist badges for the *current playing artist*
+    let artistBadges = $state<{ premiumHeader: boolean; goldenKale: boolean }>({
+        premiumHeader: false,
+        goldenKale: false,
+    });
+
+    $effect(() => {
+        if (currentArtistAddress) {
+            fetch(`/api/artist/badges/${currentArtistAddress}`)
+                .then((res) => (res.ok ? res.json() : null))
+                .then((data) => {
+                    if (data) artistBadges = data;
+                    else
+                        artistBadges = {
+                            premiumHeader: false,
+                            goldenKale: false,
+                        };
+                })
+                .catch(() => {
+                    artistBadges = { premiumHeader: false, goldenKale: false };
+                });
+        }
+    });
+
+    $effect(() => {
+        if (liveDiscography.length > 0 && collageImages.length === 0) {
+            const base = liveDiscography
+                .filter((s) => s.Id)
+                .map((s) => `${API_URL}/image/${s.Id}.png?scale=16`)
+                .sort(() => Math.random() - 0.5)
+                .slice(0, 40);
+            collageImages = [...base, ...base];
+        }
+    });
+
+    async function hydrateGlobalData() {
+        if (isLoadingLive) return;
+        isLoadingLive = true;
+
+        try {
+            const smols = await safeFetchSmols();
+            // Sort by Created_At desc (Newest first)
+            smols.sort(
+                (a, b) =>
+                    new Date(b.Created_At || 0).getTime() -
+                    new Date(a.Created_At || 0).getTime(),
+            );
+
+            // Limit to avoid OOM on massive lists, but keep enough for discovery
+            liveDiscography = smols.slice(0, 500);
+
+            // Tags
+            const tagCounts: Record<string, number> = {};
+            liveDiscography.forEach((smol) => {
+                if (smol.Tags && Array.isArray(smol.Tags)) {
+                    smol.Tags.forEach((tag) => {
+                        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+                    });
+                }
+            });
+            liveTopTags = Object.entries(tagCounts)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10)
+                .map((t) => t[0]);
+
+            isUrlStateLoaded = true; // Data ready
+
+            // Auto-select first song if nothing playing
+            if (!audioState.currentSong && liveDiscography.length > 0) {
+                selectSong(liveDiscography[0]);
+            }
+        } catch (e) {
+            console.error("[GlobalPlayer] Failed to load data:", e);
+        } finally {
+            isLoadingLive = false;
+        }
+    }
+
+    // Deterministic Hash for Seeded Shuffle
+    function getShuffleVal(id: string, seed: number) {
+        let h = 0xdeadbeef;
+        for (let i = 0; i < id.length; i++)
+            h = Math.imul(h ^ id.charCodeAt(i), 2654435761);
+        h = Math.imul(h ^ seed, 1597334677);
+        return (h >>> 0) / 4294967296;
+    }
+
+    // Derived playlist
+    const basePlaylist = $derived.by(() => {
+        let source = [...liveDiscography];
+
+        // Filter Minted Only
+        if (activeModule === "minted") {
+            source = source.filter((s) => s.Mint_Token);
+        }
+
+        // Search
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase();
+            source = source.filter(
+                (smol) =>
+                    smol.Title?.toLowerCase().includes(query) ||
+                    smol.Address?.toLowerCase().includes(query),
+            );
+        }
+
+        // Tags
+        if (selectedTags.length > 0) {
+            source = source.filter((smol) =>
+                selectedTags.some((t) => smol.Tags?.includes(t)),
+            );
+        }
+
+        // Sorting
+        if (sortMode === "canon") {
+            source.sort((a, b) => {
+                const dateA = new Date(a.Created_At || 0).getTime();
+                const dateB = new Date(b.Created_At || 0).getTime();
+                return dateA - dateB;
+            });
+        } else if (sortMode === "latest") {
+            source.sort((a, b) => {
+                const dateA = new Date(a.Created_At || 0).getTime();
+                const dateB = new Date(b.Created_At || 0).getTime();
+                return dateB - dateA;
+            });
+        }
+
+        return source;
+    });
+
+    let shuffledOrder = $state<Smol[]>([]);
+
+    $effect(() => {
+        if (basePlaylist.length > 0 && (shuffleEnabled || shuffleSeed)) {
+            const playing = untrack(() => currentSong);
+            const currentDisp = untrack(() => displayPlaylist);
+            let target = untrack(() => currentIndex);
+
+            if (playing && currentDisp.length > 0) {
+                const actualIdx = currentDisp.findIndex(
+                    (s) => s.Id === playing.Id,
+                );
+                if (actualIdx !== -1) target = actualIdx;
+            }
+
+            let listToShuffle = [...basePlaylist];
+
+            if (playing) {
+                const matchIndex = listToShuffle.findIndex(
+                    (s) => s.Id === playing.Id,
+                );
+
+                if (matchIndex !== -1) {
+                    const [song] = listToShuffle.splice(matchIndex, 1);
+                    listToShuffle.sort(
+                        (a, b) =>
+                            getShuffleVal(a.Id, shuffleSeed) -
+                            getShuffleVal(b.Id, shuffleSeed),
+                    );
+                    if (
+                        showGridView &&
+                        target >= 0 &&
+                        target <= listToShuffle.length
+                    ) {
+                        listToShuffle.splice(target, 0, song);
+                        shuffledOrder = listToShuffle;
+                    } else {
+                        shuffledOrder = [song, ...listToShuffle];
+                    }
+                    return;
+                }
+            }
+
+            listToShuffle.sort(
+                (a, b) =>
+                    getShuffleVal(a.Id, shuffleSeed) -
+                    getShuffleVal(b.Id, shuffleSeed),
+            );
+            shuffledOrder = listToShuffle;
+        }
+    });
+
+    let gridLimit = $state(50);
+    const displayPlaylist = $derived.by(() => {
+        if (shuffleEnabled && shuffledOrder.length > 0) {
+            return shuffledOrder;
+        }
+        return basePlaylist;
+    });
+    const visiblePlaylist = $derived(displayPlaylist.slice(0, gridLimit));
+
+    // Scroll Handler
+    function handleGridScroll(e: any) {
+        const el = e.currentTarget as HTMLElement;
+        const { scrollTop, scrollHeight, clientHeight } = el;
+        if (scrollHeight - scrollTop - clientHeight < 800) {
+            if (gridLimit < displayPlaylist.length) {
+                gridLimit += 50;
+            }
+        }
+    }
+
+    // Auto-Scroll to Active Song
+    $effect(() => {
+        if (displayPlaylist.length > 0 && currentSong) {
+            const foundIndex = displayPlaylist.findIndex(
+                (s) => s.Id === currentSong.Id,
+            );
+            if (foundIndex !== -1 && foundIndex !== currentIndex) {
+                currentIndex = foundIndex;
+            }
+        }
+    });
+
+    function handleSelect(index: number) {
+        currentIndex = index;
+        const song = displayPlaylist[index];
+        if (song) {
+            selectSong(song);
+        }
+    }
+
+    async function handleToggleLike(index: number, liked: boolean) {
+        const song = displayPlaylist[index];
+        if (!song) return;
+
+        // Optimistic Update
+        const liveIdx = liveDiscography.findIndex((s) => s.Id === song.Id);
+        if (liveIdx !== -1) {
+            liveDiscography[liveIdx] = {
+                ...liveDiscography[liveIdx],
+                Liked: liked,
+            };
+        }
+
+        try {
+            if (liked) {
+                await likeSmol(song.Id);
+            } else {
+                await unlikeSmol(song.Id);
+            }
+        } catch (e) {
+            console.error("Failed to toggle like", e);
+            // Revert
+            if (liveIdx !== -1) {
+                liveDiscography[liveIdx] = {
+                    ...liveDiscography[liveIdx],
+                    Liked: !liked,
+                };
+            }
+        }
+    }
+
+    function handleNext() {
+        if (displayPlaylist.length === 0) return;
+        const nextIndex = (currentIndex + 1) % displayPlaylist.length;
+        handleSelect(nextIndex);
+    }
+
+    function handlePrev() {
+        if (displayPlaylist.length === 0) return;
+        const prevIndex =
+            (currentIndex - 1 + displayPlaylist.length) %
+            displayPlaylist.length;
+        handleSelect(prevIndex);
+    }
+
+    $effect(() => {
+        registerSongNextCallback(handleNext);
+        return () => registerSongNextCallback(null);
+    });
+
+    function toggleArtistTag(tag: string) {
+        if (selectedTags.includes(tag)) {
+            selectedTags = selectedTags.filter((t) => t !== tag);
+        } else {
+            selectedTags = [...selectedTags, tag];
+        }
+    }
+
+    async function generateMix() {
+        if (isGeneratingMix || basePlaylist.length === 0) return;
+        isGeneratingMix = true;
+        shuffleEnabled = true;
+        sortMode = "shuffle";
+        shuffleSeed = Date.now();
+        await tick();
+        isGeneratingMix = false;
+
+        if (shuffledOrder.length > 0) {
+            const nextIdx = Math.floor(Math.random() * shuffledOrder.length);
+            currentIndex = nextIdx;
+            selectSong(shuffledOrder[nextIdx]);
+        }
+    }
+
+    // Minting / Trading
+    const mintingHook = useSmolMinting();
+    const isMinted = $derived(
+        Boolean(currentSong?.Mint_Token && currentSong?.Mint_Amm),
+    );
+
+    function triggerLogin() {
+        window.dispatchEvent(new CustomEvent("smol:request-login"));
+    }
+
+    async function triggerMint() {
+        if (!userState.contractId) {
+            triggerLogin();
+            return;
+        }
+        if (!currentSong?.Id || minting || isMinted) return;
+
+        try {
+            minting = true;
+            await mintingHook.triggerMint(
+                {
+                    id: currentSong.Id,
+                    contractId: userState.contractId,
+                    keyId: userState.keyId!,
+                    smolContractId: import.meta.env.PUBLIC_SMOL_CONTRACT_ID!,
+                    rpcUrl: import.meta.env.PUBLIC_RPC_URL!,
+                    networkPassphrase: import.meta.env
+                        .PUBLIC_NETWORK_PASSPHRASE!,
+                    creatorAddress: currentSong.Address || "",
+                    kaleSacId: import.meta.env.PUBLIC_KALE_SAC_ID!,
+                },
+                async () => {},
+            );
+        } catch (e: any) {
+            alert(e.message);
+        } finally {
+            minting = false;
+        }
+    }
+
+    function copyAddress() {
+        if (currentArtistAddress) {
+            navigator.clipboard.writeText(currentArtistAddress).then(() => {
+                alert("Artist Address copied! Send $KALE to tip.");
+            });
+        }
+    }
+
+    const shortAddress = $derived(
+        currentArtistAddress
+            ? `${currentArtistAddress.slice(0, 4)}...${currentArtistAddress.slice(-4)}`
+            : "Fresh Drops",
+    );
+
+    const allTags = $derived(liveTopTags);
+    const maxTagCount = $derived(100); // simplify
+
+    // Versions
+    const versions = $derived.by(() => {
+        if (!currentSong?.kv_do?.songs) return [];
+        return currentSong.kv_do.songs.map((s: any, i: number) => ({
+            id: s.music_id,
+            label: `V${i + 1}`,
+            isBest: s.music_id === currentSong.Song_1,
+        }));
+    });
+</script>
+
+<div
+    class="space-y-0 h-full landscape:h-auto landscape:overflow-y-auto md:landscape:h-full md:landscape:overflow-hidden flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-700 font-mono"
+>
+    <!-- Top Header: Dynamic -->
+    <div class="relative z-50 max-w-6xl w-full mx-auto group/header">
+        <div
+            class="w-full border border-white/5 md:rounded-xl rounded-none shadow-xl overflow-hidden py-3 md:py-4 px-3 md:px-4 flex flex-row items-center justify-between gap-1.5 md:gap-4 relative min-h-[140px] z-40"
+        >
+            <!-- Background Collage -->
+            {#if collageImages.length > 0}
+                <div
+                    class="absolute inset-0 z-0 pointer-events-none select-none overflow-hidden opacity-30"
+                >
+                    <div
+                        class="flex flex-wrap content-start w-full animate-slide-up"
+                    >
+                        {#each collageImages as img}
+                            <div
+                                class="w-1/4 md:w-1/6 lg:w-1/8 aspect-square relative overflow-hidden"
+                            >
+                                <img
+                                    src={img}
+                                    alt="art"
+                                    class="w-full h-full object-cover"
+                                    loading="lazy"
+                                />
+                            </div>
+                        {/each}
+                    </div>
+                </div>
+            {/if}
+
+            <div
+                class="absolute inset-0 z-0 bg-[#0a0a0a]/80 backdrop-blur-[2px]"
+            ></div>
+
+            <div
+                class="space-y-2 relative z-10 flex-1 min-w-0 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]"
+            >
+                <h1
+                    class="text-[9px] font-pixel text-white/40 uppercase tracking-[0.3em]"
+                >
+                    {#if currentSong}NOW PLAYING{:else}SMOL DISCOVERY{/if}
+                </h1>
+
+                <div class="flex flex-col gap-3">
+                    {#if currentSong && currentArtistAddress}
+                        <button
+                            onclick={copyAddress}
+                            class="w-full text-lg md:text-3xl lg:text-4xl font-bold tracking-tighter text-white hover:text-[#d836ff] transition-colors flex items-center gap-2 md:gap-3 group/address text-left font-pixel tracking-widest"
+                            title="Click to copy artist address"
+                        >
+                            {shortAddress}
+                            <svg
+                                class="w-5 h-5 opacity-0 group-hover/address:opacity-100 transition-all text-[#d836ff]"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke-width="2"
+                                stroke="currentColor"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75"
+                                />
+                            </svg>
+                        </button>
+                        <button
+                            onclick={() => {
+                                if (!userState.contractId) {
+                                    triggerLogin();
+                                    return;
+                                }
+                                showTipModal = true;
+                            }}
+                            class="w-fit px-5 py-2 rounded-full text-[10px] font-pixel tracking-[0.2em] transition-all flex items-center gap-2 overflow-hidden relative group/tip bg-gradient-to-r from-green-600/20 to-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500/20"
+                        >
+                            <img
+                                src="https://em-content.zobj.net/source/apple/354/leafy-green_1f96c.png"
+                                alt="Kale"
+                                class="w-4 h-4 object-contain"
+                            />
+                            <span>Tip Artist</span>
+                        </button>
+                    {:else}
+                        <h2
+                            class="text-lg md:text-3xl lg:text-4xl font-bold tracking-tighter text-white font-pixel tracking-widest"
+                        >
+                            FRESH DROPS
+                        </h2>
+                        <p
+                            class="text-[10px] font-pixel text-white/50 tracking-wide max-w-sm"
+                        >
+                            Discover the latest tracks minted on the Smol
+                            network.
+                        </p>
+                    {/if}
+                </div>
+            </div>
+
+            <!-- Header Right: Player Mini Controls -->
+            <div
+                class="flex items-center gap-4 relative z-[60] shrink-0 min-w-[120px] justify-end"
+            >
+                {#if currentSong}
+                    <div
+                        class="items-center gap-1.5 sm:gap-2 bg-black/40 backdrop-blur-md p-1.5 rounded-full border border-white/10 shadow-xl {showGridView
+                            ? 'flex'
+                            : 'hidden md:flex landscape:flex'}"
+                    >
+                        <!-- Play/Pause & Shuffle Button -->
+                        <button
+                            class="tech-button w-9 h-9 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-xl border border-[#089981] text-[#089981] bg-[#089981]/10 hover:text-white"
+                            onclick={togglePlayPause}
+                        >
+                            {#if isPlaying()}
+                                <svg
+                                    class="w-4 h-4"
+                                    fill="currentColor"
+                                    viewBox="0 0 24 24"
+                                    ><path
+                                        d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"
+                                    /></svg
+                                >
+                            {:else}
+                                <svg
+                                    class="w-4 h-4 ml-0.5"
+                                    fill="currentColor"
+                                    viewBox="0 0 24 24"
+                                    ><path d="M8 5v14l11-7z" /></svg
+                                >
+                            {/if}
+                        </button>
+                    </div>
+                {/if}
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Player Card -->
+    <div
+        class="max-w-6xl w-full mx-auto reactive-glass border border-white/5 bg-[#1d1d1d]/70 backdrop-blur-xl md:rounded-2xl rounded-none shadow-2xl relative flex flex-col flex-1 min-h-0"
+    >
+        <!-- Control Bar -->
+        <div
+            class="relative z-[80] flex items-center border-b border-white/5 bg-[#1a1a1a] backdrop-blur-xl shrink-0 min-w-0 py-2 px-3 gap-3 landscape:sticky landscape:top-0"
+        >
+            <!-- Primary Grid Toggle with Rainbow Glow -->
+            <button
+                onclick={() => (showGridView = !showGridView)}
+                class="relative group shrink-0 w-10 h-10 flex items-center justify-center rounded-xl overflow-hidden transition-all active:scale-95 hover:shadow-[0_0_20px_rgba(168,85,247,0.4)]"
+                title={showGridView ? "Back to Player" : "Grid View"}
+            >
+                <!-- Rainbow Gradient Background/Border -->
+                <div
+                    class="absolute inset-0 bg-[conic-gradient(from_0deg,#10b981,#a855f7,#f97316,#10b981)] animate-[spin_4s_linear_infinite] opacity-70 group-hover:opacity-100 transition-opacity"
+                ></div>
+
+                <!-- Inner Mask -->
+                <div
+                    class="absolute inset-[1.5px] bg-[#1a1a1a] rounded-[10px] flex items-center justify-center z-10"
+                >
+                    {#if showGridView}
+                        <svg
+                            class="w-5 h-5 text-white"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            stroke-width="1.5"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H18A2.25 2.25 0 0113.5 18v-2.25z"
+                            />
+                        </svg>
+                    {:else}
+                        <svg
+                            class="w-5 h-5 text-white/70 group-hover:text-white transition-colors"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            stroke-width="1.5"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H18A2.25 2.25 0 0113.5 18v-2.25z"
+                            />
+                        </svg>
+                    {/if}
+                </div>
+            </button>
+
+            <div
+                class="flex flex-1 items-center gap-2 md:gap-4 overflow-x-auto no-scrollbar min-w-0 relative"
+            >
+                <div class="flex items-center gap-1 bg-white/5 rounded-lg p-1">
+                    <button
+                        onclick={() => (activeModule = "all")}
+                        class="px-3 py-1.5 rounded-md text-[9px] font-pixel transition-all {activeModule ===
+                        'all'
+                            ? 'bg-white/10 text-white shadow-sm'
+                            : 'text-white/40 hover:text-white hover:bg-white/5'}"
+                        >ALL</button
+                    >
+                    <button
+                        onclick={() => (activeModule = "minted")}
+                        class="px-3 py-1.5 rounded-md text-[9px] font-pixel transition-all {activeModule ===
+                        'minted'
+                            ? 'bg-[#d836ff]/20 text-[#d836ff] shadow-[0_0_10px_rgba(216,54,255,0.2)]'
+                            : 'text-white/40 hover:text-white hover:bg-white/5'}"
+                        >MINTED</button
+                    >
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <!-- Search Input -->
+                <div class="hidden md:flex items-center relative group/search">
+                    <svg
+                        class="w-3.5 h-3.5 absolute left-3 text-white/30 group-focus-within/search:text-white transition-colors"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                        />
+                    </svg>
+                    <input
+                        type="text"
+                        bind:value={searchQuery}
+                        placeholder="SEARCH..."
+                        class="bg-black/40 border border-white/10 rounded-lg py-2 pl-9 pr-3 text-[10px] w-32 focus:w-48 focus:border-white/30 outline-none transition-all duration-300 text-white font-pixel placeholder:text-white/20"
+                    />
+                </div>
+
+                <!-- Sort Dropdown -->
+                <div class="relative">
+                    <button
+                        onclick={() => (showSortDropdown = !showSortDropdown)}
+                        class="h-9 px-3 flex items-center gap-2 rounded-lg transition-all active:scale-95 text-white/60 bg-white/5 border border-white/10 hover:bg-white/10 hover:text-white"
+                        title="Sort Order"
+                    >
+                        <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            stroke-width="1.5"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                d="M3 7.5L7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0L16.5 21m0 0L12 16.5m4.5 4.5V7.5"
+                            />
+                        </svg>
+                    </button>
+                    {#if showSortDropdown}
+                        <div
+                            class="absolute right-0 top-11 z-[100] bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl p-1 min-w-[140px] animate-in fade-in zoom-in-95 duration-200"
+                        >
+                            <button
+                                onclick={() => {
+                                    sortMode = "latest";
+                                    showSortDropdown = false;
+                                }}
+                                class="w-full text-left px-3 py-2.5 text-[10px] font-pixel hover:bg-white/5 rounded-lg text-white/80 hover:text-white flex items-center gap-2"
+                            >
+                                <span>LATEST DROPS</span>
+                            </button>
+                            <button
+                                onclick={() => {
+                                    sortMode = "canon";
+                                    showSortDropdown = false;
+                                }}
+                                class="w-full text-left px-3 py-2.5 text-[10px] font-pixel hover:bg-white/5 rounded-lg text-white/80 hover:text-white flex items-center gap-2"
+                            >
+                                <span>OLDEST FIRST</span>
+                            </button>
+                        </div>
+                    {/if}
+                </div>
+            </div>
+        </div>
+
+        <div
+            class="relative flex-1 min-h-0 landscape:min-h-0 landscape:h-auto md:landscape:h-full flex flex-col"
+        >
+            {#if showGridView}
+                <div
+                    class="absolute inset-0 z-50 bg-[#121212] p-2 md:p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto dark-scrollbar pb-[env(safe-area-inset-bottom)]"
+                    onscroll={handleGridScroll}
+                >
+                    <div
+                        class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 md:gap-4 pb-20"
+                    >
+                        {#each visiblePlaylist as song, index (song.Id)}
+                            <div
+                                role="button"
+                                tabindex="0"
+                                class="flex flex-col gap-2 group text-left w-full relative transition-opacity duration-300 {currentSong &&
+                                song.Id !== currentSong.Id
+                                    ? 'opacity-40 hover:opacity-100'
+                                    : 'opacity-100'}"
+                                onclick={() => handleSelect(index)}
+                                onkeydown={() => {}}
+                            >
+                                {#if currentSong && song.Id === currentSong.Id}
+                                    <!-- Outer Ambient Glow -->
+                                    <div
+                                        class="absolute -inset-2 rounded-2xl blur-xl transition-opacity duration-500 animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_0deg,#10b981,#a855f7,#f97316,#10b981)] opacity-50"
+                                    ></div>
+                                {/if}
+
+                                <div
+                                    class="aspect-square rounded-xl relative overflow-hidden z-10 shadow-2xl"
+                                >
+                                    {#if currentSong && song.Id === currentSong.Id}
+                                        <!-- Spinning Lightwire -->
+                                        <div
+                                            class="absolute inset-[-100%] bg-[conic-gradient(from_0deg,#10b981,#a855f7,#f97316,#10b981)] transition-opacity duration-500 animate-[spin_4s_linear_infinite] opacity-100"
+                                        ></div>
+                                    {/if}
+
+                                    <!-- Content Mask -->
+                                    <div
+                                        class="absolute bg-slate-800 overflow-hidden transition-all duration-300 {currentSong &&
+                                        song.Id === currentSong.Id
+                                            ? 'inset-[2px] rounded-[10px]'
+                                            : 'inset-0 rounded-xl border border-white/10 group-hover:border-lime-500/50'}"
+                                    >
+                                        <img
+                                            src="{API_URL}/image/{song.Id}.png?scale=8"
+                                            alt={song.Title}
+                                            class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-slate-800"
+                                            loading="lazy"
+                                        />
+                                        {#if currentSong && song.Id === currentSong.Id}
+                                            <div
+                                                class="absolute inset-0 flex items-center justify-center z-10"
+                                            >
+                                                <MiniVisualizer />
+                                            </div>
+
+                                            <!-- Bottom Left: Like Button -->
+                                            <div
+                                                class="absolute bottom-2 left-2 z-20"
+                                                onclick={(e) =>
+                                                    e.stopPropagation()}
+                                            >
+                                                <LikeButton
+                                                    smolId={song.Id}
+                                                    liked={song.Liked || false}
+                                                    classNames="p-1.5 rounded-full bg-black/40 backdrop-blur-md border border-[#FF424C]/50 text-[#FF424C] hover:bg-[#FF424C]/20 transition-all shadow-[0_0_10px_rgba(255,66,76,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(255,66,76,0.5)]"
+                                                    iconSize="size-4"
+                                                    on:likeChanged={(e) => {
+                                                        handleToggleLike(
+                                                            index,
+                                                            e.detail.liked,
+                                                        );
+                                                    }}
+                                                />
+                                            </div>
+
+                                            <!-- Bottom Right: Song Detail -->
+                                            <div
+                                                role="button"
+                                                class="absolute bottom-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 transition-all shadow-[0_0_10px_rgba(216,54,255,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(216,54,255,0.5)] cursor-pointer"
+                                                onclick={(e) => {
+                                                    e.stopPropagation();
+                                                    navigate(
+                                                        `/${song.Id}?from=artist`,
+                                                    );
+                                                }}
+                                                onkeydown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                        e.stopPropagation();
+                                                        navigate(
+                                                            `/${song.Id}?from=artist`,
+                                                        );
+                                                    }
+                                                }}
+                                                title="View Song Details"
+                                            >
+                                                <svg
+                                                    class="w-4 h-4"
+                                                    fill="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
+                                                    />
+                                                </svg>
+                                            </div>
+                                        {/if}
+                                    </div>
+                                </div>
+                                <span
+                                    class="text-[9px] font-pixel text-white/60 truncate group-hover:text-white transition-colors"
+                                >
+                                    {song.Title || "Untitled"}
+                                </span>
+                            </div>
+                        {/each}
+                    </div>
+                </div>
+            {/if}
+
+            <div
+                class="flex flex-col landscape:flex-row lg:flex-row gap-0 landscape:gap-4 lg:gap-4 flex-1 min-h-0 landscape:h-auto md:landscape:h-full items-stretch px-4 pt-0 pb-4 overflow-hidden landscape:overflow-visible md:landscape:overflow-hidden {showGridView
+                    ? 'hidden landscape:flex lg:flex'
+                    : 'flex'}"
+            >
+                <div
+                    class="w-full landscape:w-1/2 lg:w-1/2 flex flex-col gap-0 min-h-0 relative z-[41] shrink-0"
+                >
+                    <RadioPlayer
+                        playlist={displayPlaylist}
+                        showSongDetailButton={false}
+                        onRegenerate={generateMix}
+                        onNext={handleNext}
+                        onPrev={handlePrev}
+                        onSelect={handleSelect}
+                        onTrade={isMinted
+                            ? () => {
+                                  if (!userState.contractId) triggerLogin();
+                                  else showTradeModal = true;
+                              }
+                            : undefined}
+                        onMint={!isMinted ? triggerMint : undefined}
+                        isMinting={minting}
+                        isAuthenticated={userState.contractId !== null}
+                        {currentIndex}
+                        overlayControls={true}
+                        {versions}
+                        currentVersionId={selectedVersionId || ""}
+                        onVersionSelect={(id) => {
+                            selectedVersionId = id;
+                            if (currentSong)
+                                selectSong({ ...currentSong, Song_1: id });
+                        }}
+                    />
+                </div>
+
+                <div
+                    class="w-full landscape:w-1/2 lg:w-1/2 flex flex-col min-h-0 mt-1 landscape:mt-0 lg:mt-0 bg-[#121212] border border-white/5 rounded-2xl relative flex-1 max-h-[50vh] landscape:max-h-full lg:max-h-full overflow-y-auto dark-scrollbar z-[40]"
+                >
+                    <div
+                        class="flex items-center justify-between p-3 border-b border-white/5 bg-[#1a1a1a] flex-shrink-0"
+                    >
+                        <h3
+                            class="text-white font-pixel tracking-wide uppercase text-[9px]"
+                        >
+                            Playlist ({displayPlaylist.length})
+                        </h3>
+                        <div class="flex items-center gap-2">
+                            <span
+                                class="text-[8px] font-pixel tracking-widest tabular-nums opacity-80 uppercase"
+                                >{timeString}</span
+                            >
+                        </div>
+                    </div>
+
+                    <ul class="divide-y divide-white/5">
+                        {#each displayPlaylist.slice(0, 100) as song, index}
+                            <li
+                                class="w-full flex items-center gap-4 p-3 hover:bg-white/[0.07] transition-all cursor-pointer {index ===
+                                currentIndex
+                                    ? 'bg-lime-500/15 border-l-4 border-lime-500'
+                                    : 'border-l-4 border-transparent'}"
+                                onclick={() => handleSelect(index)}
+                            >
+                                <span
+                                    class="text-white/20 w-4 text-center text-[9px] font-pixel"
+                                    >{index + 1}</span
+                                >
+                                <div
+                                    class="relative w-10 h-10 rounded-lg bg-slate-800 flex-shrink-0 overflow-hidden"
+                                >
+                                    <img
+                                        src="{API_URL}/image/{song.Id}.png?scale=8"
+                                        alt="Art"
+                                        class="w-full h-full object-cover"
+                                        loading="lazy"
+                                    />
+                                </div>
+                                <div
+                                    class="overflow-hidden text-left flex-1 min-w-0"
+                                >
+                                    <div
+                                        class="text-[9px] font-pixel text-white/90 truncate {index ===
+                                        currentIndex
+                                            ? 'text-lime-400'
+                                            : ''}"
+                                    >
+                                        {song.Title || "Untitled"}
+                                    </div>
+                                    <div
+                                        class="text-[7px] text-white/30 truncate font-pixel uppercase"
+                                    >
+                                        {song.Address
+                                            ? `${song.Address.slice(0, 4)}...${song.Address.slice(-4)}`
+                                            : "Unknown"}
+                                    </div>
+                                </div>
+                            </li>
+                        {/each}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{#if showTradeModal && currentSong && currentSong.Mint_Amm && currentSong.Mint_Token}
+    <MintTradeModal
+        ammId={currentSong.Mint_Amm}
+        mintTokenId={currentSong.Mint_Token}
+        songId={currentSong.Id}
+        title={currentSong.Title || "Untitled"}
+        imageUrl="{API_URL}/image/{currentSong.Id}.png?scale=8"
+        on:close={() => (showTradeModal = false)}
+        on:complete={() => (showTradeModal = false)}
+    />
+{/if}
+
+{#if showTipModal && currentArtistAddress}
+    <TipArtistModal
+        artistAddress={currentArtistAddress}
+        onClose={() => (showTipModal = false)}
+    />
+{/if}
