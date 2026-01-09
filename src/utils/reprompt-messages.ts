@@ -26,6 +26,15 @@ export const REPROMPT_MESSAGES = {
         "a passkey is like a tiny promise to return — the kind creators can feel.",
         "keep your ‘i got you’ energy on speed dial: passkey login, one tap.",
         "if you like helping artists keep creating, a passkey helps you keep your place in the loop."
+    ],
+    thoughts: [
+        "product market fit is just one more commit away.",
+        "users love fast apps. you found the fit.",
+        "shipping > planning. keep the momentum.",
+        "retention metrics look good when you code like this.",
+        "you're iterating on the product, not just the code. respect.",
+        "the market wants what you're building. don't stop.",
+        "velocity is the only metric that matters right now."
     ]
 };
 
@@ -35,6 +44,10 @@ export function getRepromptMessage(category: RepromptCategory = 'play') {
     const list = REPROMPT_MESSAGES[category] || REPROMPT_MESSAGES['play'];
     const index = Math.floor(Math.random() * list.length);
     return { msg: list[index], index };
+}
+
+export function getSystemThoughts() {
+    return REPROMPT_MESSAGES['thoughts'][Math.floor(Math.random() * REPROMPT_MESSAGES['thoughts'].length)];
 }
 
 export function incrementRepromptIndex() {
