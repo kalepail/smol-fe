@@ -802,7 +802,7 @@
                                             <!-- Top Left: Artist Profile -->
                                             <div
                                                 role="button"
-                                                class="absolute top-2 left-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-white/20 text-white/90 hover:bg-white/10 transition-all shadow-[0_0_10px_rgba(255,255,255,0.1)] active:scale-95 hover:shadow-[0_0_15px_rgba(255,255,255,0.2)] cursor-pointer"
+                                                class="absolute top-2 left-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-green-500/50 text-green-400 hover:bg-green-500/20 transition-all shadow-[0_0_10px_rgba(34,197,94,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(34,197,94,0.5)] cursor-pointer opacity-0 group-hover:opacity-100 duration-300"
                                                 onclick={(e) => {
                                                     e.stopPropagation();
                                                     navigate(
@@ -837,7 +837,7 @@
                                             <!-- Top Right: Send to Radio -->
                                             <div
                                                 role="button"
-                                                class="absolute top-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/20 transition-all shadow-[0_0_10px_rgba(6,182,212,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(6,182,212,0.5)] cursor-pointer"
+                                                class="absolute top-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-orange-500/50 text-orange-400 hover:bg-orange-500/20 transition-all shadow-[0_0_10px_rgba(249,115,22,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(249,115,22,0.5)] cursor-pointer opacity-0 group-hover:opacity-100 duration-300"
                                                 onclick={(e) => {
                                                     e.stopPropagation();
                                                     navigate(
@@ -871,7 +871,7 @@
 
                                             <!-- Bottom Left: Like Button -->
                                             <div
-                                                class="absolute bottom-2 left-2 z-20"
+                                                class="absolute bottom-2 left-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                                                 onclick={(e) =>
                                                     e.stopPropagation()}
                                             >
@@ -892,7 +892,7 @@
                                             <!-- Bottom Right: Song Detail -->
                                             <div
                                                 role="button"
-                                                class="absolute bottom-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 transition-all shadow-[0_0_10px_rgba(216,54,255,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(216,54,255,0.5)] cursor-pointer"
+                                                class="absolute bottom-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 transition-all shadow-[0_0_10px_rgba(216,54,255,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(216,54,255,0.5)] cursor-pointer opacity-0 group-hover:opacity-100 duration-300"
                                                 onclick={(e) => {
                                                     e.stopPropagation();
                                                     navigate(
