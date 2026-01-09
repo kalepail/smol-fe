@@ -6,9 +6,38 @@ import ArtistResults from '../../components/artist/ArtistResults.svelte';
 // ArtistResults now fetches data client-side based on address
 
 const { address } = Astro.params;
+const playId = Astro.url.searchParams.get('play');
+const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
+
+let title = `Artist ${address?.substring(0, 6) || 'Unknown'}...`;
+let description = "Check out this artist on smol.xyz";
+let image_url: string | undefined;
+let song_url: string | undefined;
+
+if (playId) {
+    try {
+        const res = await fetch(`${API_URL}/${playId}`);
+        if (res.ok) {
+            const data = await res.json();
+            title = data.kv_do?.lyrics?.title || data.d1?.Title || title;
+            description = data.kv_do?.payload?.prompt || description;
+            image_url = `${API_URL}/image/${playId}.png`;
+            
+            // Set song URL
+			if (data.d1?.Song_1) {
+				song_url = `${API_URL}/song/${data.d1.Song_1}.mp3`;
+			} else if (data.kv_do?.songs?.[0]?.audio) {
+				song_url = `${API_URL}/song/${data.kv_do.songs[0].music_id}.mp3`;
+			}
+        }
+    } catch (e) {
+        // Fail silently back to artist defaults
+        console.error("Failed to hydrate meta for artist deep link", e);
+    }
+}
 ---
 
-<Layout title={`Artist ${address?.substring(0, 6) || 'Unknown'}...`}>
+<Layout {title} {description} {image_url} {song_url}>
 	<main class="h-[calc(100vh-52px)] overflow-hidden text-white p-0 md:px-4 max-w-7xl mx-auto -mt-[2px] md:mt-0">
         <ArtistResults 
             client:load 
