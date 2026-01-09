@@ -32,13 +32,20 @@
     let isLoadingLive = $state(false);
     let liveTopTags = $state<string[]>([]);
 
+    import {
+        preferences,
+        THEMES,
+        type GlowTheme,
+    } from "../../stores/preferences.svelte";
+    import { upgradesState } from "../../stores/upgrades.svelte";
+
     // Navigation / View State
     let activeModule = $state<"all" | "minted" | "tags">("all");
     let selectedTags = $state<string[]>([]);
     let shuffleEnabled = $state(false);
     let currentIndex = $state(0);
-    // Render Mode: 'fast' (Low Power/Static) vs 'thinking' (High Fidelity/Animated)
-    let renderMode = $state<"fast" | "thinking">("thinking");
+
+    // settings menu state
     let showSettingsMenu = $state(false);
     let minting = $state(false);
     let showTradeModal = $state(false);
@@ -597,7 +604,7 @@
     >
         <!-- Control Bar -->
         <div
-            class="relative z-[80] flex items-center border-b border-white/5 bg-[#1a1a1a] backdrop-blur-xl shrink-0 min-w-0 py-2 px-3 gap-3 landscape:sticky landscape:top-0"
+            class="relative z-[100] flex items-center border-b border-white/5 bg-[#1a1a1a] backdrop-blur-xl shrink-0 min-w-0 py-2 px-3 gap-3 landscape:sticky landscape:top-0"
         >
             <!-- Primary Grid Toggle with Rainbow Glow -->
             <button
@@ -607,7 +614,11 @@
             >
                 <!-- Rainbow Gradient Background/Border -->
                 <div
-                    class="absolute inset-[-100%] bg-[conic-gradient(from_0deg,#10b981,#a855f7,#f97316,#10b981)] animate-[spin_4s_linear_infinite] opacity-70 group-hover:opacity-100 transition-opacity"
+                    class="absolute inset-[-100%] {THEMES[preferences.glowTheme]
+                        .gradient
+                        ? `bg-gradient-to-r ${THEMES[preferences.glowTheme].gradient}`
+                        : ''} animate-[spin_4s_linear_infinite] opacity-70 group-hover:opacity-100 transition-opacity"
+                    style={THEMES[preferences.glowTheme].style || ""}
                 ></div>
 
                 <!-- Inner Mask -->
@@ -680,82 +691,6 @@
                 </div>
 
                 <div class="flex-1"></div>
-
-                <!-- AI Settings Toggle -->
-                <div class="relative">
-                    <button
-                        onclick={() => (showSettingsMenu = !showSettingsMenu)}
-                        class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors {showSettingsMenu
-                            ? 'bg-white/10 text-white'
-                            : 'text-white/40'}"
-                        title="Simulation Settings"
-                    >
-                        <svg
-                            class="w-4 h-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                        >
-                            <path
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                stroke-width="1.5"
-                                d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.048 4.056a15.05 15.05 0 0011.852 0M12.75 3.75c-.62 0-1.125.504-1.125 1.125v4.5c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V4.875c0-.621-.504-1.125-1.125-1.125H12.75zM8.25 19.5v2.25"
-                            />
-                        </svg>
-                    </button>
-
-                    {#if showSettingsMenu}
-                        <div
-                            class="absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl p-3 z-[100] shadow-2xl animate-in slide-in-from-top-2"
-                        >
-                            <div
-                                class="text-[9px] font-pixel text-white/50 mb-3 px-1 uppercase tracking-widest"
-                            >
-                                Neural Configuration
-                            </div>
-                            <div class="flex flex-col gap-1">
-                                <button
-                                    onclick={() => {
-                                        renderMode = "fast";
-                                        showSettingsMenu = false;
-                                    }}
-                                    class="w-full flex items-center justify-between p-2 rounded-lg transition-colors {renderMode ===
-                                    'fast'
-                                        ? 'bg-white/10 text-white'
-                                        : 'text-white/40 hover:text-white hover:bg-white/5'}"
-                                >
-                                    <span class="text-xs font-medium">Fast</span
-                                    >
-                                    {#if renderMode === "fast"}
-                                        <div
-                                            class="w-1.5 h-1.5 rounded-full bg-lime-400 shadow-[0_0_8px_rgba(163,230,53,0.5)]"
-                                        ></div>
-                                    {/if}
-                                </button>
-                                <button
-                                    onclick={() => {
-                                        renderMode = "thinking";
-                                        showSettingsMenu = false;
-                                    }}
-                                    class="w-full flex items-center justify-between p-2 rounded-lg transition-colors {renderMode ===
-                                    'thinking'
-                                        ? 'bg-white/10 text-white'
-                                        : 'text-white/40 hover:text-white hover:bg-white/5'}"
-                                >
-                                    <span class="text-xs font-medium"
-                                        >Thinking</span
-                                    >
-                                    {#if renderMode === "thinking"}
-                                        <div
-                                            class="w-1.5 h-1.5 rounded-full bg-[#d836ff] shadow-[0_0_8px_rgba(216,54,255,0.5)]"
-                                        ></div>
-                                    {/if}
-                                </button>
-                            </div>
-                        </div>
-                    {/if}
-                </div>
             </div>
 
             {#if activeModule === "tags" && tagsExpanded}
@@ -832,6 +767,187 @@
             {/if}
 
             <div class="flex items-center gap-2">
+                <!-- AI Settings Toggle -->
+                <div class="relative">
+                    <button
+                        onclick={() => (showSettingsMenu = !showSettingsMenu)}
+                        class="w-9 h-9 flex items-center justify-center rounded-lg border border-white/5 transition-colors {showSettingsMenu
+                            ? 'bg-white/10 text-white'
+                            : 'text-white/40 hover:text-white hover:bg-white/5'}"
+                        title="Simulation Settings"
+                    >
+                        <svg
+                            class="w-5 h-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="1.5"
+                                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                            />
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="1.5"
+                                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                            />
+                        </svg>
+                    </button>
+
+                    {#if showSettingsMenu}
+                        <div
+                            class="absolute top-full right-0 mt-2 w-56 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl p-3 z-[100] shadow-2xl animate-in slide-in-from-top-2"
+                        >
+                            <div class="space-y-4">
+                                <!-- Performance Mode -->
+                                <div>
+                                    <div
+                                        class="text-[9px] font-pixel text-white/50 mb-2 px-1 uppercase tracking-widest"
+                                    >
+                                        Neural Configuration
+                                    </div>
+                                    <div class="flex flex-col gap-1">
+                                        <button
+                                            onclick={() => {
+                                                preferences.renderMode = "fast";
+                                            }}
+                                            class="w-full flex items-center justify-between p-2 rounded-lg transition-colors {preferences.renderMode ===
+                                            'fast'
+                                                ? 'bg-white/10 text-white'
+                                                : 'text-white/40 hover:text-white hover:bg-white/5'}"
+                                        >
+                                            <span class="text-xs font-medium"
+                                                >Fast</span
+                                            >
+                                            {#if preferences.renderMode === "fast"}
+                                                <div
+                                                    class="w-1.5 h-1.5 rounded-full bg-lime-400 shadow-[0_0_8px_rgba(163,230,53,0.5)]"
+                                                ></div>
+                                            {/if}
+                                        </button>
+                                        <button
+                                            onclick={() => {
+                                                preferences.renderMode =
+                                                    "thinking";
+                                            }}
+                                            class="w-full flex items-center justify-between p-2 rounded-lg transition-colors {preferences.renderMode ===
+                                            'thinking'
+                                                ? 'bg-white/10 text-white'
+                                                : 'text-white/40 hover:text-white hover:bg-white/5'}"
+                                        >
+                                            <span class="text-xs font-medium"
+                                                >Thinking</span
+                                            >
+                                            {#if preferences.renderMode === "thinking"}
+                                                <div
+                                                    class="w-1.5 h-1.5 rounded-full bg-[#d836ff] shadow-[0_0_8px_rgba(216,54,255,0.5)]"
+                                                ></div>
+                                            {/if}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Glow Theme -->
+                                <div>
+                                    <div
+                                        class="text-[9px] font-pixel text-white/50 mb-2 px-1 uppercase tracking-widest"
+                                    >
+                                        Glow Pattern
+                                    </div>
+                                    <div
+                                        class="grid grid-cols-1 gap-1 max-h-[200px] overflow-y-auto dark-scrollbar pr-1"
+                                    >
+                                        {#each Object.entries(THEMES) as [key, theme]}
+                                            {@const isHolidayLocked =
+                                                key === "holiday" &&
+                                                !userState.contractId}
+                                            {@const isGoldenKaleLocked =
+                                                key === "halloween" &&
+                                                !upgradesState.goldenKale}
+                                            {@const isLocked =
+                                                isHolidayLocked ||
+                                                isGoldenKaleLocked}
+                                            <button
+                                                disabled={isLocked}
+                                                onclick={() => {
+                                                    if (!isLocked)
+                                                        preferences.glowTheme =
+                                                            key as GlowTheme;
+                                                }}
+                                                class="w-full flex items-center justify-between p-2 rounded-lg transition-colors group/theme {preferences.glowTheme ===
+                                                key
+                                                    ? 'bg-white/10 text-white'
+                                                    : 'text-white/40 hover:text-white hover:bg-white/5'} {isLocked
+                                                    ? 'opacity-50 cursor-not-allowed'
+                                                    : ''}"
+                                            >
+                                                <div
+                                                    class="flex flex-col items-start"
+                                                >
+                                                    <span
+                                                        class="text-xs font-medium flex items-center gap-2"
+                                                    >
+                                                        {theme.name}
+                                                        {#if key === "halloween"}
+                                                            <span
+                                                                class="relative inline-flex items-center ml-1"
+                                                            >
+                                                                <img
+                                                                    src="https://em-content.zobj.net/source/apple/354/leafy-green_1f96c.png"
+                                                                    class="w-4 h-4 filter sepia-[100%] saturate-[400%] brightness-[1.2] contrast-[1.2] hue-rotate-[5deg]"
+                                                                    style="image-rendering: pixelated;"
+                                                                    alt="Golden Kale"
+                                                                />
+                                                                <span
+                                                                    class="absolute -top-1 -right-1 text-[8px] text-[#FCF6BA] animate-ping opacity-90"
+                                                                    >✦</span
+                                                                >
+                                                            </span>
+                                                        {/if}
+                                                        {#if isLocked}
+                                                            <svg
+                                                                class="w-3 h-3 text-white/30"
+                                                                fill="none"
+                                                                viewBox="0 0 24 24"
+                                                                stroke="currentColor"
+                                                            >
+                                                                <path
+                                                                    stroke-linecap="round"
+                                                                    stroke-linejoin="round"
+                                                                    stroke-width="2"
+                                                                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                                                                />
+                                                            </svg>
+                                                        {/if}
+                                                    </span>
+                                                    {#if isHolidayLocked}
+                                                        <span
+                                                            class="text-[8px] text-white/30 uppercase tracking-wide"
+                                                            >Sign up to unlock</span
+                                                        >
+                                                    {/if}
+                                                    {#if isGoldenKaleLocked}
+                                                        <span
+                                                            class="text-[8px] text-amber-400/50 uppercase tracking-wide"
+                                                            >Golden Kale holders
+                                                            only</span
+                                                        >
+                                                    {/if}
+                                                </div>
+                                                <div
+                                                    class="w-3 h-3 rounded-full bg-gradient-to-br {theme.gradient}"
+                                                ></div>
+                                            </button>
+                                        {/each}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {/if}
+                </div>
                 <!-- Search Input -->
                 <div class="hidden md:flex items-center relative group/search">
                     <svg
@@ -928,19 +1044,31 @@
                                 onkeydown={() => {}}
                             >
                                 <!-- Outer Ambient Glow (Disabled in Fast Mode) -->
-                                {#if currentSong && song.Id === currentSong.Id && renderMode === "thinking"}
+                                {#if currentSong && song.Id === currentSong.Id && preferences.renderMode === "thinking"}
                                     <div
-                                        class="absolute -inset-2 rounded-2xl blur-xl transition-opacity duration-500 animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_0deg,#10b981,#a855f7,#f97316,#10b981)] opacity-50"
+                                        class="absolute -inset-2 rounded-2xl blur-xl transition-opacity duration-500 animate-[spin_4s_linear_infinite] {THEMES[
+                                            preferences.glowTheme
+                                        ].gradient
+                                            ? `bg-gradient-to-r ${THEMES[preferences.glowTheme].gradient}`
+                                            : ''} opacity-50"
+                                        style={THEMES[preferences.glowTheme]
+                                            .style || ""}
                                     ></div>
                                 {/if}
 
                                 <div
                                     class="aspect-square rounded-xl relative overflow-hidden z-10 shadow-2xl"
                                 >
-                                    {#if currentSong && song.Id === currentSong.Id && renderMode === "thinking"}
+                                    {#if currentSong && song.Id === currentSong.Id && preferences.renderMode === "thinking"}
                                         <!-- Spinning Lightwire (Disabled in Fast Mode) -->
                                         <div
-                                            class="absolute inset-[-100%] bg-[conic-gradient(from_0deg,#10b981,#a855f7,#f97316,#10b981)] transition-opacity duration-500 animate-[spin_4s_linear_infinite] opacity-100"
+                                            class="absolute inset-[-100%] {THEMES[
+                                                preferences.glowTheme
+                                            ].gradient
+                                                ? `bg-gradient-to-r ${THEMES[preferences.glowTheme].gradient}`
+                                                : ''} transition-opacity duration-500 animate-[spin_4s_linear_infinite] opacity-100"
+                                            style={THEMES[preferences.glowTheme]
+                                                .style || ""}
                                         ></div>
                                     {/if}
 
@@ -957,7 +1085,7 @@
                                             class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-slate-800"
                                             loading="lazy"
                                         />
-                                        {#if currentSong && song.Id === currentSong.Id && renderMode === "thinking"}
+                                        {#if currentSong && song.Id === currentSong.Id && preferences.renderMode === "thinking"}
                                             <div
                                                 class="absolute inset-0 flex items-center justify-center z-10"
                                             >
@@ -1264,3 +1392,20 @@
         onClose={() => (showTipModal = false)}
     />
 {/if}
+
+<style>
+    @keyframes sparkle {
+        0%,
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+        50% {
+            opacity: 0.6;
+            transform: scale(1.1);
+        }
+    }
+    .animate-sparkle {
+        animation: sparkle 1.5s ease-in-out infinite;
+    }
+</style>

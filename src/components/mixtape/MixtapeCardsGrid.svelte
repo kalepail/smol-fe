@@ -18,6 +18,7 @@
     import MixtapeSupportBanner from "./MixtapeSupportBanner.svelte";
     import { navigate } from "astro:transitions/client";
     import { userState } from "../../stores/user.svelte";
+    import { preferences, THEMES } from "../../stores/preferences.svelte";
     import { safeFetchSmols } from "../../services/api/smols";
     import { fade } from "svelte/transition";
 
@@ -274,14 +275,22 @@
             {#if isActive && !isLoading}
                 <!-- Intense Tight HDR Glow -->
                 <div
-                    class="absolute -inset-2 rounded-xl md:rounded-[1.5rem] blur-[15px] opacity-90 animate-color-cycle pointer-events-none z-0 saturate-150 brightness-125"
-                    style="background: conic-gradient(from 0deg, #ff0000, #ff8000, #ffff00, #00ff00, #00ffff, #0000ff, #8000ff, #ff00ff, #ff0000)"
+                    class="absolute -inset-2 rounded-xl md:rounded-[1.5rem] blur-[15px] opacity-90 animate-color-cycle pointer-events-none z-0 saturate-150 brightness-125 {THEMES[
+                        preferences.glowTheme
+                    ].gradient
+                        ? `bg-gradient-to-r ${THEMES[preferences.glowTheme].gradient}`
+                        : ''}"
+                    style={THEMES[preferences.glowTheme].style || ""}
                 ></div>
 
                 <!-- Razor-thin HDR Rainbow Border -->
                 <div
-                    class="absolute -inset-[1px] rounded-xl md:rounded-[1.5rem] animate-color-cycle pointer-events-none z-0 shadow-[0_0_20px_rgba(255,255,255,0.4)] saturate-150 brightness-150"
-                    style="background: conic-gradient(from 0deg, #ff0000, #ff8000, #ffff00, #00ff00, #00ffff, #0000ff, #8000ff, #ff00ff, #ff0000); padding: 1px;"
+                    class="absolute -inset-[1px] rounded-xl md:rounded-[1.5rem] animate-color-cycle pointer-events-none z-0 shadow-[0_0_20px_rgba(255,255,255,0.4)] saturate-150 brightness-150 {THEMES[
+                        preferences.glowTheme
+                    ].gradient
+                        ? `bg-gradient-to-r ${THEMES[preferences.glowTheme].gradient}`
+                        : ''} p-[1px]"
+                    style={THEMES[preferences.glowTheme].style || ""}
                 >
                     <div
                         class="h-full w-full rounded-xl md:rounded-[1.5rem] bg-[#111]"
