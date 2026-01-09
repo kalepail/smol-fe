@@ -663,8 +663,92 @@
                             : 'text-white/40 hover:text-white hover:bg-white/5'}"
                         >MINTED</button
                     >
+                    <button
+                        onclick={() => {
+                            activeModule = "tags";
+                            tagsExpanded = true;
+                        }}
+                        class="px-3 py-1.5 rounded-md text-[9px] font-pixel transition-all {activeModule ===
+                        'tags'
+                            ? 'bg-orange-500/20 text-orange-400 shadow-[0_0_10px_rgba(249,115,22,0.2)]'
+                            : 'text-white/40 hover:text-white hover:bg-white/5'}"
+                        >TAGS</button
+                    >
                 </div>
             </div>
+
+            {#if activeModule === "tags" && tagsExpanded}
+                <div
+                    class="absolute top-full left-0 right-0 mt-2 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl p-4 z-[90] shadow-2xl animate-in slide-in-from-top-2 flex flex-col gap-4"
+                >
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <span class="text-[9px] font-pixel text-white/50"
+                                >FILTER BY TAGS</span
+                            >
+                            {#if selectedTags.length > 0}
+                                <button
+                                    class="text-[9px] font-pixel text-orange-400 hover:text-orange-300 transition-colors"
+                                    onclick={() => (selectedTags = [])}
+                                    >CLEAR ({selectedTags.length})</button
+                                >
+                                <!-- Radio Launch Button -->
+                                <button
+                                    onclick={() => {
+                                        navigate(
+                                            `/radio?tags=${selectedTags.join(",")}`,
+                                        );
+                                    }}
+                                    class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/20 border border-orange-500/50 text-orange-400 text-[9px] font-pixel hover:bg-orange-500/30 transition-all active:scale-95 shadow-[0_0_10px_rgba(249,115,22,0.3)]"
+                                >
+                                    <svg
+                                        class="w-3 h-3"
+                                        fill="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            d="M12 5c-3.87 0-7 3.13-7 7h2c0-2.76 2.24-5 5-5s5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4C6.48 1 2 5.48 2 11h2c0-4.42 3.58-8 8-8s8 3.58 8 8h2c0-5.52-4.48-10-10-10z"
+                                        />
+                                        <path d="M13 13h-2v10h2V13z" />
+                                    </svg>
+                                    <span>PLAY RADIO</span>
+                                </button>
+                            {/if}
+                        </div>
+                        <button
+                            onclick={() => (tagsExpanded = false)}
+                            class="text-white/40 hover:text-white"
+                        >
+                            <svg
+                                class="w-4 h-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                ><path
+                                    d="M6 18L18 6M6 6l12 12"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                /></svg
+                            >
+                        </button>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        {#each allTags.slice(0, maxTagCount) as tag}
+                            <button
+                                onclick={() => toggleArtistTag(tag)}
+                                class="px-2.5 py-1 rounded-full text-[9px] font-pixel border transition-all duration-300 {selectedTags.includes(
+                                    tag,
+                                )
+                                    ? 'bg-white text-black border-white shadow-[0_0_10px_rgba(255,255,255,0.4)]'
+                                    : 'bg-white/5 border-white/10 text-white/60 hover:border-white/30 hover:text-white'}"
+                            >
+                                #{tag}
+                            </button>
+                        {/each}
+                    </div>
+                </div>
+            {/if}
 
             <div class="flex items-center gap-2">
                 <!-- Search Input -->
@@ -798,128 +882,127 @@
                                             >
                                                 <MiniVisualizer />
                                             </div>
+                                        {/if}
 
-                                            <!-- Top Left: Artist Profile -->
-                                            <div
-                                                role="button"
-                                                class="absolute top-2 left-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-green-500/50 text-green-400 hover:bg-green-500/20 transition-all shadow-[0_0_10px_rgba(34,197,94,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(34,197,94,0.5)] cursor-pointer opacity-0 group-hover:opacity-100 duration-300"
-                                                onclick={(e) => {
+                                        <!-- Top Left: Artist Profile -->
+                                        <div
+                                            role="button"
+                                            class="absolute top-2 left-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-green-500/50 text-green-400 hover:bg-green-500/20 transition-all shadow-[0_0_10px_rgba(34,197,94,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(34,197,94,0.5)] cursor-pointer opacity-0 group-hover:opacity-100 duration-300"
+                                            onclick={(e) => {
+                                                e.stopPropagation();
+                                                navigate(
+                                                    `/artist/${song.Address}`,
+                                                );
+                                            }}
+                                            onkeydown={(e) => {
+                                                if (e.key === "Enter") {
                                                     e.stopPropagation();
                                                     navigate(
                                                         `/artist/${song.Address}`,
                                                     );
-                                                }}
-                                                onkeydown={(e) => {
-                                                    if (e.key === "Enter") {
-                                                        e.stopPropagation();
-                                                        navigate(
-                                                            `/artist/${song.Address}`,
-                                                        );
-                                                    }
-                                                }}
-                                                title="View Artist Profile"
+                                                }
+                                            }}
+                                            title="View Artist Profile"
+                                        >
+                                            <svg
+                                                class="w-4 h-4"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                stroke-width="1.5"
                                             >
-                                                <svg
-                                                    class="w-4 h-4"
-                                                    fill="none"
-                                                    viewBox="0 0 24 24"
-                                                    stroke="currentColor"
-                                                    stroke-width="1.5"
-                                                >
-                                                    <path
-                                                        stroke-linecap="round"
-                                                        stroke-linejoin="round"
-                                                        d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"
-                                                    />
-                                                </svg>
-                                            </div>
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"
+                                                />
+                                            </svg>
+                                        </div>
 
-                                            <!-- Top Right: Send to Radio -->
-                                            <div
-                                                role="button"
-                                                class="absolute top-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-orange-500/50 text-orange-400 hover:bg-orange-500/20 transition-all shadow-[0_0_10px_rgba(249,115,22,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(249,115,22,0.5)] cursor-pointer opacity-0 group-hover:opacity-100 duration-300"
-                                                onclick={(e) => {
+                                        <!-- Top Right: Send to Radio -->
+                                        <div
+                                            role="button"
+                                            class="absolute top-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-orange-500/50 text-orange-400 hover:bg-orange-500/20 transition-all shadow-[0_0_10px_rgba(249,115,22,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(249,115,22,0.5)] cursor-pointer opacity-0 group-hover:opacity-100 duration-300"
+                                            onclick={(e) => {
+                                                e.stopPropagation();
+                                                navigate(
+                                                    `/radio?artist=${song.Address}`,
+                                                );
+                                            }}
+                                            onkeydown={(e) => {
+                                                if (e.key === "Enter") {
                                                     e.stopPropagation();
                                                     navigate(
                                                         `/radio?artist=${song.Address}`,
                                                     );
-                                                }}
-                                                onkeydown={(e) => {
-                                                    if (e.key === "Enter") {
-                                                        e.stopPropagation();
-                                                        navigate(
-                                                            `/radio?artist=${song.Address}`,
-                                                        );
-                                                    }
-                                                }}
-                                                title="Start Artist Radio"
+                                                }
+                                            }}
+                                            title="Start Artist Radio"
+                                        >
+                                            <svg
+                                                class="w-4 h-4"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                                stroke-width="1.5"
                                             >
-                                                <svg
-                                                    class="w-4 h-4"
-                                                    fill="none"
-                                                    viewBox="0 0 24 24"
-                                                    stroke="currentColor"
-                                                    stroke-width="1.5"
-                                                >
-                                                    <path
-                                                        stroke-linecap="round"
-                                                        stroke-linejoin="round"
-                                                        d="M9.348 14.652a3.75 3.75 0 0 1 0-5.304m5.304 0a3.75 3.75 0 0 1 0 5.304m-7.425 2.121a6.75 6.75 0 0 1 0-9.546m9.546 0a6.75 6.75 0 0 1 0 9.546M5.106 18.894c-3.808-3.807-3.808-9.98 0-13.788m13.788 0c3.808 3.807 3.808 9.98 0 13.788M12 10.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"
-                                                    />
-                                                </svg>
-                                            </div>
-
-                                            <!-- Bottom Left: Like Button -->
-                                            <div
-                                                class="absolute bottom-2 left-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                                                onclick={(e) =>
-                                                    e.stopPropagation()}
-                                            >
-                                                <LikeButton
-                                                    smolId={song.Id}
-                                                    liked={song.Liked || false}
-                                                    classNames="p-1.5 rounded-full bg-black/40 backdrop-blur-md border border-[#FF424C]/50 text-[#FF424C] hover:bg-[#FF424C]/20 transition-all shadow-[0_0_10px_rgba(255,66,76,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(255,66,76,0.5)]"
-                                                    iconSize="size-4"
-                                                    on:likeChanged={(e) => {
-                                                        handleToggleLike(
-                                                            index,
-                                                            e.detail.liked,
-                                                        );
-                                                    }}
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    d="M9.348 14.652a3.75 3.75 0 0 1 0-5.304m5.304 0a3.75 3.75 0 0 1 0 5.304m-7.425 2.121a6.75 6.75 0 0 1 0-9.546m9.546 0a6.75 6.75 0 0 1 0 9.546M5.106 18.894c-3.808-3.807-3.808-9.98 0-13.788m13.788 0c3.808 3.807 3.808 9.98 0 13.788M12 10.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"
                                                 />
-                                            </div>
+                                            </svg>
+                                        </div>
 
-                                            <!-- Bottom Right: Song Detail -->
-                                            <div
-                                                role="button"
-                                                class="absolute bottom-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 transition-all shadow-[0_0_10px_rgba(216,54,255,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(216,54,255,0.5)] cursor-pointer opacity-0 group-hover:opacity-100 duration-300"
-                                                onclick={(e) => {
+                                        <!-- Bottom Left: Like Button -->
+                                        <div
+                                            class="absolute bottom-2 left-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                                            onclick={(e) => e.stopPropagation()}
+                                        >
+                                            <LikeButton
+                                                smolId={song.Id}
+                                                liked={song.Liked || false}
+                                                classNames="p-1.5 rounded-full bg-black/40 backdrop-blur-md border border-[#FF424C]/50 text-[#FF424C] hover:bg-[#FF424C]/20 transition-all shadow-[0_0_10px_rgba(255,66,76,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(255,66,76,0.5)]"
+                                                iconSize="size-4"
+                                                on:likeChanged={(e) => {
+                                                    handleToggleLike(
+                                                        index,
+                                                        e.detail.liked,
+                                                    );
+                                                }}
+                                            />
+                                        </div>
+
+                                        <!-- Bottom Right: Song Detail -->
+                                        <div
+                                            role="button"
+                                            class="absolute bottom-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 transition-all shadow-[0_0_10px_rgba(216,54,255,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(216,54,255,0.5)] cursor-pointer opacity-0 group-hover:opacity-100 duration-300"
+                                            onclick={(e) => {
+                                                e.stopPropagation();
+                                                navigate(
+                                                    `/${song.Id}?from=artist`,
+                                                );
+                                            }}
+                                            onkeydown={(e) => {
+                                                if (e.key === "Enter") {
                                                     e.stopPropagation();
                                                     navigate(
                                                         `/${song.Id}?from=artist`,
                                                     );
-                                                }}
-                                                onkeydown={(e) => {
-                                                    if (e.key === "Enter") {
-                                                        e.stopPropagation();
-                                                        navigate(
-                                                            `/${song.Id}?from=artist`,
-                                                        );
-                                                    }
-                                                }}
-                                                title="View Song Details"
+                                                }
+                                            }}
+                                            title="View Song Details"
+                                        >
+                                            <svg
+                                                class="w-4 h-4"
+                                                fill="currentColor"
+                                                viewBox="0 0 24 24"
                                             >
-                                                <svg
-                                                    class="w-4 h-4"
-                                                    fill="currentColor"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <path
-                                                        d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
-                                                    />
-                                                </svg>
-                                            </div>
-                                        {/if}
+                                                <path
+                                                    d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
+                                                />
+                                            </svg>
+                                        </div>
                                     </div>
                                 </div>
                                 <span
