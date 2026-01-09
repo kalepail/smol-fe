@@ -727,7 +727,6 @@
                         </div>
                    {/if}
                 </div>
-            </div>
 
             {#if activeModule === "tags" && tagsExpanded}
                 <div
