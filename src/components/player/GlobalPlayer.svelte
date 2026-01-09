@@ -678,18 +678,30 @@
                         >TAGS</button
                     >
                 </div>
-                
+
                 <div class="flex-1"></div>
 
                 <!-- AI Settings Toggle -->
                 <div class="relative">
                     <button
                         onclick={() => (showSettingsMenu = !showSettingsMenu)}
-                        class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors {showSettingsMenu ? 'bg-white/10 text-white' : 'text-white/40'}"
+                        class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors {showSettingsMenu
+                            ? 'bg-white/10 text-white'
+                            : 'text-white/40'}"
                         title="Simulation Settings"
                     >
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.048 4.056a15.05 15.05 0 0011.852 0M12.75 3.75c-.62 0-1.125.504-1.125 1.125v4.5c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V4.875c0-.621-.504-1.125-1.125-1.125H12.75zM8.25 19.5v2.25" />
+                        <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="1.5"
+                                d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.048 4.056a15.05 15.05 0 0011.852 0M12.75 3.75c-.62 0-1.125.504-1.125 1.125v4.5c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V4.875c0-.621-.504-1.125-1.125-1.125H12.75zM8.25 19.5v2.25"
+                            />
                         </svg>
                     </button>
 
@@ -697,18 +709,28 @@
                         <div
                             class="absolute top-full right-0 mt-2 w-48 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl p-3 z-[100] shadow-2xl animate-in slide-in-from-top-2"
                         >
-                            <div class="text-[9px] font-pixel text-white/50 mb-3 px-1 uppercase tracking-widest">Neural Configuration</div>
+                            <div
+                                class="text-[9px] font-pixel text-white/50 mb-3 px-1 uppercase tracking-widest"
+                            >
+                                Neural Configuration
+                            </div>
                             <div class="flex flex-col gap-1">
                                 <button
                                     onclick={() => {
                                         renderMode = "fast";
                                         showSettingsMenu = false;
                                     }}
-                                    class="w-full flex items-center justify-between p-2 rounded-lg transition-colors {renderMode === 'fast' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white hover:bg-white/5'}"
+                                    class="w-full flex items-center justify-between p-2 rounded-lg transition-colors {renderMode ===
+                                    'fast'
+                                        ? 'bg-white/10 text-white'
+                                        : 'text-white/40 hover:text-white hover:bg-white/5'}"
                                 >
-                                    <span class="text-xs font-medium">Fast</span>
+                                    <span class="text-xs font-medium">Fast</span
+                                    >
                                     {#if renderMode === "fast"}
-                                        <div class="w-1.5 h-1.5 rounded-full bg-lime-400 shadow-[0_0_8px_rgba(163,230,53,0.5)]"></div>
+                                        <div
+                                            class="w-1.5 h-1.5 rounded-full bg-lime-400 shadow-[0_0_8px_rgba(163,230,53,0.5)]"
+                                        ></div>
                                     {/if}
                                 </button>
                                 <button
@@ -716,17 +738,25 @@
                                         renderMode = "thinking";
                                         showSettingsMenu = false;
                                     }}
-                                    class="w-full flex items-center justify-between p-2 rounded-lg transition-colors {renderMode === 'thinking' ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white hover:bg-white/5'}"
+                                    class="w-full flex items-center justify-between p-2 rounded-lg transition-colors {renderMode ===
+                                    'thinking'
+                                        ? 'bg-white/10 text-white'
+                                        : 'text-white/40 hover:text-white hover:bg-white/5'}"
                                 >
-                                    <span class="text-xs font-medium">Thinking</span>
+                                    <span class="text-xs font-medium"
+                                        >Thinking</span
+                                    >
                                     {#if renderMode === "thinking"}
-                                        <div class="w-1.5 h-1.5 rounded-full bg-[#d836ff] shadow-[0_0_8px_rgba(216,54,255,0.5)]"></div>
+                                        <div
+                                            class="w-1.5 h-1.5 rounded-full bg-[#d836ff] shadow-[0_0_8px_rgba(216,54,255,0.5)]"
+                                        ></div>
                                     {/if}
                                 </button>
                             </div>
                         </div>
-                   {/if}
+                    {/if}
                 </div>
+            </div>
 
             {#if activeModule === "tags" && tagsExpanded}
                 <div
@@ -897,9 +927,8 @@
                                 onclick={() => handleSelect(index)}
                                 onkeydown={() => {}}
                             >
-
                                 <!-- Outer Ambient Glow (Disabled in Fast Mode) -->
-                                {#if currentSong && song.Id === currentSong.Id && renderMode === 'thinking'}
+                                {#if currentSong && song.Id === currentSong.Id && renderMode === "thinking"}
                                     <div
                                         class="absolute -inset-2 rounded-2xl blur-xl transition-opacity duration-500 animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_0deg,#10b981,#a855f7,#f97316,#10b981)] opacity-50"
                                     ></div>
@@ -908,7 +937,7 @@
                                 <div
                                     class="aspect-square rounded-xl relative overflow-hidden z-10 shadow-2xl"
                                 >
-                                    {#if currentSong && song.Id === currentSong.Id && renderMode === 'thinking'}
+                                    {#if currentSong && song.Id === currentSong.Id && renderMode === "thinking"}
                                         <!-- Spinning Lightwire (Disabled in Fast Mode) -->
                                         <div
                                             class="absolute inset-[-100%] bg-[conic-gradient(from_0deg,#10b981,#a855f7,#f97316,#10b981)] transition-opacity duration-500 animate-[spin_4s_linear_infinite] opacity-100"
@@ -928,7 +957,7 @@
                                             class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-slate-800"
                                             loading="lazy"
                                         />
-                                        {#if currentSong && song.Id === currentSong.Id && renderMode === 'thinking'}
+                                        {#if currentSong && song.Id === currentSong.Id && renderMode === "thinking"}
                                             <div
                                                 class="absolute inset-0 flex items-center justify-center z-10"
                                             >
