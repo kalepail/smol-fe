@@ -7,6 +7,8 @@
         registerSongPrevCallback,
         isPlaying,
         togglePlayPause,
+        playNextSong,
+        playPrevSong as playPreviousSong,
     } from "../../stores/audio.svelte";
     import { navigate } from "astro:transitions/client";
     import RadioPlayer from "../radio/RadioPlayer.svelte";
