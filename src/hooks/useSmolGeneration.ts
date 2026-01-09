@@ -5,13 +5,14 @@ export interface GenerationStatus {
 }
 
 export function useSmolGeneration() {
+  const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
+
   async function postGen(
     prompt: string,
     isPublic: boolean,
     isInstrumental: boolean,
     playlist: string | null
   ): Promise<string | null> {
-    const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
     const id = await fetch(API_URL, {
       method: 'POST',
       credentials: 'include',

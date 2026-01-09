@@ -48,9 +48,10 @@ if (token) {
 		<link rel="icon" type="image/png" href={image_url ? image_url : "https://smol.xyz/favicon.png"} />
 		<meta name="generator" content={Astro.generator} />
 		<meta name="mobile-web-app-capable" content="yes">
+		<meta name="color-scheme" content="dark">
+		<meta name="theme-color" content="#020617">
 		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 		<meta name="apple-mobile-web-app-title" content={title}>
-		<meta name="theme-color" content="#9ae600">
 		<link rel="manifest" href="/manifest.json">
 		<ClientRouter />
 
@@ -93,14 +94,18 @@ if (token) {
 	</head>
 	<body class="bg-transparent text-white min-h-screen relative">
 		<!-- Global Dynamic Background (Pixel Kale Field) -->
-		<DynamicBackground client:only="svelte" />
+		<DynamicBackground 
+			client:only="svelte" 
+			disableWeather={Astro.url.pathname.startsWith('/mixtapes') || Astro.url.pathname.startsWith('/kale')} 
+			hidden={Astro.url.pathname.startsWith('/kale')}
+		/>
 
 		<Header _kid={_kid} _cid={_cid} client:load transition:persist="header" />
 		<GlobalVerification client:only="svelte" />
 		<OnboardingGuard client:only="svelte" isAuthenticatedServer={!!_cid} />
 		<PasskeyReprompt client:load />
 		
-		<div class={(hideBottomBar || Astro.url.pathname.startsWith('/radio') || Astro.url.pathname.startsWith('/artist/') || Astro.url.pathname.startsWith('/tags')) ? 'hidden' : ''}>
+		<div class={(hideBottomBar || Astro.url.pathname.startsWith('/artist/') || Astro.url.pathname.startsWith('/tags')) ? 'hidden' : ''}>
 			<BarAudioPlayer client:only="svelte" transition:persist="audio-player" />
 		</div>
 		<MixtapeBuilderOverlay client:load transition:persist="mixtape-builder" />

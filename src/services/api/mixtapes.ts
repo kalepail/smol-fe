@@ -7,6 +7,7 @@ export interface MixtapeSummary {
   trackCount: number;
   coverUrls: (string | null)[];
   updatedAt: string;
+  smolIds: string[];
 }
 
 export interface MixtapeSmolData {
@@ -15,6 +16,7 @@ export interface MixtapeSmolData {
   Address: string;
   Mint_Token?: string;
   Mint_Amm?: string;
+  Minted_By?: string;
   Song_1?: string;
   Tags?: string[];
 }
@@ -154,6 +156,7 @@ export async function listMixtapes(): Promise<MixtapeSummary[]> {
         trackCount: mixtape.Smols.length,
         coverUrls,
         updatedAt: mixtape.Created_At,
+        smolIds: mixtape.Smols,
       };
     })
   );
@@ -211,7 +214,7 @@ export async function getMixtapeDetail(
   if (savedOrderJson) {
     try {
       const savedOrder: string[] = JSON.parse(savedOrderJson);
-      console.log('[MOCK] Found saved track order:', savedOrder);
+
       // Reorder tracks based on saved order
       const trackMap = new Map(data.Smols.map((t) => [t.Id, t]));
       orderedTracks = savedOrder

@@ -119,15 +119,10 @@
 
     onMount(async () => {
         try {
-            console.log("[Artists] Fetching live smols data...");
             const smols = await safeFetchSmols();
-            console.log(
-                `[Artists] Loaded ${smols.length} smols, aggregating artists...`,
-            );
             artistMap = aggregateArtists(smols);
-            console.log(`[Artists] Found ${artistMap.size} unique artists`);
         } catch (e) {
-            console.error("[Artists] Failed to fetch smols:", e);
+            // console.error("[Artists] Failed to fetch smols:", e);
         } finally {
             isLoading = false;
         }

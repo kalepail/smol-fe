@@ -337,31 +337,6 @@
                                 >
                             {/if}
                         </div>
-
-                        <!-- ARTIST PAGE BUTTON (desktop only) -->
-                        <a
-                            href="/artist/{data.d1?.Address}"
-                            onclick={(e) => {
-                                e.preventDefault();
-                                if (data?.d1?.Address) {
-                                    navigate(
-                                        `/artist/${data.d1.Address}?play=${id}`,
-                                    );
-                                }
-                            }}
-                            class="hidden lg:flex ml-auto px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-[#089981] hover:text-white bg-[#089981]/10 hover:bg-[#089981]/30 border border-[#089981]/40 hover:border-[#089981] rounded-full transition-all shadow-[0_0_12px_rgba(8,153,129,0.3)] hover:shadow-[0_0_20px_rgba(8,153,129,0.5)] items-center gap-1.5"
-                        >
-                            <svg
-                                class="w-3 h-3"
-                                fill="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path
-                                    d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
-                                />
-                            </svg>
-                            Artist Page
-                        </a>
                     </div>
 
                     <div class="flex items-center gap-4">
@@ -487,7 +462,7 @@
                                     <div class="space-y-4">
                                         {#each lyricsLines as line}
                                             <p
-                                                class="text-lg md:text-xl text-white/80 font-medium leading-relaxed hover:text-white transition-colors"
+                                                class="text-xs md:text-sm text-white/80 font-pixel leading-relaxed hover:text-white transition-colors"
                                             >
                                                 {line}
                                             </p>
@@ -737,7 +712,7 @@
 
 {#if showTipModal && data?.d1}
     <TipArtistModal
-        artistAddress={data.d1.Address || data.d1.Minted_By || ""}
+        artistAddress={data.d1.Address || ""}
         onClose={() => (showTipModal = false)}
     />
 {/if}

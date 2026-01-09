@@ -13,6 +13,7 @@
 
   import UserBalance from "./UserBalance.svelte";
   import MixtapeModeToggle from "./MixtapeModeToggle.svelte";
+  import KaleEmoji from "../ui/KaleEmoji.svelte";
 
   const isAuthenticated = $derived(userState.contractId !== null);
   const currentPath = useCurrentPath();
@@ -20,6 +21,7 @@
   const authHook = useAuthentication();
 
   let creating = $state(false);
+  let showKaleInfo = $state(false);
 
   async function handleLogin() {
     await authHook.login();
@@ -124,7 +126,7 @@
   <div
     class={`
     ${uiState.isMenuOpen ? "flex" : "hidden"} 
-    fixed top-[52px] right-0 p-4 bg-slate-800 border-l border-b border-[#9ae600] flex-col gap-4 w-64 shadow-[-4px_4px_0px_0px_rgba(0,0,0,0.5)] z-[101]
+    fixed top-[52px] right-0 p-4 menu-glass border-l border-b border-[#9ae600] flex-col gap-4 w-64 shadow-[-4px_4px_0px_0px_rgba(0,0,0,0.5)] z-[101]
   `}
   >
     <!-- 1. My Profile (Top Priority if Authenticated) -->
@@ -145,6 +147,30 @@
           >
         </span>
         <span>My Profile</span>
+      </a>
+      <div class="h-px bg-slate-700/50 w-full"></div>
+    {/if}
+
+    <!-- 1b. Liked Songs (If Authenticated, or push to login if not? User implies it was hidden) -->
+    <!-- Assuming this should be visible for quick access even if it prompts login, or only if auth. -->
+    <!-- Based on "hidden liked menu", likely means for auth users. -->
+    {#if isAuthenticated}
+      <a
+        class="flex items-center gap-3 hover:text-[#9ae600] transition-colors {path ===
+        '/liked'
+          ? 'text-white'
+          : ''}"
+        href="/liked"
+        onclick={closeMenu}
+      >
+        <span class="text-[#f91880]">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+            />
+          </svg>
+        </span>
+        <span>Liked Songs</span>
       </a>
       <div class="h-px bg-slate-700/50 w-full"></div>
     {/if}
@@ -185,6 +211,19 @@
         >
       </span>
       <span>Store</span>
+    </a>
+
+    <!-- What is KALE? Link -->
+    <a
+      class="flex items-center gap-3 hover:text-[#9ae600] transition-colors {path ===
+      '/kale'
+        ? 'text-white'
+        : ''}"
+      href="/kale"
+      onclick={closeMenu}
+    >
+      <KaleEmoji size="w-4 h-4" />
+      <span>What is KALE?</span>
     </a>
 
     <!-- 4. Mixtapes Browser + Tiny Mode Toggle -->

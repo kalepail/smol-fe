@@ -65,7 +65,7 @@ export async function ensureWalletConnected(): Promise<void> {
         keyId: userState.keyId,
       });
       userState.walletConnected = true;
-      console.log('[userState] Wallet connected successfully');
+
     } catch (error) {
       console.error('[userState] Failed to connect wallet:', error);
       throw error;

@@ -10,7 +10,9 @@
 </script>
 
 {#if balance > 0n}
-    <span class="text-[10px] bg-sky-400/20 text-sky-300 px-1.5 py-0.5 rounded-full font-medium {classNames}">
+    <span
+        class="text-[8px] md:text-[10px] bg-sky-500/10 text-sky-400 px-2 py-0.5 rounded-md font-pixel uppercase tracking-wide border border-sky-500/20 {classNames}"
+    >
         {abbreviateNumber(balance)}
     </span>
 {/if}

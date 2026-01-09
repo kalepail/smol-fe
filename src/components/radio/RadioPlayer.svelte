@@ -7,6 +7,7 @@
     isPlaying,
     registerSongNextCallback,
     seek,
+    toggleRepeatMode,
   } from "../../stores/audio.svelte";
   import { navigate } from "astro:transitions/client";
 
@@ -386,6 +387,58 @@
       playPause();
     }
   }
+
+  // --- Mobile Gestures ---
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let isSwipe = false;
+  const SWIPE_THRESHOLD = 50;
+
+  function handleTouchStart(e: TouchEvent) {
+    if (e.touches.length !== 1) return;
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    isSwipe = false;
+  }
+
+  function handleTouchEnd(e: TouchEvent) {
+    if (e.changedTouches.length !== 1) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+
+    const deltaX = touchEndX - touchStartX;
+    const deltaY = touchEndY - touchStartY;
+
+    // Check availability of actions
+    const canPrev = !!onPrev;
+    const canNext = !!onNext;
+
+    // Check if horizontal swipe dominant
+    if (
+      Math.abs(deltaX) > Math.abs(deltaY) &&
+      Math.abs(deltaX) > SWIPE_THRESHOLD
+    ) {
+      // Swipe detected
+      isSwipe = true;
+      if (deltaX > 0 && canPrev) {
+        // Swipe Right -> Prev
+        handlePrev();
+      } else if (deltaX < 0 && canNext) {
+        // Swipe Left -> Next
+        handleNext();
+      }
+    }
+  }
+
+  function handleArtClick(e: MouseEvent) {
+    if (isSwipe) {
+      isSwipe = false;
+      return;
+    }
+    // Only toggle if not clicking a child button/scrubber
+    // (Though most children stop propagation, good to be safe)
+    playPause();
+  }
 </script>
 
 <svelte:window onkeydown={onWindowKeydown} />
@@ -439,7 +492,6 @@
               />
               <!-- Main Player View -->
               <div class="flex-1 min-w-0" data-role="player-mobile">
-                <AudioManager {playlist} />
                 <div class="flex flex-col h-full justify-end">
                   <div
                     class="text-white font-pixel font-bold tracking-wide uppercase text-xs truncate"
@@ -552,13 +604,18 @@
         {/if}
 
         <!-- MERGED ALBUM ART + VISUALIZER (hidden on mobile when minimized) -->
+        <!-- svelte-ignore a11y_interactive_supports_focus -->
         <div
-          class="relative shrink-0 shadow-2xl mx-auto transition-all duration-500 rounded-2xl overflow-hidden bg-black/40 border border-white/10 flex items-center justify-center w-full {isFullscreen
+          class="relative shrink-0 shadow-2xl mx-auto transition-all duration-200 rounded-2xl overflow-hidden bg-black/40 border border-white/10 flex items-center justify-center w-full cursor-pointer active:scale-[0.98] {isFullscreen
             ? 'max-h-[85vh] max-w-[85vh]'
             : 'max-w-full lg:max-h-[400px] aspect-square min-h-[320px]'} {isMinimized
             ? 'hidden md:flex'
             : ''}"
           style="transform: translateZ(0); -webkit-transform: translateZ(0); -webkit-backdrop-filter: blur(10px);"
+          ontouchstart={handleTouchStart}
+          ontouchend={handleTouchEnd}
+          onclick={handleArtClick}
+          role="button"
         >
           <!-- TOP SCRUBBER (mobile only when overlayControlsOnMobile) -->
           {#if overlayControlsOnMobile}
@@ -648,8 +705,8 @@
             ></canvas>
           </div>
 
-          <!-- CONTEXT AWARE BACK BUTTON (BOTTOM LEFT) -->
-          {#if backContext && !isFullscreen}
+          <!-- CONTEXT AWARE BACK BUTTON (BOTTOM LEFT) - Hidden on Song ID pages -->
+          {#if backContext && !isFullscreen && !window.location.pathname.match(/^\/[a-f0-9]{64}$/i)}
             <div
               class="absolute bottom-4 left-4 z-40 animate-in fade-in zoom-in duration-300"
             >
@@ -1107,7 +1164,7 @@
               if (backContext && enableContextBack) {
                 window.history.back();
               } else {
-                handlePrev && handlePrev(e);
+                handlePrev && handlePrev();
               }
             }}
             title={backContext && enableContextBack
@@ -1133,7 +1190,7 @@
             onclick={(e) => {
               if (!playing)
                 window.dispatchEvent(new CustomEvent("smol:action-play"));
-              playPause(e);
+              playPause();
             }}
             title={playing ? "Pause" : "Play"}
           >
@@ -1173,28 +1230,45 @@
             </svg>
           </button>
 
-          <!-- REPLAY BUTTON -->
+          <!-- REPLAY BUTTON (Toggle: Off -> Once -> One) -->
           <button
             class="tech-button {isMinimized
               ? 'w-7 h-7'
-              : 'w-8 h-8 sm:w-10 sm:h-10'} flex items-center justify-center text-white/60 hover:text-white active:scale-95 disabled:opacity-30 border border-white/5 hover:border-white/20 rounded-full bg-white/5 backdrop-blur-md touch-manipulation"
+              : 'w-8 h-8 sm:w-10 sm:h-10'} flex items-center justify-center active:scale-95 disabled:opacity-30 border rounded-full backdrop-blur-md touch-manipulation transition-all {audioState.repeatMode !==
+            'off'
+              ? 'text-lime-400 border-lime-500/50 bg-lime-500/10 hover:bg-lime-500/20 shadow-[0_0_15px_rgba(154,230,0,0.3)]'
+              : 'text-white/60 hover:text-white border-white/5 hover:border-white/20 bg-white/5'}"
             onclick={(e) => {
-              if (audioState.audioElement) {
-                audioState.audioElement.currentTime = 0;
-                if (!playing) playPause();
-              }
+              toggleRepeatMode();
             }}
-            title="Replay Song"
+            title={audioState.repeatMode === "one"
+              ? "Loop One (Click to Disable)"
+              : audioState.repeatMode === "once"
+                ? "Repeat Once (Click to Loop)"
+                : "Repeat Off (Click to Repeat Once)"}
           >
-            <svg
-              class={isMinimized ? "w-3.5 h-3.5" : "w-4 h-4"}
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"
-              />
-            </svg>
+            <!-- Show Loop Icon for 'off' and 'once', show '1' for 'one' -->
+            <div class="relative">
+              <svg
+                class={isMinimized ? "w-3.5 h-3.5" : "w-4 h-4"}
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"
+                />
+              </svg>
+              {#if audioState.repeatMode === "one"}
+                <div
+                  class="absolute -top-1 -right-1.5 flex items-center justify-center bg-black rounded-full"
+                >
+                  <span
+                    class="text-[8px] font-bold leading-none text-lime-400 font-pixel"
+                    >1</span
+                  >
+                </div>
+              {/if}
+            </div>
           </button>
 
           <!-- KALE TIP BUTTON (Right of Replay) -->
@@ -1205,7 +1279,7 @@
                 : 'w-8 h-8 sm:w-10 sm:h-10'} flex items-center justify-center active:scale-95 disabled:opacity-30 border rounded-full backdrop-blur-md transition-all duration-300 border-green-500/30 text-green-400 bg-green-500/10 hover:bg-green-500/20 shadow-[0_0_15px_rgba(74,222,128,0.1)] touch-manipulation"
               onclick={(e) => {
                 window.dispatchEvent(new CustomEvent("smol:action-tip"));
-                onTip && onTip(e);
+                onTip && onTip();
               }}
               title="Tip Artist"
             >

@@ -4,6 +4,7 @@
   import type { Smol } from "../../types/domain";
   import MixtapeHeader from "./MixtapeHeader.svelte";
   import MixtapeTracklist from "./MixtapeTracklist.svelte";
+  import MixtapeSupportBanner from "./MixtapeSupportBanner.svelte";
   import PurchaseModal from "./PurchaseModal.svelte";
   import {
     audioState,
@@ -16,7 +17,7 @@
   import { useMixtapePlayback } from "../../hooks/useMixtapePlayback";
   import { MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from "../../utils/mint";
   import { getMixtapeDetail } from "../../services/api/mixtapes";
-  import { fetchLikedSmols } from "../../services/api/smols";
+  import { fetchLikedSmols, safeFetchSmols } from "../../services/api/smols";
   import {
     loadPublishedMixtape,
     enterMixtapeMode,
@@ -43,6 +44,10 @@
   let isPurchasing = $state(false);
   let purchaseCurrentStep = $state("");
   let purchaseCompletedSteps = $state(new Set<string>());
+
+  // Support banner state (optional tip jar)
+  let showSupportBanner = $state(true);
+  let supportBannerDismissed = $state(false);
 
   // Initialize hooks
   const mintingHook = useMixtapeMinting();
@@ -152,9 +157,14 @@
         likedTrackIds = await fetchLikedSmols();
       }
 
-      // Initialize tracks
+      // Fetch snapshot to get Minted_By data
+      const snapshot = await safeFetchSmols();
+      const snapshotMap = new Map(snapshot.map((s) => [s.Id, s]));
+
+      // Initialize tracks with Minted_By from snapshot
       mixtapeTracks = mixtapeData.tracks.map((track) => {
         const isLiked = likedTrackIds.includes(track.Id);
+        const snapshotTrack = snapshotMap.get(track.Id);
         return {
           Id: track.Id,
           Title: track.Title,
@@ -162,6 +172,7 @@
           Song_1: track.Song_1,
           Mint_Token: track.Mint_Token,
           Mint_Amm: track.Mint_Amm,
+          Minted_By: track.Minted_By || snapshotTrack?.Minted_By, // Use API or fallback to snapshot
           Liked: isLiked,
           minting: false,
           balance: undefined,
@@ -381,13 +392,25 @@
           },
         );
 
-        // Wait for all tracks to be minted
+        // Wait for tracks to be minted (with progress updates)
         const startTime = Date.now();
-        while (Date.now() - startTime < MINT_POLL_TIMEOUT) {
-          const allMinted = mixtapeTracks.every((track) => {
-            return track?.Mint_Token && track?.Mint_Amm;
-          });
+        let lastMintedCount = 0;
 
+        while (Date.now() - startTime < MINT_POLL_TIMEOUT) {
+          const mintedCount = mixtapeTracks.filter(
+            (track) => track?.Mint_Token && track?.Mint_Amm,
+          ).length;
+          const totalTracks = mixtapeTracks.length;
+
+          // Log progress if changed
+          if (mintedCount !== lastMintedCount) {
+            console.log(
+              `Minting progress: ${mintedCount}/${totalTracks} tracks minted`,
+            );
+            lastMintedCount = mintedCount;
+          }
+
+          const allMinted = mintedCount === totalTracks;
           if (allMinted) break;
 
           await new Promise((resolve) =>
@@ -395,27 +418,37 @@
           );
         }
 
-        const unmintedTracks = mixtapeTracks.filter((track) => {
-          return track && !track.Mint_Token;
-        });
+        const mintedTracks = mixtapeTracks.filter(
+          (track) => track?.Mint_Token && track?.Mint_Amm,
+        );
+        const unmintedTracks = mixtapeTracks.filter(
+          (track) => track && !track.Mint_Token,
+        );
 
+        // Partial success handling - don't throw, just log and continue with minted tracks
         if (unmintedTracks.length > 0) {
-          throw new Error(
-            `Some tracks are still minting. Please wait and try again.`,
+          console.warn(
+            `Partial mint: ${mintedTracks.length}/${mixtapeTracks.length} tracks minted. ${unmintedTracks.length} tracks still pending.`,
           );
+          // If ALL tracks failed, that's a real problem
+          if (mintedTracks.length === 0) {
+            throw new Error(
+              "No tracks were minted. Please check your connection and try again.",
+            );
+          }
+          // Otherwise continue with partial mint - user can buy what's ready
         }
 
         purchaseCompletedSteps.add("mint");
       }
 
       // Refresh balances after minting
-      console.log("Refreshing balances after minting...");
+
       await balancesHook.refreshAllBalances(
         mixtapeTracks,
         userState.contractId,
         handleBalanceUpdated,
       );
-      console.log("Balances refreshed");
 
       // Build tokens array for swap_them_in
       const tokensOut: string[] = [];
@@ -428,8 +461,6 @@
           tokensOut.push(track.Mint_Token);
         }
       }
-
-      console.log("Tracks to purchase:", tokensOut.length);
 
       // Step 2: Purchase remaining tracks
       if (tokensOut.length > 0) {
@@ -604,7 +635,7 @@
   </div>
 {:else}
   <div
-    class="mx-auto flex max-w-4xl flex-col gap-4 px-2 py-4 md:gap-8 md:px-4 md:py-8"
+    class="mx-auto flex w-full max-w-[1024px] flex-col gap-4 px-2 py-4 md:gap-8 md:px-4 md:py-8"
   >
     <MixtapeHeader
       {mixtape}
@@ -619,6 +650,18 @@
       onPurchaseClick={handlePurchaseClick}
       onEdit={isCreator ? handleEdit : undefined}
     />
+
+    <!-- Support Banner (Optional Tip Jar) - only show if not creator and not dismissed -->
+    {#if showSupportBanner && !supportBannerDismissed && !isCreator && mixtapeTracks.length > 0}
+      <MixtapeSupportBanner
+        curatorAddress={mixtape.creator}
+        curatorName={mixtape.creator.slice(0, 8) + "..."}
+        tracks={mixtapeTracks}
+        onDismiss={() => {
+          supportBannerDismissed = true;
+        }}
+      />
+    {/if}
 
     <MixtapeTracklist
       {mixtape}

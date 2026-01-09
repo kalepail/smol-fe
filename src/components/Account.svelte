@@ -8,6 +8,7 @@
         updateContractBalance,
     } from "../stores/balance.svelte";
     import { getDomain } from "tldts";
+    import KaleEmoji from "./ui/KaleEmoji.svelte";
 
     let to = $state("");
     let amount = $state("");
@@ -154,7 +155,7 @@
                     type="button"
                 >
                     <div class="flex items-center gap-2">
-                        <span class="text-lg">🥬</span>
+                        <KaleEmoji size="w-5 h-5" />
                         <span class="font-semibold text-lime-400"
                             >What is KALE?</span
                         >

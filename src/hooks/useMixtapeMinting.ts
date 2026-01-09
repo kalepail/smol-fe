@@ -167,11 +167,6 @@ export function useMixtapeMinting() {
       throw new Error('Failed to build signed coin_them transaction');
     }
 
-    console.log('Batch Mint Transaction XDR:', xdrString);
-    console.log(
-      'Tracks in batch:',
-      tracksWithData.map(({ track }) => track.Id)
-    );
 
     // Submit to backend
     const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/mint`, {
@@ -253,16 +248,13 @@ export function useMixtapeMinting() {
       chunks.push(tracksWithData.slice(i, i + CHUNK_SIZE));
     }
 
-    console.log(
-      `Processing ${tracksWithData.length} mints in ${chunks.length} batch(es) of up to ${CHUNK_SIZE}`
-    );
+    // Track failed batches for retry
+    const failedBatches: Array<{ chunkIndex: number; chunk: typeof chunks[0]; error: Error }> = [];
+    const MAX_RETRIES = 1;
 
-    // Process each chunk sequentially
+    // Process each chunk sequentially - DO NOT throw on error, continue with remaining batches
     for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
       const chunk = chunks[chunkIndex];
-      console.log(
-        `Processing batch ${chunkIndex + 1}/${chunks.length} with ${chunk.length} track(s)`
-      );
 
       try {
         await mintBatch(
@@ -276,12 +268,76 @@ export function useMixtapeMinting() {
           onMinted
         );
       } catch (error) {
-        console.error(`Error processing batch ${chunkIndex + 1}:`, error);
-        onBatchError(chunkIndex, error as Error);
-        // Stop processing remaining batches
-        throw error;
+        console.error(`Error processing batch ${chunkIndex + 1}/${chunks.length}:`, error);
+
+        // Check if user explicitly cancelled (don't retry cancellations)
+        const errorName = error instanceof Error ? error.name : '';
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const isCancellation =
+          errorName === 'NotAllowedError' ||
+          errorMessage.toLowerCase().includes('abort') ||
+          errorMessage.toLowerCase().includes('cancel') ||
+          errorMessage.toLowerCase().includes('not allowed');
+
+        if (isCancellation) {
+          // User cancelled - report error but CONTINUE with remaining batches
+          onBatchError(chunkIndex, error as Error);
+          console.log(`User cancelled batch ${chunkIndex + 1}, continuing with remaining batches...`);
+        } else {
+          // Network/server error - add to retry queue
+          failedBatches.push({ chunkIndex, chunk, error: error as Error });
+        }
       }
     }
+
+    // Retry failed batches (non-cancellation errors only)
+    if (failedBatches.length > 0) {
+      console.log(`Retrying ${failedBatches.length} failed batches...`);
+
+      for (const { chunkIndex, chunk, error: originalError } of failedBatches) {
+        let retrySuccess = false;
+
+        for (let retry = 0; retry < MAX_RETRIES; retry++) {
+          try {
+            console.log(`Retry ${retry + 1}/${MAX_RETRIES} for batch ${chunkIndex + 1}...`);
+
+            // Small delay before retry
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            await mintBatch(
+              {
+                tracksWithData: chunk,
+                smolContractId,
+                userContractId,
+                userKeyId,
+                kaleSacId,
+              },
+              onMinted
+            );
+
+            retrySuccess = true;
+            console.log(`Batch ${chunkIndex + 1} succeeded on retry ${retry + 1}`);
+            break;
+          } catch (retryError) {
+            console.error(`Retry ${retry + 1} failed for batch ${chunkIndex + 1}:`, retryError);
+          }
+        }
+
+        // Report error if all retries failed
+        if (!retrySuccess) {
+          onBatchError(chunkIndex, originalError);
+        }
+      }
+    }
+
+    // Log summary
+    const totalTracks = tracksWithData.length;
+    const successfulTracks = tracksWithData.filter(({ track }) => {
+      const found = mixtapeTracks.find(t => t?.Id === track.Id);
+      return found?.Mint_Token;
+    }).length;
+
+    console.log(`Minting complete: ${successfulTracks}/${totalTracks} tracks minted successfully`);
   }
 
   return {

@@ -5,7 +5,7 @@ import { xdr, StrKey, scValToNative } from '@stellar/stellar-sdk';
 import { upgradesState, unlockUpgrade } from '../../stores/upgrades.svelte';
 import { getVIPAccess } from '../../utils/vip';
 
-const ADMIN_ADDRESS = "CBS5Z6IVHGLFUGLYJ6TA4URP4VD67QRXKJ4ZBRH63RBMQ5PO7TC6GJU5";
+const ADMIN_ADDRESS = "CBNORBI4DCE7LIC42FWMCIWQRULWAUGF2MH2Z7X2RNTFAYNXIACJ33IM";
 const SMOL_MART_AMOUNTS = {
     PREMIUM_HEADER: 100000,
     GOLDEN_KALE: 69420.67,
@@ -22,12 +22,12 @@ const SMOL_MART_AMOUNTS = {
 export async function verifyPastPurchases(userAddress: string) {
     if (!userAddress) return;
 
-    console.log(`[SmolMart] Verifying purchases for ${userAddress}...`);
+
 
     // VIP check - instant unlock for whitelisted addresses (granular)
     const vipAccess = getVIPAccess(userAddress);
     if (vipAccess) {
-        console.log('[SmolMart] VIP address detected - granting granular access!');
+
         if (vipAccess.premiumHeader) unlockUpgrade('premiumHeader');
         if (vipAccess.goldenKale) unlockUpgrade('goldenKale');
         if (vipAccess.showcaseReel) unlockUpgrade('showcaseReel');
@@ -69,7 +69,7 @@ export async function verifyPastPurchases(userAddress: string) {
                     // We expect InvokeContract(InvokeContractArgs)
                     if (hostFn.switch() === xdr.HostFunctionType.hostFunctionTypeInvokeContract()) {
                         const args = hostFn.invokeContract();
-                        const contractAddress = StrKey.encodeContract(args.contractAddress().payload());
+                        const contractAddress = StrKey.encodeContract(args.contractAddress().contractId() as any);
                         const functionName = args.functionName().toString();
 
                         // Must be KALE contract
@@ -96,22 +96,22 @@ export async function verifyPastPurchases(userAddress: string) {
 
                                 if (toAddress === ADMIN_ADDRESS) {
                                     if (Math.abs(amountNum - SMOL_MART_AMOUNTS.PREMIUM_HEADER) < 0.1) {
-                                        console.log('[SmolMart] Found Premium Header purchase!');
+                                        // console.log('[SmolMart] Found Premium Header purchase!');
                                         unlockUpgrade('premiumHeader');
                                     }
                                     if (Math.abs(amountNum - SMOL_MART_AMOUNTS.GOLDEN_KALE) < 0.1) {
-                                        console.log('[SmolMart] Found Golden Kale purchase!');
+                                        // console.log('[SmolMart] Found Golden Kale purchase!');
                                         unlockUpgrade('goldenKale');
                                     }
                                     if (Math.abs(amountNum - SMOL_MART_AMOUNTS.SHOWCASE_REEL) < 0.1) {
-                                        console.log('[SmolMart] Found Showcase Reel purchase! (Ultimate Bundle)');
+                                        // console.log('[SmolMart] Found Showcase Reel purchase! (Ultimate Bundle)');
                                         unlockUpgrade('showcaseReel');
                                         unlockUpgrade('premiumHeader');
                                         unlockUpgrade('goldenKale');
                                         unlockUpgrade('vibeMatrix');
                                     }
                                     if (Math.abs(amountNum - SMOL_MART_AMOUNTS.VIBE_MATRIX) < 0.1) {
-                                        console.log('[SmolMart] Found Vibe Matrix purchase!');
+                                        // console.log('[SmolMart] Found Vibe Matrix purchase!');
                                         unlockUpgrade('vibeMatrix');
                                     }
                                 }

@@ -1,0 +1,258 @@
+Loading svelte-check in workspace: c:\Users\Jeff\Mixtape Auto\smol-fe
+Getting Svelte diagnostics...
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\services\api\verifyUpgrades.ts[39m:72:94
+[31mError[39m: Property 'payload' does not exist on type 'ScAddress'. 
+[36m                        const args = hostFn.invokeContract();
+                        const contractAddress = StrKey.encodeContract(args.contractAddress().[35mpayload[36m());
+                        const functionName = args.functionName().toString();[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\services\api\snapshot.ts[39m:20:5
+[31mError[39m: Type 'Smol[] | null' is not assignable to type 'Smol[]'.
+  Type 'null' is not assignable to type 'Smol[]'. 
+[36m    cachedSnapshot = songs;
+    [35mreturn[36m cachedSnapshot;
+  } catch (e) {[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\services\api\snapshot.ts[39m:70:19
+[31mError[39m: Argument of type 'Smol' is not assignable to parameter of type '{ Tags: string[]; Address: string | null; Minted_By: string | null; Id: string; Title: string; Creator?: string; Username?: string; artist?: string; author?: string; Song_1?: string; Liked?: boolean; ... 8 more ...; Created_At?: string; }'.
+  Types of property 'Tags' are incompatible.
+    Type 'string[] | undefined' is not assignable to type 'string[]'.
+      Type 'undefined' is not assignable to type 'string[]'. 
+[36m    if (!liveIds.has(oldSmol.Id)) {
+      merged.push([35moldSmol[36m);
+    }[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\services\api\snapshot.ts[39m:74:3
+[31mError[39m: Type '{ Tags: string[]; Address: string | null; Minted_By: string | null; Id: string; Title: string; Creator?: string | undefined; Username?: string | undefined; artist?: string | undefined; author?: string | undefined; ... 10 more ...; Created_At?: string | undefined; }[]' is not assignable to type 'Smol[]'.
+  Type '{ Tags: string[]; Address: string | null; Minted_By: string | null; Id: string; Title: string; Creator?: string; Username?: string; artist?: string; author?: string; Song_1?: string; Liked?: boolean; ... 8 more ...; Created_At?: string; }' is not assignable to type 'Smol'.
+    Types of property 'Address' are incompatible.
+      Type 'string | null' is not assignable to type 'string | undefined'.
+        Type 'null' is not assignable to type 'string | undefined'. 
+[36m
+  [35mreturn[36m merged;
+}[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\radio\RadioPlayer.svelte[39m:1110:42
+[31mError[39m: Expected 0 arguments, but got 1. (ts)
+[36m              } else {
+                handlePrev && handlePrev([35me[36m);
+              }[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\radio\RadioPlayer.svelte[39m:1136:25
+[31mError[39m: Expected 0 arguments, but got 1. (ts)
+[36m                window.dispatchEvent(new CustomEvent("smol:action-play"));
+              playPause([35me[36m);
+            }}[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\radio\RadioPlayer.svelte[39m:1208:32
+[31mError[39m: Expected 0 arguments, but got 1. (ts)
+[36m                window.dispatchEvent(new CustomEvent("smol:action-tip"));
+                onTip && onTip([35me[36m);
+              }}[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\artist\ArtistResults.svelte[39m:1815:45
+[33mWarn[39m: `<button>` cannot be a descendant of `<button>`. When rendering this component on the server, the resulting HTML will be modified by the browser (by moving, removing, or inserting elements), likely resulting in a `hydration_mismatch` warning
+https://svelte.dev/e/node_invalid_placement_ssr (svelte)
+[36m                                            <!-- Bottom Right: Song Detail -->
+                                            [35m<button
+                                                class="absolute bottom-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 transition-all shadow-[0_0_10px_rgba(216,54,255,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(216,54,255,0.5)]"
+                                                onclick={(e) => {
+                                                    e.stopPropagation();
+                                                    navigate(
+                                                        `/${song.Id}?from=artist`,
+                                                    );
+                                                }}
+                                                title="View Song Details"
+                                            >
+                                                <svg
+                                                    class="w-4 h-4"
+                                                    fill="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
+                                                    />
+                                                </svg>
+                                            </button>[36m
+                                        {/if}[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\artist\ArtistResults.svelte[39m:74:34
+[31mError[39m: No overload matches this call.
+  Overload 1 of 5, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | number | Date'.
+      Type 'undefined' is not assignable to type 'string | number | Date'.
+  Overload 2 of 5, '(vd: VarDate): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'VarDate'.
+      Type 'undefined' is not assignable to type 'VarDate'.
+  Overload 3 of 5, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | number'.
+      Type 'undefined' is not assignable to type 'string | number'. (ts)
+[36m                    (a, b) =>
+                        new Date([35mb.Created_At[36m).getTime() -
+                        new Date(a.Created_At).getTime(),[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\artist\ArtistResults.svelte[39m:75:34
+[31mError[39m: No overload matches this call.
+  Overload 1 of 5, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | number | Date'.
+      Type 'undefined' is not assignable to type 'string | number | Date'.
+  Overload 2 of 5, '(vd: VarDate): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'VarDate'.
+      Type 'undefined' is not assignable to type 'VarDate'.
+  Overload 3 of 5, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | number'.
+      Type 'undefined' is not assignable to type 'string | number'. (ts)
+[36m                        new Date(b.Created_At).getTime() -
+                        new Date([35ma.Created_At[36m).getTime(),
+                );[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\artist\ArtistResults.svelte[39m:93:34
+[31mError[39m: No overload matches this call.
+  Overload 1 of 5, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | number | Date'.
+      Type 'undefined' is not assignable to type 'string | number | Date'.
+  Overload 2 of 5, '(vd: VarDate): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'VarDate'.
+      Type 'undefined' is not assignable to type 'VarDate'.
+  Overload 3 of 5, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | number'.
+      Type 'undefined' is not assignable to type 'string | number'. (ts)
+[36m                    (a, b) =>
+                        new Date([35mb.Created_At[36m).getTime() -
+                        new Date(a.Created_At).getTime(),[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\artist\ArtistResults.svelte[39m:94:34
+[31mError[39m: No overload matches this call.
+  Overload 1 of 5, '(value: string | number | Date): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | number | Date'.
+      Type 'undefined' is not assignable to type 'string | number | Date'.
+  Overload 2 of 5, '(vd: VarDate): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'VarDate'.
+      Type 'undefined' is not assignable to type 'VarDate'.
+  Overload 3 of 5, '(value: string | number): Date', gave the following error.
+    Argument of type 'string | undefined' is not assignable to parameter of type 'string | number'.
+      Type 'undefined' is not assignable to type 'string | number'. (ts)
+[36m                        new Date(b.Created_At).getTime() -
+                        new Date([35ma.Created_At[36m).getTime(),
+                );[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\artist\ArtistResults.svelte[39m:1136:46
+[31mError[39m: Expected 0 arguments, but got 1. (ts)
+[36m                            onclick={togglePlayPause}
+                            title={isPlaying([35mcurrentSong?.Id[36m)
+                                ? "Pause"[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\artist\ArtistResults.svelte[39m:1140:44
+[31mError[39m: Expected 0 arguments, but got 1. (ts)
+[36m                        >
+                            {#if isPlaying([35mcurrentSong?.Id[36m)}
+                                <svg[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\artist\ArtistResults.svelte[39m:1753:45
+[31mError[39m: Expected 0 arguments, but got 1. (ts)
+[36m                                        class="absolute -inset-2 rounded-2xl blur-xl transition-opacity duration-500 animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_0deg,#10b981,#a855f7,#f97316,#10b981)] {isPlaying(
+                                            [35msong.Id[36m,
+                                        )[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\artist\ArtistResults.svelte[39m:1769:49
+[31mError[39m: Expected 0 arguments, but got 1. (ts)
+[36m                                            class="absolute inset-[-100%] bg-[conic-gradient(from_0deg,#10b981,#a855f7,#f97316,#10b981)] transition-opacity duration-500 animate-[spin_4s_linear_infinite] {isPlaying(
+                                                [35msong.Id[36m,
+                                            )[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\hooks\useMixtapePurchase.ts[39m:111:9
+[31mError[39m: Declaration or statement expected. 
+[36m          error
+        [35m)[36m;
+        throw error;[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\hooks\useMixtapePurchase.ts[39m:109:9
+[31mError[39m: Left side of comma operator is unused and has no side effects. 
+[36m      } catch (error) {
+        [35m`Error processing purchase batch ${chunkIndex + 1}:`[36m,
+          error[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\onboarding\PasskeySplash.svelte[39m:83:13
+[31mError[39m: Variable 'audioEl' is used before being assigned. (ts)
+[36m        audioMuted = !audioMuted;
+        if ([35maudioEl[36m) {
+            if (audioMuted) audioEl.pause();[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\services\tags\unifiedTags.ts[39m:79:5
+[31mError[39m: Type '{ Tags: string[]; Address: string | null; Minted_By: string | null; Id: string; Title: string; Creator?: string | undefined; Username?: string | undefined; artist?: string | undefined; author?: string | undefined; ... 10 more ...; Created_At?: string | undefined; }[]' is not assignable to type 'Smol[]'.
+  Type '{ Tags: string[]; Address: string | null; Minted_By: string | null; Id: string; Title: string; Creator?: string; Username?: string; artist?: string; author?: string; Song_1?: string; Liked?: boolean; ... 8 more ...; Created_At?: string; }' is not assignable to type 'Smol'.
+    Types of property 'Address' are incompatible.
+      Type 'string | null' is not assignable to type 'string | undefined'.
+        Type 'null' is not assignable to type 'string | undefined'. 
+[36m    const snapshotMap = new Map(snapshotSmols.map((s) => [s.Id, s]));
+    [35mmergedSmols[36m = liveSmols.map((newSmol) => {
+      const oldSmol = snapshotMap.get(newSmol.Id);[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\radio\RadioBuilder.svelte[39m:1198:3
+[33mWarn[39m: Unused CSS selector ".animate-fade-in-up"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m  }
+  [35m.animate-fade-in-up[36m {
+    animation: fadeInUp 0.4s ease-out forwards;[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\tags\TagExplorer.svelte[39m:790:53
+[33mWarn[39m: `<button>` cannot be a descendant of `<button>`. When rendering this component on the server, the resulting HTML will be modified by the browser (by moving, removing, or inserting elements), likely resulting in a `hydration_mismatch` warning
+https://svelte.dev/e/node_invalid_placement_ssr (svelte)
+[36m                                                    <!-- Bottom Right: Song Detail -->
+                                                    [35m<button
+                                                        class="absolute bottom-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 transition-all shadow-[0_0_10px_rgba(216,54,255,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(216,54,255,0.5)]"
+                                                        onclick={(e) => {
+                                                            e.stopPropagation();
+                                                            navigate(
+                                                                `/${song.Id}?from=tags`,
+                                                            );
+                                                        }}
+                                                        title="View Song Details"
+                                                    >
+                                                        <svg
+                                                            class="w-4 h-4"
+                                                            fill="currentColor"
+                                                            viewBox="0 0 24 24"
+                                                        >
+                                                            <path
+                                                                d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
+                                                            />
+                                                        </svg>
+                                                    </button>[36m
+                                                {/if}[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\tags\TagExplorer.svelte[39m:849:5
+[33mWarn[39m: Unused CSS selector ".animate-fade-in-up"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.animate-fade-in-up[36m {
+        animation: fadeInUp 0.4s ease-out forwards;[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\tags\TagExplorer.svelte[39m:563:49
+[31mError[39m: Expected 0 arguments, but got 1. (ts)
+[36m                                            title={isPlaying(
+                                                [35maudioState.currentSong.Id[36m,
+                                            )[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\tags\TagExplorer.svelte[39m:568:60
+[31mError[39m: Expected 0 arguments, but got 1. (ts)
+[36m                                        >
+                                            {#if isPlaying([35maudioState.currentSong.Id[36m)}
+                                                <svg[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\tags\TagExplorer.svelte[39m:708:53
+[31mError[39m: Expected 0 arguments, but got 1. (ts)
+[36m                                                class="absolute -inset-2 rounded-2xl blur-xl transition-opacity duration-500 animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_0deg,#ff424c,#d1d5db,#ff424c,#d1d5db)] {isPlaying(
+                                                    [35msong.Id[36m,
+                                                )[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\tags\TagExplorer.svelte[39m:723:57
+[31mError[39m: Expected 0 arguments, but got 1. (ts)
+[36m                                                    class="absolute inset-[-100%] bg-[conic-gradient(from_0deg,#ff424c,#d1d5db,#ff424c,#d1d5db)] transition-opacity duration-500 animate-[spin_4s_linear_infinite] {isPlaying(
+                                                        [35msong.Id[36m,
+                                                    )[39m
+
+====================================
+[31msvelte-check found 23 errors and 4 warnings in 9 files
+[39m

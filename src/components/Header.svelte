@@ -20,7 +20,7 @@
 </script>
 
 <header
-  class="sticky top-0 z-[100] p-2 bg-slate-800 text-lime-500 border-b border-slate-700/50 shadow-lg"
+  class="sticky top-0 z-[200] p-2 bg-slate-800 text-lime-500 border-b border-slate-700/50 shadow-lg"
 >
   <div
     class="flex items-center justify-between md:justify-start flex-nowrap max-w-[1024px] mx-auto gap-3"

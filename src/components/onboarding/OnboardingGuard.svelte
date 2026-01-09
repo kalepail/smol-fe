@@ -27,9 +27,6 @@
             // But if client-side login happened without page reload?
             if (document.cookie.includes("smol_token")) return;
 
-            console.log(
-                "[Onboarding] New user detected, redirecting to splash.",
-            );
             window.location.href = "/onboarding/passkey";
         }
     });

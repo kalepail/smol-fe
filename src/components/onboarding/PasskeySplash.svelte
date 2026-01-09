@@ -3,15 +3,14 @@
     import { fade, fly, scale } from "svelte/transition";
     import { useAuthentication } from "../../hooks/useAuthentication";
     import { userState } from "../../stores/user.svelte";
+    import { setBackgroundAnimations } from "../../stores/background.svelte.ts";
     import Loader from "../ui/Loader.svelte";
 
     // State
     let step = $state<"intro" | "username" | "processing" | "success">("intro");
     let username = $state("");
     let error = $state<string | null>(null);
-    let audioMuted = $state(true);
-    let audioInitialized = $state(false);
-    let audioEl: HTMLAudioElement;
+    // Audio removed per user request
 
     const authHook = useAuthentication();
 
@@ -20,30 +19,58 @@
         "find your next favorite.",
         "make music here.",
         "save the ones you love.",
-        "support the humans behind the sound.",
+        "support the humans\nbehind the sound.",
+        "it's free suno.",
+        "create without limits.",
+        "your sound, your rules.",
+        "listen to something new.",
+        "simple, open, yours.",
+        "collect what\nyou vibe with.",
     ];
     let taglineIndex = $state(0);
+    let visibleCount = $state(0);
+    // let isTyping = $state(false); // Unused in this version if we don't blink a cursor moving
 
-    // Rotate taglines
+    $effect(() => {
+        let i = 0;
+        const target = TAGLINES[taglineIndex];
+        // isTyping = true;
+        visibleCount = 0;
+
+        const typeInterval = setInterval(() => {
+            i++;
+            visibleCount = i;
+            if (i >= target.length) {
+                clearInterval(typeInterval);
+                // isTyping = false;
+            }
+        }, 50);
+
+        const nextInterval = setTimeout(() => {
+            taglineIndex = (taglineIndex + 1) % TAGLINES.length;
+        }, 4000);
+
+        return () => {
+            clearInterval(typeInterval);
+            clearTimeout(nextInterval);
+        };
+    });
+
     onMount(() => {
+        // Enable high-performance background mode
+        setBackgroundAnimations(true);
+
         // Check if already auth'd or skipped - redirect if so
         const skipped = localStorage.getItem("smol_passkey_skipped");
         if (userState.contractId || (skipped && step !== "success")) {
             if (!userState.contractId && skipped) {
-                // Only skip if explicitly skipped, but if they came here manually allow it?
-                // Actually scope says: "route new users... returning users bypass"
-                // If I am here, I might have been redirected.
-                // If I am already auth'd, go home.
+                // Only skip if explicitly skipped
             }
             if (userState.contractId) {
                 window.location.href = "/";
                 return;
             }
         }
-
-        const interval = setInterval(() => {
-            taglineIndex = (taglineIndex + 1) % TAGLINES.length;
-        }, 3000);
 
         // Analytics
         logEvent("passkey_splash_view", {
@@ -52,7 +79,9 @@
             platform: getPlatform(),
         });
 
-        return () => clearInterval(interval);
+        return () => {
+            setBackgroundAnimations(false);
+        };
     });
 
     function getPlatform() {
@@ -71,20 +100,7 @@
         console.log(`[Analytics] ${name}`, payload);
     }
 
-    // Audio Logic
-    function toggleAudio() {
-        if (!audioInitialized) {
-            // Lazy load / init audio context if needed
-            // ensuring user gesture
-            audioInitialized = true;
-            // If we had a sound file, we play it. For now, just toggle state to show UI logic.
-        }
-        audioMuted = !audioMuted;
-        if (audioEl) {
-            if (audioMuted) audioEl.pause();
-            else audioEl.play().catch(() => {});
-        }
-    }
+    // Audio Logic removed
 
     async function handleCreate() {
         logEvent("passkey_create_click");
@@ -157,7 +173,7 @@
 <svelte:window onkeydown={handleKeydown} />
 
 <div
-    class="fixed inset-0 bg-transparent text-white overflow-hidden font-mono z-[9999]"
+    class="fixed inset-0 bg-transparent text-white overflow-y-auto font-pixel z-[9999]"
 >
     <!-- Background Art (Handled globally by Layout/DynamicBackground) -->
 
@@ -172,25 +188,38 @@
     ></div>
 
     <main
-        class="relative z-30 h-full flex flex-col items-center justify-center p-6 safe-area-inset-bottom"
+        class="relative z-30 min-h-screen flex flex-col items-center justify-center p-6 safe-area-inset-bottom"
     >
         <!-- HEADER -->
-        <div class="mb-12 text-center" in:fade={{ duration: 800 }}>
+        <div
+            class="mb-6 md:mb-8 text-center shrink-0"
+            in:fade={{ duration: 800 }}
+        >
             <!-- Rotating One-Liner -->
-            <div class="h-8 flex items-center justify-center mb-6">
-                {#key taglineIndex}
-                    <p
-                        in:fly={{ y: 10, duration: 400, delay: 200 }}
-                        out:fly={{ y: -10, duration: 400 }}
-                        class="text-lime-400 font-pixel uppercase tracking-widest text-xs md:text-sm drop-shadow-[0_0_10px_rgba(132,204,22,0.5)]"
+            <!-- Shift right slightly to align center with the '.' in SMOL.XYZ -->
+            <div
+                class="min-h-[24px] md:min-h-[32px] flex items-center justify-center mb-2 md:mb-6 pl-[0.6ch]"
+            >
+                <p
+                    class="text-lime-400 font-pixel uppercase tracking-widest text-xs md:text-sm drop-shadow-[0_0_10px_rgba(132,204,22,0.5)] whitespace-pre-wrap text-center leading-tight"
+                >
+                    {#each TAGLINES[taglineIndex].split("") as char, i}
+                        <span
+                            class="transition-opacity duration-0 {i <
+                            visibleCount
+                                ? 'opacity-100'
+                                : 'opacity-0'}">{char}</span
+                        >
+                    {/each}
+                    <!-- Zero-width cursor container to prevent centering offset -->
+                    <span class="inline-block w-0 overflow-visible"
+                        ><span class="animate-pulse">_</span></span
                     >
-                        {TAGLINES[taglineIndex]}
-                    </p>
-                {/key}
+                </p>
             </div>
 
             <h1
-                class="text-4xl md:text-6xl font-pixel font-black tracking-tighter uppercase text-transparent bg-clip-text bg-gradient-to-b from-lime-400 to-lime-600 drop-shadow-[0_4px_0_rgba(132,204,22,0.2)]"
+                class="text-3xl md:text-5xl font-pixel font-black tracking-tighter uppercase text-transparent bg-clip-text bg-gradient-to-b from-lime-400 to-lime-600 drop-shadow-[0_4px_0_rgba(132,204,22,0.2)]"
             >
                 SMOL.XYZ
             </h1>
@@ -198,11 +227,11 @@
 
         <!-- CONTENT CONTAINER -->
         <div
-            class="w-full max-w-md relative min-h-[300px] flex flex-col items-center"
+            class="w-full max-w-md relative min-h-[200px] md:min-h-[300px] flex flex-col items-center justify-center"
         >
             {#if step === "intro"}
                 <div
-                    class="w-full flex flex-col items-center gap-6"
+                    class="w-full flex flex-col items-center gap-3 md:gap-6"
                     in:fade={{ duration: 300 }}
                 >
                     <!-- PRIMARY CTA: CREATE PASSKEY -->
@@ -218,7 +247,11 @@
                         <span
                             class="relative z-10 flex items-center justify-center gap-3"
                         >
-                            <span class="text-xl">★</span> INSERT $KALE
+                            <img
+                                src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple/img/apple/64/1f96c.png"
+                                alt="Kale"
+                                class="w-5 h-5 md:w-6 md:h-6 object-contain"
+                            /> INSERT $KALE
                         </span>
                     </button>
 
@@ -231,10 +264,24 @@
                         Have a passkey? Login
                     </button>
 
+                    <!-- INFO TEXT -->
+                    <div class="mt-4 text-center space-y-1">
+                        <p
+                            class="text-[10px] md:text-xs text-lime-400/60 font-pixel"
+                        >
+                            NO PASSWORDS. INSTANT LOGIN.
+                        </p>
+                        <p
+                            class="text-[10px] md:text-xs text-lime-400/40 font-pixel"
+                        >
+                            SECURED BY YOUR DEVICE.
+                        </p>
+                    </div>
+
                     <!-- ESCAPE HATCH -->
                     <button
                         onclick={handleSkip}
-                        class="mt-8 text-white/30 hover:text-white/50 font-mono uppercase text-[10px] tracking-widest
+                        class="mt-4 md:mt-8 text-white/30 hover:text-white/50 font-pixel uppercase text-[10px] tracking-widest
                            focus:outline-none focus:text-white"
                     >
                         Skip for now
@@ -305,23 +352,14 @@
                     <h2 class="text-2xl font-pixel uppercase text-lime-400">
                         Ready!
                     </h2>
-                    <p class="text-white/60 font-mono text-xs">
+                    <p class="text-white/60 font-pixel text-xs">
                         Entering the ecosystem...
                     </p>
                 </div>
             {/if}
         </div>
 
-        <!-- FOOTER CONTROLS -->
-        <div class="absolute bottom-6 right-6 z-40">
-            <button
-                onclick={toggleAudio}
-                class="p-3 text-white/20 hover:text-white transition-colors font-pixel text-[10px] uppercase"
-                aria-label={audioMuted ? "Unmute Audio" : "Mute Audio"}
-            >
-                [{audioMuted ? "MUTE" : "SOUND ON"}]
-            </button>
-        </div>
+        <!-- FOOTER CONTROLS REMOVED -->
     </main>
 </div>
 

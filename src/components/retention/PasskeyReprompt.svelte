@@ -2,10 +2,7 @@
     import { onMount, tick } from "svelte";
     import { fade, fly } from "svelte/transition";
     import { userState } from "../../stores/user.svelte";
-    import {
-        getRepromptMessage,
-        incrementRepromptIndex,
-    } from "../../utils/reprompt-messages";
+    import { getRepromptMessage } from "../../utils/reprompt-messages";
 
     let show = $state(false);
     let message = $state("");
@@ -14,9 +11,11 @@
     const COOLDOWN_DAYS = 3;
     const COOLDOWN_MS = COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
 
-    function handlePositiveAction() {
+    function handlePositiveAction(e?: Event) {
         if (userState.contractId) return; // Already auth'd
         if (show) return; // Already showing
+
+        const isForced = e?.type === "smol:promote-passkey";
 
         const lastShown = parseInt(
             localStorage.getItem("smol_reprompt_timestamp") || "0",
@@ -24,10 +23,21 @@
         );
         const now = Date.now();
 
-        if (now - lastShown < COOLDOWN_MS) return;
+        if (!isForced && now - lastShown < COOLDOWN_MS) return;
+
+        // Determine category based on event
+        let category: "play" | "like" | "create" = "play";
+        if (
+            e?.type === "smol:action-like" ||
+            e?.type === "smol:promote-passkey"
+        ) {
+            category = "like";
+        } else if (e?.type === "smol:action-tip") {
+            category = "like";
+        }
 
         // Show it
-        const { msg, index } = getRepromptMessage();
+        const { msg, index } = getRepromptMessage(category);
         message = msg;
         msgIndex = index;
         show = true;
@@ -36,6 +46,7 @@
         console.log("[Analytics] passkey_reprompt_view", {
             message_index: index,
             platform: "web",
+            forced: isForced,
         });
     }
 
@@ -51,8 +62,6 @@
         show = false;
         // Set timestamp
         localStorage.setItem("smol_reprompt_timestamp", Date.now().toString());
-        // Increment index
-        incrementRepromptIndex();
 
         console.log("[Analytics] passkey_reprompt_dismiss", {
             message_index: msgIndex,
@@ -63,6 +72,7 @@
         window.addEventListener("smol:action-play", handlePositiveAction);
         window.addEventListener("smol:action-like", handlePositiveAction);
         window.addEventListener("smol:action-tip", handlePositiveAction);
+        window.addEventListener("smol:promote-passkey", handlePositiveAction);
         // window.addEventListener("smol:action-playlist-add", handlePositiveAction); // If implemented
 
         return () => {
@@ -75,6 +85,10 @@
                 handlePositiveAction,
             );
             window.removeEventListener("smol:action-tip", handlePositiveAction);
+            window.removeEventListener(
+                "smol:promote-passkey",
+                handlePositiveAction,
+            );
         };
     });
 </script>

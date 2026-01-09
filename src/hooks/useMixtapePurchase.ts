@@ -42,8 +42,7 @@ export function useMixtapePurchase() {
 
     // Log the XDR for inspection
     const xdrString = tx.built?.toXDR();
-    console.log('Purchase Batch Transaction XDR:', xdrString);
-    console.log('Tokens in batch:', tokensOut);
+
 
     // Submit transaction via passkey server
     await server.send(tx);
@@ -85,16 +84,11 @@ export function useMixtapePurchase() {
       chunks.push(tokenData.slice(i, i + BATCH_SIZE));
     }
 
-    console.log(
-      `Processing ${tokenData.length} purchases in ${chunks.length} batch(es) of up to ${BATCH_SIZE}`
-    );
 
     // Process each chunk sequentially
     for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
       const chunk = chunks[chunkIndex];
-      console.log(
-        `Processing purchase batch ${chunkIndex + 1}/${chunks.length} with ${chunk.length} token(s)`
-      );
+
 
       try {
         const tokensOutChunk = chunk.map((d) => d.token);
