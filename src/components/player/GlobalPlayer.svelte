@@ -1111,9 +1111,9 @@
             class="relative flex-1 min-h-0 landscape:min-h-0 landscape:h-auto md:landscape:h-full flex flex-col"
         >
             {#if showGridView}
-                <div
-                    class="absolute inset-0 z-50 bg-[#121212] p-2 md:p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto dark-scrollbar pb-[env(safe-area-inset-bottom)]"
+                                class="absolute inset-0 z-50 bg-[#121212] p-2 md:p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto dark-scrollbar pb-[env(safe-area-inset-bottom)]"
                     onscroll={handleGridScroll}
+                    style="contain: content;"
                 >
                     <div
                         class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 md:gap-4 pb-20"
@@ -1128,6 +1128,7 @@
                                 isPlaying()
                                     ? 'opacity-40 hover:opacity-100'
                                     : 'opacity-100'}"
+                                style="will-change: transform, opacity;"
                                 onclick={() => handleSelect(index)}
                                 onkeydown={() => {}}
                             >
@@ -1145,7 +1146,10 @@
                                 {/if}
 
                                 <div
-                                    class="aspect-square rounded-xl relative overflow-hidden z-10 shadow-2xl"
+                                    class="aspect-square rounded-xl relative overflow-hidden z-10 {preferences.renderMode ===
+                                    'thinking'
+                                        ? 'shadow-2xl'
+                                        : 'shadow-md'}"
                                 >
                                     {#if currentSong && song.Id === currentSong.Id && preferences.renderMode === "thinking"}
                                         <!-- Spinning Lightwire (Disabled in Fast Mode) -->
@@ -1170,7 +1174,10 @@
                                         <img
                                             src="{API_URL}/image/{song.Id}.png?scale=8"
                                             alt={song.Title}
-                                            class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-slate-800"
+                                            class="w-full h-full object-cover transition-transform duration-500 bg-slate-800 {preferences.renderMode ===
+                                            'thinking'
+                                                ? 'group-hover:scale-110'
+                                                : ''}"
                                             loading="lazy"
                                         />
                                         {#if currentSong && song.Id === currentSong.Id && preferences.renderMode === "thinking"}
@@ -1203,7 +1210,10 @@
                                                 >
                                                     <!-- Share Button (Bottom Center) -->
                                                     <button
-                                                        class="absolute bottom-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/10 border-2 border-[#d836ff] text-[#d836ff] hover:bg-[#d836ff] hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(216,54,255,0.3)] pointer-events-auto"
+                                                        class="absolute bottom-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/10 border-2 border-[#d836ff] text-[#d836ff] hover:bg-[#d836ff] hover:text-white transition-all active:scale-95 pointer-events-auto {preferences.renderMode ===
+                                                        'thinking'
+                                                            ? 'shadow-[0_0_15px_rgba(216,54,255,0.3)]'
+                                                            : ''}"
                                                         onclick={(e) => {
                                                             e.stopPropagation();
                                                             const url = `${window.location.origin}/${song.Id}`;
@@ -1234,7 +1244,10 @@
                                                     <!-- Top Left: Artist -->
                                                     <div
                                                         role="button"
-                                                        class="absolute top-2 left-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-green-500 text-green-500 hover:bg-green-500 hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(34,197,94,0.3)] pointer-events-auto"
+                                                        class="absolute top-2 left-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-green-500 text-green-500 hover:bg-green-500 hover:text-white transition-all active:scale-95 pointer-events-auto {preferences.renderMode ===
+                                                        'thinking'
+                                                            ? 'shadow-[0_0_15px_rgba(34,197,94,0.3)]'
+                                                            : ''}"
                                                         onclick={(e) => {
                                                             e.stopPropagation();
                                                             navigate(
@@ -1262,7 +1275,10 @@
                                                     <!-- Top Right: Radio -->
                                                     <div
                                                         role="button"
-                                                        class="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(249,115,22,0.3)] pointer-events-auto"
+                                                        class="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white transition-all active:scale-95 pointer-events-auto {preferences.renderMode ===
+                                                        'thinking'
+                                                            ? 'shadow-[0_0_15px_rgba(249,115,22,0.3)]'
+                                                            : ''}"
                                                         onclick={(e) => {
                                                             e.stopPropagation();
                                                             navigate(
@@ -1289,7 +1305,10 @@
 
                                                     <!-- Bottom Left: Like -->
                                                     <div
-                                                        class="absolute bottom-2 left-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(239,68,68,0.3)] pointer-events-auto"
+                                                        class="absolute bottom-2 left-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition-all active:scale-95 pointer-events-auto {preferences.renderMode ===
+                                                        'thinking'
+                                                            ? 'shadow-[0_0_15px_rgba(239,68,68,0.3)]'
+                                                            : ''}"
                                                         role="button"
                                                         tabindex="0"
                                                         onclick={(e) =>
@@ -1317,7 +1336,10 @@
                                                     <!-- Bottom Right: Song Detail -->
                                                     <div
                                                         role="button"
-                                                        class="absolute bottom-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-[#d836ff] text-[#d836ff] hover:bg-[#d836ff] hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(216,54,255,0.3)] pointer-events-auto"
+                                                        class="absolute bottom-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-[#d836ff] text-[#d836ff] hover:bg-[#d836ff] hover:text-white transition-all active:scale-95 pointer-events-auto {preferences.renderMode ===
+                                                        'thinking'
+                                                            ? 'shadow-[0_0_15px_rgba(216,54,255,0.3)]'
+                                                            : ''}"
                                                         onclick={(e) => {
                                                             e.stopPropagation();
                                                             navigate(
@@ -1350,7 +1372,10 @@
                                             <!-- Top Left: Artist Profile -->
                                             <div
                                                 role="button"
-                                                class="absolute top-2 left-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-green-500/50 text-green-400 hover:bg-green-500/20 transition-all shadow-[0_0_10px_rgba(34,197,94,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(34,197,94,0.5)] cursor-pointer opacity-0 group-hover:opacity-100 duration-300"
+                                                class="absolute top-2 left-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 border border-green-500/50 text-green-400 hover:bg-green-500/20 transition-all active:scale-95 cursor-pointer opacity-0 group-hover:opacity-100 duration-300 {preferences.renderMode ===
+                                                'thinking'
+                                                    ? 'backdrop-blur-md shadow-[0_0_10px_rgba(34,197,94,0.3)] hover:shadow-[0_0_15px_rgba(34,197,94,0.5)]'
+                                                    : ''}"
                                                 onclick={(e) => {
                                                     e.stopPropagation();
                                                     navigate(
@@ -1385,7 +1410,10 @@
                                             <!-- Top Right: Send to Radio -->
                                             <div
                                                 role="button"
-                                                class="absolute top-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-orange-500/50 text-orange-400 hover:bg-orange-500/20 transition-all shadow-[0_0_10px_rgba(249,115,22,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(249,115,22,0.5)] cursor-pointer opacity-0 group-hover:opacity-100 duration-300"
+                                                class="absolute top-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 border border-orange-500/50 text-orange-400 hover:bg-orange-500/20 transition-all active:scale-95 cursor-pointer opacity-0 group-hover:opacity-100 duration-300 {preferences.renderMode ===
+                                                'thinking'
+                                                    ? 'backdrop-blur-md shadow-[0_0_10px_rgba(249,115,22,0.3)] hover:shadow-[0_0_15px_rgba(249,115,22,0.5)]'
+                                                    : ''}"
                                                 onclick={(e) => {
                                                     e.stopPropagation();
                                                     navigate(
@@ -1426,7 +1454,10 @@
                                                 <LikeButton
                                                     smolId={song.Id}
                                                     liked={song.Liked || false}
-                                                    classNames="p-1.5 rounded-full bg-black/40 backdrop-blur-md border border-[#FF424C]/50 text-[#FF424C] hover:bg-[#FF424C]/20 transition-all shadow-[0_0_10px_rgba(255,66,76,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(255,66,76,0.5)]"
+                                                    classNames="p-1.5 rounded-full bg-black/40 border border-[#FF424C]/50 text-[#FF424C] hover:bg-[#FF424C]/20 transition-all active:scale-95 {preferences.renderMode ===
+                                                    'thinking'
+                                                        ? 'backdrop-blur-md shadow-[0_0_10px_rgba(255,66,76,0.3)] hover:shadow-[0_0_15px_rgba(255,66,76,0.5)]'
+                                                        : ''}"
                                                     iconSize="size-4"
                                                     on:likeChanged={(e) => {
                                                         handleToggleLike(
@@ -1440,7 +1471,10 @@
                                             <!-- Bottom Right: Song Detail -->
                                             <div
                                                 role="button"
-                                                class="absolute bottom-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 transition-all shadow-[0_0_10px_rgba(216,54,255,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(216,54,255,0.5)] cursor-pointer opacity-0 group-hover:opacity-100 duration-300"
+                                                class="absolute bottom-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 transition-all active:scale-95 cursor-pointer opacity-0 group-hover:opacity-100 duration-300 {preferences.renderMode ===
+                                                'thinking'
+                                                    ? 'backdrop-blur-md shadow-[0_0_10px_rgba(216,54,255,0.3)] hover:shadow-[0_0_15px_rgba(216,54,255,0.5)]'
+                                                    : ''}"
                                                 onclick={(e) => {
                                                     e.stopPropagation();
                                                     navigate(
