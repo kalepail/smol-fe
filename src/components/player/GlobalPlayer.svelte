@@ -85,6 +85,17 @@
         return () => clearInterval(interval);
     });
 
+    // Auto-fallback locked themes to technicolor
+    $effect(() => {
+        const isHolidayLocked =
+            preferences.glowTheme === "holiday" && !userState.contractId;
+        const isHalloweenLocked =
+            preferences.glowTheme === "halloween" && !upgradesState.goldenKale;
+        if (isHolidayLocked || isHalloweenLocked) {
+            preferences.glowTheme = "technicolor";
+        }
+    });
+
     // Determine current artist context (for Header/Tipping)
     const currentSong = $derived(audioState.currentSong);
     const currentArtistAddress = $derived(currentSong?.Address);
