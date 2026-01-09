@@ -128,7 +128,8 @@
             );
 
             // Limit to avoid OOM on massive lists, but keep enough for discovery
-            liveDiscography = smols.slice(0, 500);
+            // Limit to avoid OOM on massive lists, but keep enough for discovery
+            liveDiscography = smols;
 
             // Tags
             const tagCounts: Record<string, number> = {};
@@ -298,7 +299,11 @@
         currentIndex = index;
         const song = displayPlaylist[index];
         if (song) {
-            selectSong(song);
+            if (currentSong && currentSong.Id === song.Id) {
+                togglePlayPause();
+            } else {
+                selectSong(song);
+            }
         }
     }
 
@@ -750,7 +755,8 @@
                                 role="button"
                                 tabindex="0"
                                 class="flex flex-col gap-2 group text-left w-full relative transition-opacity duration-300 {currentSong &&
-                                song.Id !== currentSong.Id
+                                song.Id !== currentSong.Id &&
+                                isPlaying()
                                     ? 'opacity-40 hover:opacity-100'
                                     : 'opacity-100'}"
                                 onclick={() => handleSelect(index)}
