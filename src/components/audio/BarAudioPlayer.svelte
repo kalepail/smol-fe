@@ -184,9 +184,20 @@
   const isMixtapesIndex = $derived(
     pathname === "/mixtapes" || pathname === "/mixtapes/",
   );
+
+  const isFreshDrops = $derived(
+    pathname === "/fresh-drops" || pathname === "/fresh-drops/",
+  );
+
+  const isHomePage = $derived(pathname === "/" || pathname === "");
+
+  // Radio mode: on /radio page AND audio is actively playing
+  const isRadioMode = $derived(
+    (pathname === "/radio" || pathname === "/radio/") && audioState.playingId,
+  );
 </script>
 
-{#if audioState.currentSong && !isMixtapesIndex}
+{#if audioState.currentSong && !isMixtapesIndex && !isHomePage && !isRadioMode}
   <div
     class="fixed z-[150] p-2 bottom-2 lg:w-full left-4 right-4 lg:max-w-1/2 lg:min-w-[300px] lg:left-1/2 lg:-translate-x-1/2 rounded-md bg-slate-950/50 backdrop-blur-lg border border-white/20 shadow-lg"
     transition:fade={{ duration: 200 }}

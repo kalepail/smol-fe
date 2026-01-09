@@ -572,37 +572,90 @@
 
             <!-- Header Right: Player Mini Controls -->
             <div
-                class="flex items-center gap-4 relative z-[60] shrink-0 min-w-[120px] justify-end"
+                class="flex items-center gap-2 relative z-[60] shrink-0 justify-end"
             >
                 {#if currentSong}
+                    <!-- Mini Player Container -->
                     <div
-                        class="items-center gap-1.5 sm:gap-2 bg-black/40 backdrop-blur-md p-1.5 rounded-full border border-white/10 shadow-xl {showGridView
+                        class="flex-col gap-1 bg-black/40 backdrop-blur-md p-2 rounded-xl border border-white/10 shadow-xl min-w-[180px] max-w-[280px] {showGridView
                             ? 'flex'
                             : 'hidden md:flex landscape:flex'}"
                     >
-                        <!-- Play/Pause & Shuffle Button -->
-                        <button
-                            class="tech-button w-9 h-9 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-xl border border-[#089981] text-[#089981] bg-[#089981]/10 hover:text-white"
-                            onclick={togglePlayPause}
+                        <!-- Song Title -->
+                        <div
+                            class="text-[8px] font-pixel text-white truncate px-1 text-center"
                         >
-                            {#if isPlaying()}
+                            {currentSong.Title || "Untitled"}
+                        </div>
+
+                        <!-- Progress Scrubber -->
+                        <div
+                            class="w-full h-1 bg-white/10 rounded-full overflow-hidden"
+                        >
+                            <div
+                                class="h-full bg-[#089981] rounded-full transition-all duration-100"
+                                style="width: {audioState.progress}%"
+                            ></div>
+                        </div>
+
+                        <!-- Controls Row -->
+                        <div class="flex items-center justify-center gap-1">
+                            <!-- Previous Button -->
+                            <button
+                                class="w-7 h-7 flex items-center justify-center active:scale-95 transition-all rounded-full text-white/60 hover:text-white"
+                                onclick={playPreviousSong}
+                            >
                                 <svg
-                                    class="w-4 h-4"
+                                    class="w-3.5 h-3.5"
                                     fill="currentColor"
                                     viewBox="0 0 24 24"
-                                    ><path
-                                        d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"
-                                    /></svg
                                 >
-                            {:else}
+                                    <path
+                                        d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z"
+                                    />
+                                </svg>
+                            </button>
+
+                            <!-- Play/Pause Button -->
+                            <button
+                                class="tech-button w-8 h-8 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-xl border border-[#089981] text-[#089981] bg-[#089981]/10 hover:text-white"
+                                onclick={togglePlayPause}
+                            >
+                                {#if isPlaying()}
+                                    <svg
+                                        class="w-3.5 h-3.5"
+                                        fill="currentColor"
+                                        viewBox="0 0 24 24"
+                                        ><path
+                                            d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"
+                                        /></svg
+                                    >
+                                {:else}
+                                    <svg
+                                        class="w-3.5 h-3.5 ml-0.5"
+                                        fill="currentColor"
+                                        viewBox="0 0 24 24"
+                                        ><path d="M8 5v14l11-7z" /></svg
+                                    >
+                                {/if}
+                            </button>
+
+                            <!-- Next Button -->
+                            <button
+                                class="w-7 h-7 flex items-center justify-center active:scale-95 transition-all rounded-full text-white/60 hover:text-white"
+                                onclick={playNextSong}
+                            >
                                 <svg
-                                    class="w-4 h-4 ml-0.5"
+                                    class="w-3.5 h-3.5"
                                     fill="currentColor"
                                     viewBox="0 0 24 24"
-                                    ><path d="M8 5v14l11-7z" /></svg
                                 >
-                            {/if}
-                        </button>
+                                    <path
+                                        d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                 {/if}
             </div>

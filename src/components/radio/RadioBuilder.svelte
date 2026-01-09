@@ -706,8 +706,12 @@
     showBuilder = false;
   }
 
-  // Smart Shuffle: Spacing Algorithm
+  // Smooth Flow Algorithm: DJ-Quality Sequencing
+  // Creates natural transitions by considering tag similarity between adjacent songs
   function smartShuffle(list: Smol[]): Smol[] {
+    if (list.length <= 2) return list;
+
+    // 1. Group by artist for variety
     const artists = new Map<string, Smol[]>();
     list.forEach((s) => {
       const a = s.Address || "Unknown";
@@ -715,35 +719,91 @@
       artists.get(a)?.push(s);
     });
 
-    const result: Smol[] = [];
-    let lastArtist = "";
-    let entries = Array.from(artists.entries()); // [ [Artist, [Songs]], ... ]
+    // 2. Calculate tag sets for each song (for flow scoring)
+    const tagSets = new Map<string, Set<string>>();
+    list.forEach((s) => {
+      const tags = new Set(getTags(s).map((t) => normalizeTag(t)));
+      tagSets.set(s.Id, tags);
+    });
 
-    // Shuffle song lists internally first
-    entries.forEach(([_, songs]) => songs.sort(() => Math.random() - 0.5));
+    // 3. Flow scoring: how well two songs transition
+    function flowScore(a: Smol, b: Smol): number {
+      const tagsA = tagSets.get(a.Id) || new Set();
+      const tagsB = tagSets.get(b.Id) || new Set();
+
+      // Count shared tags
+      let shared = 0;
+      tagsA.forEach((t) => {
+        if (tagsB.has(t)) shared++;
+      });
+
+      // Ideal: 1-2 shared tags (enough for flow, not too similar)
+      // 0 shared = jarring (low score)
+      // 1-2 shared = smooth (high score)
+      // 3+ shared = too similar (medium score)
+      if (shared === 0) return 10;
+      if (shared === 1) return 100;
+      if (shared === 2) return 90;
+      if (shared === 3) return 60;
+      return 40; // Very similar = less interesting
+    }
+
+    // 4. Greedy sequencing with flow optimization
+    const result: Smol[] = [];
+    const used = new Set<string>();
+    let lastArtist = "";
+    let lastTwo: Smol[] = []; // Track last 2 for anti-repeat
+
+    // Start with a random song
+    const startIdx = Math.floor(Math.random() * list.length);
+    result.push(list[startIdx]);
+    used.add(list[startIdx].Id);
+    lastArtist = list[startIdx].Address || "";
+    lastTwo.push(list[startIdx]);
 
     while (result.length < list.length) {
-      // Filter out empty artists
-      entries = entries.filter((e) => e[1].length > 0);
-      if (entries.length === 0) break;
+      const current = result[result.length - 1];
+      let best: Smol | null = null;
+      let bestScore = -Infinity;
 
-      // Try to find an artist who is NOT the last one
-      let candidates = entries.filter((e) => e[0] !== lastArtist);
+      for (const song of list) {
+        if (used.has(song.Id)) continue;
 
-      // If only the last artist is left, we have to pick them
-      if (candidates.length === 0) candidates = entries;
+        let score = flowScore(current, song);
 
-      // Pick random artist
-      const chosenIdx = Math.floor(Math.random() * candidates.length);
-      const [artist, songs] = candidates[chosenIdx];
+        // Artist variety bonus: penalize same artist, especially if recent
+        const songArtist = song.Address || "";
+        if (songArtist === lastArtist) {
+          score -= 80; // Strong penalty for back-to-back
+        }
+        // Check last 2 songs for artist variety
+        if (lastTwo.some((s) => s.Address === songArtist)) {
+          score -= 40;
+        }
 
-      // Pick their next song
-      const song = songs.pop();
-      if (song) {
-        result.push(song);
-        lastArtist = artist;
+        // Discovery boost: slight bonus for less-played songs (hidden gems)
+        const plays = song.Plays || 0;
+        if (plays < 100) score += 15; // Hidden gem boost
+
+        // Freshness: slight random factor to avoid predictability
+        score += Math.random() * 20;
+
+        if (score > bestScore) {
+          bestScore = score;
+          best = song;
+        }
+      }
+
+      if (best) {
+        result.push(best);
+        used.add(best.Id);
+        lastArtist = best.Address || "";
+        lastTwo = [lastTwo[lastTwo.length - 1], best].filter(Boolean);
+      } else {
+        break;
       }
     }
+
     return result;
   }
 
