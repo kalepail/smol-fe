@@ -88,7 +88,10 @@
         },
     });
 
-    async function loadTracksForMixtape(mixtapeId: string) {
+    async function loadTracksForMixtape(
+        mixtapeId: string,
+        autoResetLoading = true,
+    ) {
         if (activeMixtapeId === mixtapeId && mixtapeTracks.length > 0) {
             return { mixtapeTracks, creator: activeMixtapeCurator };
         }
@@ -122,7 +125,9 @@
             console.error("Failed to load mixtape tracks:", err);
             throw err;
         } finally {
-            loadingMixtapeId = null;
+            if (autoResetLoading) {
+                loadingMixtapeId = null;
+            }
         }
     }
 
@@ -133,7 +138,9 @@
         }
 
         try {
-            const detail = await loadTracksForMixtape(mixtapeId);
+            // Pass false to keep loading state active until we start playback
+            // This prevents the effect from clearing state before the new song is ready
+            const detail = await loadTracksForMixtape(mixtapeId, false);
 
             // Show support modal if not dismissed and not the creator
             if (
@@ -148,6 +155,9 @@
             isPlayingAll = true;
         } catch (err) {
             alert("failed to load mixtape tracks. please try again.");
+        } finally {
+            // Now safe to clear loading state
+            loadingMixtapeId = null;
         }
     }
 
