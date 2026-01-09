@@ -4,6 +4,7 @@
         audioState,
         selectSong,
         registerSongNextCallback,
+        registerSongPrevCallback,
         isPlaying,
         togglePlayPause,
     } from "../../stores/audio.svelte";
@@ -375,7 +376,11 @@
 
     $effect(() => {
         registerSongNextCallback(handleNext);
-        return () => registerSongNextCallback(null);
+        registerSongPrevCallback(handlePrev);
+        return () => {
+            registerSongNextCallback(null);
+            registerSongPrevCallback(null);
+        };
     });
 
     function toggleArtistTag(tag: string) {
