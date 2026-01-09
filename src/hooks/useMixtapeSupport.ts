@@ -22,6 +22,9 @@ export interface SupportPaymentBreakdown {
     curatorShare: bigint;
     artistShare: bigint;
     minterShare: bigint;
+    curatorPercent: number;
+    artistPercent: number;
+    minterPercent: number;
     recipients: SupportPaymentRecipient[];
 }
 
@@ -38,81 +41,68 @@ export function calculateSupportPayment(
     const totalKale = numTracks * PRICE_PER_TRACK_KALE;
     const totalUnits = BigInt(totalKale) * KALE_FACTOR;
 
-    // Base split: 50% artists, 30% curator, 20% minters
-    const curatorShare = (totalUnits * 30n) / 100n; // 30%
-    let artistPoolShare = totalUnits / 2n; // 50%
-    let minterPoolShare = (totalUnits * 20n) / 100n; // 20%
+    if (numTracks === 0) {
+        return {
+            totalKale: 0,
+            totalUnits: 0n,
+            curatorShare: 0n,
+            artistShare: 0n,
+            minterShare: 0n,
+            recipients: []
+        };
+    }
 
-    // Get unique artist addresses (excluding curator)
+    // Base split weights: 30% curator, 50% artists, 20% minters
+    const curatorShare = (totalUnits * 30n) / 100n;
+    let artistPoolShare = (totalUnits * 50n) / 100n;
+    let minterPoolShare = (totalUnits * 20n) / 100n;
+
+    // Identify unique participants
     const artistAddresses = new Set<string>();
+    const minterAddresses = new Set<string>();
+
     for (const track of tracks) {
-        if (track.Address && track.Address !== curatorAddress) {
-            artistAddresses.add(track.Address);
+        if (track.Address) artistAddresses.add(track.Address);
+        // Fallback: if minted but no Minted_By, assume Artist still owns it
+        if (track.Mint_Token) {
+            const minter = track.Minted_By || track.Address;
+            if (minter) minterAddresses.add(minter);
         }
     }
 
-    // Get unique minter addresses (from Minted_By field, excluding curator and artists)
-    const minterAddresses = new Set<string>();
-    for (const track of tracks) {
-        if (track.Minted_By &&
-            track.Minted_By !== curatorAddress &&
-            !artistAddresses.has(track.Minted_By)) {
-            minterAddresses.add(track.Minted_By);
-        }
-    }
+    let curatorPercent = 30;
+    let artistPercent = 50;
+    let minterPercent = 20;
 
     // If no minters, redistribute their share to artists
     if (minterAddresses.size === 0) {
         artistPoolShare += minterPoolShare;
         minterPoolShare = 0n;
+        artistPercent += minterPercent;
+        minterPercent = 0;
     }
 
-    // If curator is the only participant, they get everything
-    if (artistAddresses.size === 0 && minterAddresses.size === 0) {
-        return {
-            totalKale,
-            totalUnits,
-            curatorShare: totalUnits,
-            artistShare: 0n,
-            minterShare: 0n,
-            recipients: [
-                { address: curatorAddress, amount: totalUnits, type: 'curator' }
-            ]
-        };
-    }
-
-    // Calculate per-recipient shares
-    const numArtists = artistAddresses.size;
-    const numMinters = minterAddresses.size;
-
-    const perArtistShare = numArtists > 0 ? artistPoolShare / BigInt(numArtists) : 0n;
-    const perMinterShare = numMinters > 0 ? minterPoolShare / BigInt(numMinters) : 0n;
+    // calculate per-recipient shares
+    const perArtistShare = artistAddresses.size > 0 ? artistPoolShare / BigInt(artistAddresses.size) : 0n;
+    const perMinterShare = minterAddresses.size > 0 ? minterPoolShare / BigInt(minterAddresses.size) : 0n;
 
     // Handle rounding - give remainder to curator
-    const distributedToArtists = perArtistShare * BigInt(numArtists);
-    const distributedToMinters = perMinterShare * BigInt(numMinters);
+    const distributedToArtists = perArtistShare * BigInt(artistAddresses.size);
+    const distributedToMinters = perMinterShare * BigInt(minterAddresses.size);
     const remainder = totalUnits - curatorShare - distributedToArtists - distributedToMinters;
     const adjustedCuratorShare = curatorShare + remainder;
 
-    // Build recipients list
+    // Build unique recipients list for UI breakdown
     const recipients: SupportPaymentRecipient[] = [
         { address: curatorAddress, amount: adjustedCuratorShare, type: 'curator' }
     ];
 
-    for (const artistAddress of artistAddresses) {
-        recipients.push({
-            address: artistAddress,
-            amount: perArtistShare,
-            type: 'artist'
-        });
+    for (const addr of artistAddresses) {
+        recipients.push({ address: addr, amount: perArtistShare, type: 'artist' });
     }
 
-    for (const minterAddress of minterAddresses) {
-        recipients.push({
-            address: minterAddress,
-            amount: perMinterShare,
-            type: 'minter'
-        });
+    for (const addr of minterAddresses) {
+        recipients.push({ address: addr, amount: perMinterShare, type: 'minter' });
     }
 
     return {
@@ -121,6 +111,9 @@ export function calculateSupportPayment(
         curatorShare: adjustedCuratorShare,
         artistShare: distributedToArtists,
         minterShare: distributedToMinters,
+        curatorPercent,
+        artistPercent,
+        minterPercent,
         recipients
     };
 }
@@ -148,19 +141,24 @@ export async function sendSupportPayment(
 
         onProgress?.('Building transaction...');
 
-        // Build multi-transfer transaction
-        // We need to send to each recipient individually since kale.transfer only does one
-        // For MVP, we'll do sequential transfers (not ideal but works)
-        // TODO: Build a single TX with multiple ops using raw TransactionBuilder
+        // Aggregate payments by address to avoid redundant ops
+        const aggregated = new Map<string, bigint>();
+        for (const r of breakdown.recipients) {
+            if (r.amount > 0n) {
+                aggregated.set(r.address, (aggregated.get(r.address) || 0n) + r.amount);
+            }
+        }
 
-        // For now, start with just the curator payment to test the flow
-        // Then we'll iterate to add multi-payment
+        // Build a single transaction with multiple transfer operations
+        let tx = await kale.transaction({ from: userState.contractId });
 
-        let tx = await kale.transfer({
-            from: userState.contractId,
-            to: curatorAddress,
-            amount: breakdown.curatorShare,
-        });
+        for (const [address, amount] of aggregated) {
+            tx = await kale.transferOp(tx, {
+                from: userState.contractId,
+                to: address,
+                amount,
+            });
+        }
 
         onProgress?.('Awaiting signature...');
         const { sequence } = await rpc.getLatestLedger();
@@ -172,30 +170,6 @@ export async function sendSupportPayment(
 
         onProgress?.('Submitting transaction...');
         const result = await server.send(tx);
-
-        // Now send to artists and minters (sequential for MVP)
-        const otherRecipients = breakdown.recipients.filter(r => r.type !== 'curator');
-
-        for (let i = 0; i < otherRecipients.length; i++) {
-            const recipient = otherRecipients[i];
-            const label = recipient.type === 'artist' ? 'artist' : 'minter';
-            onProgress?.(`Paying ${label} ${i + 1}/${otherRecipients.length}...`);
-
-            let recipientTx = await kale.transfer({
-                from: userState.contractId,
-                to: recipient.address,
-                amount: recipient.amount,
-            });
-
-            const { sequence: recipientSeq } = await rpc.getLatestLedger();
-            recipientTx = await account.sign(recipientTx, {
-                rpId: getDomain(window.location.hostname) ?? undefined,
-                keyId: userState.keyId,
-                expiration: recipientSeq + 60,
-            });
-
-            await server.send(recipientTx);
-        }
 
         onProgress?.('Complete!');
 

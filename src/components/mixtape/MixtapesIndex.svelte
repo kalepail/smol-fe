@@ -20,7 +20,7 @@
     });
 </script>
 
-<div class="mx-auto w-full max-w-[1200px] px-4 py-8">
+<div class="mx-auto w-full max-w-[1200px] px-4 pt-8 pb-40">
     <header class="mb-8 flex flex-col gap-2">
         <h1
             class="text-4xl md:text-5xl font-pixel font-bold uppercase tracking-widest animate-rainbow-flow drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"

@@ -168,25 +168,25 @@
                 <span class="text-white">{breakdown.totalKale} kale</span>
             </div>
             <div class="flex justify-between text-white/40">
-                <span>→ curator (30%)</span>
+                <span>→ curator ({breakdown.curatorPercent}%)</span>
                 <span>{formatKaleAmount(breakdown.curatorShare)}</span>
             </div>
-            {#if uniqueArtists > 0}
+            {#if breakdown.artistShare > 0n}
                 <div class="flex justify-between text-white/40">
                     <span
                         >→ {uniqueArtists} artist{uniqueArtists !== 1
                             ? "s"
-                            : ""} (50%)</span
+                            : ""} ({breakdown.artistPercent}%)</span
                     >
                     <span>{formatKaleAmount(breakdown.artistShare)}</span>
                 </div>
             {/if}
-            {#if uniqueMinters > 0}
+            {#if breakdown.minterShare > 0n}
                 <div class="flex justify-between text-white/40">
                     <span
                         >→ {uniqueMinters} minter{uniqueMinters !== 1
                             ? "s"
-                            : ""} (20%)</span
+                            : ""} ({breakdown.minterPercent}%)</span
                     >
                     <span>{formatKaleAmount(breakdown.minterShare)}</span>
                 </div>

@@ -41,6 +41,10 @@
     let activeMixtapeCurator = $state<string | null>(null);
     let supportModalDismissed = $state<Set<string>>(new Set());
 
+    // Snapshot state for minting detection
+    let snapshotCache = $state<Smol[]>([]);
+    let isSnapshotLoading = $state(false);
+
     // Derived State
     const isAnyPlaying = $derived(
         audioState.playingId !== null && audioState.currentSong !== null,
@@ -105,8 +109,8 @@
                 return {
                     Id: t.Id,
                     Title: t.Title,
-                    Address: t.Address,
-                    Song_1: t.Song_1,
+                    Address: t.Address || snapshotTrack?.Address,
+                    Song_1: t.Song_1 || snapshotTrack?.Song_1,
                     Mint_Token: t.Mint_Token,
                     Mint_Amm: t.Mint_Amm,
                     Minted_By: t.Minted_By || snapshotTrack?.Minted_By,
@@ -181,8 +185,49 @@
         };
     });
 
+    async function fetchSnapshot() {
+        if (snapshotCache.length > 0) return snapshotCache;
+        isSnapshotLoading = true;
+        try {
+            const snapshot = await safeFetchSmols(true);
+            snapshotCache = snapshot;
+            return snapshot;
+        } catch (err) {
+            console.error("Failed to fetch smol snapshot:", err);
+            return [];
+        } finally {
+            isSnapshotLoading = false;
+        }
+    }
+
+    onMount(() => {
+        fetchSnapshot();
+    });
+
+    const mintedTracksMap = $derived(
+        new Map(
+            snapshotCache
+                .filter((s) => s.Mint_Token && s.Mint_Amm)
+                .map((s) => [s.Id, true]),
+        ),
+    );
+
+    function isMixtapeMinted(mixtape: MixtapeSummary) {
+        if (!mixtape.smolIds) return false;
+        return mixtape.smolIds.some((id) => mintedTracksMap.has(id));
+    }
+
+    function handleTradeClick(e: MouseEvent, mixtapeId: string) {
+        e.stopPropagation();
+        e.preventDefault();
+        navigate(`/mixtapes/${mixtapeId}`);
+    }
+
     // Sync active state with global audio player
     $effect(() => {
+        // If we are currently loading, do not interfere with state
+        if (loadingMixtapeId) return;
+
         if (audioState.currentSong) {
             // If the current song is NOT from our current tracks list, clear active mixtape
             const isOurTrack = mixtapeTracks.some(
@@ -196,13 +241,6 @@
                     isPlayingAll = false;
                 });
             }
-        } else if (activeMixtapeId) {
-            untrack(() => {
-                activeMixtapeId = null;
-                mixtapeTracks = [];
-                currentTrackIndex = -1;
-                isPlayingAll = false;
-            });
         }
     });
 </script>
@@ -250,8 +288,20 @@
             >
                 <!-- Cover Visualization (Hardware Overlay) -->
                 <div
-                    class="relative grid grid-cols-2 grid-rows-2 gap-[1px] rounded-lg md:rounded-2xl overflow-hidden border border-white/20 bg-black/60 shadow-inner isolate
+                    class="relative grid grid-cols-2 grid-rows-2 gap-[1px] rounded-lg md:rounded-2xl overflow-hidden border border-white/20 bg-black/60 shadow-inner isolate cursor-pointer
                     {isActive ? 'border-white/40' : ''}"
+                    onclick={(e) => {
+                        e.stopPropagation();
+                        handlePlayToggle(mixtape.id);
+                    }}
+                    role="button"
+                    tabindex="0"
+                    onkeydown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                            e.stopPropagation();
+                            handlePlayToggle(mixtape.id);
+                        }
+                    }}
                 >
                     {#each Array.from({ length: 4 }) as _, index}
                         <div
@@ -563,22 +613,32 @@
                 </div>
 
                 <div class="mt-auto flex flex-col gap-1.5 pt-3 relative z-10">
-                    <button
-                        class="w-full rounded-xl px-2 py-3 text-[9px] font-pixel font-bold uppercase tracking-widest transition-all duration-500 bg-[#d836ff] border border-[#d836ff] text-white hover:bg-[#e056ff] hover:shadow-[0_0_20px_rgba(216,54,255,0.4)] disabled:opacity-50 disabled:cursor-wait"
-                        onclick={(e) => handleMintClick(e, mixtape.id)}
-                        disabled={isLoading}
-                    >
-                        {#if isLoading}
-                            <div
-                                class="flex items-center justify-center gap-1.5"
-                            >
-                                <Loader classNames="w-3 h-3 text-white" />
-                                Loading...
-                            </div>
-                        {:else}
-                            Mint
-                        {/if}
-                    </button>
+                    {#if isMixtapeMinted(mixtape)}
+                        <button
+                            class="w-full rounded-xl px-2 py-3 text-[9px] font-pixel font-bold uppercase tracking-widest transition-all duration-500 bg-[#2775ca] border border-[#2775ca] text-white hover:bg-[#3b82f6] hover:shadow-[0_0_20px_rgba(59,130,246,0.4)] disabled:opacity-50 disabled:cursor-wait"
+                            onclick={(e) => handleTradeClick(e, mixtape.id)}
+                            disabled={isLoading}
+                        >
+                            Trade
+                        </button>
+                    {:else}
+                        <button
+                            class="w-full rounded-xl px-2 py-3 text-[9px] font-pixel font-bold uppercase tracking-widest transition-all duration-500 bg-[#d836ff] border border-[#d836ff] text-white hover:bg-[#e056ff] hover:shadow-[0_0_20px_rgba(216,54,255,0.4)] disabled:opacity-50 disabled:cursor-wait"
+                            onclick={(e) => handleMintClick(e, mixtape.id)}
+                            disabled={isLoading}
+                        >
+                            {#if isLoading}
+                                <div
+                                    class="flex items-center justify-center gap-1.5"
+                                >
+                                    <Loader classNames="w-3 h-3 text-white" />
+                                    Loading...
+                                </div>
+                            {:else}
+                                Mint
+                            {/if}
+                        </button>
+                    {/if}
 
                     <a
                         class="w-full rounded-xl border border-white/5 bg-black/40 px-2 py-2 text-center text-[8px] font-pixel uppercase tracking-widest text-white/30 hover:text-white hover:bg-white/5 transition-all outline-none"

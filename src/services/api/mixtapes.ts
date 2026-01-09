@@ -7,6 +7,7 @@ export interface MixtapeSummary {
   trackCount: number;
   coverUrls: (string | null)[];
   updatedAt: string;
+  smolIds: string[];
 }
 
 export interface MixtapeSmolData {
@@ -155,6 +156,7 @@ export async function listMixtapes(): Promise<MixtapeSummary[]> {
         trackCount: mixtape.Smols.length,
         coverUrls,
         updatedAt: mixtape.Created_At,
+        smolIds: mixtape.Smols,
       };
     })
   );
