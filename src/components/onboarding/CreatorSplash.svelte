@@ -543,7 +543,9 @@
                 class="mt-3 md:mt-8 text-white/30 text-[10px] font-pixel text-center max-w-sm leading-relaxed shrink-0"
             >
                 Passkey login is free, instant, secure, and passwordless. Works across
-                all your devices. Your music, your keys.
+                all your devices.
+                <br />
+                🔒Your Keys. Your Music.
             </p>
         {/if}
     </main>
