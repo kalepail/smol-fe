@@ -4,7 +4,7 @@
  * Persists render settings to localStorage
  */
 
-export type GlowTheme = 'technicolor' | 'neural' | 'red' | 'green' | 'blue' | 'holiday' | 'halloween' | 'usa' | 'valentine' | 'slate' | 'kale';
+export type GlowTheme = 'technicolor_v2' | 'neural' | 'red' | 'green' | 'blue' | 'holiday' | 'halloween' | 'usa' | 'valentine' | 'slate' | 'kale';
 
 const DEFAULT_PREFERENCES = {
     renderMode: 'thinking' as 'fast' | 'thinking',
@@ -17,7 +17,15 @@ function loadPreferences() {
     try {
         const stored = localStorage.getItem('smol_preferences');
         if (stored) {
-            return { ...DEFAULT_PREFERENCES, ...JSON.parse(stored) };
+            const parsed = { ...DEFAULT_PREFERENCES, ...JSON.parse(stored) };
+
+            // Migrate old 'technicolor' to 'technicolor_v2' for fresh design
+            if (parsed.glowTheme === 'technicolor' as any) {
+                parsed.glowTheme = 'technicolor_v2';
+                console.log('[Preferences] Migrating technicolor → technicolor_v2');
+            }
+
+            return parsed;
         }
     } catch (e) {
         console.warn('Failed to load preferences', e);
@@ -29,11 +37,11 @@ export const preferences = $state(loadPreferences());
 
 // Derived helpers for themes
 export const THEMES: Record<GlowTheme, { name: string, gradient: string, color: string, style?: string }> = {
-    technicolor: {
+    technicolor_v2: {
         name: 'Technicolor',
-        gradient: '',
-        color: '#f59e0b',
-        style: 'background: conic-gradient(from 0deg, #ff0000, #ff8000, #ffff00, #00ff00, #00ffff, #0000ff, #8000ff, #ff00ff, #ff0000)'
+        gradient: 'from-purple-500 via-pink-500 to-orange-500',
+        color: '#a855f7',
+        style: 'background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);'
     },
     neural: {
         name: 'Neural',
