@@ -14,6 +14,7 @@
   import LikeButton from "../ui/LikeButton.svelte";
   import AudioManager from "../audio/AudioManager.svelte";
   import { userState } from "../../stores/user.svelte";
+  import { buildRadioUrl } from "../../utils/radio";
 
   let {
     playlist = [],
@@ -959,9 +960,7 @@
                 class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/40 backdrop-blur-md rounded-full border border-[#f97316]/50 text-[#f97316] hover:bg-[#f97316]/20 shadow-[0_0_15px_rgba(249,115,22,0.3)]"
                 onclick={(e) => {
                   e.stopPropagation();
-                  const target = currentSong
-                    ? `/radio?play=${currentSong.Id}`
-                    : "/radio";
+                  const target = currentSong ? buildRadioUrl(currentSong) : "/radio";
                   navigate(target);
                 }}
                 title="Start Radio from Song"

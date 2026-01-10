@@ -19,10 +19,10 @@ function loadPreferences() {
         if (stored) {
             const parsed = { ...DEFAULT_PREFERENCES, ...JSON.parse(stored) };
 
-            // Migrate old 'technicolor' to 'technicolor_v2' for fresh design
-            if (parsed.glowTheme === 'technicolor' as any) {
-                parsed.glowTheme = 'technicolor_v2';
-                console.log('[Preferences] Migrating technicolor → technicolor_v2');
+            // Migrate old 'technicolor' or 'technicolor_v2' to 'slate' at load time
+            if (parsed.glowTheme === 'technicolor' as any || parsed.glowTheme === 'technicolor_v2') {
+                parsed.glowTheme = 'slate';
+                console.log('[Preferences] Migrating technicolor → slate');
             }
 
             return parsed;
