@@ -40,6 +40,7 @@
   let showTradeModal = $state(false);
   let tradeMintBalance = $state<bigint>(0n);
   let shouldRefreshBalance = $state(false);
+  let isGenerating = $state(false);
 
   // Hooks
   const generationHook = useSmolGeneration();
@@ -154,8 +155,9 @@
   }
 
   $effect(() => {
-    // Only fetch if id actually changed
-    if (id && id !== lastFetchedId) {
+    // Only fetch if id actually changed and we're not currently generating
+    // During generation, the polling interval handles data fetching
+    if (id && id !== lastFetchedId && !isGenerating) {
       lastFetchedId = id;
       fetchSmolData(id);
     }
@@ -275,6 +277,7 @@
   async function postGen() {
     if (!prompt) return;
 
+    isGenerating = true;
     id = null;
     d1 = undefined;
     kv_do = undefined;
@@ -298,6 +301,7 @@
   }
 
   async function retryGen() {
+    isGenerating = true;
     d1 = undefined;
     kv_do = undefined;
 
@@ -370,6 +374,7 @@
         clearInterval(interval);
         interval = null;
       }
+      isGenerating = false;
       if (generationHook.isFailed(res.wf.status)) {
         failed = true;
       }
@@ -378,6 +383,7 @@
     if (interval && d1) {
       clearInterval(interval);
       interval = null;
+      isGenerating = false;
     }
 
     return res;
