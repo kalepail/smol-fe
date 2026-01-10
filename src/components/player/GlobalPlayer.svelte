@@ -57,6 +57,7 @@
     let sortMode = $state<"latest" | "canon" | "shuffle">("latest");
     let showSortDropdown = $state(false);
     let showTipModal = $state(false);
+    let tipArtistAddress = $state<string | null>(null);
     let selectedVersionId = $state<string | null>(null);
     let isGeneratingMix = $state(false);
     let initialPlayHandled = $state(false);
@@ -610,7 +611,10 @@
                                     triggerLogin();
                                     return;
                                 }
-                                showTipModal = true;
+                                if (currentArtistAddress) {
+                                    tipArtistAddress = currentArtistAddress;
+                                    showTipModal = true;
+                                }
                             }}
                             class="w-fit px-5 py-2 rounded-full text-[10px] font-pixel tracking-[0.2em] transition-all flex items-center gap-2 overflow-hidden relative group/tip bg-gradient-to-r from-green-600/20 to-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500/20"
                         >
@@ -1710,10 +1714,13 @@
     />
 {/if}
 
-{#if showTipModal && currentArtistAddress}
+{#if showTipModal && tipArtistAddress}
     <TipArtistModal
-        artistAddress={currentArtistAddress}
-        onClose={() => (showTipModal = false)}
+        artistAddress={tipArtistAddress}
+        onClose={() => {
+            showTipModal = false;
+            tipArtistAddress = null;
+        }}
     />
 {/if}
 
