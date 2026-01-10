@@ -510,19 +510,29 @@
         }));
     });
 
-    // Time Machine / Sort Cycle
-    function cycleSortMode() {
-        if (sortMode === "latest") {
-            sortMode = "canon"; // Oldest First
-            alert("⏳ TIMELINE RESET: Traveling to the beginning...");
-        } else if (sortMode === "canon") {
-            sortMode = "shuffle"; // Random
-            alert(
-                "🎲 TIMELINE SCRAMBLED: Engaging infinite probability drive...",
+    // Time Machine: Random Jump + Canon Sort
+    async function activateTimeMachine() {
+        // 1. Force Canon Mode (Oldest First)
+        sortMode = "canon";
+
+        // 2. Wait for reactive list to update
+        await tick();
+
+        // 3. Jump to Random Index
+        if (displayPlaylist.length > 0) {
+            const randomIndex = Math.floor(
+                Math.random() * displayPlaylist.length,
             );
-        } else {
-            sortMode = "latest"; // Newest First
-            alert("🚀 BACK TO THE FUTURE: Returning to present day drops...");
+            const destinationSong = displayPlaylist[randomIndex];
+
+            // 4. Engage
+            handleSelect(randomIndex);
+
+            // 5. Feedback
+            const songDate = new Date(destinationSong.Created_At || Date.now());
+            alert(
+                `⚡ TIME TRAVEL: Transporting to... ${songDate.toLocaleDateString()}`,
+            );
         }
     }
 </script>
@@ -1619,9 +1629,9 @@
                         </h3>
                         <div class="flex items-center gap-2">
                             <button
-                                onclick={cycleSortMode}
-                                class="flex flex-col items-end group/clock"
-                                title="Time Machine: Click to Travel"
+                                onclick={activateTimeMachine}
+                                class="flex flex-col items-end group/clock cursor-pointer"
+                                title="Time Machine: Random Jump in History"
                             >
                                 <span
                                     class="text-[10px] md:text-xs font-pixel tracking-widest tabular-nums text-lime-400 drop-shadow-[0_0_5px_rgba(163,230,53,0.5)] group-hover/clock:text-white transition-colors animate-pulse"
@@ -1631,7 +1641,6 @@
                                     class="text-[6px] font-pixel text-lime-600/60 uppercase tracking-tight group-hover/clock:text-lime-400"
                                 >
                                     {#if sortMode === "canon"}TIME TRAV
-                                    {:else if sortMode === "shuffle"}SCRAMBLED
                                     {:else}PRESENT DAY{/if}
                                 </span>
                             </button>
