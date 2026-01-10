@@ -78,8 +78,19 @@
         return () => clearInterval(interval);
     });
 
-    async function handleCreate() {
-        step = "username";
+    async function handlePasskeyLogin() {
+        // Try login first (existing passkey)
+        error = null;
+        try {
+            await authHook.login();
+            // If successful, redirect happens automatically
+            window.location.href = "/create";
+        } catch (e: any) {
+            // Login failed/cancelled - user likely doesn't have a passkey yet
+            // Fall back to account creation flow
+            console.log("Login failed, falling back to signup:", e.message);
+            step = "username";
+        }
     }
 
     async function submitUsername() {
@@ -100,21 +111,6 @@
         }
     }
 
-    async function handleLogin() {
-        step = "processing";
-        error = null;
-        try {
-            await authHook.login();
-            step = "success";
-            setTimeout(() => {
-                window.location.href = "/create";
-            }, 500);
-        } catch (e: any) {
-            console.error(e);
-            error = "Login cancelled or failed";
-            step = "intro";
-        }
-    }
 
     function handleSkip() {
         localStorage.setItem("smol_passkey_skipped", "true");
@@ -124,7 +120,7 @@
     function handleKeydown(e: KeyboardEvent) {
         if (step === "intro") {
             if (e.key === "Enter" || e.key === " ") {
-                handleCreate();
+                handlePasskeyLogin();
             }
         } else if (step === "username") {
             if (e.key === "Enter") {
@@ -436,28 +432,19 @@
                 class="flex flex-col items-center gap-4"
                 in:fade={{ duration: 400, delay: 600 }}
             >
-                <!-- PRIMARY: CREATE -->
+                <!-- SINGLE SMART PASSKEY BUTTON -->
                 <button
-                    onclick={handleCreate}
+                    onclick={handlePasskeyLogin}
                     class="group relative py-3 md:py-4 px-10 bg-lime-500 text-black font-pixel font-bold uppercase tracking-widest text-sm rounded-lg
                        hover:bg-lime-400 hover:-translate-y-1 hover:shadow-[0_8px_0_rgba(65,130,22,0.6)]
                        active:translate-y-1 active:shadow-none
                        transition-all duration-100 shadow-[0_4px_0_rgba(65,130,22,0.6)]
                        focus:outline-none focus:ring-4 focus:ring-lime-400/40"
-                    aria-label="Create Passkey Account"
+                    aria-label="Passkey Login"
                 >
                     <span class="flex items-center justify-center gap-2">
                         🔐 Passkey Login
                     </span>
-                </button>
-
-                <!-- SECONDARY: LOGIN -->
-                <button
-                    onclick={handleLogin}
-                    class="text-white/60 hover:text-white font-pixel uppercase tracking-wide text-xs py-2 px-4 rounded transition-colors
-                       focus:outline-none focus:text-white focus:bg-white/10"
-                >
-                    Already have an account? Login
                 </button>
 
                 <!-- SKIP -->
