@@ -122,6 +122,23 @@
       playNextSong();
     });
 
+    // Auto-resume on interruption end (e.g. phone call, alarm)
+    const handleInterruptionEnd = () => {
+      if (
+        document.visibilityState === "visible" &&
+        audioState.playingId &&
+        audioState.audioElement?.paused
+      ) {
+        console.log("[Audio] Attempting auto-resume after interruption...");
+        audioState.audioElement.play().catch((e) => {
+          console.warn("[Audio] Auto-resume failed:", e);
+        });
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleInterruptionEnd);
+    window.addEventListener("focus", handleInterruptionEnd);
+
     // Clean up on unmount
     return () => {
       if ("mediaSession" in navigator) {
@@ -129,6 +146,8 @@
         navigator.mediaSession.setActionHandler("pause", null);
         navigator.mediaSession.setActionHandler("nexttrack", null);
       }
+      document.removeEventListener("visibilitychange", handleInterruptionEnd);
+      window.removeEventListener("focus", handleInterruptionEnd);
     };
   });
 

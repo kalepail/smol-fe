@@ -12,6 +12,7 @@ export const audioState = $state<{
   audioElement: HTMLAudioElement | null;
   progress: number;
   songNextCallback: (() => void) | null;
+  songPrevCallback: (() => void) | null;
   // Web Audio API fields
   audioContext: AudioContext | null;
   analyser: AnalyserNode | null;
@@ -24,6 +25,7 @@ export const audioState = $state<{
   audioElement: null,
   progress: 0,
   songNextCallback: null,
+  songPrevCallback: null,
   audioContext: null,
   analyser: null,
   sourceNode: null,
@@ -158,6 +160,16 @@ export function registerSongNextCallback(callback: (() => void) | null) {
   audioState.songNextCallback = callback;
 }
 
+/**
+ * Register a callback for playing the previous song
+ */
+export function registerSongPrevCallback(callback: (() => void) | null) {
+  audioState.songPrevCallback = callback;
+}
+
+/**
+ * Call the registered next song callback if it exists
+ */
 export function playNextSong() {
   if (audioState.songNextCallback) {
     audioState.songNextCallback();
@@ -165,21 +177,11 @@ export function playNextSong() {
 }
 
 /**
- * Register a callback for playing the previous song
- */
-export function registerSongPrevCallback(callback: (() => void) | null) {
-  (audioState as any).songPrevCallback = callback;
-}
-
-/**
- * Call the registered prev song callback if it exists
+ * Call the registered previous song callback if it exists
  */
 export function playPrevSong() {
-  if ((audioState as any).songPrevCallback) {
-    (audioState as any).songPrevCallback();
-  } else if (audioState.audioElement) {
-    // Default fallback: restart song
-    audioState.audioElement.currentTime = 0;
+  if (audioState.songPrevCallback) {
+    audioState.songPrevCallback();
   }
 }
 

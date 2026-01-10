@@ -80,6 +80,14 @@
 
     <a
       class="flex items-center gap-1 hover:text-[#9ae600] transition-colors {path ===
+      '/created'
+        ? 'text-white'
+        : ''}"
+      href="/created">Created</a
+    >
+
+    <a
+      class="flex items-center gap-1 hover:text-[#9ae600] transition-colors {path ===
       '/radio'
         ? 'text-white'
         : ''}"

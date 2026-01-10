@@ -7,6 +7,8 @@
         registerSongPrevCallback,
         isPlaying,
         togglePlayPause,
+        playNextSong,
+        playPrevSong as playPreviousSong,
     } from "../../stores/audio.svelte";
     import { navigate } from "astro:transitions/client";
     import RadioPlayer from "../radio/RadioPlayer.svelte";
@@ -86,10 +88,23 @@
         return () => clearInterval(interval);
     });
 
-    // Auto-scroll to playing song when returning to grid view
+    // Auto-scroll to playing song when returning to grid view or changing song
     $effect(() => {
-        if (showGridView && audioState.playingId) {
-            // Tiny timeout to ensure DOM is ready if it was just unhidden
+        if (
+            showGridView &&
+            audioState.playingId &&
+            displayPlaylist.length > 0
+        ) {
+            const idx = displayPlaylist.findIndex(
+                (s) => s.Id === audioState.playingId,
+            );
+
+            // If the song is outside the current rendered window, expand the limit
+            if (idx !== -1 && idx >= gridLimit) {
+                gridLimit = idx + 20; // Ensure it's rendered with a small buffer
+            }
+
+            // Tiny timeout to ensure DOM is ready if it was just unhidden or expanded
             setTimeout(() => {
                 const el = document.getElementById(
                     `song-card-${audioState.playingId}`,
@@ -110,7 +125,10 @@
             preferences.glowTheme === "holiday" && !userState.contractId;
         const isHalloweenLocked =
             preferences.glowTheme === "halloween" && !upgradesState.goldenKale;
-        if (isHolidayLocked || isHalloweenLocked) {
+        const isValentineLocked =
+            preferences.glowTheme === "valentine" &&
+            !preferences.unlockedThemes.includes("valentine_2026");
+        if (isHolidayLocked || isHalloweenLocked || isValentineLocked) {
             preferences.glowTheme = "technicolor";
         }
     });
@@ -491,6 +509,32 @@
             isBest: s.music_id === currentSong.Song_1,
         }));
     });
+
+    // Time Machine: Random Jump + Canon Sort
+    async function activateTimeMachine() {
+        // 1. Force Canon Mode (Oldest First)
+        sortMode = "canon";
+
+        // 2. Wait for reactive list to update
+        await tick();
+
+        // 3. Jump to Random Index
+        if (displayPlaylist.length > 0) {
+            const randomIndex = Math.floor(
+                Math.random() * displayPlaylist.length,
+            );
+            const destinationSong = displayPlaylist[randomIndex];
+
+            // 4. Engage
+            handleSelect(randomIndex);
+
+            // 5. Feedback
+            const songDate = new Date(destinationSong.Created_At || Date.now());
+            alert(
+                `⚡ TIME TRAVEL: Transporting to... ${songDate.toLocaleDateString()}`,
+            );
+        }
+    }
 </script>
 
 <div
@@ -687,11 +731,13 @@
 
     <!-- Main Player Card -->
     <div
-        class="max-w-6xl w-full mx-auto reactive-glass border border-white/5 bg-[#1d1d1d]/70 backdrop-blur-xl md:rounded-2xl rounded-none shadow-2xl relative flex flex-col flex-1 min-h-0"
+        class="max-w-6xl w-full mx-auto reactive-glass border border-white/5 backdrop-blur-xl md:rounded-2xl rounded-none shadow-2xl relative flex flex-col flex-1 min-h-0 transition-all duration-700 bg-cover bg-center"
+        style={THEMES[preferences.glowTheme].style ||
+            "background-color: rgba(29, 29, 29, 0.7);"}
     >
         <!-- Control Bar -->
         <div
-            class="relative z-[100] flex items-center border-b border-white/5 bg-[#1a1a1a] backdrop-blur-xl shrink-0 min-w-0 py-2 px-3 gap-3 landscape:sticky landscape:top-0"
+            class="relative z-[100] flex items-center border-b border-white/5 bg-black/10 backdrop-blur-xl shrink-0 min-w-0 py-2 px-3 gap-3 landscape:sticky landscape:top-0"
         >
             <!-- Primary Grid Toggle with Rainbow Glow -->
             <button
@@ -954,9 +1000,15 @@
                                             {@const isGoldenKaleLocked =
                                                 key === "halloween" &&
                                                 !upgradesState.goldenKale}
+                                            {@const isValentineLocked =
+                                                key === "valentine" &&
+                                                !preferences.unlockedThemes.includes(
+                                                    "valentine_2026",
+                                                )}
                                             {@const isLocked =
                                                 isHolidayLocked ||
-                                                isGoldenKaleLocked}
+                                                isGoldenKaleLocked ||
+                                                isValentineLocked}
                                             <button
                                                 disabled={isLocked}
                                                 onclick={() => {
@@ -994,6 +1046,12 @@
                                                                 >
                                                             </span>
                                                         {/if}
+                                                        {#if key === "valentine"}
+                                                            <span
+                                                                class="ml-2 px-1 py-0.5 bg-blue-600 border border-white/50 text-[6px] text-white font-pixel shadow-[2px_2px_0px_#000]"
+                                                                >FEB 14</span
+                                                            >
+                                                        {/if}
                                                         {#if isLocked}
                                                             <svg
                                                                 class="w-3 h-3 text-white/30"
@@ -1021,6 +1079,12 @@
                                                             class="text-[8px] text-amber-400/50 uppercase tracking-wide"
                                                             >Golden Kale holders
                                                             only</span
+                                                        >
+                                                    {/if}
+                                                    {#if key === "valentine" && isLocked}
+                                                        <span
+                                                            class="text-[8px] text-pink-400/50 uppercase tracking-wide"
+                                                            >Limited Time Event</span
                                                         >
                                                     {/if}
                                                 </div>
@@ -1114,6 +1178,7 @@
                 <div
                     class="absolute inset-0 z-50 bg-[#121212] p-2 md:p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto dark-scrollbar pb-[env(safe-area-inset-bottom)]"
                     onscroll={handleGridScroll}
+                    style="contain: content;"
                 >
                     <div
                         class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 md:gap-4 pb-20"
@@ -1128,6 +1193,7 @@
                                 isPlaying()
                                     ? 'opacity-40 hover:opacity-100'
                                     : 'opacity-100'}"
+                                style="will-change: transform, opacity;"
                                 onclick={() => handleSelect(index)}
                                 onkeydown={() => {}}
                             >
@@ -1145,7 +1211,10 @@
                                 {/if}
 
                                 <div
-                                    class="aspect-square rounded-xl relative overflow-hidden z-10 shadow-2xl"
+                                    class="aspect-square rounded-xl relative overflow-hidden z-10 {preferences.renderMode ===
+                                    'thinking'
+                                        ? 'shadow-2xl'
+                                        : 'shadow-md'}"
                                 >
                                     {#if currentSong && song.Id === currentSong.Id && preferences.renderMode === "thinking"}
                                         <!-- Spinning Lightwire (Disabled in Fast Mode) -->
@@ -1170,7 +1239,10 @@
                                         <img
                                             src="{API_URL}/image/{song.Id}.png?scale=8"
                                             alt={song.Title}
-                                            class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 bg-slate-800"
+                                            class="w-full h-full object-cover transition-transform duration-500 bg-slate-800 {preferences.renderMode ===
+                                            'thinking'
+                                                ? 'group-hover:scale-110'
+                                                : ''}"
                                             loading="lazy"
                                         />
                                         {#if currentSong && song.Id === currentSong.Id && preferences.renderMode === "thinking"}
@@ -1203,7 +1275,10 @@
                                                 >
                                                     <!-- Share Button (Bottom Center) -->
                                                     <button
-                                                        class="absolute bottom-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/10 border-2 border-[#d836ff] text-[#d836ff] hover:bg-[#d836ff] hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(216,54,255,0.3)] pointer-events-auto"
+                                                        class="absolute bottom-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/10 border-2 border-[#d836ff] text-[#d836ff] hover:bg-[#d836ff] hover:text-white transition-all active:scale-95 pointer-events-auto {preferences.renderMode ===
+                                                        'thinking'
+                                                            ? 'shadow-[0_0_15px_rgba(216,54,255,0.3)]'
+                                                            : ''}"
                                                         onclick={(e) => {
                                                             e.stopPropagation();
                                                             const url = `${window.location.origin}/${song.Id}`;
@@ -1234,7 +1309,10 @@
                                                     <!-- Top Left: Artist -->
                                                     <div
                                                         role="button"
-                                                        class="absolute top-2 left-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-green-500 text-green-500 hover:bg-green-500 hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(34,197,94,0.3)] pointer-events-auto"
+                                                        class="absolute top-2 left-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-green-500 text-green-500 hover:bg-green-500 hover:text-white transition-all active:scale-95 pointer-events-auto {preferences.renderMode ===
+                                                        'thinking'
+                                                            ? 'shadow-[0_0_15px_rgba(34,197,94,0.3)]'
+                                                            : ''}"
                                                         onclick={(e) => {
                                                             e.stopPropagation();
                                                             navigate(
@@ -1262,7 +1340,10 @@
                                                     <!-- Top Right: Radio -->
                                                     <div
                                                         role="button"
-                                                        class="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(249,115,22,0.3)] pointer-events-auto"
+                                                        class="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white transition-all active:scale-95 pointer-events-auto {preferences.renderMode ===
+                                                        'thinking'
+                                                            ? 'shadow-[0_0_15px_rgba(249,115,22,0.3)]'
+                                                            : ''}"
                                                         onclick={(e) => {
                                                             e.stopPropagation();
                                                             navigate(
@@ -1289,7 +1370,10 @@
 
                                                     <!-- Bottom Left: Like -->
                                                     <div
-                                                        class="absolute bottom-2 left-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(239,68,68,0.3)] pointer-events-auto"
+                                                        class="absolute bottom-2 left-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition-all active:scale-95 pointer-events-auto {preferences.renderMode ===
+                                                        'thinking'
+                                                            ? 'shadow-[0_0_15px_rgba(239,68,68,0.3)]'
+                                                            : ''}"
                                                         role="button"
                                                         tabindex="0"
                                                         onclick={(e) =>
@@ -1317,7 +1401,10 @@
                                                     <!-- Bottom Right: Song Detail -->
                                                     <div
                                                         role="button"
-                                                        class="absolute bottom-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-[#d836ff] text-[#d836ff] hover:bg-[#d836ff] hover:text-white transition-all active:scale-95 shadow-[0_0_15px_rgba(216,54,255,0.3)] pointer-events-auto"
+                                                        class="absolute bottom-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-[#d836ff] text-[#d836ff] hover:bg-[#d836ff] hover:text-white transition-all active:scale-95 pointer-events-auto {preferences.renderMode ===
+                                                        'thinking'
+                                                            ? 'shadow-[0_0_15px_rgba(216,54,255,0.3)]'
+                                                            : ''}"
                                                         onclick={(e) => {
                                                             e.stopPropagation();
                                                             navigate(
@@ -1350,7 +1437,10 @@
                                             <!-- Top Left: Artist Profile -->
                                             <div
                                                 role="button"
-                                                class="absolute top-2 left-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-green-500/50 text-green-400 hover:bg-green-500/20 transition-all shadow-[0_0_10px_rgba(34,197,94,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(34,197,94,0.5)] cursor-pointer opacity-0 group-hover:opacity-100 duration-300"
+                                                class="absolute top-2 left-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 border border-green-500/50 text-green-400 hover:bg-green-500/20 transition-all active:scale-95 cursor-pointer opacity-0 group-hover:opacity-100 duration-300 {preferences.renderMode ===
+                                                'thinking'
+                                                    ? 'backdrop-blur-md shadow-[0_0_10px_rgba(34,197,94,0.3)] hover:shadow-[0_0_15px_rgba(34,197,94,0.5)]'
+                                                    : ''}"
                                                 onclick={(e) => {
                                                     e.stopPropagation();
                                                     navigate(
@@ -1385,7 +1475,10 @@
                                             <!-- Top Right: Send to Radio -->
                                             <div
                                                 role="button"
-                                                class="absolute top-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-orange-500/50 text-orange-400 hover:bg-orange-500/20 transition-all shadow-[0_0_10px_rgba(249,115,22,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(249,115,22,0.5)] cursor-pointer opacity-0 group-hover:opacity-100 duration-300"
+                                                class="absolute top-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 border border-orange-500/50 text-orange-400 hover:bg-orange-500/20 transition-all active:scale-95 cursor-pointer opacity-0 group-hover:opacity-100 duration-300 {preferences.renderMode ===
+                                                'thinking'
+                                                    ? 'backdrop-blur-md shadow-[0_0_10px_rgba(249,115,22,0.3)] hover:shadow-[0_0_15px_rgba(249,115,22,0.5)]'
+                                                    : ''}"
                                                 onclick={(e) => {
                                                     e.stopPropagation();
                                                     navigate(
@@ -1426,7 +1519,10 @@
                                                 <LikeButton
                                                     smolId={song.Id}
                                                     liked={song.Liked || false}
-                                                    classNames="p-1.5 rounded-full bg-black/40 backdrop-blur-md border border-[#FF424C]/50 text-[#FF424C] hover:bg-[#FF424C]/20 transition-all shadow-[0_0_10px_rgba(255,66,76,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(255,66,76,0.5)]"
+                                                    classNames="p-1.5 rounded-full bg-black/40 border border-[#FF424C]/50 text-[#FF424C] hover:bg-[#FF424C]/20 transition-all active:scale-95 {preferences.renderMode ===
+                                                    'thinking'
+                                                        ? 'backdrop-blur-md shadow-[0_0_10px_rgba(255,66,76,0.3)] hover:shadow-[0_0_15px_rgba(255,66,76,0.5)]'
+                                                        : ''}"
                                                     iconSize="size-4"
                                                     on:likeChanged={(e) => {
                                                         handleToggleLike(
@@ -1440,7 +1536,10 @@
                                             <!-- Bottom Right: Song Detail -->
                                             <div
                                                 role="button"
-                                                class="absolute bottom-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 transition-all shadow-[0_0_10px_rgba(216,54,255,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(216,54,255,0.5)] cursor-pointer opacity-0 group-hover:opacity-100 duration-300"
+                                                class="absolute bottom-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 transition-all active:scale-95 cursor-pointer opacity-0 group-hover:opacity-100 duration-300 {preferences.renderMode ===
+                                                'thinking'
+                                                    ? 'backdrop-blur-md shadow-[0_0_10px_rgba(216,54,255,0.3)] hover:shadow-[0_0_15px_rgba(216,54,255,0.5)]'
+                                                    : ''}"
                                                 onclick={(e) => {
                                                     e.stopPropagation();
                                                     navigate(
@@ -1529,10 +1628,22 @@
                             Playlist ({displayPlaylist.length})
                         </h3>
                         <div class="flex items-center gap-2">
-                            <span
-                                class="text-[8px] font-pixel tracking-widest tabular-nums opacity-80 uppercase"
-                                >{timeString}</span
+                            <button
+                                onclick={activateTimeMachine}
+                                class="flex flex-col items-end group/clock cursor-pointer"
+                                title="Time Machine: Random Jump in History"
                             >
+                                <span
+                                    class="text-[10px] md:text-xs font-pixel tracking-widest tabular-nums text-lime-400 drop-shadow-[0_0_5px_rgba(163,230,53,0.5)] group-hover/clock:text-white transition-colors animate-pulse"
+                                    >{timeString}</span
+                                >
+                                <span
+                                    class="text-[6px] font-pixel text-lime-600/60 uppercase tracking-tight group-hover/clock:text-lime-400"
+                                >
+                                    {#if sortMode === "canon"}TIME TRAV
+                                    {:else}PRESENT DAY{/if}
+                                </span>
+                            </button>
                         </div>
                     </div>
 

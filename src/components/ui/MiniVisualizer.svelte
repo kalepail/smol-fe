@@ -10,13 +10,8 @@
     let ctx: CanvasRenderingContext2D | null = null;
     let animationId: number;
 
-    import { preferences } from "../../stores/preferences.svelte";
-
     function draw() {
         if (!canvas || !audioState.analyser) return;
-
-        // FAST MODE: Stop animation loop entirely to save CPU/GPU
-        if (preferences.renderMode === "fast") return;
 
         if (!ctx) {
             ctx = canvas.getContext("2d");
@@ -73,18 +68,8 @@
     }
 
     $effect(() => {
-        // Start loop if in thinking mode
-        if (
-            canvas &&
-            audioState.analyser &&
-            preferences.renderMode === "thinking"
-        ) {
+        if (canvas && audioState.analyser) {
             draw();
-        } else if (preferences.renderMode === "fast") {
-            // Cancel any running loop if we switch to fast
-            if (animationId) cancelAnimationFrame(animationId);
-            // Optional: Clear canvas? Or just leave last frame? Clearing is cleaner.
-            if (ctx && canvas) ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
 
         return () => {

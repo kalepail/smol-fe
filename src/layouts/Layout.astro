@@ -69,7 +69,8 @@ if (token) {
 		<meta property="og:image:height" content="1024"> -->
 		<!-- <meta property="og:image:type" content="image/png"> -->
 		<meta property="og:audio" content={song_url} />
-		<meta property="og:audio:type" content="audio/mpeg">
+		<meta property="og:audio:secure_url" content={song_url} />
+		<meta property="og:audio:type" content="audio/mpeg" />
 
 		<!-- <link rel="alternate" type="application/json+oembed" href="//embed//"> -->
 
@@ -80,17 +81,20 @@ if (token) {
 		<meta property="og:video:height" content="1024">
 		<meta property="og:type" content="video.other"> -->
 
-		<!-- <meta name="twitter:card" content="player" /> -->
-		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:card" content={song_url ? "player" : "summary_large_image"} />
 		<!-- <meta name="twitter:site" content="@smolxyz"> -->
 		<meta name="twitter:title" content={title} />
 		<meta name="twitter:description" content={description} />
 		<meta name="twitter:image" content={image_url ? `${image_url}?scale=16` : "https://smol.xyz/meta.png"} />
 		<meta name="twitter:url" content={Astro.url} />
-		<!-- <meta name="twitter:player" content="//embed//"> -->
-		<!-- <meta name="twitter:player:stream" content={song_url}>
-		<meta name="twitter:player:width" content="760">
-		<meta name="twitter:player:height" content="240"> -->
+		
+		{song_url && (
+			<>
+				<meta name="twitter:player" content={song_url} />
+				<meta name="twitter:player:width" content="500" />
+				<meta name="twitter:player:height" content="80" />
+			</>
+		)}
 	</head>
 	<body class="bg-transparent text-white min-h-screen relative">
 		<!-- Global Dynamic Background (Pixel Kale Field) -->
@@ -105,7 +109,7 @@ if (token) {
 		<OnboardingGuard client:only="svelte" isAuthenticatedServer={!!_cid} />
 		<PasskeyReprompt client:load />
 		
-		<div class={(hideBottomBar || Astro.url.pathname.startsWith('/artist/') || Astro.url.pathname.startsWith('/tags')) ? 'hidden' : ''}>
+		<div class={(hideBottomBar || Astro.url.pathname.startsWith('/artist/') || Astro.url.pathname.startsWith('/tags') || Astro.url.pathname.startsWith('/created')) ? 'hidden' : ''}>
 			<BarAudioPlayer client:only="svelte" transition:persist="audio-player" />
 		</div>
 		<MixtapeBuilderOverlay client:load transition:persist="mixtape-builder" />

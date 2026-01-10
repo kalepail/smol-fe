@@ -7,6 +7,7 @@
         isPlaying,
     } from "../../stores/audio.svelte";
     import { navigate } from "astro:transitions/client";
+    import { onDestroy } from "svelte";
     import RadioPlayer from "../radio/RadioPlayer.svelte";
     import LikeButton from "../ui/LikeButton.svelte";
     import Loader from "../ui/Loader.svelte";
@@ -33,6 +34,13 @@
     let activeTab = $state<"lyrics" | "metadata">("lyrics");
     let autoScroll = $state(false); // Enable auto-scroll (Default OFF)
     let tradeMintBalance = $state(0n); // Restored missing state
+
+    // Polling state for generation-aware loading
+    let pollIntervalId: ReturnType<typeof setInterval> | null = null;
+    let retryCount = $state(0);
+    let isPolling = $state(false);
+    const MAX_RETRIES = 30; // 30 * 2s = 60s max
+    const POLL_INTERVAL = 2000;
 
     // Context-aware back navigation
     let backContext = $state<{
@@ -117,28 +125,156 @@
             : [],
     );
 
-    async function fetchData() {
-        loading = true;
+    // Check if song is still generating - only poll if we're MISSING essential data
+    function isStillGenerating(response: SmolDetailResponse | null): boolean {
+        if (!response) return true;
+
+        // If wf.status is complete or undefined (old songs), we're done
+        const status = response.wf?.status;
+        if (status === "complete" || status === undefined) {
+            return false;
+        }
+
+        // If we have d1.Title OR kv_do data, song has partial data ready to display
+        // kv_do contains image_base64 and lyrics which arrive early during generation
+        if (
+            response.d1?.Title ||
+            response.kv_do?.image_base64 ||
+            response.kv_do?.lyrics?.title
+        ) {
+            return false; // We have enough to display
+        }
+
+        // Still generating - no data yet
+        return (
+            status === "queued" ||
+            status === "running" ||
+            status === "waiting" ||
+            status === "paused"
+        );
+    }
+
+    // Check if generation failed
+    function isGenerationFailed(response: SmolDetailResponse | null): boolean {
+        if (!response) return false;
+        const status = response.wf?.status;
+        return status === "errored" || status === "terminated";
+    }
+
+    // Stop polling
+    function stopPolling() {
+        if (pollIntervalId) {
+            clearInterval(pollIntervalId);
+            pollIntervalId = null;
+        }
+        isPolling = false;
+    }
+
+    async function fetchData(isRetry = false) {
+        if (!isRetry) {
+            loading = true;
+            error = null;
+            retryCount = 0;
+        }
+
         try {
             const res = await fetch(`${API_URL}/${id}`, {
                 credentials: "include",
+                cache: "no-store",
             });
-            if (!res.ok) throw new Error("Failed to load track");
+
+            if (!res.ok) {
+                // 404 might mean song is still being created - start polling
+                if (res.status === 404 && retryCount < MAX_RETRIES) {
+                    isPolling = true;
+                    startPolling();
+                    return;
+                }
+                throw new Error(
+                    res.status === 404
+                        ? "Song not found"
+                        : "Failed to load track",
+                );
+            }
+
             data = await res.json();
 
-            // Auto-play if not already playing something else
+            // Check if still generating
+            if (isStillGenerating(data) && retryCount < MAX_RETRIES) {
+                isPolling = true;
+                startPolling();
+                return;
+            }
+
+            // Check if generation failed
+            if (isGenerationFailed(data)) {
+                stopPolling();
+                error = "Generation failed. Please try again.";
+                loading = false;
+                return;
+            }
+
+            // Complete! Stop polling and show content
+            stopPolling();
+            loading = false;
+
+            // Auto-play if track is ready
             if (track) {
                 selectSong(track);
             }
         } catch (e: any) {
-            error = e.message;
-        } finally {
-            loading = false;
+            // On error, try polling if we haven't exhausted retries
+            if (retryCount < MAX_RETRIES && !error) {
+                isPolling = true;
+                startPolling();
+            } else {
+                stopPolling();
+                error = e.message;
+                loading = false;
+            }
         }
     }
 
+    function startPolling() {
+        if (pollIntervalId) return; // Already polling
+
+        pollIntervalId = setInterval(() => {
+            retryCount++;
+
+            if (retryCount >= MAX_RETRIES) {
+                stopPolling();
+                error = "Taking longer than expected. Click retry to continue.";
+                loading = false;
+                return;
+            }
+
+            fetchData(true);
+        }, POLL_INTERVAL);
+    }
+
+    function retryFetch() {
+        error = null;
+        retryCount = 0;
+        fetchData();
+    }
+
+    // Track last fetched ID to prevent duplicate fetches on re-renders
+    let lastFetchedId: string | null = null;
+
     $effect(() => {
-        if (id) fetchData();
+        if (id && id !== lastFetchedId) {
+            lastFetchedId = id;
+            // IMPORTANT: Clear old data to prevent showing stale content from previous song
+            data = null;
+            error = null;
+            stopPolling();
+            fetchData();
+        }
+    });
+
+    // Cleanup on destroy
+    onDestroy(() => {
+        stopPolling();
     });
 
     // Fetch mint balance
@@ -258,16 +394,210 @@
 
 <div class="max-w-6xl mx-auto px-4 font-mono overflow-x-hidden">
     {#if loading}
-        <div class="flex items-center justify-center py-32">
-            <Loader classNames="w-12 h-12" textColor="text-[#d836ff]" />
+        <div
+            class="flex flex-col items-center justify-center py-16 gap-6 animate-in fade-in duration-500"
+        >
+            <!-- Progressive loading card -->
+            <div class="w-full max-w-md mx-auto">
+                <div
+                    class="relative bg-[#1a1a1a]/80 border border-white/10 rounded-2xl p-6 backdrop-blur-xl shadow-2xl overflow-hidden"
+                >
+                    <!-- Animated gradient border -->
+                    <div
+                        class="absolute inset-0 rounded-2xl bg-gradient-to-r from-[#d836ff]/20 via-transparent to-[#d836ff]/20 opacity-50 animate-pulse"
+                    ></div>
+
+                    <div class="relative flex items-center gap-6">
+                        <!-- Artwork - use kv_do.image_base64 first (available during generation), then API image -->
+                        {#if data?.kv_do?.image_base64}
+                            <div
+                                class="w-24 h-24 rounded-xl overflow-hidden shadow-lg ring-2 ring-[#d836ff]/30 shrink-0"
+                            >
+                                <img
+                                    src="data:image/png;base64,{data.kv_do
+                                        .image_base64}"
+                                    alt="Loading artwork"
+                                    class="w-full h-full object-cover animate-in fade-in duration-500"
+                                />
+                            </div>
+                        {:else if data?.d1?.Title}
+                            <div
+                                class="w-24 h-24 rounded-xl overflow-hidden shadow-lg ring-2 ring-[#d836ff]/30 shrink-0"
+                            >
+                                <img
+                                    src="{API_URL}/image/{id}.png?scale=8"
+                                    alt="Loading artwork"
+                                    class="w-full h-full object-cover animate-in fade-in duration-500"
+                                    onerror={(e) =>
+                                        (e.currentTarget.style.display =
+                                            "none")}
+                                />
+                            </div>
+                        {:else}
+                            <div
+                                class="w-24 h-24 rounded-xl bg-gradient-to-br from-[#d836ff]/20 to-[#d836ff]/5 animate-pulse flex items-center justify-center shrink-0"
+                            >
+                                <svg
+                                    class="w-8 h-8 text-[#d836ff]/40"
+                                    fill="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"
+                                    />
+                                </svg>
+                            </div>
+                        {/if}
+
+                        <div class="flex-1 min-w-0">
+                            <!-- Title - use kv_do.lyrics.title first (available during generation) -->
+                            {#if data?.kv_do?.lyrics?.title || data?.d1?.Title}
+                                <h3
+                                    class="text-lg font-bold text-white truncate mb-1 animate-in fade-in slide-in-from-right-2 duration-500"
+                                >
+                                    {data?.kv_do?.lyrics?.title ||
+                                        data?.d1?.Title}
+                                </h3>
+                            {:else}
+                                <div
+                                    class="h-6 w-3/4 bg-white/10 rounded animate-pulse mb-2"
+                                ></div>
+                            {/if}
+
+                            <!-- Artist -->
+                            {#if data?.d1?.Artist}
+                                <p
+                                    class="text-sm text-[#d836ff]/80 truncate mb-3 animate-in fade-in slide-in-from-right-2 duration-700"
+                                >
+                                    {data.d1.Artist}
+                                </p>
+                            {:else}
+                                <div
+                                    class="h-4 w-1/2 bg-white/5 rounded animate-pulse mb-3"
+                                ></div>
+                            {/if}
+
+                            <!-- Status -->
+                            <div class="flex items-center gap-2">
+                                <div
+                                    class="w-2 h-2 rounded-full bg-[#d836ff] animate-pulse shadow-[0_0_8px_#d836ff]"
+                                ></div>
+                                <span class="text-xs text-white/50">
+                                    {#if isPolling}
+                                        Finalizing track...
+                                    {:else}
+                                        Loading...
+                                    {/if}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Progress steps -->
+                    {#if isPolling}
+                        <div class="mt-6 pt-4 border-t border-white/5">
+                            <div
+                                class="flex justify-between text-[10px] uppercase tracking-wider"
+                            >
+                                <span
+                                    class="text-[#d836ff] flex items-center gap-1"
+                                >
+                                    <svg
+                                        class="w-3 h-3"
+                                        fill="currentColor"
+                                        viewBox="0 0 20 20"
+                                    >
+                                        <path
+                                            fill-rule="evenodd"
+                                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                            clip-rule="evenodd"
+                                        />
+                                    </svg>
+                                    Created
+                                </span>
+                                <span
+                                    class="{data?.kv_do?.image_base64
+                                        ? 'text-[#d836ff]'
+                                        : 'text-white/30'} flex items-center gap-1"
+                                >
+                                    {#if data?.kv_do?.image_base64}
+                                        <svg
+                                            class="w-3 h-3"
+                                            fill="currentColor"
+                                            viewBox="0 0 20 20"
+                                        >
+                                            <path
+                                                fill-rule="evenodd"
+                                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                                clip-rule="evenodd"
+                                            />
+                                        </svg>
+                                    {:else}
+                                        <Loader
+                                            classNames="w-3 h-3"
+                                            textColor="text-white/30"
+                                        />
+                                    {/if}
+                                    Artwork
+                                </span>
+                                <span
+                                    class="{data?.kv_do?.lyrics?.title ||
+                                    data?.d1?.Title
+                                        ? 'text-[#d836ff]'
+                                        : 'text-white/30'} flex items-center gap-1"
+                                >
+                                    {#if data?.kv_do?.lyrics?.title || data?.d1?.Title}
+                                        <svg
+                                            class="w-3 h-3"
+                                            fill="currentColor"
+                                            viewBox="0 0 20 20"
+                                        >
+                                            <path
+                                                fill-rule="evenodd"
+                                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                                clip-rule="evenodd"
+                                            />
+                                        </svg>
+                                    {:else}
+                                        <Loader
+                                            classNames="w-3 h-3"
+                                            textColor="text-white/30"
+                                        />
+                                    {/if}
+                                    Metadata
+                                </span>
+                                <span
+                                    class="text-white/30 flex items-center gap-1"
+                                >
+                                    <Loader
+                                        classNames="w-3 h-3"
+                                        textColor="text-white/30"
+                                    />
+                                    Audio
+                                </span>
+                            </div>
+                        </div>
+                    {/if}
+                </div>
+            </div>
         </div>
     {:else if error}
         <div class="text-center py-32">
             <h2 class="text-2xl font-bold text-red-500 mb-4">Error</h2>
-            <p class="text-white/40">{error}</p>
-            <a href="/" class="mt-8 inline-block text-[#d836ff] hover:underline"
-                >Back Home</a
-            >
+            <p class="text-white/40 mb-6">{error}</p>
+            <div class="flex gap-4 justify-center">
+                <button
+                    onclick={retryFetch}
+                    class="px-6 py-2 bg-[#d836ff] hover:bg-[#d836ff]/80 text-white rounded-lg font-medium transition-colors"
+                >
+                    Retry
+                </button>
+                <a
+                    href="/"
+                    class="px-6 py-2 border border-white/20 hover:border-[#d836ff] text-white/60 hover:text-[#d836ff] rounded-lg transition-colors"
+                    >Back Home</a
+                >
+            </div>
         </div>
     {:else if data}
         <div class="animate-in fade-in slide-in-from-bottom-4 duration-700">

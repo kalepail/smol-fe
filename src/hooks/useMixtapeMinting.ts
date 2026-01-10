@@ -217,7 +217,7 @@ export function useMixtapeMinting() {
       throw new Error('Missing PUBLIC_SMOL_CONTRACT_ID env var');
     }
 
-    const kaleSacId = import.meta.env.PUBLIC_KALE_SAC_ID || "CAS3J7GYLGXMF6TDJBBYABC3M2OX6COCCFDDB6J6W3F7X47X62N3C4A5";
+    const kaleSacId = import.meta.env.PUBLIC_KALE_SAC_ID || "CB23WRDQWGSP6YPMY4UV5C4OW5CBTXKYN3XEATG7KJEZCXMJBYEHOUOV";
 
     // Find all tracks that need minting
     const tracksToMintData = mixtapeTracks.filter((track) => {
