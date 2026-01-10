@@ -1,9 +1,17 @@
 /**
  * Persistent store for unlocked profile upgrades using Svelte 5 runes
- * 
+ *
  * Each upgrade has two states:
  * - "owned": true if purchased or granted (permanent, verified on-chain)
  * - "enabled": true if user wants to display it (toggleable)
+ *
+ * SECURITY NOTE: Client-side state can be tampered via localStorage edits.
+ * This is mitigated by:
+ * 1. Reactive validation in GlobalVerification calls verifyPastPurchases()
+ * 2. Theme gating in preferences.svelte.ts validates entitlements continuously
+ * 3. All "apply" operations (e.g., setTheme) check canUseTheme() before applying
+ *
+ * Treat upgradesState as "claimed" state - the theme layer enforces actual entitlement.
  */
 
 // Keys for localStorage

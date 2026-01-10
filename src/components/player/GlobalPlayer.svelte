@@ -40,6 +40,10 @@
         preferences,
         THEMES,
         type GlowTheme,
+        canUseTheme,
+        setTheme,
+        setRenderMode,
+        validateAndRevertTheme,
     } from "../../stores/preferences.svelte";
     import { upgradesState } from "../../stores/upgrades.svelte";
 
@@ -121,18 +125,15 @@
         }
     });
 
-    // Auto-fallback locked themes to technicolor_v2
+    // Auto-fallback locked themes to slate using centralized validation
+    // This runs whenever userState, upgradesState, or preferences change
     $effect(() => {
-        const isHolidayLocked =
-            preferences.glowTheme === "holiday" && !userState.contractId;
-        const isHalloweenLocked =
-            preferences.glowTheme === "halloween" && !upgradesState.goldenKale;
-        const isValentineLocked =
-            preferences.glowTheme === "valentine" &&
-            !preferences.unlockedThemes.includes("valentine_2026");
-        if (isHolidayLocked || isHalloweenLocked || isValentineLocked) {
-            preferences.glowTheme = "technicolor_v2";
-        }
+        // Validate current theme eligibility and revert to slate if locked
+        validateAndRevertTheme(
+            userState,
+            upgradesState,
+            preferences.unlockedThemes
+        );
     });
 
     // Determine current artist context (for Header/Tipping)
@@ -949,9 +950,7 @@
                                     </div>
                                     <div class="flex flex-col gap-1">
                                         <button
-                                            onclick={() => {
-                                                preferences.renderMode = "fast";
-                                            }}
+                                            onclick={() => setRenderMode("fast")}
                                             class="w-full flex items-center justify-between p-2 rounded-lg transition-colors {preferences.renderMode ===
                                             'fast'
                                                 ? 'bg-white/10 text-white'
@@ -967,10 +966,7 @@
                                             {/if}
                                         </button>
                                         <button
-                                            onclick={() => {
-                                                preferences.renderMode =
-                                                    "thinking";
-                                            }}
+                                            onclick={() => setRenderMode("thinking")}
                                             class="w-full flex items-center justify-between p-2 rounded-lg transition-colors {preferences.renderMode ===
                                             'thinking'
                                                 ? 'bg-white/10 text-white'
@@ -999,27 +995,27 @@
                                         class="grid grid-cols-1 gap-1 max-h-[200px] overflow-y-auto dark-scrollbar pr-1"
                                     >
                                         {#each Object.entries(THEMES) as [key, theme]}
+                                            {@const ctx = {
+                                                user: userState,
+                                                upgrades: upgradesState,
+                                                unlocks: preferences.unlockedThemes
+                                            }}
+                                            {@const isLocked = !canUseTheme(key as GlowTheme, ctx)}
                                             {@const isHolidayLocked =
-                                                key === "holiday" &&
-                                                !userState.contractId}
+                                                key === "holiday" && isLocked}
                                             {@const isGoldenKaleLocked =
-                                                key === "halloween" &&
-                                                !upgradesState.goldenKale}
+                                                key === "halloween" && isLocked}
                                             {@const isValentineLocked =
-                                                key === "valentine" &&
-                                                !preferences.unlockedThemes.includes(
-                                                    "valentine_2026",
-                                                )}
-                                            {@const isLocked =
-                                                isHolidayLocked ||
-                                                isGoldenKaleLocked ||
-                                                isValentineLocked}
+                                                key === "valentine" && isLocked}
                                             <button
                                                 disabled={isLocked}
                                                 onclick={() => {
-                                                    if (!isLocked)
-                                                        preferences.glowTheme =
-                                                            key as GlowTheme;
+                                                    setTheme(
+                                                        key as GlowTheme,
+                                                        userState,
+                                                        upgradesState,
+                                                        preferences.unlockedThemes
+                                                    );
                                                 }}
                                                 class="w-full flex items-center justify-between p-2 rounded-lg transition-colors group/theme {preferences.glowTheme ===
                                                 key
