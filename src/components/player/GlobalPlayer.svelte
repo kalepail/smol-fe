@@ -125,7 +125,10 @@
             preferences.glowTheme === "holiday" && !userState.contractId;
         const isHalloweenLocked =
             preferences.glowTheme === "halloween" && !upgradesState.goldenKale;
-        if (isHolidayLocked || isHalloweenLocked) {
+        const isValentineLocked =
+            preferences.glowTheme === "valentine" &&
+            !preferences.unlockedThemes.includes("valentine_2026");
+        if (isHolidayLocked || isHalloweenLocked || isValentineLocked) {
             preferences.glowTheme = "technicolor";
         }
     });
@@ -506,6 +509,22 @@
             isBest: s.music_id === currentSong.Song_1,
         }));
     });
+
+    // Time Machine / Sort Cycle
+    function cycleSortMode() {
+        if (sortMode === "latest") {
+            sortMode = "canon"; // Oldest First
+            alert("⏳ TIMELINE RESET: Traveling to the beginning...");
+        } else if (sortMode === "canon") {
+            sortMode = "shuffle"; // Random
+            alert(
+                "🎲 TIMELINE SCRAMBLED: Engaging infinite probability drive...",
+            );
+        } else {
+            sortMode = "latest"; // Newest First
+            alert("🚀 BACK TO THE FUTURE: Returning to present day drops...");
+        }
+    }
 </script>
 
 <div
@@ -702,11 +721,13 @@
 
     <!-- Main Player Card -->
     <div
-        class="max-w-6xl w-full mx-auto reactive-glass border border-white/5 bg-[#1d1d1d]/70 backdrop-blur-xl md:rounded-2xl rounded-none shadow-2xl relative flex flex-col flex-1 min-h-0"
+        class="max-w-6xl w-full mx-auto reactive-glass border border-white/5 backdrop-blur-xl md:rounded-2xl rounded-none shadow-2xl relative flex flex-col flex-1 min-h-0 transition-all duration-700 bg-cover bg-center"
+        style={THEMES[preferences.glowTheme].style ||
+            "background-color: rgba(29, 29, 29, 0.7);"}
     >
         <!-- Control Bar -->
         <div
-            class="relative z-[100] flex items-center border-b border-white/5 bg-[#1a1a1a] backdrop-blur-xl shrink-0 min-w-0 py-2 px-3 gap-3 landscape:sticky landscape:top-0"
+            class="relative z-[100] flex items-center border-b border-white/5 bg-black/10 backdrop-blur-xl shrink-0 min-w-0 py-2 px-3 gap-3 landscape:sticky landscape:top-0"
         >
             <!-- Primary Grid Toggle with Rainbow Glow -->
             <button
@@ -969,9 +990,15 @@
                                             {@const isGoldenKaleLocked =
                                                 key === "halloween" &&
                                                 !upgradesState.goldenKale}
+                                            {@const isValentineLocked =
+                                                key === "valentine" &&
+                                                !preferences.unlockedThemes.includes(
+                                                    "valentine_2026",
+                                                )}
                                             {@const isLocked =
                                                 isHolidayLocked ||
-                                                isGoldenKaleLocked}
+                                                isGoldenKaleLocked ||
+                                                isValentineLocked}
                                             <button
                                                 disabled={isLocked}
                                                 onclick={() => {
@@ -1009,6 +1036,12 @@
                                                                 >
                                                             </span>
                                                         {/if}
+                                                        {#if key === "valentine"}
+                                                            <span
+                                                                class="ml-2 px-1 py-0.5 bg-blue-600 border border-white/50 text-[6px] text-white font-pixel shadow-[2px_2px_0px_#000]"
+                                                                >FEB 14</span
+                                                            >
+                                                        {/if}
                                                         {#if isLocked}
                                                             <svg
                                                                 class="w-3 h-3 text-white/30"
@@ -1036,6 +1069,12 @@
                                                             class="text-[8px] text-amber-400/50 uppercase tracking-wide"
                                                             >Golden Kale holders
                                                             only</span
+                                                        >
+                                                    {/if}
+                                                    {#if key === "valentine" && isLocked}
+                                                        <span
+                                                            class="text-[8px] text-pink-400/50 uppercase tracking-wide"
+                                                            >Limited Time Event</span
                                                         >
                                                     {/if}
                                                 </div>
@@ -1579,10 +1618,23 @@
                             Playlist ({displayPlaylist.length})
                         </h3>
                         <div class="flex items-center gap-2">
-                            <span
-                                class="text-[8px] font-pixel tracking-widest tabular-nums opacity-80 uppercase"
-                                >{timeString}</span
+                            <button
+                                onclick={cycleSortMode}
+                                class="flex flex-col items-end group/clock"
+                                title="Time Machine: Click to Travel"
                             >
+                                <span
+                                    class="text-[10px] md:text-xs font-pixel tracking-widest tabular-nums text-lime-400 drop-shadow-[0_0_5px_rgba(163,230,53,0.5)] group-hover/clock:text-white transition-colors animate-pulse"
+                                    >{timeString}</span
+                                >
+                                <span
+                                    class="text-[6px] font-pixel text-lime-600/60 uppercase tracking-tight group-hover/clock:text-lime-400"
+                                >
+                                    {#if sortMode === "canon"}TIME TRAV
+                                    {:else if sortMode === "shuffle"}SCRAMBLED
+                                    {:else}PRESENT DAY{/if}
+                                </span>
+                            </button>
                         </div>
                     </div>
 

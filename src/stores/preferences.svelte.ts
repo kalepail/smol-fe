@@ -4,11 +4,12 @@
  * Persists render settings to localStorage
  */
 
-export type GlowTheme = 'technicolor' | 'neural' | 'red' | 'green' | 'blue' | 'holiday' | 'halloween' | 'usa';
+export type GlowTheme = 'technicolor' | 'neural' | 'red' | 'green' | 'blue' | 'holiday' | 'halloween' | 'usa' | 'valentine' | 'slate' | 'kale';
 
 const DEFAULT_PREFERENCES = {
     renderMode: 'thinking' as 'fast' | 'thinking',
-    glowTheme: 'technicolor' as GlowTheme
+    glowTheme: 'technicolor' as GlowTheme,
+    unlockedThemes: [] as string[]
 };
 
 function loadPreferences() {
@@ -68,6 +69,24 @@ export const THEMES: Record<GlowTheme, { name: string, gradient: string, color: 
         name: 'Liberty',
         gradient: 'from-blue-600 via-white to-red-600',
         color: '#3b82f6'
+    },
+    valentine: {
+        name: "Valentine's ❤️",
+        gradient: 'from-pink-500 via-red-500 to-purple-500',
+        color: '#ec4899',
+        style: 'background-image: url("/images/valentine_hearts.png"); background-size: cover;'
+    },
+    slate: {
+        name: 'Solid Slate',
+        gradient: 'from-slate-700 via-slate-600 to-slate-500',
+        color: '#475569',
+        style: 'background-color: #1D293D;'
+    },
+    kale: {
+        name: 'Kale Field',
+        gradient: 'from-green-400 via-emerald-500 to-teal-400',
+        color: '#10b981',
+        style: 'background-image: url("/images/kale-field-bg.png"); background-size: cover;'
     }
 };
 
@@ -76,7 +95,8 @@ $effect.root(() => {
         if (typeof localStorage !== 'undefined') {
             localStorage.setItem('smol_preferences', JSON.stringify({
                 renderMode: preferences.renderMode,
-                glowTheme: preferences.glowTheme
+                glowTheme: preferences.glowTheme,
+                unlockedThemes: preferences.unlockedThemes || []
             }));
         }
     });
