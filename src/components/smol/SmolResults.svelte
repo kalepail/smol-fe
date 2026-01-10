@@ -31,6 +31,7 @@
     let showTradeModal = $state(false);
     let minting = $state(false);
     let showTipModal = $state(false);
+    let tipArtistAddress = $state<string | null>(null);
     let activeTab = $state<"lyrics" | "metadata">("lyrics");
     let autoScroll = $state(false); // Enable auto-scroll (Default OFF)
     let tradeMintBalance = $state(0n); // Restored missing state
@@ -732,7 +733,10 @@
                                     );
                                     return;
                                 }
-                                showTipModal = true;
+                                if (data?.d1?.Address) {
+                                    tipArtistAddress = data.d1.Address;
+                                    showTipModal = true;
+                                }
                             }}
                             onToggleLike={(idx, liked) => {}}
                             onShare={share}
@@ -1040,10 +1044,13 @@
     {/if}
 </div>
 
-{#if showTipModal && data?.d1}
+{#if showTipModal && tipArtistAddress}
     <TipArtistModal
-        artistAddress={data.d1.Address || ""}
-        onClose={() => (showTipModal = false)}
+        artistAddress={tipArtistAddress}
+        onClose={() => {
+            showTipModal = false;
+            tipArtistAddress = null;
+        }}
     />
 {/if}
 

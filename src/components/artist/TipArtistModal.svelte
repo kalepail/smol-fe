@@ -29,14 +29,26 @@
     let success = $state<string | null>(null);
     let kaleDecimals = $state(7);
     let decimalsFactor = $state(10n ** 7n);
-    const normalizedArtistAddress = $derived(artistAddress?.trim() || "");
+
+    // Lock address at mount time to prevent reactive changes mid-transaction
+    let lockedArtistAddress = $state("");
     const isValidArtistAddress = $derived(
-        normalizedArtistAddress &&
-            (StrKey.isValidEd25519PublicKey(normalizedArtistAddress) ||
-                StrKey.isValidContract(normalizedArtistAddress)),
+        lockedArtistAddress &&
+            (StrKey.isValidEd25519PublicKey(lockedArtistAddress) ||
+                StrKey.isValidContract(lockedArtistAddress)),
     );
 
     onMount(async () => {
+        // Lock address immediately on mount to prevent reactive changes
+        lockedArtistAddress = artistAddress?.trim() || "";
+
+        // If address is invalid at mount time, close immediately
+        if (!lockedArtistAddress) {
+            console.warn("Invalid artist address at mount, closing modal");
+            onClose();
+            return;
+        }
+
         try {
             const { result } = await kale.decimals();
             kaleDecimals = Number(result);
@@ -50,14 +62,6 @@
 
         if (userState.contractId) {
             await updateContractBalance(userState.contractId);
-        }
-    });
-
-    // Close modal if artist address becomes invalid
-    $effect(() => {
-        if (!normalizedArtistAddress) {
-            console.warn("Artist address became invalid, closing modal");
-            onClose();
         }
     });
 
@@ -125,9 +129,16 @@
 
         submitting = true;
         try {
+            // Final guard: ensure locked address is still valid before transaction
+            if (!lockedArtistAddress || !StrKey.isValidEd25519PublicKey(lockedArtistAddress) && !StrKey.isValidContract(lockedArtistAddress)) {
+                error = "Recipient address is invalid. Please try again.";
+                submitting = false;
+                return;
+            }
+
             let tx = await kale.transfer({
                 from: userState.contractId,
-                to: normalizedArtistAddress,
+                to: lockedArtistAddress,
                 amount: amountInUnits,
             });
 
@@ -146,7 +157,7 @@
             const adminAddress =
                 "CBNORBI4DCE7LIC42FWMCIWQRULWAUGF2MH2Z7X2RNTFAYNXIACJ33IM";
 
-            if (normalizedArtistAddress === adminAddress) {
+            if (lockedArtistAddress === adminAddress) {
                 if (amountNum === 100000) {
                     unlockUpgrade("premiumHeader");
                     success = `Sent ${amount} KALE! Premium Profile Header Unlocked! 🥬✨`;
@@ -209,7 +220,7 @@
             </div>
             <h2 class="text-xl font-bold text-white">Tip {artistName}</h2>
             <p class="text-white/40 text-xs font-mono mt-2 break-all">
-                {normalizedArtistAddress || "Unavailable address"}
+                {lockedArtistAddress || "Unavailable address"}
             </p>
         </div>
 
@@ -279,7 +290,7 @@
 
                 <button
                     type="submit"
-                    disabled={submitting || !amount}
+                    disabled={submitting || !amount || !isValidArtistAddress}
                     class="w-full py-3 bg-green-500 text-black font-bold rounded-xl hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all tracking-widest text-xs shadow-[0_0_20px_rgba(34,197,94,0.3)] flex items-center justify-center gap-2"
                 >
                     {#if submitting}
