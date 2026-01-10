@@ -120,7 +120,7 @@
         }
     });
 
-    // Auto-fallback locked themes to technicolor
+    // Auto-fallback locked themes to technicolor_v2
     $effect(() => {
         const isHolidayLocked =
             preferences.glowTheme === "holiday" && !userState.contractId;
@@ -130,7 +130,7 @@
             preferences.glowTheme === "valentine" &&
             !preferences.unlockedThemes.includes("valentine_2026");
         if (isHolidayLocked || isHalloweenLocked || isValentineLocked) {
-            preferences.glowTheme = "technicolor";
+            preferences.glowTheme = "technicolor_v2";
         }
     });
 

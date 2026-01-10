@@ -10,7 +10,7 @@
     const address = $derived(userState.contractId);
     const authHook = useAuthentication();
     const activeTheme = $derived(THEMES[preferences.glowTheme]);
-    const isTechnicolor = $derived(preferences.glowTheme === "technicolor");
+    const isTechnicolor = $derived(preferences.glowTheme === "technicolor_v2");
 
     let creating = $state(false);
     let loggingIn = $state(false);
