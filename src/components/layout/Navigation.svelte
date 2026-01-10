@@ -60,7 +60,7 @@
 </script>
 
 <div
-  class="flex items-center mr-auto font-pixel tracking-wider text-[9px] md:text-xs relative gap-1.5 md:gap-0"
+  class="flex items-center mr-auto font-pixel tracking-wider text-[7px] xs:text-[9px] md:text-xs relative gap-1 md:gap-0"
 >
   <h1 class="flex flex-col text-xl py-1 z-50">
     <a href="/" class="flex items-center gap-1">
@@ -69,7 +69,7 @@
   </h1>
 
   <!-- Top Row Visible Links -->
-  <div class="flex items-center gap-1.5 md:gap-3 ml-1.5 md:ml-3 overflow-hidden">
+  <div class="flex items-center gap-1 md:gap-2 ml-1.5 md:ml-3 overflow-hidden">
     <a
       class="flex items-center gap-1 hover:text-[#9ae600] transition-colors {path ===
         '/artists' || path.startsWith('/artists/')

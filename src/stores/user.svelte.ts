@@ -58,6 +58,8 @@ export function clearUserAuth() {
 export async function ensureWalletConnected(): Promise<void> {
   // Only connect if we have auth credentials and haven't connected yet
   if (userState.contractId && userState.keyId && !userState.walletConnected) {
+
+
     try {
       const rpId = getDomain(window.location.hostname) ?? undefined;
       await account.connectWallet({

@@ -122,7 +122,7 @@
      User said "keep mixtapes button outside". 
      The MixtapeModeToggle is for the builder mode. 
      The Mixtapes link is already in Navigation. -->
-<div class="flex items-center gap-4">
+<div class="flex items-center gap-4 pr-1">
   {#if isAuthenticated}
     <div class="hidden md:block">
       <MixtapeModeToggle

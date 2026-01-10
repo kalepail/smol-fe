@@ -1,8 +1,8 @@
 ---
-import CreatedSmols from "../components/profile/CreatedSmols.svelte";
+import Home from "../components/Home.svelte";
 import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout title="Smol – Your Creations">
-	<CreatedSmols client:only="svelte" />
+	<Home endpoint="created" client:only="svelte" />
 </Layout>
