@@ -60,7 +60,7 @@
 </script>
 
 <div
-  class="flex items-center mr-auto font-pixel tracking-wider text-[9px] md:text-[10px] relative gap-1.5 md:gap-0"
+  class="flex items-center mr-auto font-pixel tracking-wider text-[9px] md:text-xs relative gap-1.5 md:gap-0"
 >
   <h1 class="flex flex-col text-xl py-1 z-50">
     <a href="/" class="flex items-center gap-1">
