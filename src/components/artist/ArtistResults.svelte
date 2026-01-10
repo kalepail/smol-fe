@@ -2281,7 +2281,7 @@
     />
 {/if}
 
-{#if showTipModal}
+{#if showTipModal && address}
     <TipArtistModal
         artistAddress={address.trim()}
         onClose={() => (showTipModal = false)}
