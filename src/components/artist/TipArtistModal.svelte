@@ -29,10 +29,11 @@
     let success = $state<string | null>(null);
     let kaleDecimals = $state(7);
     let decimalsFactor = $state(10n ** 7n);
-    const normalizedArtistAddress = $derived(artistAddress.trim());
+    const normalizedArtistAddress = $derived(artistAddress?.trim() || "");
     const isValidArtistAddress = $derived(
-        StrKey.isValidEd25519PublicKey(normalizedArtistAddress) ||
-            StrKey.isValidContract(normalizedArtistAddress),
+        normalizedArtistAddress &&
+            (StrKey.isValidEd25519PublicKey(normalizedArtistAddress) ||
+                StrKey.isValidContract(normalizedArtistAddress)),
     );
 
     onMount(async () => {
@@ -49,6 +50,14 @@
 
         if (userState.contractId) {
             await updateContractBalance(userState.contractId);
+        }
+    });
+
+    // Close modal if artist address becomes invalid
+    $effect(() => {
+        if (!normalizedArtistAddress) {
+            console.warn("Artist address became invalid, closing modal");
+            onClose();
         }
     });
 
