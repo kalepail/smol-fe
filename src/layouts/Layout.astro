@@ -109,7 +109,7 @@ if (token) {
 		<OnboardingGuard client:only="svelte" isAuthenticatedServer={!!_cid} />
 		<PasskeyReprompt client:load />
 		
-		<div class={(hideBottomBar || Astro.url.pathname.startsWith('/artist/') || Astro.url.pathname.startsWith('/tags')) ? 'hidden' : ''}>
+		<div class={(hideBottomBar || Astro.url.pathname.startsWith('/artist/') || Astro.url.pathname.startsWith('/tags') || Astro.url.pathname.startsWith('/created')) ? 'hidden' : ''}>
 			<BarAudioPlayer client:only="svelte" transition:persist="audio-player" />
 		</div>
 		<MixtapeBuilderOverlay client:load transition:persist="mixtape-builder" />

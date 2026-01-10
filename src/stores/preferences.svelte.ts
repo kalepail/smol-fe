@@ -8,7 +8,7 @@ export type GlowTheme = 'technicolor' | 'neural' | 'red' | 'green' | 'blue' | 'h
 
 const DEFAULT_PREFERENCES = {
     renderMode: 'thinking' as 'fast' | 'thinking',
-    glowTheme: 'technicolor' as GlowTheme,
+    glowTheme: 'slate' as GlowTheme,
     unlockedThemes: [] as string[]
 };
 
@@ -78,8 +78,8 @@ export const THEMES: Record<GlowTheme, { name: string, gradient: string, color: 
     },
     slate: {
         name: 'Solid Slate',
-        gradient: 'from-slate-700 via-slate-600 to-slate-500',
-        color: '#475569',
+        gradient: 'from-green-500 via-lime-500 to-emerald-500',
+        color: '#10b981',
         style: 'background-color: #1D293D;'
     },
     kale: {

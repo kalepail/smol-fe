@@ -207,7 +207,7 @@
                             class="text-center text-gray-300 mb-8 font-pixel text-sm"
                         >
                             Sign in to view your smols, manage your profile, and
-                            unlock creative features powered by KALE.
+                            unlock creative features powered by $KALE.
                         </p>
 
                         <!-- Feature pills -->
@@ -225,7 +225,7 @@
                             <span
                                 class="px-3 py-1 bg-pink-400/10 border border-pink-400/30 rounded-full text-pink-400 text-xs font-pixel"
                             >
-                                🎨 Earn KALE
+                                🎨 Earn $KALE
                             </span>
                         </div>
 
