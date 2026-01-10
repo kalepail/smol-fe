@@ -447,7 +447,7 @@
                     aria-label="Create Passkey Account"
                 >
                     <span class="flex items-center justify-center gap-2">
-                        🔐 Passkey Login
+                        🔐 Create Account
                     </span>
                 </button>
 
@@ -457,7 +457,7 @@
                     class="text-white/60 hover:text-white font-pixel uppercase tracking-wide text-xs py-2 px-4 rounded transition-colors
                        focus:outline-none focus:text-white focus:bg-white/10"
                 >
-                    Already have an account? Login
+                    Already have passkey? Sign In
                 </button>
 
                 <!-- SKIP -->
