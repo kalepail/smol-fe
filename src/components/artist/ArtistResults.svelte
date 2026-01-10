@@ -133,6 +133,7 @@
     let sortMode = $state<"latest" | "canon" | "shuffle">("latest");
     let showSortDropdown = $state(false);
     let showTipModal = $state(false);
+    let tipArtistAddress = $state<string | null>(null);
     let selectedVersionId = $state<string | null>(null);
     let isGeneratingMix = $state(false);
     let initialPlayHandled = $state(false);
@@ -1007,7 +1008,10 @@
                                 triggerLogin();
                                 return;
                             }
-                            showTipModal = true;
+                            if (address) {
+                                tipArtistAddress = address.trim();
+                                showTipModal = true;
+                            }
                         }}
                         class="w-fit px-5 py-2 rounded-full text-[10px] font-pixel tracking-[0.2em] transition-all flex items-center gap-2 overflow-hidden relative group/tip {artistBadges.goldenKale
                             ? 'bg-gradient-to-b from-[#FFF5D1]/40 via-[#D4AF37]/50 to-[#AA8C2C]/60 border border-[#FFE066]/60 text-[#FCF6BA] shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_2px_4px_rgba(0,0,0,0.1)] hover:brightness-110 active:scale-95 backdrop-blur-sm'
@@ -2281,9 +2285,12 @@
     />
 {/if}
 
-{#if showTipModal && address}
+{#if showTipModal && tipArtistAddress}
     <TipArtistModal
-        artistAddress={address.trim()}
-        onClose={() => (showTipModal = false)}
+        artistAddress={tipArtistAddress}
+        onClose={() => {
+            showTipModal = false;
+            tipArtistAddress = null;
+        }}
     />
 {/if}

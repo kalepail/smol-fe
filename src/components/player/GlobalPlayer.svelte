@@ -19,6 +19,7 @@
     import { getTokenBalance } from "../../utils/balance";
     import TipArtistModal from "../artist/TipArtistModal.svelte";
     import { sac } from "../../utils/passkey-kit";
+    import { buildRadioUrl } from "../../utils/radio";
     import {
         safeFetchSmols,
         likeSmol,
@@ -39,6 +40,10 @@
         preferences,
         THEMES,
         type GlowTheme,
+        canUseTheme,
+        setTheme,
+        setRenderMode,
+        validateAndRevertTheme,
     } from "../../stores/preferences.svelte";
     import { upgradesState } from "../../stores/upgrades.svelte";
 
@@ -57,6 +62,7 @@
     let sortMode = $state<"latest" | "canon" | "shuffle">("latest");
     let showSortDropdown = $state(false);
     let showTipModal = $state(false);
+    let tipArtistAddress = $state<string | null>(null);
     let selectedVersionId = $state<string | null>(null);
     let isGeneratingMix = $state(false);
     let initialPlayHandled = $state(false);
@@ -119,18 +125,15 @@
         }
     });
 
-    // Auto-fallback locked themes to technicolor
+    // Auto-fallback locked themes to slate using centralized validation
+    // This runs whenever userState, upgradesState, or preferences change
     $effect(() => {
-        const isHolidayLocked =
-            preferences.glowTheme === "holiday" && !userState.contractId;
-        const isHalloweenLocked =
-            preferences.glowTheme === "halloween" && !upgradesState.goldenKale;
-        const isValentineLocked =
-            preferences.glowTheme === "valentine" &&
-            !preferences.unlockedThemes.includes("valentine_2026");
-        if (isHolidayLocked || isHalloweenLocked || isValentineLocked) {
-            preferences.glowTheme = "technicolor";
-        }
+        // Validate current theme eligibility and revert to slate if locked
+        validateAndRevertTheme(
+            userState,
+            upgradesState,
+            preferences.unlockedThemes
+        );
     });
 
     // Determine current artist context (for Header/Tipping)
@@ -610,7 +613,10 @@
                                     triggerLogin();
                                     return;
                                 }
-                                showTipModal = true;
+                                if (currentArtistAddress) {
+                                    tipArtistAddress = currentArtistAddress;
+                                    showTipModal = true;
+                                }
                             }}
                             class="w-fit px-5 py-2 rounded-full text-[10px] font-pixel tracking-[0.2em] transition-all flex items-center gap-2 overflow-hidden relative group/tip bg-gradient-to-r from-green-600/20 to-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500/20"
                         >
@@ -944,9 +950,7 @@
                                     </div>
                                     <div class="flex flex-col gap-1">
                                         <button
-                                            onclick={() => {
-                                                preferences.renderMode = "fast";
-                                            }}
+                                            onclick={() => setRenderMode("fast")}
                                             class="w-full flex items-center justify-between p-2 rounded-lg transition-colors {preferences.renderMode ===
                                             'fast'
                                                 ? 'bg-white/10 text-white'
@@ -962,10 +966,7 @@
                                             {/if}
                                         </button>
                                         <button
-                                            onclick={() => {
-                                                preferences.renderMode =
-                                                    "thinking";
-                                            }}
+                                            onclick={() => setRenderMode("thinking")}
                                             class="w-full flex items-center justify-between p-2 rounded-lg transition-colors {preferences.renderMode ===
                                             'thinking'
                                                 ? 'bg-white/10 text-white'
@@ -994,27 +995,27 @@
                                         class="grid grid-cols-1 gap-1 max-h-[200px] overflow-y-auto dark-scrollbar pr-1"
                                     >
                                         {#each Object.entries(THEMES) as [key, theme]}
+                                            {@const ctx = {
+                                                user: userState,
+                                                upgrades: upgradesState,
+                                                unlocks: preferences.unlockedThemes
+                                            }}
+                                            {@const isLocked = !canUseTheme(key as GlowTheme, ctx)}
                                             {@const isHolidayLocked =
-                                                key === "holiday" &&
-                                                !userState.contractId}
+                                                key === "holiday" && isLocked}
                                             {@const isGoldenKaleLocked =
-                                                key === "halloween" &&
-                                                !upgradesState.goldenKale}
+                                                key === "halloween" && isLocked}
                                             {@const isValentineLocked =
-                                                key === "valentine" &&
-                                                !preferences.unlockedThemes.includes(
-                                                    "valentine_2026",
-                                                )}
-                                            {@const isLocked =
-                                                isHolidayLocked ||
-                                                isGoldenKaleLocked ||
-                                                isValentineLocked}
+                                                key === "valentine" && isLocked}
                                             <button
                                                 disabled={isLocked}
                                                 onclick={() => {
-                                                    if (!isLocked)
-                                                        preferences.glowTheme =
-                                                            key as GlowTheme;
+                                                    setTheme(
+                                                        key as GlowTheme,
+                                                        userState,
+                                                        upgradesState,
+                                                        preferences.unlockedThemes
+                                                    );
                                                 }}
                                                 class="w-full flex items-center justify-between p-2 rounded-lg transition-colors group/theme {preferences.glowTheme ===
                                                 key
@@ -1346,9 +1347,7 @@
                                                             : ''}"
                                                         onclick={(e) => {
                                                             e.stopPropagation();
-                                                            navigate(
-                                                                `/radio?seed=${song.Id}`,
-                                                            );
+                                                            navigate(buildRadioUrl(song));
                                                         }}
                                                         onkeydown={() => {}}
                                                         title="Start Radio"
@@ -1481,16 +1480,12 @@
                                                     : ''}"
                                                 onclick={(e) => {
                                                     e.stopPropagation();
-                                                    navigate(
-                                                        `/radio?artist=${song.Address}`,
-                                                    );
+                                                    navigate(buildRadioUrl(song));
                                                 }}
                                                 onkeydown={(e) => {
                                                     if (e.key === "Enter") {
                                                         e.stopPropagation();
-                                                        navigate(
-                                                            `/radio?artist=${song.Address}`,
-                                                        );
+                                                        navigate(buildRadioUrl(song));
                                                     }
                                                 }}
                                                 title="Start Artist Radio"
@@ -1710,10 +1705,13 @@
     />
 {/if}
 
-{#if showTipModal && currentArtistAddress}
+{#if showTipModal && tipArtistAddress}
     <TipArtistModal
-        artistAddress={currentArtistAddress}
-        onClose={() => (showTipModal = false)}
+        artistAddress={tipArtistAddress}
+        onClose={() => {
+            showTipModal = false;
+            tipArtistAddress = null;
+        }}
     />
 {/if}
 

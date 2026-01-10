@@ -16,7 +16,7 @@
     // Auth & Theme Logic for Splash
     const authHook = useAuthentication();
     const activeTheme = $derived(THEMES[preferences.glowTheme]);
-    const isTechnicolor = $derived(preferences.glowTheme === "technicolor");
+    const isTechnicolor = $derived(preferences.glowTheme === "technicolor_v2");
 
     let creating = $state(false);
     let loggingIn = $state(false);
@@ -35,39 +35,46 @@
     ];
     let currentBgIndex = $state(0);
 
-    async function handleLogin() {
+    async function handlePasskeyLogin() {
+        // Try login first (existing passkey)
         loggingIn = true;
         try {
             await authHook.login();
-        } finally {
+            // Login successful - user state will update automatically
+        } catch (e: any) {
+            // Login failed/cancelled - user likely doesn't have a passkey yet
+            // Fall back to account creation flow
+            console.log("Login failed, falling back to signup:", e.message);
             loggingIn = false;
-        }
-    }
 
-    async function handleSignUp() {
-        creating = true;
-        try {
-            const username = prompt("Enter your username");
-            if (!username) throw new Error("Username is required");
-            await authHook.signUp(username);
+            // Prompt for username and create account
+            const username = prompt("Create your account - Enter username:");
+            if (!username) return;
 
-            // Valentine's Promo Logic
-            const now = new Date();
-            const cutoff = new Date("2026-02-15");
-            if (now < cutoff) {
-                const currentUnlocks = preferences.unlockedThemes || [];
-                if (!currentUnlocks.includes("valentine_2026")) {
-                    preferences.unlockedThemes = [
-                        ...currentUnlocks,
-                        "valentine_2026",
-                    ];
-                    alert(
-                        "❤️ UNLOCKED: Valentine's 2026 Theme! Happy Valentine's Day! ❤️",
-                    );
+            creating = true;
+            try {
+                await authHook.signUp(username);
+
+                // Valentine's Promo Logic
+                const now = new Date();
+                const cutoff = new Date("2026-02-15");
+                if (now < cutoff) {
+                    const currentUnlocks = preferences.unlockedThemes || [];
+                    if (!currentUnlocks.includes("valentine_2026")) {
+                        preferences.unlockedThemes = [
+                            ...currentUnlocks,
+                            "valentine_2026",
+                        ];
+                        alert(
+                            "❤️ UNLOCKED: Valentine's 2026 Theme! Happy Valentine's Day! ❤️",
+                        );
+                    }
                 }
+            } finally {
+                creating = false;
             }
         } finally {
-            creating = false;
+            loggingIn = false;
         }
     }
 </script>
@@ -224,20 +231,22 @@
                             >
                         </div>
 
-                        <!-- Login Buttons -->
+                        <!-- Smart Single Passkey Button -->
                         <div class="space-y-3">
-                            <!-- Primary Login Button (Passkey) -->
+                            <!-- Single Smart Passkey Button -->
                             <button
                                 class="w-full py-4 px-6 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-400 hover:to-rose-400 text-white font-pixel font-bold rounded-xl transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg hover:shadow-pink-400/30 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                                onclick={handleLogin}
+                                onclick={handlePasskeyLogin}
                                 disabled={loggingIn || creating}
                             >
-                                {#if loggingIn}
+                                {#if loggingIn || creating}
                                     <Loader
                                         classNames="w-5 h-5"
                                         textColor="text-white"
                                     />
-                                    <span>Signing In...</span>
+                                    <span>
+                                        {#if loggingIn}Signing In...{:else}Creating Account...{/if}
+                                    </span>
                                 {:else}
                                     <svg
                                         class="w-5 h-5"
@@ -249,32 +258,6 @@
                                         />
                                     </svg>
                                     <span>Passkey Login</span>
-                                {/if}
-                            </button>
-
-                            <!-- Create Account Button -->
-                            <button
-                                class="w-full py-3 px-6 bg-transparent border-2 border-lime-400/50 hover:border-lime-400 hover:bg-lime-400/10 text-lime-400 font-pixel font-bold rounded-xl transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
-                                onclick={handleSignUp}
-                                disabled={loggingIn || creating}
-                            >
-                                {#if creating}
-                                    <Loader
-                                        classNames="w-5 h-5"
-                                        textColor="text-lime-400"
-                                    />
-                                    <span>Creating Account...</span>
-                                {:else}
-                                    <svg
-                                        class="w-5 h-5"
-                                        viewBox="0 0 24 24"
-                                        fill="currentColor"
-                                    >
-                                        <path
-                                            d="M15,14C12.33,14 7,15.33 7,18V20H23V18C23,15.33 17.67,14 15,14M6,10V7H4V10H1V12H4V15H6V12H9V10M15,12A4,4 0 0,0 19,8A4,4 0 0,0 15,4A4,4 0 0,0 11,8A4,4 0 0,0 15,12Z"
-                                        />
-                                    </svg>
-                                    <span>Create New Account</span>
                                 {/if}
                             </button>
                         </div>
