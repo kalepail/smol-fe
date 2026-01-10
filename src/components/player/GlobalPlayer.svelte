@@ -40,6 +40,8 @@
         preferences,
         THEMES,
         type GlowTheme,
+        canUseTheme,
+        validateAndRevertTheme,
     } from "../../stores/preferences.svelte";
     import { upgradesState } from "../../stores/upgrades.svelte";
 
@@ -121,18 +123,15 @@
         }
     });
 
-    // Auto-fallback locked themes to technicolor_v2
+    // Auto-fallback locked themes to slate using centralized validation
+    // This runs whenever userState, upgradesState, or preferences change
     $effect(() => {
-        const isHolidayLocked =
-            preferences.glowTheme === "holiday" && !userState.contractId;
-        const isHalloweenLocked =
-            preferences.glowTheme === "halloween" && !upgradesState.goldenKale;
-        const isValentineLocked =
-            preferences.glowTheme === "valentine" &&
-            !preferences.unlockedThemes.includes("valentine_2026");
-        if (isHolidayLocked || isHalloweenLocked || isValentineLocked) {
-            preferences.glowTheme = "technicolor_v2";
-        }
+        // Validate current theme eligibility and revert to slate if locked
+        validateAndRevertTheme(
+            userState,
+            upgradesState,
+            preferences.unlockedThemes
+        );
     });
 
     // Determine current artist context (for Header/Tipping)
@@ -999,27 +998,24 @@
                                         class="grid grid-cols-1 gap-1 max-h-[200px] overflow-y-auto dark-scrollbar pr-1"
                                     >
                                         {#each Object.entries(THEMES) as [key, theme]}
+                                            {@const isLocked = !canUseTheme(
+                                                key as GlowTheme,
+                                                userState,
+                                                upgradesState,
+                                                preferences.unlockedThemes
+                                            )}
                                             {@const isHolidayLocked =
-                                                key === "holiday" &&
-                                                !userState.contractId}
+                                                key === "holiday" && isLocked}
                                             {@const isGoldenKaleLocked =
-                                                key === "halloween" &&
-                                                !upgradesState.goldenKale}
+                                                key === "halloween" && isLocked}
                                             {@const isValentineLocked =
-                                                key === "valentine" &&
-                                                !preferences.unlockedThemes.includes(
-                                                    "valentine_2026",
-                                                )}
-                                            {@const isLocked =
-                                                isHolidayLocked ||
-                                                isGoldenKaleLocked ||
-                                                isValentineLocked}
+                                                key === "valentine" && isLocked}
                                             <button
                                                 disabled={isLocked}
                                                 onclick={() => {
-                                                    if (!isLocked)
-                                                        preferences.glowTheme =
-                                                            key as GlowTheme;
+                                                    if (!isLocked) {
+                                                        preferences.glowTheme = key as GlowTheme;
+                                                    }
                                                 }}
                                                 class="w-full flex items-center justify-between p-2 rounded-lg transition-colors group/theme {preferences.glowTheme ===
                                                 key

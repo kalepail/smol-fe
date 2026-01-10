@@ -6,11 +6,63 @@
 
 export type GlowTheme = 'technicolor_v2' | 'neural' | 'red' | 'green' | 'blue' | 'holiday' | 'halloween' | 'usa' | 'valentine' | 'slate' | 'kale';
 
+// Type definitions for state parameters
+type UserState = {
+    contractId: string | null;
+    keyId: string | null;
+    walletConnected: boolean;
+} | null;
+
+type UpgradesState = {
+    premiumHeader: boolean;
+    goldenKale: boolean;
+    showcaseReel: boolean;
+    vibeMatrix: boolean;
+} | null;
+
 const DEFAULT_PREFERENCES = {
     renderMode: 'thinking' as 'fast' | 'thinking',
     glowTheme: 'slate' as GlowTheme,
     unlockedThemes: [] as string[]
 };
+
+/**
+ * Centralized theme gating function - SINGLE SOURCE OF TRUTH
+ * Returns true if user can use the specified theme, false otherwise.
+ * Default DENY for locked themes unless explicitly proven eligible.
+ */
+export function canUseTheme(
+    themeId: GlowTheme,
+    userState: UserState,
+    upgradesState: UpgradesState,
+    unlockedThemes: string[] = []
+): boolean {
+    // Always allow base themes (no restrictions)
+    const baseThemes: GlowTheme[] = ['slate', 'neural', 'red', 'green', 'blue', 'kale', 'technicolor_v2'];
+    if (baseThemes.includes(themeId)) {
+        return true;
+    }
+
+    // LOCKED THEME: holiday - requires login
+    if (themeId === 'holiday') {
+        return !!(userState?.contractId);
+    }
+
+    // LOCKED THEME: halloween (Spooky Season) - GOLDEN KALE HOLDERS ONLY
+    // Default DENY unless explicitly proven they own goldenKale upgrade
+    if (themeId === 'halloween') {
+        // Strict check: upgradesState must exist AND goldenKale must be explicitly true
+        return !!(upgradesState?.goldenKale === true);
+    }
+
+    // LOCKED THEME: valentine - limited time event unlock
+    if (themeId === 'valentine') {
+        return unlockedThemes.includes('valentine_2026');
+    }
+
+    // Unknown theme - default deny for safety
+    return false;
+}
 
 function loadPreferences() {
     if (typeof localStorage === 'undefined') return DEFAULT_PREFERENCES;
@@ -97,6 +149,40 @@ export const THEMES: Record<GlowTheme, { name: string, gradient: string, color: 
         style: 'background-image: url("/images/kale-field-bg.png"); background-size: cover;'
     }
 };
+
+/**
+ * Safely set theme with eligibility check.
+ * Reverts to slate if user is not eligible for the requested theme.
+ */
+export function setTheme(
+    themeId: GlowTheme,
+    userState: UserState,
+    upgradesState: UpgradesState,
+    unlockedThemes: string[] = []
+): void {
+    if (canUseTheme(themeId, userState, upgradesState, unlockedThemes)) {
+        preferences.glowTheme = themeId;
+    } else {
+        console.warn(`[Preferences] Theme '${themeId}' is locked. Reverting to slate.`);
+        preferences.glowTheme = 'slate';
+    }
+}
+
+/**
+ * Validate current theme and revert if no longer eligible.
+ * Call this when user state or upgrades state changes.
+ */
+export function validateAndRevertTheme(
+    userState: UserState,
+    upgradesState: UpgradesState,
+    unlockedThemes: string[] = []
+): void {
+    const currentTheme = preferences.glowTheme;
+    if (!canUseTheme(currentTheme, userState, upgradesState, unlockedThemes)) {
+        console.warn(`[Preferences] Current theme '${currentTheme}' is no longer eligible. Reverting to slate.`);
+        preferences.glowTheme = 'slate';
+    }
+}
 
 $effect.root(() => {
     $effect(() => {
