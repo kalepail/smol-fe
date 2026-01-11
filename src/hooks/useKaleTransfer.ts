@@ -50,7 +50,7 @@ export function useKaleTransfer() {
 
     const { sequence } = await rpc.getLatestLedger();
     tx = await account.sign(tx, {
-      rpId: getDomain(window.location.hostname) ?? undefined,
+      rpId: getDomain(window.location.hostname) || window.location.hostname,
       keyId: params.keyId,
       expiration: sequence + 60,
     });

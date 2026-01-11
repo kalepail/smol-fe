@@ -130,7 +130,11 @@
         submitting = true;
         try {
             // Final guard: ensure locked address is still valid before transaction
-            if (!lockedArtistAddress || !StrKey.isValidEd25519PublicKey(lockedArtistAddress) && !StrKey.isValidContract(lockedArtistAddress)) {
+            if (
+                !lockedArtistAddress ||
+                (!StrKey.isValidEd25519PublicKey(lockedArtistAddress) &&
+                    !StrKey.isValidContract(lockedArtistAddress))
+            ) {
                 error = "Recipient address is invalid. Please try again.";
                 submitting = false;
                 return;
@@ -144,7 +148,9 @@
 
             const { sequence } = await rpc.getLatestLedger();
             tx = await account.sign(tx, {
-                rpId: getDomain(window.location.hostname) ?? undefined,
+                rpId:
+                    getDomain(window.location.hostname) ||
+                    window.location.hostname,
                 keyId: userState.keyId,
                 expiration: sequence + 60,
             });
