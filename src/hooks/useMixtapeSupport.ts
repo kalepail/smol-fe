@@ -1,7 +1,7 @@
 import { getDomain } from 'tldts';
 import { account, kale, server, sac } from '../utils/passkey-kit';
 import { rpc } from '../utils/base';
-import { userState } from '../stores/user.svelte';
+import { userState, ensureWalletConnected } from '../stores/user.svelte';
 import type { Smol } from '../types/domain';
 
 const KALE_DECIMALS = 7;
@@ -160,10 +160,13 @@ export async function sendSupportPayment(
             });
         }
 
+        onProgress?.('Connecting wallet...');
+        await ensureWalletConnected();
+
         onProgress?.('Awaiting signature...');
         const { sequence } = await rpc.getLatestLedger();
         tx = await account.sign(tx, {
-            rpId: getDomain(window.location.hostname) ?? undefined,
+            rpId: getDomain(window.location.hostname) || window.location.hostname,
             keyId: userState.keyId,
             expiration: sequence + 60,
         });

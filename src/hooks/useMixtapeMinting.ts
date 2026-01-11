@@ -5,6 +5,7 @@ import type { Smol } from '../types/domain';
 import type { MixtapeSmolData } from '../services/api/mixtapes';
 import { rpc } from '../utils/base';
 import { account } from '../utils/passkey-kit';
+import { ensureWalletConnected } from '../stores/user.svelte';
 import { MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from '../utils/mint';
 
 interface MintingState {
@@ -154,9 +155,11 @@ export function useMixtapeMinting() {
       fee_rules: feeRulesArray,
     });
 
+    await ensureWalletConnected();
+
     const { sequence } = await rpc.getLatestLedger();
     at = await account.sign(at, {
-      rpId: getDomain(window.location.hostname) ?? undefined,
+      rpId: getDomain(window.location.hostname) || window.location.hostname,
       keyId: userKeyId,
       expiration: sequence + 60,
     });
