@@ -98,6 +98,15 @@ if (token) {
 				<meta name="twitter:player:height" content="80" />
 			</>
 		)}
+		<style is:global>
+			/* Nuclear CSS option: globally hide SmolResults loading cards */
+			[data-smol-loading] {
+				display: none !important;
+				visibility: hidden !important;
+				opacity: 0 !important;
+				pointer-events: none !important;
+			}
+		</style>
 	</head>
 	<body class="bg-transparent text-white min-h-screen relative">
 		<script is:inline>
