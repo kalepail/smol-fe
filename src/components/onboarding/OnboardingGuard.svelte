@@ -11,6 +11,7 @@
     onMount(() => {
         // Bypass if already on onboarding
         if (window.location.pathname.startsWith("/onboarding")) return;
+        if (window.location.pathname.startsWith("/artist/")) return;
 
         // Bypass if user is authenticated (Server check is faster than waiting for store)
         if (isAuthenticatedServer) return;

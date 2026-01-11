@@ -431,9 +431,12 @@
     // Hydrate with live data on mount or address change
     // Hydrate with live data on mount or address change
     $effect(() => {
-        if (address && address !== lastHydratedAddress) {
-            lastHydratedAddress = address;
-            hydrateArtistData(address);
+        if (address) {
+            const normalizedAddress = address.toLowerCase();
+            if (normalizedAddress !== lastHydratedAddress) {
+                lastHydratedAddress = normalizedAddress;
+                hydrateArtistData(normalizedAddress);
+            }
         }
     });
 
@@ -448,7 +451,9 @@
 
             // Filter for THIS artist
             const artistSmols = allSmols.filter(
-                (s) => s.Address === addr || s.Creator === addr,
+                (s) =>
+                    s.Address?.toLowerCase() === addr ||
+                    s.Creator?.toLowerCase() === addr,
             );
 
             if (artistSmols.length > 0) {
@@ -462,8 +467,6 @@
                 liveDiscography = artistSmols;
 
                 // Re-calculate minted from live data
-                liveMinted = artistSmols.filter((s) => s.Mint_Token !== null);
-
                 liveMinted = artistSmols.filter((s) => s.Mint_Token !== null);
             }
         } catch (e) {
