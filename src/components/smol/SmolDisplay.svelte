@@ -1,10 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from "svelte";
-  import type { SmolDetailResponse, SmolKV } from "../../types/domain";
-  import TerminalLog from "../ui/TerminalLog.svelte";
-  import GlitchImage from "../ui/GlitchImage.svelte";
-  import KaraokeLyrics from "../ui/KaraokeLyrics.svelte";
-  import AiDirector from "../ui/AiDirector.svelte";
+  import type { SmolDetailResponse } from "../../types/domain";
   import Loader from "../ui/Loader.svelte";
   import LikeButton from "../ui/LikeButton.svelte";
   import TokenBalancePill from "../ui/TokenBalancePill.svelte";
@@ -34,9 +29,9 @@
 
   let {
     id,
-    d1 = undefined,
-    kv_do = undefined,
-    liked = false,
+    d1,
+    kv_do,
+    liked,
     bestSong = $bindable(),
     interval,
     minting,
@@ -53,61 +48,88 @@
     onOpenTradeModal,
     onLikeChanged,
   }: Props = $props();
-
-  // Computed state for loading status
-  let isImageReady = $derived((kv_do && kv_do?.image_base64) || (id && d1));
-  let isAudioReady = $derived(
-    kv_do?.songs && kv_do.songs.length > 0 && kv_do.songs[0].status === 4,
-  );
-
-  let logs = $state<string[]>(["Initializing connection to SmolNet..."]);
-
-  // Simulate logs based on incoming data
-  $effect(() => {
-    if (d1) logs = [...logs, "Database record found."];
-    if (kv_do?.payload) logs = [...logs, "Prompt vector received."];
-    if (kv_do?.description) logs = [...logs, "Scene description generated."];
-    if (kv_do?.lyrics?.lyrics) logs = [...logs, "Lyrics generated."];
-    if (isImageReady) logs = [...logs, "Visuals rendered."];
-    if (isAudioReady) logs = [...logs, "Audio stream finalized."];
-  });
 </script>
 
-<div class="px-2 py-10 max-w-[1280px] mx-auto text-slate-200">
-  <div class="flex flex-col lg:flex-row gap-8">
-    <!-- Left Column: Visuals & Metadata -->
-    <div class="flex-1 space-y-6">
-      <!-- Header & Terminal -->
-      <div class="space-y-4">
-        <div class="flex justify-between items-start">
-          <h1
-            class="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-lime-400 to-emerald-500 break-words"
-          >
-            {kv_do?.lyrics?.title || d1?.Title || "Untitled Track"}
-          </h1>
-          <!-- Actions & Badges -->
-          <div class="flex items-center gap-2 flex-wrap justify-end">
-            {#if d1?.Id}
-              <LikeButton
-                smolId={d1.Id}
-                {liked}
-                on:likeChanged={(e) => onLikeChanged(e.detail.liked)}
-              />
+<div class="px-2 py-10">
+  <div class="flex flex-col items-center max-w-[1024px] mx-auto">
+    <ul class="max-w-[512px] w-full [&>li]:mb-5 [&>li>h1]:font-bold">
+      <li>
+        <h1>Id:</h1>
+        <pre class="whitespace-pre-wrap break-all"><code class="text-xs"
+            >{id}</code
+          ></pre>
+
+        <div class="flex items-center">
+          {#if kv_do && kv_do?.nsfw}
+            {#if kv_do.nsfw?.safe === false}
+              <span
+                class="bg-rose-400 text-rose-900 uppercase text-xs font-mono px-2 py-1 rounded-full mr-2"
+              >
+                unsafe — {kv_do.nsfw?.categories.join(", ")}
+              </span>
+            {:else}
+              <span
+                class="bg-lime-400 text-lime-900 uppercase text-xs font-mono px-2 py-1 rounded-full mr-2"
+              >
+                safe
+              </span>
+
+              {#if isOwner}
+                <button
+                  class="uppercase text-xs font-mono ring rounded px-2 py-1
+                    {d1?.Public
+                    ? 'text-amber-500 bg-amber-500/20 ring-amber-500 hover:bg-amber-500/30'
+                    : 'text-blue-500 bg-blue-500/20 ring-blue-500 hover:bg-blue-500/30'}"
+                  onclick={onMakeSongPublic}
+                >
+                  {#if d1?.Public}
+                    Unpublish
+                  {:else}
+                    Publish
+                  {/if}
+                </button>
+              {/if}
+            {/if}
+
+            {#if minted}
+              <span
+                class="uppercase text-xs font-mono bg-emerald-400 text-emerald-900 px-2 py-1 rounded-full ml-2"
+              >
+                Minted
+              </span>
+              {#if tradeReady}
+                <button
+                  class="flex items-center uppercase text-xs font-mono ring rounded px-2 py-1 text-sky-400 bg-sky-400/10 ring-sky-400 hover:bg-sky-400/20 ml-2"
+                  onclick={onOpenTradeModal}
+                >
+                  <span>Trade</span>
+                  <TokenBalancePill
+                    balance={tradeMintBalance}
+                    classNames="ml-2"
+                  />
+                </button>
+              {/if}
+            {:else}
+              <button
+                class="flex items-center uppercase text-xs font-mono ring rounded px-2 py-1 text-emerald-400 bg-emerald-400/10 ring-emerald-400 hover:bg-emerald-400/20 ml-2 disabled:opacity-50"
+                disabled={minting}
+                onclick={onTriggerMint}
+              >
+                {#if minting}
+                  <Loader
+                    classNames="w-4 h-4 mr-2"
+                    textColor="text-emerald-400"
+                  />
+                  Minting...
+                {:else}
+                  Mint
+                {/if}
+              </button>
             {/if}
 
             {#if isOwner}
               <button
-                class="uppercase text-xs font-mono ring rounded px-3 py-1.5 transition-colors
-                                {d1?.Public
-                  ? 'text-amber-500 bg-amber-500/10 ring-amber-500 hover:bg-amber-500/20'
-                  : 'text-blue-500 bg-blue-500/10 ring-blue-500 hover:bg-blue-500/20'}"
-                onclick={onMakeSongPublic}
-              >
-                {d1?.Public ? "Unpublish" : "Publish"}
-              </button>
-
-              <button
-                class="uppercase text-xs font-mono ring rounded px-2 py-1.5 text-rose-500 bg-rose-500/10 ring-rose-500 hover:bg-rose-500/20"
+                class="uppercase text-xs font-mono ring rounded px-2 py-1 text-rose-500 bg-rose-500/20 ring-rose-500 hover:bg-rose-500/30 ml-2"
                 aria-label="Delete"
                 onclick={onDeleteSong}
               >
@@ -126,54 +148,36 @@
               </button>
             {/if}
 
-            {#if minted}
-              <span
-                class="uppercase text-xs font-mono bg-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-full border border-emerald-500/30"
-                >Minted</span
-              >
-              {#if tradeReady}
-                <button
-                  class="flex items-center uppercase text-xs font-mono ring rounded px-3 py-1.5 text-sky-400 bg-sky-400/10 ring-sky-400 hover:bg-sky-400/20"
-                  onclick={onOpenTradeModal}
-                >
-                  <span>Trade</span>
-                  <TokenBalancePill
-                    balance={tradeMintBalance}
-                    classNames="ml-2"
-                  />
-                </button>
-              {/if}
-            {:else}
-              <button
-                class="flex items-center uppercase text-xs font-mono ring rounded px-3 py-1.5 text-emerald-400 bg-emerald-400/10 ring-emerald-400 hover:bg-emerald-400/20 disabled:opacity-50"
-                disabled={minting}
-                onclick={onTriggerMint}
-              >
-                {#if minting}
-                  <Loader
-                    classNames="w-4 h-4 mr-2"
-                    textColor="text-emerald-400"
-                  />
-                  Minting...
-                {:else}
-                  Mint
-                {/if}
-              </button>
+            {#if d1?.Id}
+              <div class="ml-2">
+                <LikeButton
+                  smolId={d1.Id}
+                  {liked}
+                  on:likeChanged={(e) => onLikeChanged(e.detail.liked)}
+                />
+              </div>
             {/if}
-          </div>
+          {/if}
+
+          {#if interval}
+            <Loader classNames="size-7 ml-2" />
+          {/if}
         </div>
+      </li>
 
-        {#if !isAudioReady}
-          <TerminalLog {logs} />
-        {/if}
-      </div>
+      <li>
+        <h1>Prompt:</h1>
+        <p>{kv_do && kv_do?.payload?.prompt}</p>
+      </li>
 
-      <!-- Image / Glitch Area -->
-      <div class="relative group w-full max-w-[512px] mx-auto lg:mx-0">
-        {#if isImageReady}
+      <li>
+        <h1 class="mb-2">Image:</h1>
+
+        {#if (kv_do && kv_do?.image_base64) || (id && d1)}
           <img
-            class="w-full aspect-square object-contain pixelated rounded-xl shadow-2xl border border-slate-800 transition-all duration-700 animate-in fade-in zoom-in-95 bg-black"
+            class="aspect-square object-contain pixelated w-[256px]"
             src={`${API_URL}/image/${id}.png`}
+            style="transform: translateZ(0); -webkit-transform: translateZ(0);"
             onerror={(e) => {
               // @ts-ignore
               if (kv_do?.image_base64) {
@@ -181,75 +185,33 @@
                 e.currentTarget.src = `data:image/png;base64,${kv_do.image_base64}`;
               }
             }}
-            alt={kv_do?.lyrics?.title ?? "Smol Image"}
+            alt={kv_do?.lyrics?.title}
           />
-        {:else}
-          <GlitchImage imageData={kv_do?.image_base64} />
         {/if}
-      </div>
+      </li>
 
-      <!-- AI Director Commentary on Description -->
-      {#if kv_do?.description}
-        <AiDirector context={kv_do.description} contextType="status" />
-      {/if}
+      <li>
+        <h1>Description:</h1>
+        <p>{kv_do && kv_do?.description}</p>
+      </li>
 
-      <!-- Description Block -->
-      {#if kv_do?.description}
-        <div class="bg-slate-900/50 p-4 rounded-xl border border-slate-800">
-          <h3
-            class="text-xs font-mono text-slate-500 uppercase tracking-wider mb-2"
-          >
-            Visual Prompt
-          </h3>
-          <p class="text-slate-400 text-sm leading-relaxed">
-            {kv_do.description}
-          </p>
-        </div>
-      {/if}
-    </div>
+      <li>
+        <h1 class="flex items-center mb-2">
+          Songs:
+          {#if interval && kv_do?.songs?.some((song) => song.audio)}
+            <Loader classNames="size-7 ml-2" />
+            <small class="ml-2 text-xs text-slate-400 font-normal"
+              >streaming...</small
+            >
+          {/if}
+        </h1>
 
-    <!-- Right Column: Lyrics & Audio -->
-    <div class="flex-1 space-y-6">
-      <!-- Audio Status -->
-      <div
-        class="bg-slate-900/80 p-6 rounded-xl border border-slate-800 flex flex-col gap-4 items-center justify-center min-h-[120px]"
-      >
-        <!-- If we have ANY songs, show logic, otherwise show waiting -->
-        {#if kv_do?.songs && kv_do.songs.length > 0}
-          {#each kv_do.songs as song, index (song.music_id)}
-            <div class="w-full">
-              <div class="flex items-center justify-between mb-2">
-                <span
-                  class={`font-mono text-sm ${song.status === 4 ? "text-emerald-400" : "text-amber-400 animate-pulse"}`}
-                >
-                  {song.status === 4 ? "AUDIO READY" : "STREAMING..."}
-                </span>
-                {#if song.status < 4}
-                  <div class="flex items-center gap-2">
-                    <span class="spinner-blue w-4 h-4"></span>
-                    <span class="text-xs text-slate-500 ml-1"
-                      >Optimizing...</span
-                    >
-                  </div>
-                {/if}
-                <!-- Better Selection Logic -->
-                {#if isOwner && song.audio}
-                  <div class="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      value={song.music_id}
-                      bind:group={bestSong}
-                      onchange={() => onSelectBestSong(song.music_id)}
-                      class="accent-lime-500"
-                    />
-                    <span class="text-xs text-slate-400">Main Version</span>
-                  </div>
-                {/if}
-              </div>
-
-              {#if song.status === 4 || song.audio}
+        {#if kv_do && kv_do?.songs?.length}
+          {#each kv_do && kv_do.songs as song, index (song.music_id)}
+            <div class="flex items-center mb-2">
+              {#if song.audio}
                 <audio
-                  class="w-full"
+                  class="mr-2"
                   bind:this={audioElements[index]}
                   onplay={() => onPlayAudio(index)}
                   src={song.status < 4
@@ -262,81 +224,42 @@
                   preload="none"
                   controls
                 ></audio>
+
+                {#if isOwner}
+                  <input
+                    class="scale-150 m-2"
+                    type="radio"
+                    value={song.music_id}
+                    bind:group={bestSong}
+                    onchange={() => onSelectBestSong(song.music_id)}
+                  />
+                {/if}
+
+                {#if song.music_id === bestSong}
+                  <span class="text-2xl ml-1">👈</span>
+                  <span class="ml-2 mt-1">better</span>
+                {/if}
               {:else}
-                <div
-                  class="w-full h-8 bg-slate-800 rounded-full overflow-hidden relative mt-2"
-                >
-                  <div
-                    class="absolute inset-0 bg-lime-500/20 animate-pulse"
-                  ></div>
-                  <div
-                    class="absolute top-0 left-0 h-full bg-gradient-to-r from-transparent via-lime-500/50 to-transparent w-1/3 animate-[shimmer_2s_infinite]"
-                  ></div>
-                </div>
+                <Loader />
               {/if}
             </div>
           {/each}
-        {:else}
-          <!-- No songs yet -->
-          <div
-            class="w-full h-8 bg-slate-800 rounded-full overflow-hidden relative"
-          >
-            <div class="absolute inset-0 bg-lime-500/20 animate-pulse"></div>
-            <div
-              class="absolute top-0 left-0 h-full bg-gradient-to-r from-transparent via-lime-500/50 to-transparent w-1/3 animate-[shimmer_2s_infinite]"
-            ></div>
-          </div>
-          <div
-            class="text-slate-500 font-mono text-xs tracking-widest animate-pulse"
-          >
-            GENERATING AUDIO STREAM...
-          </div>
+        {:else if interval}
+          <Loader />
         {/if}
-      </div>
+      </li>
 
-      <!-- Lyrics / Karaoke -->
-      {#if kv_do?.lyrics?.lyrics}
-        <div class="space-y-4">
-          <div class="flex items-center justify-between">
-            <h3
-              class="text-xs font-mono text-slate-500 uppercase tracking-wider"
-            >
-              Lyrical Content
-            </h3>
-            <AiDirector context={kv_do.lyrics.lyrics} contextType="lyrics" />
-          </div>
-
-          <div
-            class="h-[500px] bg-slate-950/50 p-6 rounded-xl border border-slate-800 relative overflow-hidden"
+      <li>
+        <h1>Lyrics:</h1>
+        <pre class="whitespace-pre-wrap break-words [&>code]:text-xs"><code
+            >Title: <strong>{kv_do && kv_do?.lyrics?.title}</strong></code
           >
-            <!-- Tags -->
-            {#if kv_do.lyrics.style}
-              <div class="flex flex-wrap gap-2 mb-4 opacity-70">
-                {#each kv_do.lyrics.style as tag}
-                  <span
-                    class="px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider bg-slate-800 text-slate-400 border border-slate-700"
-                  >
-                    {tag}
-                  </span>
-                {/each}
-              </div>
-            {/if}
+<code>Tags: <em>{kv_do && kv_do?.lyrics?.style?.join(", ")}</em></code>
 
-            <KaraokeLyrics text={kv_do.lyrics.lyrics} speed={30} />
-          </div>
-        </div>
-      {/if}
-    </div>
+{#if !kv_do?.payload?.instrumental && !d1?.Instrumental}<code
+              >{kv_do && kv_do?.lyrics?.lyrics}</code
+            >{/if}</pre>
+      </li>
+    </ul>
   </div>
 </div>
-
-<style>
-  @keyframes shimmer {
-    0% {
-      transform: translateX(-100%);
-    }
-    100% {
-      transform: translateX(300%);
-    }
-  }
-</style>
