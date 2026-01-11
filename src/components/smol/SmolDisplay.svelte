@@ -173,16 +173,19 @@
       <li>
         <h1 class="mb-2">Image:</h1>
 
-        {#if kv_do && kv_do?.image_base64}
+        {#if (kv_do && kv_do?.image_base64) || (id && d1?.Mint_Token)}
           <img
             class="aspect-square object-contain pixelated w-[256px]"
             src={`${API_URL}/image/${id}.png`}
             style="transform: translateZ(0); -webkit-transform: translateZ(0);"
             onerror={(e) => {
               // @ts-ignore
-              e.currentTarget.src = `data:image/png;base64,${kv_do.image_base64}`;
+              if (kv_do?.image_base64) {
+                // @ts-ignore
+                e.currentTarget.src = `data:image/png;base64,${kv_do.image_base64}`;
+              }
             }}
-            alt={kv_do?.lyrics?.title}
+            alt={kv_do?.lyrics?.title ?? "Smol Image"}
           />
         {/if}
       </li>
