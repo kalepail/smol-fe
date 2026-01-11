@@ -61,13 +61,16 @@
     // OOM FIX: If no props provided (SSR mode), fetch on mount
     onMount(async () => {
         if (liveDiscography.length === 0 && address) {
+            const normalizedAddress = address.toLowerCase();
             isLoadingLive = true;
             try {
                 const smols = await safeFetchSmols();
 
                 // Discography: Songs created or published by this artist
                 const disco = smols.filter(
-                    (s) => s.Address === address || s.Creator === address,
+                    (s) =>
+                        s.Address?.toLowerCase() === normalizedAddress ||
+                        s.Creator?.toLowerCase() === normalizedAddress,
                 );
                 disco.sort(
                     (a, b) =>
@@ -84,9 +87,9 @@
                 // Collected: Minted by this artist but NOT created by them
                 const collectedItems = smols.filter(
                     (s) =>
-                        s.Minted_By === address &&
-                        s.Address !== address &&
-                        s.Creator !== address,
+                        s.Minted_By?.toLowerCase() === normalizedAddress &&
+                        s.Address?.toLowerCase() !== normalizedAddress &&
+                        s.Creator?.toLowerCase() !== normalizedAddress,
                 );
                 collectedItems.sort(
                     (a, b) =>
