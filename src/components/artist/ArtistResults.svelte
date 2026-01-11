@@ -61,13 +61,16 @@
     // OOM FIX: If no props provided (SSR mode), fetch on mount
     onMount(async () => {
         if (liveDiscography.length === 0 && address) {
+            const normalizedAddress = address.toLowerCase();
             isLoadingLive = true;
             try {
                 const smols = await safeFetchSmols();
 
                 // Discography: Songs created or published by this artist
                 const disco = smols.filter(
-                    (s) => s.Address === address || s.Creator === address,
+                    (s) =>
+                        s.Address?.toLowerCase() === normalizedAddress ||
+                        s.Creator?.toLowerCase() === normalizedAddress,
                 );
                 disco.sort(
                     (a, b) =>
@@ -84,9 +87,9 @@
                 // Collected: Minted by this artist but NOT created by them
                 const collectedItems = smols.filter(
                     (s) =>
-                        s.Minted_By === address &&
-                        s.Address !== address &&
-                        s.Creator !== address,
+                        s.Minted_By?.toLowerCase() === normalizedAddress &&
+                        s.Address?.toLowerCase() !== normalizedAddress &&
+                        s.Creator?.toLowerCase() !== normalizedAddress,
                 );
                 collectedItems.sort(
                     (a, b) =>
@@ -428,9 +431,12 @@
     // Hydrate with live data on mount or address change
     // Hydrate with live data on mount or address change
     $effect(() => {
-        if (address && address !== lastHydratedAddress) {
-            lastHydratedAddress = address;
-            hydrateArtistData(address);
+        if (address) {
+            const normalizedAddress = address.toLowerCase();
+            if (normalizedAddress !== lastHydratedAddress) {
+                lastHydratedAddress = normalizedAddress;
+                hydrateArtistData(normalizedAddress);
+            }
         }
     });
 
@@ -445,7 +451,9 @@
 
             // Filter for THIS artist
             const artistSmols = allSmols.filter(
-                (s) => s.Address === addr || s.Creator === addr,
+                (s) =>
+                    s.Address?.toLowerCase() === addr ||
+                    s.Creator?.toLowerCase() === addr,
             );
 
             if (artistSmols.length > 0) {
@@ -459,8 +467,6 @@
                 liveDiscography = artistSmols;
 
                 // Re-calculate minted from live data
-                liveMinted = artistSmols.filter((s) => s.Mint_Token !== null);
-
                 liveMinted = artistSmols.filter((s) => s.Mint_Token !== null);
             }
         } catch (e) {
