@@ -31,6 +31,7 @@
     versions,
     currentVersionId,
     onVersionSelect,
+    onSetDefaultVersion,
     isAuthenticated,
     showMiniActions = true,
     overlayControlsOnMobile = false,
@@ -59,6 +60,7 @@
     versions?: { id: string; label: string; isBest: boolean }[];
     currentVersionId?: string;
     onVersionSelect?: (id: string) => void;
+    onSetDefaultVersion?: (id: string) => void;
     onMint?: () => void;
     isMinting?: boolean;
     isAuthenticated?: boolean;
@@ -158,6 +160,21 @@
   let showQueue = $state(false);
   let isMinimized = $state(false); // Mobile minimize mode - hide art, show playlist
   let controlsTimeout: number | null = null;
+
+  function downloadSong(e: MouseEvent) {
+    e.stopPropagation();
+    if (!currentSong) return;
+
+    const versionId = currentVersionId || currentSong.Song_1 || currentSong.Id;
+    const url = `${import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz"}/song/${versionId}.mp3`;
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${currentSong.Title || "song"}-${versionId}.mp3`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
 
   function toggleFullscreen() {
     if (!containerRef) return;
@@ -960,7 +977,9 @@
                 class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/40 backdrop-blur-md rounded-full border border-[#f97316]/50 text-[#f97316] hover:bg-[#f97316]/20 shadow-[0_0_15px_rgba(249,115,22,0.3)]"
                 onclick={(e) => {
                   e.stopPropagation();
-                  const target = currentSong ? buildRadioUrl(currentSong) : "/radio";
+                  const target = currentSong
+                    ? buildRadioUrl(currentSong)
+                    : "/radio";
                   navigate(target);
                 }}
                 title="Start Radio from Song"
@@ -1028,26 +1047,64 @@
           <!-- Bottom action buttons handled by isOverlay section below -->
 
           <!-- VERSION SELECTOR (BOTTOM CENTER OF ART - ABOVE PLAY BUTTON) -->
-          {#if versions && versions.length > 1 && onVersionSelect}
+          {#if (versions && versions.length > 1 && onVersionSelect) || (currentSong && versions)}
             <div
               class="absolute bottom-28 lg:bottom-32 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2"
             >
-              {#each versions as v}
-                <button
-                  class="px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-full border transition-all backdrop-blur-sm {currentVersionId ===
-                  v.id
-                    ? 'bg-white/20 text-white border-white/40'
-                    : 'bg-black/20 text-white/30 border-white/10 hover:text-white hover:border-white/30'}"
-                  onclick={(e) => {
-                    e.stopPropagation();
-                    onVersionSelect?.(v.id);
-                  }}
+              <!-- DOWNLOAD BUTTON -->
+              <button
+                class="w-6 h-6 flex items-center justify-center rounded-full bg-black/20 border border-white/10 text-white/30 hover:text-white hover:border-white/30 transition-all backdrop-blur-sm"
+                onclick={downloadSong}
+                title="Download MP3"
+              >
+                <svg
+                  class="w-3 h-3"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
                 >
-                  {v.label}
-                  {#if v.isBest}
-                    <span class="ml-1 text-[#d836ff]">★</span>
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                  />
+                </svg>
+              </button>
+
+              {#each versions as v}
+                <div class="flex items-center">
+                  <button
+                    class="px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-l-full border-l border-y border-r-0 transition-all backdrop-blur-sm {currentVersionId ===
+                    v.id
+                      ? 'bg-white/20 text-white border-white/40'
+                      : 'bg-black/20 text-white/30 border-white/10 hover:text-white hover:border-white/30'} {onSetDefaultVersion
+                      ? ''
+                      : 'rounded-r-full border-r'}"
+                    onclick={(e) => {
+                      e.stopPropagation();
+                      onVersionSelect?.(v.id);
+                    }}
+                  >
+                    {v.label}
+                  </button>
+                  {#if onSetDefaultVersion}
+                    <button
+                      class="px-2 py-1 text-[9px] font-bold uppercase tracking-widest rounded-r-full border transition-all backdrop-blur-sm {v.isBest
+                        ? 'bg-[#d836ff]/20 text-[#d836ff] border-[#d836ff]/40'
+                        : 'bg-black/20 text-white/10 border-white/10 hover:text-white/50 hover:border-white/20'}"
+                      onclick={(e) => {
+                        e.stopPropagation();
+                        if (!v.isBest) onSetDefaultVersion?.(v.id);
+                      }}
+                      title={v.isBest
+                        ? "Current Public Default"
+                        : "Click to set as Public Default"}
+                    >
+                      ★
+                    </button>
                   {/if}
-                </button>
+                </div>
               {/each}
             </div>
           {/if}

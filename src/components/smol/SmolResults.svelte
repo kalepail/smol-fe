@@ -722,6 +722,22 @@
                             isAuthenticated={isAuthenticated()}
                             showMiniActions={false}
                             onTogglePublish={isOwner ? togglePublic : undefined}
+                            onSetDefaultVersion={isOwner
+                                ? async (vid) => {
+                                      await fetch(`${API_URL}/${id}`, {
+                                          method: "PUT",
+                                          headers: {
+                                              "Content-Type":
+                                                  "application/json",
+                                          },
+                                          body: JSON.stringify({
+                                              Song_1: vid,
+                                          }),
+                                          credentials: "include",
+                                      });
+                                      fetchData();
+                                  }
+                                : undefined}
                             isPublished={!!data.d1?.Public}
                             likeOnArt={false}
                             enableContextBack={true}

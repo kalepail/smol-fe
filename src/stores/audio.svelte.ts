@@ -33,6 +33,10 @@ export const audioState = $state<{
   repeatMode: "off",
 });
 
+// Cross-tab synchronization (Golfed)
+const bId = crypto.randomUUID(), ch = typeof window !== 'undefined' && 'BroadcastChannel' in window && new BroadcastChannel("smol_audio_sync");
+if (ch) ch.onmessage = ({ data: d }) => d.type == 'play' && d.src !== bId && audioState.playingId && (audioState.playingId = null);
+
 function isIOSDevice() {
   if (typeof navigator === 'undefined') return false;
   const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
@@ -110,6 +114,9 @@ export function selectSong(songData: Smol | null) {
   if (songData) {
     audioState.currentSong = songData;
     audioState.playingId = songData.Id;
+
+    // Broadcast play event
+    ch && ch.postMessage({ type: "play", src: bId });
   } else {
     audioState.currentSong = null;
     audioState.playingId = null;
@@ -129,6 +136,9 @@ export function togglePlayPause() {
     } else {
       // Play
       audioState.playingId = currentSong.Id;
+
+      // Broadcast play event
+      ch && ch.postMessage({ type: "play", src: bId });
     }
   }
 }
