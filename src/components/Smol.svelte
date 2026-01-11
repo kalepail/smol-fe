@@ -261,6 +261,9 @@
     await fetch(`${API_URL}/${id}`, {
       method: "DELETE",
       credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
     });
 
     history.replaceState({}, "", "/");

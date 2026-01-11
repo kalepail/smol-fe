@@ -722,6 +722,22 @@
                             isAuthenticated={isAuthenticated()}
                             showMiniActions={false}
                             onTogglePublish={isOwner ? togglePublic : undefined}
+                            onSetDefaultVersion={isOwner
+                                ? async (vid) => {
+                                      await fetch(`${API_URL}/${id}`, {
+                                          method: "PUT",
+                                          headers: {
+                                              "Content-Type":
+                                                  "application/json",
+                                          },
+                                          body: JSON.stringify({
+                                              Song_1: vid,
+                                          }),
+                                          credentials: "include",
+                                      });
+                                      fetchData();
+                                  }
+                                : undefined}
                             isPublished={!!data.d1?.Public}
                             likeOnArt={false}
                             enableContextBack={true}
@@ -743,6 +759,198 @@
                         />
 
                         <!-- Desktop Action Bar Removed -->
+
+                        <!-- Desktop Metadata Section (Moved from Tabs) -->
+                        <div
+                            class="hidden lg:block mt-8 space-y-8 animate-in fade-in duration-300 overflow-y-auto pr-2 custom-scrollbar max-h-[300px]"
+                        >
+                            <!-- Technical Details (First) -->
+                            <div>
+                                <h4
+                                    class="text-[10px] uppercase tracking-[0.2em] text-white/20 mb-4 font-bold"
+                                >
+                                    Technical Details
+                                </h4>
+                                <div class="grid grid-cols-2 gap-4 text-[11px]">
+                                    <!-- ID Field - Copyable -->
+                                    <button
+                                        onclick={() =>
+                                            copyToClipboard(id, "id")}
+                                        class="p-3 rounded-lg bg-white/5 border border-white/5 text-left hover:bg-white/10 hover:border-white/20 transition-all cursor-copy group relative"
+                                        title="Click to copy full ID"
+                                    >
+                                        <div
+                                            class="text-white/40 mb-1 uppercase tracking-widest flex items-center gap-2"
+                                        >
+                                            ID
+                                            {#if copiedField === "id"}
+                                                <span
+                                                    class="text-emerald-400 text-[8px]"
+                                                    >✓ Copied!</span
+                                                >
+                                            {:else}
+                                                <svg
+                                                    class="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity"
+                                                    fill="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                    ><path
+                                                        d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"
+                                                    /></svg
+                                                >
+                                            {/if}
+                                        </div>
+                                        <div
+                                            class="text-white/80 font-mono truncate"
+                                        >
+                                            {id}
+                                        </div>
+                                    </button>
+
+                                    <!-- Address Field - Copyable -->
+                                    <button
+                                        onclick={() =>
+                                            copyToClipboard(
+                                                data?.d1?.Address,
+                                                "address",
+                                            )}
+                                        class="p-3 rounded-lg bg-white/5 border border-white/5 text-left hover:bg-white/10 hover:border-white/20 transition-all cursor-copy group relative"
+                                        title={data.d1?.Address ||
+                                            "Click to copy"}
+                                    >
+                                        <div
+                                            class="text-white/40 mb-1 uppercase tracking-widest flex items-center gap-2"
+                                        >
+                                            Address
+                                            {#if copiedField === "address"}
+                                                <span
+                                                    class="text-emerald-400 text-[8px]"
+                                                    >✓ Copied!</span
+                                                >
+                                            {:else}
+                                                <svg
+                                                    class="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity"
+                                                    fill="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                    ><path
+                                                        d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"
+                                                    /></svg
+                                                >
+                                            {/if}
+                                        </div>
+                                        <div
+                                            class="text-[#d836ff] font-mono truncate"
+                                        >
+                                            {data.d1?.Address?.slice(0, 16)}...
+                                        </div>
+                                    </button>
+
+                                    <!-- Mint Token Field - Copyable -->
+                                    <button
+                                        onclick={() =>
+                                            copyToClipboard(
+                                                data?.d1?.Mint_Token,
+                                                "mint_token",
+                                            )}
+                                        class="p-3 rounded-lg bg-white/5 border border-white/5 text-left hover:bg-white/10 hover:border-white/20 transition-all cursor-copy group relative"
+                                        title={data.d1?.Mint_Token ||
+                                            "Not minted"}
+                                        disabled={!data.d1?.Mint_Token}
+                                    >
+                                        <div
+                                            class="text-white/40 mb-1 uppercase tracking-widest flex items-center gap-2"
+                                        >
+                                            Mint Token
+                                            {#if copiedField === "mint_token"}
+                                                <span
+                                                    class="text-emerald-400 text-[8px]"
+                                                    >✓ Copied!</span
+                                                >
+                                            {:else if data.d1?.Mint_Token}
+                                                <svg
+                                                    class="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity"
+                                                    fill="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                    ><path
+                                                        d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"
+                                                    /></svg
+                                                >
+                                            {/if}
+                                        </div>
+                                        <div
+                                            class="text-sky-400 font-mono truncate {!data
+                                                .d1?.Mint_Token
+                                                ? 'opacity-50'
+                                                : ''}"
+                                        >
+                                            {data.d1?.Mint_Token?.slice(
+                                                0,
+                                                16,
+                                            ) || "N/A"}{data.d1?.Mint_Token
+                                                ? "..."
+                                                : ""}
+                                        </div>
+                                    </button>
+
+                                    <div
+                                        class="p-3 rounded-lg bg-white/5 border border-white/5"
+                                    >
+                                        <div
+                                            class="text-white/40 mb-1 uppercase tracking-widest"
+                                        >
+                                            Creator Share
+                                        </div>
+                                        <div
+                                            class="text-emerald-400 font-mono uppercase"
+                                        >
+                                            10% Royalty
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Styles & Tags (Second) -->
+                            <div>
+                                <h4
+                                    class="text-[9px] uppercase tracking-widest text-white/20 mb-3"
+                                >
+                                    Styles & Tags
+                                </h4>
+                                <div class="flex flex-wrap gap-2">
+                                    {#each data.kv_do?.lyrics?.style || [] as tag}
+                                        <span
+                                            class="px-2 py-1 rounded bg-[#d836ff]/5 text-[#d836ff]/50 text-[10px] border border-[#d836ff]/10"
+                                            >#{tag}</span
+                                        >
+                                    {/each}
+                                </div>
+                            </div>
+
+                            <!-- Model Metadata (Third) -->
+                            <div>
+                                <h4
+                                    class="text-[10px] uppercase tracking-[0.2em] text-white/20 mb-4 font-bold"
+                                >
+                                    Model Metadata
+                                </h4>
+                                <div
+                                    class="p-4 rounded-xl bg-black/40 border border-white/5 space-y-4"
+                                >
+                                    <div>
+                                        <div
+                                            class="text-[9px] text-white/30 uppercase tracking-[0.2em] mb-2"
+                                        >
+                                            Primary Prompt
+                                        </div>
+                                        <p
+                                            class="text-xs text-white/70 italic leading-relaxed"
+                                        >
+                                            "{data.kv_do?.payload?.prompt ||
+                                                "No prompt stored"}"
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Right: Info/Lyrics Column -->
@@ -764,7 +972,7 @@
                                 >
                                 <button
                                     onclick={() => (activeTab = "metadata")}
-                                    class="pb-3 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors {activeTab ===
+                                    class="pb-3 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors lg:hidden {activeTab ===
                                     'metadata'
                                         ? 'text-[#d836ff] border-b-2 border-[#d836ff]'
                                         : 'text-white/30 hover:text-white'}"

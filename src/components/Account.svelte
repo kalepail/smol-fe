@@ -112,7 +112,9 @@
 
             const { sequence } = await rpc.getLatestLedger();
             tx = await account.sign(tx, {
-                rpId: getDomain(window.location.hostname) ?? undefined,
+                rpId:
+                    getDomain(window.location.hostname) ||
+                    window.location.hostname,
                 keyId: userState.keyId,
                 expiration: sequence + 60,
             });
