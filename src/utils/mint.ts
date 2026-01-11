@@ -70,7 +70,7 @@ export async function createMintTransaction(options: MintOptions) {
     const { sequence } = await rpc.getLatestLedger();
 
     at = await account.sign(at, {
-        rpId: getDomain(window.location.hostname) || window.location.hostname,
+        rpId: getDomain(window.location.hostname) ?? undefined,
         keyId,
         expiration: sequence + 60,
     });
