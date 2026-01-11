@@ -3,6 +3,7 @@ import { getDomain } from 'tldts';
 import type { Smol } from '../types/domain';
 import { rpc } from '../utils/base';
 import { account, server } from '../utils/passkey-kit';
+import { ensureWalletConnected } from '../stores/user.svelte';
 
 interface PurchaseBatchParams {
   tokensOut: string[];
@@ -33,9 +34,11 @@ export function useMixtapePurchase() {
       fee_recipients: undefined,
     });
 
+    await ensureWalletConnected();
+
     const { sequence } = await rpc.getLatestLedger();
     await account.sign(tx, {
-      rpId: getDomain(window.location.hostname) ?? undefined,
+      rpId: getDomain(window.location.hostname) || window.location.hostname,
       keyId: userKeyId,
       expiration: sequence + 60,
     });

@@ -2,6 +2,7 @@ import type { Client as CometClient } from 'comet-sdk';
 import { getDomain } from 'tldts';
 import { rpc } from '../utils/base';
 import { account, server } from '../utils/passkey-kit';
+import { ensureWalletConnected } from '../stores/user.svelte';
 
 const MAX_PRICE = 170141183460469231731687303715884105727n;
 
@@ -30,9 +31,11 @@ export function useTradeExecution() {
 
     const [expectedOut] = tx.result ?? [];
 
+    await ensureWalletConnected();
+
     const { sequence } = await rpc.getLatestLedger();
     await account.sign(tx, {
-      rpId: getDomain(window.location.hostname) ?? undefined,
+      rpId: getDomain(window.location.hostname) || window.location.hostname,
       keyId: userKeyId,
       expiration: sequence + 60,
     });

@@ -61,7 +61,7 @@ export async function ensureWalletConnected(): Promise<void> {
 
 
     try {
-      const rpId = getDomain(window.location.hostname) ?? undefined;
+      const rpId = getDomain(window.location.hostname) || window.location.hostname;
       await account.connectWallet({
         rpId,
         keyId: userState.keyId,

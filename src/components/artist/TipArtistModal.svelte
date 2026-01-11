@@ -3,7 +3,7 @@
     import { fade, scale } from "svelte/transition";
     import { account, kale, server } from "../../utils/passkey-kit";
     import { rpc, truncate } from "../../utils/base";
-    import { userState } from "../../stores/user.svelte";
+    import { userState, ensureWalletConnected } from "../../stores/user.svelte";
     import { unlockUpgrade } from "../../stores/upgrades.svelte";
     import {
         balanceState,
@@ -145,6 +145,8 @@
                 to: lockedArtistAddress,
                 amount: amountInUnits,
             });
+
+            await ensureWalletConnected();
 
             const { sequence } = await rpc.getLatestLedger();
             tx = await account.sign(tx, {
