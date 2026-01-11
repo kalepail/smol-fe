@@ -16,7 +16,7 @@ interface CreateResult extends ConnectResult {
 export function useAuthentication() {
   const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
   async function login() {
-    const rpId = getDomain(window.location.hostname) || window.location.hostname;
+    const rpId = getDomain(window.location.hostname) ?? undefined;
     const {
       rawResponse,
       keyIdBase64,
@@ -61,7 +61,7 @@ export function useAuthentication() {
   }
 
   async function signUp(username: string) {
-    const rpId = getDomain(window.location.hostname) || window.location.hostname;
+    const rpId = getDomain(window.location.hostname) ?? undefined;
     const {
       rawResponse,
       keyIdBase64,

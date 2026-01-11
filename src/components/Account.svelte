@@ -2,7 +2,7 @@
     import { onMount } from "svelte";
     import { account, kale, server } from "../utils/passkey-kit";
     import { rpc, truncate } from "../utils/base";
-    import { userState, ensureWalletConnected } from "../stores/user.svelte";
+    import { userState } from "../stores/user.svelte";
     import {
         balanceState,
         updateContractBalance,
@@ -110,13 +110,9 @@
                 amount: amountInUnits,
             });
 
-            await ensureWalletConnected();
-
             const { sequence } = await rpc.getLatestLedger();
             tx = await account.sign(tx, {
-                rpId:
-                    getDomain(window.location.hostname) ||
-                    window.location.hostname,
+                rpId: getDomain(window.location.hostname) ?? undefined,
                 keyId: userState.keyId,
                 expiration: sequence + 60,
             });
