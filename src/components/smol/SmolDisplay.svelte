@@ -173,7 +173,7 @@
       <li>
         <h1 class="mb-2">Image:</h1>
 
-        {#if (kv_do && kv_do?.image_base64) || (id && d1?.Mint_Token)}
+        {#if (kv_do && kv_do?.image_base64) || (id && d1)}
           <img
             class="aspect-square object-contain pixelated w-[256px]"
             src={`${API_URL}/image/${id}.png`}
