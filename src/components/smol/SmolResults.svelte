@@ -398,6 +398,7 @@
 <div class="max-w-6xl mx-auto px-4 font-mono overflow-x-hidden">
     {#if loading}
         <div
+            data-smol-loading
             class="flex flex-col items-center justify-center py-16 gap-6 animate-in fade-in duration-500"
         >
             <!-- Progressive loading card -->
