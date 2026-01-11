@@ -276,6 +276,8 @@
     // Cleanup on destroy
     onDestroy(() => {
         stopPolling();
+        loading = false;
+        data = null;
     });
 
     // Fetch mint balance
