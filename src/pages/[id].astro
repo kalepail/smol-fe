@@ -12,6 +12,14 @@ const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
 let image_url: string | null = id ? `${API_URL}/image/${id}.png` : null;
 
 if (id) {
+    // PREVENT ROUTING CONFLICT: Explicitly reject known static routes that might fall through
+    if (id === "radio") {
+        return new Response(null, {
+            status: 404,
+            statusText: 'Not Found'
+        });
+    }
+
 	try {
 		const data = await fetch(`${API_URL}/${id}`, {
 			headers: {
