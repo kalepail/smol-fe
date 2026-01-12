@@ -207,39 +207,8 @@
                         }
                     }
 
-                    // 3. Snap to Element (Scroll)
-                    // We need to wait for the Grid (if enabled) to actually render the nodes
-                    await tick();
-                    // extra safety delay for DOM paint
-                    setTimeout(() => {
-                        const elementId = `song-${playId}`;
-                        const element = document.getElementById(elementId);
-
-                        if (element) {
-                            console.log("[DeepLink] Scrolling to:", elementId);
-                            element.scrollIntoView({
-                                behavior: "smooth",
-                                block: "center",
-                                inline: "center",
-                            });
-
-                            // Highlight effect
-                            element.classList.add("ring-2", "ring-lime-500");
-                            setTimeout(
-                                () =>
-                                    element.classList.remove(
-                                        "ring-2",
-                                        "ring-lime-500",
-                                    ),
-                                2000,
-                            );
-                        } else {
-                            console.warn(
-                                "[DeepLink] Element not found for scrolling:",
-                                elementId,
-                            );
-                        }
-                    }, 100); // 100ms render buffer
+                    // 3. Selection handles the rest via reactive effects
+                }, 50);
                 }, 50);
             }
         }
