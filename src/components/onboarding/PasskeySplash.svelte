@@ -326,7 +326,7 @@
                         type="text"
                         bind:value={username}
                         placeholder={PLACEHOLDERS[placeholderIndex]}
-                        class="w-full bg-white/5 border-2 border-white/20 rounded-lg py-3 px-4 text-center font-pixel text-white uppercase tracking-widest placeholder:text-white/20
+                        class="w-full bg-white/5 border-2 border-white/20 rounded-lg py-3 px-4 text-center font-pixel text-white uppercase tracking-widest placeholder:text-white/20 text-xs
                             focus:border-[#d836ff] focus:outline-none focus:bg-white/10 transition-colors"
                         autofocus
                         onkeydown={(e) => e.stopPropagation()}
