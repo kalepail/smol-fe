@@ -61,6 +61,8 @@ export async function fetchSmols(options?: { limit?: number }): Promise<Smol[]> 
                   song.Tags = [...(song.Tags || []), ...detail.lyrics.style];
                 }
                 if (detail.Address) song.Address = detail.Address;
+                // Prefer Username if available, otherwise fallback to Creator/Address logic downstream
+                if (detail.Username) song.Username = detail.Username;
                 if (detail.Creator) song.Creator = detail.Creator;
                 if (detail.Mint_Token) song.Mint_Token = detail.Mint_Token;
               }
