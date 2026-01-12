@@ -198,6 +198,45 @@
     };
   });
 
+  // Keep Document Title Updated with "Now Playing" info
+  $effect(() => {
+    const updateTitle = () => {
+      if (!audioState.currentSong) return;
+
+      const artist =
+        audioState.currentSong.Username ||
+        audioState.currentSong.Creator ||
+        audioState.currentSong.artist ||
+        "Smol";
+      const title = audioState.currentSong.Title || "Untitled";
+
+      let newTitle = `${title} • ${artist}`;
+      if (audioState.playingId) {
+        newTitle = `▶ ${newTitle}`;
+      }
+
+      if (document.title !== newTitle) {
+        document.title = newTitle;
+      }
+    };
+
+    // Reactively update when song/play state changes
+    updateTitle();
+
+    // Also re-apply on navigation (Astro swaps title on nav, we want to persist song info if playing)
+    const handleNav = () => {
+      // Tiny timeout to let Astro finish its title swap
+      setTimeout(() => {
+        if (audioState.playingId) updateTitle();
+      }, 50);
+    };
+
+    document.addEventListener("astro:page-load", handleNav);
+    return () => {
+      document.removeEventListener("astro:page-load", handleNav);
+    };
+  });
+
   const isMixtapesIndex = $derived(
     pathname === "/mixtapes" || pathname === "/mixtapes/",
   );
