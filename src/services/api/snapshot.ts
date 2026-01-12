@@ -61,6 +61,7 @@ export async function mergeSmolsWithSnapshot(liveSmols: Smol[]): Promise<Smol[]>
           : oldSmol?.Tags || [],
       Address: newSmol.Address || oldSmol?.Address || undefined,
       Minted_By: newSmol.Minted_By || oldSmol?.Minted_By || undefined,
+      Username: newSmol.Username || oldSmol?.Username || undefined,
     };
   });
 
@@ -71,7 +72,8 @@ export async function mergeSmolsWithSnapshot(liveSmols: Smol[]): Promise<Smol[]>
         ...oldSmol,
         Tags: oldSmol.Tags || [],
         Address: oldSmol.Address || undefined,
-        Minted_By: oldSmol.Minted_By || undefined
+        Minted_By: oldSmol.Minted_By || undefined,
+        Username: oldSmol.Username || undefined
       });
     }
   });
