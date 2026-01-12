@@ -800,7 +800,7 @@
     const visiblePlaylist = $derived(displayPlaylist.slice(0, gridLimit));
 
     // OPTIMIZED: Rolling Buffer Preloading
-    // 1. Fixes Cache Miss: Now uses ?scale=2 to match SmolCard (previously preloaded ?scale=8 but rendered full-res)
+    // 1. Fixes Cache Miss: Now uses ?scale=8 to match Grid View (rendered as HD pixel art)
     // 2. Rolling Window: Preloads the current grid + 50 items ahead to maintain "Hardware Feel" without downloading 500+ items at once.
     $effect(() => {
         if (!isBrowser || !displayPlaylist || displayPlaylist.length === 0)
@@ -821,8 +821,8 @@
 
             batch.forEach((song) => {
                 const img = new Image();
-                // CRITICAL: Must match SmolCard src exactly for cache hit
-                img.src = `${API_URL}/image/${song.Id}.png`;
+                // CRITICAL: Must match Grid View src exactly for cache hit
+                img.src = `${API_URL}/image/${song.Id}.png?scale=8`;
             });
         }, 500);
 
