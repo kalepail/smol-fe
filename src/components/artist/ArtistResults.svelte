@@ -1920,6 +1920,52 @@
                                                 </div>
                                             </div>
 
+                                            <!-- Top Left: Artist Profile -->
+                                            <a
+                                                href={`/artist/${song.Address}?play=${song.Id}`}
+                                                class="absolute top-2 left-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#089981]/50 text-[#089981] hover:bg-[#089981]/20 transition-all shadow-[0_0_10px_rgba(8,153,129,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(8,153,129,0.5)] cursor-pointer"
+                                                onclick={(e) =>
+                                                    e.stopPropagation()}
+                                                title="View Artist Profile"
+                                            >
+                                                <svg
+                                                    class="w-4 h-4"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                                                    />
+                                                </svg>
+                                            </a>
+
+                                            <!-- Top Right: Send to Radio -->
+                                            <a
+                                                href={`/radio?play=${song.Id}`}
+                                                class="absolute top-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#f7931a]/50 text-[#f7931a] hover:bg-[#f7931a]/20 transition-all shadow-[0_0_10px_rgba(247,147,26,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(247,147,26,0.5)] cursor-pointer"
+                                                onclick={(e) =>
+                                                    e.stopPropagation()}
+                                                title="start Radio from here"
+                                            >
+                                                <svg
+                                                    class="w-4 h-4 ml-0.5"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        stroke-linecap="round"
+                                                        stroke-linejoin="round"
+                                                        stroke-width="2"
+                                                        d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"
+                                                    />
+                                                </svg>
+                                            </a>
+
                                             <!-- Bottom Left: Like Button -->
                                             <div
                                                 class="absolute bottom-2 left-2 z-20"
