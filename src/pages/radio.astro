@@ -6,6 +6,6 @@ import RadioBuilder from "../components/radio/RadioBuilder.svelte";
 
 <Layout title="Radio Station">
   <div class="h-[calc(100dvh-80px)] overflow-hidden flex flex-col pb-[env(safe-area-inset-bottom)]">
-    <RadioBuilder client:load />
+    <RadioBuilder client:only="svelte" />
   </div>
 </Layout>
