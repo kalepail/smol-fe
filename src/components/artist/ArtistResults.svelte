@@ -1919,11 +1919,12 @@
                                                     <MiniVisualizer />
                                                 </div>
                                             </div>
+                                        {/if}
 
                                             <!-- Top Left: Artist Profile -->
                                             <a
                                                 href={`/artist/${song.Address}?play=${song.Id}`}
-                                                class="absolute top-2 left-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#089981]/50 text-[#089981] hover:bg-[#089981]/20 transition-all shadow-[0_0_10px_rgba(8,153,129,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(8,153,129,0.5)] cursor-pointer"
+                                                class="absolute top-2 left-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#089981]/50 text-[#089981] hover:bg-[#089981]/20 transition-all shadow-[0_0_10px_rgba(8,153,129,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(8,153,129,0.5)] cursor-pointer {currentSong && song.Id === currentSong.Id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}"
                                                 onclick={(e) =>
                                                     e.stopPropagation()}
                                                 title="View Artist Profile"
@@ -1946,7 +1947,7 @@
                                             <!-- Top Right: Send to Radio -->
                                             <a
                                                 href={`/radio?play=${song.Id}`}
-                                                class="absolute top-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#f7931a]/50 text-[#f7931a] hover:bg-[#f7931a]/20 transition-all shadow-[0_0_10px_rgba(247,147,26,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(247,147,26,0.5)] cursor-pointer"
+                                                class="absolute top-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#f7931a]/50 text-[#f7931a] hover:bg-[#f7931a]/20 transition-all shadow-[0_0_10px_rgba(247,147,26,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(247,147,26,0.5)] cursor-pointer {currentSong && song.Id === currentSong.Id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}"
                                                 onclick={(e) =>
                                                     e.stopPropagation()}
                                                 title="start Radio from here"
