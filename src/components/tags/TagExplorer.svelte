@@ -674,11 +674,11 @@
                     </div>
 
                     <div
-                        class="flex-1 overflow-y-auto custom-scrollbar p-6 pt-0"
+                        class="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-6 pt-0"
                     >
                         <div class="pt-6">
                             <div
-                                class="pt-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 pb-20"
+                                class="pt-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 pb-20 max-w-full overflow-x-hidden"
                             >
                                 {#each filteredSmols as song (song.Id)}
                                     <div
@@ -686,7 +686,7 @@
                                         tabindex="0"
                                         id="song-{song.Id}"
                                         in:fade={{ duration: 200 }}
-                                        class="flex flex-col gap-2 group text-left w-full relative"
+                                        class="flex flex-col gap-2 group text-left w-full relative min-w-0"
                                         onclick={() => {
                                             if (
                                                 audioState.currentSong?.Id ===

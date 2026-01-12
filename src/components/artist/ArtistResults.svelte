@@ -654,19 +654,37 @@
 
     // Auto-scroll to current song when Grid View opens or Sort/Tab changes
     $effect(() => {
-        if (
-            !isBrowser ||
-            !showGridView ||
-            !currentSong ||
-            !(sortMode || activeModule)
-        ) {
+        // Only track the specific state changes that should trigger scrolling
+        const shouldScroll = showGridView;
+        const currentSortMode = sortMode;
+        const currentModule = activeModule;
+
+        if (!isBrowser || !shouldScroll || !currentSong) {
             return;
         }
+
+        // Use untrack to read currentSong.Id without making it a dependency
+        const songId = untrack(() => currentSong?.Id);
+        if (!songId) return;
+
+        // First, ensure the current song is in the visible range
+        const currentSongIndex = untrack(() =>
+            displayPlaylist.findIndex((s) => s.Id === songId),
+        );
+
+        if (currentSongIndex !== -1 && currentSongIndex >= gridLimit) {
+            // Expand gridLimit to include the current song plus some buffer
+            gridLimit = currentSongIndex + 50;
+        }
+
+        // Wait for DOM to update with the new sort order and expanded gridLimit
         tick().then(() => {
-            const el = document.getElementById(`song-${currentSong.Id}`);
-            if (el) {
-                el.scrollIntoView({ behavior: "smooth", block: "center" });
-            }
+            setTimeout(() => {
+                const el = document.getElementById(`song-${songId}`);
+                if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                }
+            }, 100); // Small delay to ensure DOM has fully settled
         });
     });
 
@@ -846,10 +864,23 @@
         setTimeout(preloadNextBatch, 1000);
     });
 
-    // Reset pagination when playlist changes
+    // Reset pagination when playlist changes (but ensure current song stays visible)
     $effect(() => {
         // Trigger on displayPlaylist change
-        if (displayPlaylist) gridLimit = 50;
+        if (displayPlaylist) {
+            // Use untrack to read currentSong without making it a dependency
+            const songId = untrack(() => currentSong?.Id);
+            const currentSongIndex = songId
+                ? displayPlaylist.findIndex((s) => s.Id === songId)
+                : -1;
+
+            // If current song exists and is beyond index 50, keep it visible
+            if (currentSongIndex !== -1 && currentSongIndex >= 50) {
+                gridLimit = Math.max(50, currentSongIndex + 50);
+            } else {
+                gridLimit = 50;
+            }
+        }
     });
 
     function handleGridScroll(e: any) {
@@ -1850,7 +1881,7 @@
                     onscroll={handleGridScroll}
                 >
                     <div
-                        class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 md:gap-4 pb-20"
+                        class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 md:gap-4 pb-20 max-w-full overflow-x-hidden"
                     >
                         {#each visiblePlaylist as song, index (song.Id)}
                             <div
@@ -1858,7 +1889,7 @@
                                 tabindex="0"
                                 id="song-{song.Id}"
                                 in:fade={{ duration: 200 }}
-                                class="flex flex-col gap-2 group text-left w-full relative"
+                                class="flex flex-col gap-2 group text-left w-full relative min-w-0"
                                 onclick={() => {
                                     if (
                                         currentSong &&
