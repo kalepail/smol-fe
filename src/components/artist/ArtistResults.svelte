@@ -147,6 +147,103 @@
     let initialPlayHandled = $state(false);
     let isUrlStateLoaded = $state(false);
     let initialScrollHandled = $state(false);
+    let deepLinkHandled = $state(false);
+
+    // --- Deep Linking & Hydration Logic ---
+    // The previous deep link handler was removed as per instructions.
+    // The new deepLinkHandled variable is now a local variable within the new $effect.
+
+    $effect(() => {
+        // Wait for hydration
+        if (typeof window === "undefined") return;
+        if (deepLinkHandled) return;
+        if (
+            liveDiscography.length === 0 &&
+            liveMinted.length === 0 &&
+            liveCollected.length === 0
+        )
+            return; // Wait for ANY data source
+
+        const params = new URLSearchParams(window.location.search);
+        const playId = params.get("play");
+        const shouldGrid = params.get("grid") === "true";
+
+        if (playId) {
+            // Find song in any active list
+            const allSongs = [
+                ...liveDiscography,
+                ...liveMinted,
+                ...liveCollected,
+            ];
+            const songToPlay = allSongs.find((s) => s.Id === playId);
+
+            if (songToPlay) {
+                console.log(
+                    "[DeepLink] Found song, handling:",
+                    songToPlay.Title,
+                );
+                deepLinkHandled = true;
+
+                // 1. Set View Mode
+                if (shouldGrid) {
+                    showGridView = true;
+                }
+
+                // 2. Select & Play (Async to allow UI update)
+                // We use a slight timeout to let Svelte flush the view state change
+                setTimeout(async () => {
+                    // Select song (updates store)
+                    selectSong(songToPlay);
+
+                    // Force Autoplay attempt (Browser policy permitting)
+                    if (
+                        audioState.audioElement &&
+                        audioState.audioElement.paused
+                    ) {
+                        try {
+                            await audioState.audioElement.play();
+                        } catch (e) {
+                            console.warn("[DeepLink] Autoplay blocked:", e);
+                        }
+                    }
+
+                    // 3. Snap to Element (Scroll)
+                    // We need to wait for the Grid (if enabled) to actually render the nodes
+                    await tick();
+                    // extra safety delay for DOM paint
+                    setTimeout(() => {
+                        const elementId = `song-${playId}`;
+                        const element = document.getElementById(elementId);
+
+                        if (element) {
+                            console.log("[DeepLink] Scrolling to:", elementId);
+                            element.scrollIntoView({
+                                behavior: "smooth",
+                                block: "center",
+                                inline: "center",
+                            });
+
+                            // Highlight effect
+                            element.classList.add("ring-2", "ring-lime-500");
+                            setTimeout(
+                                () =>
+                                    element.classList.remove(
+                                        "ring-2",
+                                        "ring-lime-500",
+                                    ),
+                                2000,
+                            );
+                        } else {
+                            console.warn(
+                                "[DeepLink] Element not found for scrolling:",
+                                elementId,
+                            );
+                        }
+                    }, 100); // 100ms render buffer
+                }, 50);
+            }
+        }
+    });
 
     // Time Machine Clock State
     let timeString = $state("");
@@ -258,6 +355,18 @@
                 if (currentSong?.Id !== playId) {
                     selectSong(discography[songIndex]);
                 }
+                // User Request: Deep links should default to Grid View
+                showGridView = true;
+
+                // Ensure we scroll to it after grid renders
+                setTimeout(() => {
+                    const el = document.getElementById(`song-${playId}`);
+                    if (el)
+                        el.scrollIntoView({
+                            block: "center",
+                            behavior: "smooth",
+                        });
+                }, 100);
             }
         } else if (discography.length > 0) {
             // If NO play param:
@@ -545,7 +654,12 @@
 
     // Auto-scroll to current song when Grid View opens or Sort/Tab changes
     $effect(() => {
-        if (!isBrowser || !showGridView || !currentSong || !(sortMode || activeModule)) {
+        if (
+            !isBrowser ||
+            !showGridView ||
+            !currentSong ||
+            !(sortMode || activeModule)
+        ) {
             return;
         }
         tick().then(() => {
@@ -700,7 +814,8 @@
 
     // Speculative Image Preloading: Background load all images
     $effect(() => {
-        if (!isBrowser || !displayPlaylist || displayPlaylist.length === 0) return;
+        if (!isBrowser || !displayPlaylist || displayPlaylist.length === 0)
+            return;
 
         let preloadIndex = 0;
         const BATCH_SIZE = 20;
