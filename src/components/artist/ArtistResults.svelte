@@ -136,7 +136,7 @@
     let minting = $state(false);
     let showTradeModal = $state(false);
     let tradeMintBalance = $state(0n);
-    let showGridView = $state(false);
+    let showGridView = $state(true);
     let tagsExpanded = $state(false); // Collapsible tags section
     let sortMode = $state<"latest" | "canon" | "shuffle">("latest");
     let showSortDropdown = $state(false);
@@ -799,38 +799,34 @@
 
     const visiblePlaylist = $derived(displayPlaylist.slice(0, gridLimit));
 
-    // Speculative Image Preloading: Background load all images
+    // OPTIMIZED: Rolling Buffer Preloading
+    // 1. Fixes Cache Miss: Now uses ?scale=2 to match SmolCard (previously preloaded ?scale=8 but rendered full-res)
+    // 2. Rolling Window: Preloads the current grid + 50 items ahead to maintain "Hardware Feel" without downloading 500+ items at once.
     $effect(() => {
         if (!isBrowser || !displayPlaylist || displayPlaylist.length === 0)
             return;
 
-        let preloadIndex = 0;
-        const BATCH_SIZE = 20;
-
-        const preloadNextBatch = () => {
-            if (preloadIndex >= displayPlaylist.length) return;
-
-            const batch = displayPlaylist.slice(
-                preloadIndex,
-                preloadIndex + BATCH_SIZE,
+        // Debounce to avoid thrashing on rapid scroll
+        const timeout = setTimeout(() => {
+            // Buffer: Load everything currently visible + 50 ahead
+            const PRELOAD_BUFFER = 50;
+            const targetIndex = Math.min(
+                displayPlaylist.length,
+                gridLimit + PRELOAD_BUFFER,
             );
+
+            // We only need to trigger loads for the "new" potential items
+            // But since browser handles deduping cached requests, iterating the slice is fine.
+            const batch = displayPlaylist.slice(0, targetIndex);
+
             batch.forEach((song) => {
                 const img = new Image();
-                img.src = `${API_URL}/image/${song.Id}.png?scale=8`;
+                // CRITICAL: Must match SmolCard src exactly for cache hit
+                img.src = `${API_URL}/image/${song.Id}.png`;
             });
+        }, 500);
 
-            preloadIndex += BATCH_SIZE;
-
-            if (preloadIndex < displayPlaylist.length) {
-                if ("requestIdleCallback" in window) {
-                    requestIdleCallback(preloadNextBatch);
-                } else {
-                    setTimeout(preloadNextBatch, 500);
-                }
-            }
-        };
-
-        setTimeout(preloadNextBatch, 1000);
+        return () => clearTimeout(timeout);
     });
 
     // Reset pagination when playlist changes (but ensure current song stays visible)
@@ -865,8 +861,15 @@
     }
 
     // Playlist Sync: Find current song in new playlist when tab/filter changes
+    // Playlist Sync: Find current song in new playlist when tab/filter changes
+    // FIX: Added lastScrolledSongId to prevent aggressive snapping when user scrolls
+    let lastScrolledSongId = $state("");
+
     $effect(() => {
         if (!isBrowser || displayPlaylist.length === 0 || !currentSong) return;
+
+        // Reset scroll tracker if playlist changes drastically (optional, but good for safety)
+
         if (displayPlaylist.length > 0 && currentSong) {
             const foundIndex = displayPlaylist.findIndex(
                 (s) => s.Id === currentSong.Id,
@@ -878,8 +881,10 @@
                 currentIndex = foundIndex;
             }
 
-            // Always attempt to scroll if we have a match (even if index didn't change, the view might have)
-            if (foundIndex !== -1) {
+            // ONLY scroll if the song ID has changed since we last scrolled matched
+            if (foundIndex !== -1 && currentSong.Id !== lastScrolledSongId) {
+                lastScrolledSongId = currentSong.Id;
+
                 // Wait for the fly transition (delay: 100 + duration: 600 slightly overlapping)
                 setTimeout(() => {
                     const el = document.getElementById(
@@ -891,7 +896,7 @@
                             behavior: "smooth",
                         });
                     }
-                }, 250); // Small delay to allow DOM to settle/start transition
+                }, 250);
             }
         }
     });

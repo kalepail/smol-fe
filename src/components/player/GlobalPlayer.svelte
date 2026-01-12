@@ -95,12 +95,18 @@
     });
 
     // Auto-scroll to playing song when returning to grid view or changing song
+    // FIX: Add tracker to prevent aggressive snapping on homepage
+    let lastScrolledSongId = $state("");
+
     $effect(() => {
         if (
             showGridView &&
             audioState.playingId &&
             displayPlaylist.length > 0
         ) {
+            // FIX: Only scroll if we haven't scrolled for this song yet
+            if (audioState.playingId === lastScrolledSongId) return;
+
             const idx = displayPlaylist.findIndex(
                 (s) => s.Id === audioState.playingId,
             );
@@ -116,6 +122,7 @@
                     `song-card-${audioState.playingId}`,
                 );
                 if (el) {
+                    lastScrolledSongId = audioState.playingId || "";
                     el.scrollIntoView({
                         behavior: "smooth",
                         block: "center",
@@ -132,7 +139,7 @@
         validateAndRevertTheme(
             userState,
             upgradesState,
-            preferences.unlockedThemes
+            preferences.unlockedThemes,
         );
     });
 
@@ -950,7 +957,8 @@
                                     </div>
                                     <div class="flex flex-col gap-1">
                                         <button
-                                            onclick={() => setRenderMode("fast")}
+                                            onclick={() =>
+                                                setRenderMode("fast")}
                                             class="w-full flex items-center justify-between p-2 rounded-lg transition-colors {preferences.renderMode ===
                                             'fast'
                                                 ? 'bg-white/10 text-white'
@@ -966,7 +974,8 @@
                                             {/if}
                                         </button>
                                         <button
-                                            onclick={() => setRenderMode("thinking")}
+                                            onclick={() =>
+                                                setRenderMode("thinking")}
                                             class="w-full flex items-center justify-between p-2 rounded-lg transition-colors {preferences.renderMode ===
                                             'thinking'
                                                 ? 'bg-white/10 text-white'
@@ -998,9 +1007,13 @@
                                             {@const ctx = {
                                                 user: userState,
                                                 upgrades: upgradesState,
-                                                unlocks: preferences.unlockedThemes
+                                                unlocks:
+                                                    preferences.unlockedThemes,
                                             }}
-                                            {@const isLocked = !canUseTheme(key as GlowTheme, ctx)}
+                                            {@const isLocked = !canUseTheme(
+                                                key as GlowTheme,
+                                                ctx,
+                                            )}
                                             {@const isHolidayLocked =
                                                 key === "holiday" && isLocked}
                                             {@const isGoldenKaleLocked =
@@ -1014,7 +1027,7 @@
                                                         key as GlowTheme,
                                                         userState,
                                                         upgradesState,
-                                                        preferences.unlockedThemes
+                                                        preferences.unlockedThemes,
                                                     );
                                                 }}
                                                 class="w-full flex items-center justify-between p-2 rounded-lg transition-colors group/theme {preferences.glowTheme ===
@@ -1347,7 +1360,11 @@
                                                             : ''}"
                                                         onclick={(e) => {
                                                             e.stopPropagation();
-                                                            navigate(buildRadioUrl(song));
+                                                            navigate(
+                                                                buildRadioUrl(
+                                                                    song,
+                                                                ),
+                                                            );
                                                         }}
                                                         onkeydown={() => {}}
                                                         title="Start Radio"
@@ -1480,12 +1497,16 @@
                                                     : ''}"
                                                 onclick={(e) => {
                                                     e.stopPropagation();
-                                                    navigate(buildRadioUrl(song));
+                                                    navigate(
+                                                        buildRadioUrl(song),
+                                                    );
                                                 }}
                                                 onkeydown={(e) => {
                                                     if (e.key === "Enter") {
                                                         e.stopPropagation();
-                                                        navigate(buildRadioUrl(song));
+                                                        navigate(
+                                                            buildRadioUrl(song),
+                                                        );
                                                     }
                                                 }}
                                                 title="Start Artist Radio"
