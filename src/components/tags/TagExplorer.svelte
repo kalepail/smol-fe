@@ -62,6 +62,17 @@
     });
 
     onMount(async () => {
+        // Restore state from URL
+        const params = new URLSearchParams(window.location.search);
+        const tagsFromUrl = params.getAll("tag");
+        if (tagsFromUrl.length > 0) {
+            selectedTags = tagsFromUrl;
+        }
+        const queryFromUrl = params.get("q");
+        if (queryFromUrl) {
+            searchQuery = queryFromUrl;
+        }
+
         updateMobileState();
         window.addEventListener("resize", updateMobileState);
 
@@ -152,12 +163,34 @@
         } else {
             selectedTags = [...selectedTags, tag];
         }
+        updateUrl();
     }
 
     function pivotTag(tag: string) {
         // "Pivot" behavior: Replace current selection with this new vibe
         // This makes the matrix feel like switching a playlist/vibe instantly
         selectedTags = [tag];
+        updateUrl();
+    }
+
+    function updateUrl() {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("tag");
+        selectedTags.forEach((t) => url.searchParams.append("tag", t));
+
+        if (searchQuery) {
+            url.searchParams.set("q", searchQuery);
+        } else {
+            url.searchParams.delete("q");
+        }
+
+        // Use replaceState to avoid cluttering history stack with every click,
+        // OR use pushState if we want each step to be back-able.
+        // User asked for "Back" to go to grid mode.
+        // If they click 5 tags, hitting back 5 times might be annoying.
+        // But if they navigate AWAY and come back, we want the state.
+        // Updating the URL in place means "Back" from Artist Page -> This URL with params.
+        window.history.replaceState({}, "", url);
     }
 
     function normalizeTag(tag: string) {
