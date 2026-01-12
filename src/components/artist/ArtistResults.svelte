@@ -654,18 +654,22 @@
 
     // Auto-scroll to current song when Grid View opens or Sort/Tab changes
     $effect(() => {
-        if (
-            !isBrowser ||
-            !showGridView ||
-            !currentSong ||
-            !(sortMode || activeModule)
-        ) {
+        // Only track the specific state changes that should trigger scrolling
+        const shouldScroll = showGridView;
+        const currentSortMode = sortMode;
+        const currentModule = activeModule;
+
+        if (!isBrowser || !shouldScroll || !currentSong) {
             return;
         }
 
+        // Use untrack to read currentSong.Id without making it a dependency
+        const songId = untrack(() => currentSong?.Id);
+        if (!songId) return;
+
         // First, ensure the current song is in the visible range
-        const currentSongIndex = displayPlaylist.findIndex(
-            (s) => s.Id === currentSong.Id,
+        const currentSongIndex = untrack(() =>
+            displayPlaylist.findIndex((s) => s.Id === songId),
         );
 
         if (currentSongIndex !== -1 && currentSongIndex >= gridLimit) {
@@ -676,7 +680,7 @@
         // Wait for DOM to update with the new sort order and expanded gridLimit
         tick().then(() => {
             setTimeout(() => {
-                const el = document.getElementById(`song-${currentSong.Id}`);
+                const el = document.getElementById(`song-${songId}`);
                 if (el) {
                     el.scrollIntoView({ behavior: "smooth", block: "center" });
                 }
@@ -864,8 +868,10 @@
     $effect(() => {
         // Trigger on displayPlaylist change
         if (displayPlaylist) {
-            const currentSongIndex = currentSong
-                ? displayPlaylist.findIndex((s) => s.Id === currentSong.Id)
+            // Use untrack to read currentSong without making it a dependency
+            const songId = untrack(() => currentSong?.Id);
+            const currentSongIndex = songId
+                ? displayPlaylist.findIndex((s) => s.Id === songId)
                 : -1;
 
             // If current song exists and is beyond index 50, keep it visible
