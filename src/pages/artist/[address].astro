@@ -44,7 +44,7 @@ if (playId) {
 <Layout {title} {description} {image_url} {song_url}>
 	<main class="h-[calc(100vh-52px)] overflow-hidden text-white p-0 md:px-4 max-w-7xl mx-auto -mt-[2px] md:mt-0" transition:animate="none">
         <ArtistResults
-            client:load
+            client:only="svelte"
             address={address}
             shuffle={shuffle}
             seed={seed}
