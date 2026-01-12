@@ -1,6 +1,8 @@
 import type { Smol } from "../../types/domain";
 
 // OOM FIX: Removed static JSON imports - data fetched at runtime
+// Shared cache for the raw snapshot response to prevent double-fetching
+let cachedFullData: { songs: Smol[], tagGraph: any } | null = null;
 let cachedSnapshot: Smol[] | null = null;
 
 /**
@@ -13,6 +15,9 @@ export async function getSnapshotAsync(): Promise<Smol[]> {
     const res = await fetch('/data/GalacticSnapshot.json');
     if (!res.ok) throw new Error(`Snapshot load failed: ${res.status}`);
     const data = await res.json();
+
+    // Cache full response for tagGraph access
+    cachedFullData = data;
 
     // Support both legacy array and new structured object { songs: [], tagGraph: {} }
     const songs = Array.isArray(data) ? data : (data.songs || []);
@@ -28,11 +33,14 @@ export async function getSnapshotAsync(): Promise<Smol[]> {
  * Fetch the tag graph (Matrix) from the snapshot
  */
 export async function getSnapshotTagGraphAsync(): Promise<any | null> {
+  if (cachedFullData?.tagGraph) return cachedFullData.tagGraph;
+
   try {
-    const res = await fetch('/data/GalacticSnapshot.json');
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.tagGraph || null;
+    // If songs are already loaded, we have the graph too
+    if (!cachedSnapshot) {
+      await getSnapshotAsync();
+    }
+    return cachedFullData?.tagGraph || null;
   } catch (e) {
     return null;
   }

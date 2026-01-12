@@ -621,38 +621,39 @@
     }
 
     // Auto-scroll to current song when Grid View opens or Sort/Tab changes
+    // We untrack everything except the core UI triggers to prevent "snapping" while scrolling
     $effect(() => {
-        // Only track the specific state changes that should trigger scrolling
-        const shouldScroll = showGridView;
-        const currentSortMode = sortMode;
-        const currentModule = activeModule;
+        // Triggers: Opening grid, changing sort, or changing tabs
+        const _ = showGridView;
+        const __ = sortMode;
+        const ___ = activeModule;
 
-        if (!isBrowser || !shouldScroll || !currentSong) {
-            return;
-        }
+        if (!isBrowser || !showGridView) return;
 
-        // Use untrack to read currentSong.Id without making it a dependency
-        const songId = untrack(() => currentSong?.Id);
-        if (!songId) return;
+        untrack(() => {
+            if (!currentSong) return;
+            const songId = currentSong.Id;
+            const songIndex = displayPlaylist.findIndex((s) => s.Id === songId);
 
-        // First, ensure the current song is in the visible range
-        const currentSongIndex = untrack(() =>
-            displayPlaylist.findIndex((s) => s.Id === songId),
-        );
+            if (songIndex === -1) return;
 
-        if (currentSongIndex !== -1 && currentSongIndex >= gridLimit) {
-            // Expand gridLimit to include the current song plus some buffer
-            gridLimit = currentSongIndex + 50;
-        }
+            // Expand limit if the song is currently hidden by pagination
+            if (songIndex >= gridLimit) {
+                gridLimit = songIndex + 50;
+            }
 
-        // Wait for DOM to update with the new sort order and expanded gridLimit
-        tick().then(() => {
-            setTimeout(() => {
-                const el = document.getElementById(`song-${songId}`);
-                if (el) {
-                    el.scrollIntoView({ behavior: "smooth", block: "center" });
-                }
-            }, 100); // Small delay to ensure DOM has fully settled
+            // Perform the actual scroll
+            tick().then(() => {
+                setTimeout(() => {
+                    const el = document.getElementById(`song-${songId}`);
+                    if (el) {
+                        el.scrollIntoView({
+                            behavior: "smooth",
+                            block: "center",
+                        });
+                    }
+                }, 100);
+            });
         });
     });
 
