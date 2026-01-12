@@ -210,13 +210,29 @@
 
   const isHomePage = $derived(pathname === "/" || pathname === "");
 
+  let { hideBottomBar = false } = $props();
+
   // Radio mode: on /radio page AND audio is actively playing
   const isRadioMode = $derived(
     (pathname === "/radio" || pathname === "/radio/") && audioState.playingId,
   );
+
+  const isArtistPage = $derived(pathname.startsWith("/artist"));
+  const isTagsPage = $derived(pathname.startsWith("/tags"));
+  const isCreatedPage = $derived(pathname.startsWith("/created"));
+
+  const shouldHidePlayer = $derived(
+    hideBottomBar ||
+      isMixtapesIndex ||
+      isHomePage ||
+      isRadioMode ||
+      isArtistPage ||
+      isTagsPage ||
+      isCreatedPage,
+  );
 </script>
 
-{#if audioState.currentSong && !isMixtapesIndex && !isHomePage && !isRadioMode}
+{#if audioState.currentSong && !shouldHidePlayer}
   <div
     class="fixed z-[150] p-2 bottom-2 lg:w-full left-4 right-4 lg:max-w-1/2 lg:min-w-[300px] lg:left-1/2 lg:-translate-x-1/2 rounded-md bg-slate-950/50 backdrop-blur-lg border border-white/20 shadow-lg"
     transition:fade={{ duration: 200 }}
