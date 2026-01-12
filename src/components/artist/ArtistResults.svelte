@@ -25,6 +25,7 @@
     import { backOut } from "svelte/easing";
 
     const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
+    const isBrowser = typeof window !== "undefined";
 
     let {
         discography = [],
@@ -35,6 +36,8 @@
         collectedCount = 0,
         mintedCount = 0,
         topTags = [],
+        shuffle = false,
+        seed = null,
     }: {
         discography?: Smol[];
         minted?: Smol[];
@@ -44,6 +47,8 @@
         collectedCount?: number;
         mintedCount?: number;
         topTags?: string[];
+        shuffle?: boolean;
+        seed?: number | null;
     } = $props();
 
     // Reactive state for hydration (starts with props, updates with live data)
@@ -61,13 +66,16 @@
     // OOM FIX: If no props provided (SSR mode), fetch on mount
     onMount(async () => {
         if (liveDiscography.length === 0 && address) {
+            const normalizedAddress = address.toLowerCase();
             isLoadingLive = true;
             try {
                 const smols = await safeFetchSmols();
 
                 // Discography: Songs created or published by this artist
                 const disco = smols.filter(
-                    (s) => s.Address === address || s.Creator === address,
+                    (s) =>
+                        s.Address?.toLowerCase() === normalizedAddress ||
+                        s.Creator?.toLowerCase() === normalizedAddress,
                 );
                 disco.sort(
                     (a, b) =>
@@ -84,9 +92,9 @@
                 // Collected: Minted by this artist but NOT created by them
                 const collectedItems = smols.filter(
                     (s) =>
-                        s.Minted_By === address &&
-                        s.Address !== address &&
-                        s.Creator !== address,
+                        s.Minted_By?.toLowerCase() === normalizedAddress &&
+                        s.Address?.toLowerCase() !== normalizedAddress &&
+                        s.Creator?.toLowerCase() !== normalizedAddress,
                 );
                 collectedItems.sort(
                     (a, b) =>
@@ -123,7 +131,7 @@
         "discography",
     );
     let selectedArtistTags = $state<string[]>([]);
-    let shuffleEnabled = $state(false);
+    let shuffleEnabled = $state(shuffle);
     let currentIndex = $state(0);
     let minting = $state(false);
     let showTradeModal = $state(false);
@@ -139,6 +147,103 @@
     let initialPlayHandled = $state(false);
     let isUrlStateLoaded = $state(false);
     let initialScrollHandled = $state(false);
+    let deepLinkHandled = $state(false);
+
+    // --- Deep Linking & Hydration Logic ---
+    // The previous deep link handler was removed as per instructions.
+    // The new deepLinkHandled variable is now a local variable within the new $effect.
+
+    $effect(() => {
+        // Wait for hydration
+        if (typeof window === "undefined") return;
+        if (deepLinkHandled) return;
+        if (
+            liveDiscography.length === 0 &&
+            liveMinted.length === 0 &&
+            liveCollected.length === 0
+        )
+            return; // Wait for ANY data source
+
+        const params = new URLSearchParams(window.location.search);
+        const playId = params.get("play");
+        const shouldGrid = params.get("grid") === "true";
+
+        if (playId) {
+            // Find song in any active list
+            const allSongs = [
+                ...liveDiscography,
+                ...liveMinted,
+                ...liveCollected,
+            ];
+            const songToPlay = allSongs.find((s) => s.Id === playId);
+
+            if (songToPlay) {
+                console.log(
+                    "[DeepLink] Found song, handling:",
+                    songToPlay.Title,
+                );
+                deepLinkHandled = true;
+
+                // 1. Set View Mode
+                if (shouldGrid) {
+                    showGridView = true;
+                }
+
+                // 2. Select & Play (Async to allow UI update)
+                // We use a slight timeout to let Svelte flush the view state change
+                setTimeout(async () => {
+                    // Select song (updates store)
+                    selectSong(songToPlay);
+
+                    // Force Autoplay attempt (Browser policy permitting)
+                    if (
+                        audioState.audioElement &&
+                        audioState.audioElement.paused
+                    ) {
+                        try {
+                            await audioState.audioElement.play();
+                        } catch (e) {
+                            console.warn("[DeepLink] Autoplay blocked:", e);
+                        }
+                    }
+
+                    // 3. Snap to Element (Scroll)
+                    // We need to wait for the Grid (if enabled) to actually render the nodes
+                    await tick();
+                    // extra safety delay for DOM paint
+                    setTimeout(() => {
+                        const elementId = `song-${playId}`;
+                        const element = document.getElementById(elementId);
+
+                        if (element) {
+                            console.log("[DeepLink] Scrolling to:", elementId);
+                            element.scrollIntoView({
+                                behavior: "smooth",
+                                block: "center",
+                                inline: "center",
+                            });
+
+                            // Highlight effect
+                            element.classList.add("ring-2", "ring-lime-500");
+                            setTimeout(
+                                () =>
+                                    element.classList.remove(
+                                        "ring-2",
+                                        "ring-lime-500",
+                                    ),
+                                2000,
+                            );
+                        } else {
+                            console.warn(
+                                "[DeepLink] Element not found for scrolling:",
+                                elementId,
+                            );
+                        }
+                    }, 100); // 100ms render buffer
+                }, 50);
+            }
+        }
+    });
 
     // Time Machine Clock State
     let timeString = $state("");
@@ -158,7 +263,7 @@
 
         return () => clearInterval(interval);
     });
-    let shuffleSeed = $state(Date.now());
+    let shuffleSeed = $state(seed ?? Date.now());
     let collageImages = $state<string[]>([]);
     let searchQuery = $state("");
     let isSearchingMobile = $state(false);
@@ -172,19 +277,18 @@
 
     // Fetch artist's badges from API on mount (with static fallback)
     $effect(() => {
-        if (address) {
-            fetch(`/api/artist/badges/${address}`)
-                .then((res) => (res.ok ? res.json() : null))
-                .then((data) => {
-                    if (data) {
-                        artistBadges = data;
-                    }
-                    // No fallback for other artists - we can't know their status without API
-                })
-                .catch(() => {
-                    /* API unavailable - badges stay default (false) */
-                });
-        }
+        if (!isBrowser || !address) return;
+        fetch(`/api/artist/badges/${address}`)
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => {
+                if (data) {
+                    artistBadges = data;
+                }
+                // No fallback for other artists - we can't know their status without API
+            })
+            .catch(() => {
+                /* API unavailable - badges stay default (false) */
+            });
     });
 
     $effect(() => {
@@ -208,106 +312,113 @@
     }
 
     // Initial mount: Check for ?play param AND restore state from URL
-    $effect(() => {
-        if (initialPlayHandled) return;
+    onMount(() => {
+        if (initialPlayHandled || !isBrowser) return;
 
-        if (typeof window !== "undefined") {
-            const urlParams = new URLSearchParams(window.location.search);
+        const urlParams = new URLSearchParams(window.location.search);
 
-            // Restore State (Tab, Tags, Shuffle)
-            const tabParam = urlParams.get("tab");
-            if (
-                tabParam &&
-                ["discography", "minted", "collected", "tags"].includes(
-                    tabParam,
-                )
-            ) {
-                activeModule = tabParam as any;
-            }
-
-            const tagsParam = urlParams.get("tags");
-            if (tagsParam) {
-                selectedArtistTags = tagsParam.split(",").filter(Boolean);
-            }
-
-            const shuffleParam = urlParams.get("shuffle");
-            if (shuffleParam === "true") {
-                shuffleEnabled = true;
-            }
-
-            const seedParam = urlParams.get("seed");
-            if (seedParam) {
-                shuffleSeed = parseInt(seedParam, 10);
-            }
-
-            const gridParam = urlParams.get("grid");
-            if (gridParam === "true") {
-                showGridView = true;
-            }
-
-            // Handle Auto-Play (?play=id)
-            const playId = urlParams.get("play");
-            if (playId && discography.length > 0) {
-                const songIndex = discography.findIndex((s) => s.Id === playId);
-                if (songIndex >= 0) {
-                    currentIndex = songIndex;
-                    if (currentSong?.Id !== playId) {
-                        selectSong(discography[songIndex]);
-                    }
-                }
-            } else if (discography.length > 0) {
-                // If NO play param:
-                // Check if we are already playing a song from this artist (Seamless Return)
-                const playingId = currentSong?.Id;
-
-                if (playingId) {
-                    // Determine what the playlist WILL look like after hydration
-                    let targetList = [...discography];
-                    if (activeModule === "minted") targetList = [...minted];
-                    if (activeModule === "collected")
-                        targetList = [...collected];
-
-                    // Apply Tag Filter
-                    if (selectedArtistTags.length > 0) {
-                        targetList = targetList.filter((s) =>
-                            selectedArtistTags.some((t) => s.Tags?.includes(t)),
-                        );
-                    }
-
-                    // Apply Shuffle
-                    if (shuffleEnabled) {
-                        targetList.sort(
-                            (a, b) =>
-                                getShuffleVal(a.Id, shuffleSeed) -
-                                getShuffleVal(b.Id, shuffleSeed),
-                        );
-                    }
-
-                    const matchIndex = targetList.findIndex(
-                        (s) => s.Id === playingId,
-                    );
-
-                    if (matchIndex >= 0) {
-                        // Seamless return detected - sync index
-                        currentIndex = matchIndex;
-                    } else {
-                        // Song not in current view? Select first of view if exists
-                        if (targetList.length > 0) {
-                            selectSong(targetList[0]);
-                            currentIndex = 0;
-                        } else {
-                            selectSong(discography[0]); // Fallback
-                        }
-                    }
-                } else {
-                    // Not playing anything? Standard start.
-                    selectSong(discography[0]);
-                }
-            }
-
-            isUrlStateLoaded = true;
-            initialPlayHandled = true;
+        // Restore State (Tab, Tags, Shuffle)
+        const tabParam = urlParams.get("tab");
+        if (
+            tabParam &&
+            ["discography", "minted", "collected", "tags"].includes(tabParam)
+        ) {
+            activeModule = tabParam as any;
         }
+
+        const tagsParam = urlParams.get("tags");
+        if (tagsParam) {
+            selectedArtistTags = tagsParam.split(",").filter(Boolean);
+        }
+
+        const shuffleParam = urlParams.get("shuffle");
+        if (shuffleParam === "true") {
+            shuffleEnabled = true;
+        }
+
+        const seedParam = urlParams.get("seed");
+        if (seedParam) {
+            shuffleSeed = parseInt(seedParam, 10);
+        }
+
+        const gridParam = urlParams.get("grid");
+        if (gridParam === "true") {
+            showGridView = true;
+        }
+
+        // Handle Auto-Play (?play=id)
+        const playId = urlParams.get("play");
+        if (playId && discography.length > 0) {
+            const songIndex = discography.findIndex((s) => s.Id === playId);
+            if (songIndex >= 0) {
+                currentIndex = songIndex;
+                if (currentSong?.Id !== playId) {
+                    selectSong(discography[songIndex]);
+                }
+                // User Request: Deep links should default to Grid View
+                showGridView = true;
+
+                // Ensure we scroll to it after grid renders
+                setTimeout(() => {
+                    const el = document.getElementById(`song-${playId}`);
+                    if (el)
+                        el.scrollIntoView({
+                            block: "center",
+                            behavior: "smooth",
+                        });
+                }, 100);
+            }
+        } else if (discography.length > 0) {
+            // If NO play param:
+            // Check if we are already playing a song from this artist (Seamless Return)
+            const playingId = currentSong?.Id;
+
+            if (playingId) {
+                // Determine what the playlist WILL look like after hydration
+                let targetList = [...discography];
+                if (activeModule === "minted") targetList = [...minted];
+                if (activeModule === "collected") targetList = [...collected];
+
+                // Apply Tag Filter
+                if (selectedArtistTags.length > 0) {
+                    targetList = targetList.filter((s) =>
+                        selectedArtistTags.some((t) => s.Tags?.includes(t)),
+                    );
+                }
+
+                // Apply Shuffle
+                if (shuffleEnabled) {
+                    targetList.sort(
+                        (a, b) =>
+                            getShuffleVal(a.Id, shuffleSeed) -
+                            getShuffleVal(b.Id, shuffleSeed),
+                    );
+                }
+
+                const matchIndex = targetList.findIndex(
+                    (s) => s.Id === playingId,
+                );
+
+                if (matchIndex >= 0) {
+                    // Seamless return detected - sync index
+                    currentIndex = matchIndex;
+                } else {
+                    // Song not in current view? Select first of view if exists
+                    if (targetList.length > 0) {
+                        selectSong(targetList[0]);
+                        currentIndex = 0;
+                    } else {
+                        selectSong(discography[0]); // Fallback
+                    }
+                }
+            } else {
+                // Not playing anything? Standard start.
+                selectSong(discography[0]);
+            }
+        }
+
+        isUrlStateLoaded = true;
+        initialPlayHandled = true;
     });
 
     // Valid tabs for type safety
@@ -367,19 +478,20 @@
     // Auto-Scroll to Active Song on Mount
     $effect(() => {
         if (
-            !initialScrollHandled &&
-            isUrlStateLoaded &&
-            currentSong &&
-            displayPlaylist.length > 0 &&
-            !isLoadingLive
-        ) {
-            const el = document.getElementById(`song-row-${currentSong.Id}`);
-            if (el) {
-                // Determine if song is in view or needs scrolling
-                // We use 'center' to make it obvious
-                el.scrollIntoView({ block: "center", behavior: "smooth" });
-                initialScrollHandled = true;
-            }
+            !isBrowser ||
+            initialScrollHandled ||
+            !isUrlStateLoaded ||
+            !currentSong ||
+            displayPlaylist.length === 0 ||
+            isLoadingLive
+        )
+            return;
+        const el = document.getElementById(`song-row-${currentSong.Id}`);
+        if (el) {
+            // Determine if song is in view or needs scrolling
+            // We use 'center' to make it obvious
+            el.scrollIntoView({ block: "center", behavior: "smooth" });
+            initialScrollHandled = true;
         }
     });
 
@@ -428,9 +540,12 @@
     // Hydrate with live data on mount or address change
     // Hydrate with live data on mount or address change
     $effect(() => {
-        if (address && address !== lastHydratedAddress) {
-            lastHydratedAddress = address;
-            hydrateArtistData(address);
+        if (address) {
+            const normalizedAddress = address.toLowerCase();
+            if (normalizedAddress !== lastHydratedAddress) {
+                lastHydratedAddress = normalizedAddress;
+                hydrateArtistData(normalizedAddress);
+            }
         }
     });
 
@@ -445,7 +560,9 @@
 
             // Filter for THIS artist
             const artistSmols = allSmols.filter(
-                (s) => s.Address === addr || s.Creator === addr,
+                (s) =>
+                    s.Address?.toLowerCase() === addr ||
+                    s.Creator?.toLowerCase() === addr,
             );
 
             if (artistSmols.length > 0) {
@@ -459,8 +576,6 @@
                 liveDiscography = artistSmols;
 
                 // Re-calculate minted from live data
-                liveMinted = artistSmols.filter((s) => s.Mint_Token !== null);
-
                 liveMinted = artistSmols.filter((s) => s.Mint_Token !== null);
             }
         } catch (e) {
@@ -539,14 +654,38 @@
 
     // Auto-scroll to current song when Grid View opens or Sort/Tab changes
     $effect(() => {
-        if (showGridView && currentSong && (sortMode || activeModule)) {
-            tick().then(() => {
-                const el = document.getElementById(`song-${currentSong.Id}`);
+        // Only track the specific state changes that should trigger scrolling
+        const shouldScroll = showGridView;
+        const currentSortMode = sortMode;
+        const currentModule = activeModule;
+
+        if (!isBrowser || !shouldScroll || !currentSong) {
+            return;
+        }
+
+        // Use untrack to read currentSong.Id without making it a dependency
+        const songId = untrack(() => currentSong?.Id);
+        if (!songId) return;
+
+        // First, ensure the current song is in the visible range
+        const currentSongIndex = untrack(() =>
+            displayPlaylist.findIndex((s) => s.Id === songId),
+        );
+
+        if (currentSongIndex !== -1 && currentSongIndex >= gridLimit) {
+            // Expand gridLimit to include the current song plus some buffer
+            gridLimit = currentSongIndex + 50;
+        }
+
+        // Wait for DOM to update with the new sort order and expanded gridLimit
+        tick().then(() => {
+            setTimeout(() => {
+                const el = document.getElementById(`song-${songId}`);
                 if (el) {
                     el.scrollIntoView({ behavior: "smooth", block: "center" });
                 }
-            });
-        }
+            }, 100); // Small delay to ensure DOM has fully settled
+        });
     });
 
     // Derived playlist based on module and shuffle
@@ -693,7 +832,8 @@
 
     // Speculative Image Preloading: Background load all images
     $effect(() => {
-        if (!displayPlaylist || displayPlaylist.length === 0) return;
+        if (!isBrowser || !displayPlaylist || displayPlaylist.length === 0)
+            return;
 
         let preloadIndex = 0;
         const BATCH_SIZE = 20;
@@ -724,10 +864,23 @@
         setTimeout(preloadNextBatch, 1000);
     });
 
-    // Reset pagination when playlist changes
+    // Reset pagination when playlist changes (but ensure current song stays visible)
     $effect(() => {
         // Trigger on displayPlaylist change
-        if (displayPlaylist) gridLimit = 50;
+        if (displayPlaylist) {
+            // Use untrack to read currentSong without making it a dependency
+            const songId = untrack(() => currentSong?.Id);
+            const currentSongIndex = songId
+                ? displayPlaylist.findIndex((s) => s.Id === songId)
+                : -1;
+
+            // If current song exists and is beyond index 50, keep it visible
+            if (currentSongIndex !== -1 && currentSongIndex >= 50) {
+                gridLimit = Math.max(50, currentSongIndex + 50);
+            } else {
+                gridLimit = 50;
+            }
+        }
     });
 
     function handleGridScroll(e: any) {
@@ -744,6 +897,7 @@
 
     // Playlist Sync: Find current song in new playlist when tab/filter changes
     $effect(() => {
+        if (!isBrowser || displayPlaylist.length === 0 || !currentSong) return;
         if (displayPlaylist.length > 0 && currentSong) {
             const foundIndex = displayPlaylist.findIndex(
                 (s) => s.Id === currentSong.Id,
@@ -790,7 +944,7 @@
 
             // Auto-play: Check for ?play param first (continuing from /[id] page)
             let playedFromParam = false;
-            if (typeof window !== "undefined") {
+            if (isBrowser) {
                 const urlParams = new URLSearchParams(window.location.search);
                 const playId = urlParams.get("play");
                 if (playId) {
@@ -1727,7 +1881,7 @@
                     onscroll={handleGridScroll}
                 >
                     <div
-                        class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 md:gap-4 pb-20"
+                        class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 md:gap-4 pb-20 max-w-full overflow-x-hidden"
                     >
                         {#each visiblePlaylist as song, index (song.Id)}
                             <div
@@ -1735,7 +1889,7 @@
                                 tabindex="0"
                                 id="song-{song.Id}"
                                 in:fade={{ duration: 200 }}
-                                class="flex flex-col gap-2 group text-left w-full relative"
+                                class="flex flex-col gap-2 group text-left w-full relative min-w-0"
                                 onclick={() => {
                                     if (
                                         currentSong &&
@@ -1796,52 +1950,107 @@
                                                     <MiniVisualizer />
                                                 </div>
                                             </div>
+                                        {/if}
 
-                                            <!-- Bottom Left: Like Button -->
-                                            <div
-                                                class="absolute bottom-2 left-2 z-20"
-                                                onclick={(e) =>
-                                                    e.stopPropagation()}
+                                        <!-- Top Left: Artist Profile -->
+                                        <a
+                                            href={`/artist/${song.Address}?play=${song.Id}`}
+                                            class="absolute top-2 left-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#089981]/50 text-[#089981] hover:bg-[#089981]/20 transition-all shadow-[0_0_10px_rgba(8,153,129,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(8,153,129,0.5)] cursor-pointer {currentSong &&
+                                            song.Id === currentSong.Id
+                                                ? 'opacity-100'
+                                                : 'opacity-0 group-hover:opacity-100'}"
+                                            onclick={(e) => e.stopPropagation()}
+                                            title="View Artist Profile"
+                                        >
+                                            <svg
+                                                class="w-4 h-4"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
                                             >
-                                                <LikeButton
-                                                    smolId={song.Id}
-                                                    liked={song.Liked}
-                                                    classNames="p-1.5 rounded-full bg-black/40 backdrop-blur-md border border-[#FF424C]/50 text-[#FF424C] hover:bg-[#FF424C]/20 transition-all shadow-[0_0_10px_rgba(255,66,76,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(255,66,76,0.5)]"
-                                                    iconSize="size-4"
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                                                 />
-                                            </div>
+                                            </svg>
+                                        </a>
 
-                                            <!-- Bottom Right: Song Detail -->
-                                            <div
-                                                role="button"
-                                                class="absolute bottom-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 transition-all shadow-[0_0_10px_rgba(216,54,255,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(216,54,255,0.5)] cursor-pointer"
-                                                onclick={(e) => {
+                                        <!-- Top Right: Send to Radio -->
+                                        <a
+                                            href={`/radio?play=${song.Id}`}
+                                            class="absolute top-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#f7931a]/50 text-[#f7931a] hover:bg-[#f7931a]/20 transition-all shadow-[0_0_10px_rgba(247,147,26,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(247,147,26,0.5)] cursor-pointer {currentSong &&
+                                            song.Id === currentSong.Id
+                                                ? 'opacity-100'
+                                                : 'opacity-0 group-hover:opacity-100'}"
+                                            onclick={(e) => e.stopPropagation()}
+                                            title="start Radio from here"
+                                        >
+                                            <svg
+                                                class="w-4 h-4 ml-0.5"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"
+                                                />
+                                            </svg>
+                                        </a>
+
+                                        <!-- Bottom Left: Like Button -->
+                                        <div
+                                            class="absolute bottom-2 left-2 z-20 {currentSong &&
+                                            song.Id === currentSong.Id
+                                                ? 'opacity-100'
+                                                : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-300"
+                                            onclick={(e) => e.stopPropagation()}
+                                        >
+                                            <LikeButton
+                                                smolId={song.Id}
+                                                liked={song.Liked}
+                                                classNames="p-1.5 rounded-full bg-black/40 backdrop-blur-md border border-[#FF424C]/50 text-[#FF424C] hover:bg-[#FF424C]/20 transition-all shadow-[0_0_10px_rgba(255,66,76,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(255,66,76,0.5)]"
+                                                iconSize="size-4"
+                                            />
+                                        </div>
+
+                                        <!-- Bottom Right: Song Detail -->
+                                        <div
+                                            role="button"
+                                            class="absolute bottom-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 transition-all shadow-[0_0_10px_rgba(216,54,255,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(216,54,255,0.5)] cursor-pointer {currentSong &&
+                                            song.Id === currentSong.Id
+                                                ? 'opacity-100'
+                                                : 'opacity-0 group-hover:opacity-100'}"
+                                            onclick={(e) => {
+                                                e.stopPropagation();
+                                                navigate(
+                                                    `/${song.Id}?from=artist`,
+                                                );
+                                            }}
+                                            onkeydown={(e) => {
+                                                if (e.key === "Enter") {
                                                     e.stopPropagation();
                                                     navigate(
                                                         `/${song.Id}?from=artist`,
                                                     );
-                                                }}
-                                                onkeydown={(e) => {
-                                                    if (e.key === "Enter") {
-                                                        e.stopPropagation();
-                                                        navigate(
-                                                            `/${song.Id}?from=artist`,
-                                                        );
-                                                    }
-                                                }}
-                                                title="View Song Details"
+                                                }
+                                            }}
+                                            title="View Song Details"
+                                        >
+                                            <svg
+                                                class="w-4 h-4"
+                                                fill="currentColor"
+                                                viewBox="0 0 24 24"
                                             >
-                                                <svg
-                                                    class="w-4 h-4"
-                                                    fill="currentColor"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <path
-                                                        d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
-                                                    />
-                                                </svg>
-                                            </div>
-                                        {/if}
+                                                <path
+                                                    d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
+                                                />
+                                            </svg>
+                                        </div>
                                     </div>
                                 </div>
                                 <span

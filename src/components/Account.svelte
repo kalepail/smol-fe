@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { account, kale, server } from "../utils/passkey-kit";
-    import { rpc, truncate } from "../utils/base";
+    import { getLatestSequence, truncate } from "../utils/base";
     import { userState } from "../stores/user.svelte";
     import {
         balanceState,
@@ -110,11 +110,9 @@
                 amount: amountInUnits,
             });
 
-            const { sequence } = await rpc.getLatestLedger();
+            const sequence = await getLatestSequence();
             tx = await account.sign(tx, {
-                rpId:
-                    getDomain(window.location.hostname) ||
-                    window.location.hostname,
+                rpId: getDomain(window.location.hostname) ?? undefined,
                 keyId: userState.keyId,
                 expiration: sequence + 60,
             });

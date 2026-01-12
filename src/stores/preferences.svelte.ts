@@ -98,7 +98,18 @@ export const preferences = {
     get renderMode() { return _prefs.renderMode; },
     get glowTheme() { return _prefs.glowTheme; },
     get unlockedThemes() { return _prefs.unlockedThemes; },
+    set unlockedThemes(val: string[]) { _prefs.unlockedThemes = val; }
 };
+
+/**
+ * Unlock a specific theme feature
+ */
+export function unlockTheme(id: string): void {
+    const current = _prefs.unlockedThemes || [];
+    if (!current.includes(id)) {
+        _prefs.unlockedThemes = [...current, id];
+    }
+}
 
 // Derived helpers for themes
 export const THEMES: Record<GlowTheme, { name: string, gradient: string, color: string, style?: string }> = {

@@ -241,6 +241,7 @@ export async function getMixtapeDetail(
     updatedAt: data.Created_At,
     creator: data.Address,
     tracks: orderedTracks,
+    smolIds: orderedTracks.map(t => t.Id),
   };
 }
 

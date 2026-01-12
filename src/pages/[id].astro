@@ -41,6 +41,8 @@ if (id) {
 
 <Layout {title} {description} {song_url} {image_url} hideBottomBar={true}>
 	<div class="w-full min-h-[calc(100vh-80px)] lg:h-[calc(100vh-80px)] h-auto flex items-center justify-center lg:overflow-hidden overflow-y-auto pt-4 lg:pt-12 pb-8 px-4 lg:px-6">
-		<SmolResults id={id as string} client:only="svelte" />
+		<div data-astro-transition-scope={`song-${id}`}>
+			<SmolResults id={id as string} client:only="svelte" />
+		</div>
 	</div>
 </Layout>

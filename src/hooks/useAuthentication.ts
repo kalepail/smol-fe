@@ -16,13 +16,13 @@ interface CreateResult extends ConnectResult {
 export function useAuthentication() {
   const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
   async function login() {
-    const rpId = getDomain(window.location.hostname);
+    const rpId = getDomain(window.location.hostname) ?? undefined;
     const {
       rawResponse,
       keyIdBase64,
       contractId: cid,
     } = await account.connectWallet({
-      rpId: rpId !== null ? rpId : undefined,
+      rpId,
     });
 
     const jwt = await fetch(`${API_URL}/login`, {
@@ -61,14 +61,14 @@ export function useAuthentication() {
   }
 
   async function signUp(username: string) {
-    const rpId = getDomain(window.location.hostname);
+    const rpId = getDomain(window.location.hostname) ?? undefined;
     const {
       rawResponse,
       keyIdBase64,
       contractId: cid,
       signedTx,
     } = await account.createWallet('smol.xyz', `SMOL — ${username}`, {
-      rpId: rpId !== null ? rpId : undefined,
+      rpId,
     });
 
     const jwt = await fetch(`${API_URL}/login`, {

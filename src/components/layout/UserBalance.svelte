@@ -70,5 +70,7 @@
     <Loader classNames="w-3 h-3" textColor="text-lime-500" />
   {:else if balance !== null}
     {formatKaleBalanceWithSuffix(balance)}
+  {:else}
+    <span class="opacity-50">--- KALE</span>
   {/if}
 </a>

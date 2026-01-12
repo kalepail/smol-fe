@@ -201,7 +201,7 @@
         if (snapshotCache.length > 0) return snapshotCache;
         isSnapshotLoading = true;
         try {
-            const snapshot = await safeFetchSmols(true);
+            const snapshot = await safeFetchSmols();
             snapshotCache = snapshot;
             return snapshot;
         } catch (err) {
@@ -434,7 +434,13 @@
                                                     class="tech-button w-8 h-8 flex items-center justify-center rounded-full bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.2)] transition-all active:scale-95"
                                                     onclick={(e) => {
                                                         e.stopPropagation();
-                                                        navigate(buildRadioUrl(mixtapeTracks[currentTrackIndex]));
+                                                        navigate(
+                                                            buildRadioUrl(
+                                                                mixtapeTracks[
+                                                                    currentTrackIndex
+                                                                ],
+                                                            ),
+                                                        );
                                                     }}
                                                     title="Start Radio"
                                                 >

@@ -62,24 +62,49 @@
     });
 
     onMount(async () => {
+        // Restore state from URL
+        const params = new URLSearchParams(window.location.search);
+        const tagsFromUrl = params.getAll("tag");
+        if (tagsFromUrl.length > 0) {
+            selectedTags = tagsFromUrl;
+        }
+        const queryFromUrl = params.get("q");
+        if (queryFromUrl) {
+            searchQuery = queryFromUrl;
+        }
+
         updateMobileState();
         window.addEventListener("resize", updateMobileState);
+
+        // Safety timeout to prevent infinite loading
+        const timeout = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Timeout")), 5000),
+        );
+
         try {
-            const snap = await getSnapshotTagStats();
-            tagStats = snap.tags;
-            tagMeta = snap.meta;
+            await Promise.race([
+                (async () => {
+                    const snap = await getSnapshotTagStats();
+                    tagStats = snap.tags;
+                    tagMeta = snap.meta;
 
-            smols = await getFullSnapshot();
-            const liveSmols = await safeFetchSmols();
-            if (liveSmols.length > 0) {
-                smols = liveSmols;
-            }
+                    smols = await getFullSnapshot();
+                    const liveSmols = await safeFetchSmols();
+                    if (liveSmols.length > 0) {
+                        smols = liveSmols;
+                    }
 
-            const unified = await getUnifiedTags({ liveSmols: smols });
-            tagStats = unified.tags;
-            tagMeta = unified.meta;
+                    const unified = await getUnifiedTags({ liveSmols: smols });
+                    tagStats = unified.tags;
+                    tagMeta = unified.meta;
+                })(),
+                timeout,
+            ]);
         } catch (e) {
-            console.error("[TagExplorer] Failed to fetch smols:", e);
+            console.error(
+                "[TagExplorer] Failed to fetch smols (or timed out):",
+                e,
+            );
         } finally {
             isLoading = false;
         }
@@ -138,12 +163,34 @@
         } else {
             selectedTags = [...selectedTags, tag];
         }
+        updateUrl();
     }
 
     function pivotTag(tag: string) {
         // "Pivot" behavior: Replace current selection with this new vibe
         // This makes the matrix feel like switching a playlist/vibe instantly
         selectedTags = [tag];
+        updateUrl();
+    }
+
+    function updateUrl() {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("tag");
+        selectedTags.forEach((t) => url.searchParams.append("tag", t));
+
+        if (searchQuery) {
+            url.searchParams.set("q", searchQuery);
+        } else {
+            url.searchParams.delete("q");
+        }
+
+        // Use replaceState to avoid cluttering history stack with every click,
+        // OR use pushState if we want each step to be back-able.
+        // User asked for "Back" to go to grid mode.
+        // If they click 5 tags, hitting back 5 times might be annoying.
+        // But if they navigate AWAY and come back, we want the state.
+        // Updating the URL in place means "Back" from Artist Page -> This URL with params.
+        window.history.replaceState({}, "", url);
     }
 
     function normalizeTag(tag: string) {
@@ -674,11 +721,11 @@
                     </div>
 
                     <div
-                        class="flex-1 overflow-y-auto custom-scrollbar p-6 pt-0"
+                        class="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar p-6 pt-0"
                     >
                         <div class="pt-6">
                             <div
-                                class="pt-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 pb-20"
+                                class="pt-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 pb-20 max-w-full overflow-x-hidden"
                             >
                                 {#each filteredSmols as song (song.Id)}
                                     <div
@@ -686,7 +733,7 @@
                                         tabindex="0"
                                         id="song-{song.Id}"
                                         in:fade={{ duration: 200 }}
-                                        class="flex flex-col gap-2 group text-left w-full relative"
+                                        class="flex flex-col gap-2 group text-left w-full relative min-w-0"
                                         onclick={() => {
                                             if (
                                                 audioState.currentSong?.Id ===

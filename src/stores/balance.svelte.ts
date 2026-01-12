@@ -15,7 +15,11 @@ export const balanceState = $state<{
 /**
  * Update contract balance for a given address
  */
-export async function updateContractBalance(address: string): Promise<void> {
+export async function updateContractBalance(address: string | null): Promise<void> {
+  if (!address) {
+    balanceState.balance = null;
+    return;
+  }
   balanceState.loading = true;
   try {
     const { result } = await kale.balance({ id: address });

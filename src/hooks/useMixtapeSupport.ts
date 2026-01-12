@@ -1,6 +1,6 @@
 import { getDomain } from 'tldts';
 import { account, kale, server, sac } from '../utils/passkey-kit';
-import { rpc } from '../utils/base';
+import { getLatestSequence, truncate } from '../utils/base';
 import { userState } from '../stores/user.svelte';
 import type { Smol } from '../types/domain';
 
@@ -48,6 +48,9 @@ export function calculateSupportPayment(
             curatorShare: 0n,
             artistShare: 0n,
             minterShare: 0n,
+            curatorPercent: 0,
+            artistPercent: 0,
+            minterPercent: 0,
             recipients: []
         };
     }
@@ -149,33 +152,34 @@ export async function sendSupportPayment(
             }
         }
 
-        // Build a single transaction with multiple transfer operations
-        let tx = await kale.transaction({ from: userState.contractId });
-
+        // Send transfers sequentially (sub-optimal but valid API)
+        let lastTxHash = 'multi-payment';
         for (const [address, amount] of aggregated) {
-            tx = await kale.transferOp(tx, {
+            onProgress?.(`Transferring to ${truncate(address, 4)}...`);
+            let tx = await kale.transfer({
                 from: userState.contractId,
                 to: address,
                 amount,
             });
+
+            onProgress?.(`Awaiting signature for ${truncate(address, 4)}...`);
+            const sequence = await getLatestSequence();
+            tx = await account.sign(tx, {
+                rpId: getDomain(window.location.hostname) ?? undefined,
+                keyId: userState.keyId,
+                expiration: sequence + 60,
+            });
+
+            onProgress?.(`Submitting transfer to ${truncate(address, 4)}...`);
+            const result = await server.send(tx);
+            if (result?.hash) lastTxHash = result.hash;
         }
-
-        onProgress?.('Awaiting signature...');
-        const { sequence } = await rpc.getLatestLedger();
-        tx = await account.sign(tx, {
-            rpId: getDomain(window.location.hostname) ?? undefined,
-            keyId: userState.keyId,
-            expiration: sequence + 60,
-        });
-
-        onProgress?.('Submitting transaction...');
-        const result = await server.send(tx);
 
         onProgress?.('Complete!');
 
         return {
             success: true,
-            txHash: result?.hash || 'multi-payment'
+            txHash: lastTxHash
         };
 
     } catch (error) {

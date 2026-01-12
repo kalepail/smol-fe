@@ -6,7 +6,11 @@ import ArtistResults from '../../components/artist/ArtistResults.svelte';
 // ArtistResults now fetches data client-side based on address
 
 const { address } = Astro.params;
-const playId = Astro.url.searchParams.get('play');
+const { searchParams } = Astro.url;
+const playId = searchParams.get('play');
+const shuffle = searchParams.get("shuffle") === "true";
+const seedParam = searchParams.get("seed");
+const seed = seedParam ? Number.parseInt(seedParam, 10) : null;
 const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
 
 let title = `Artist ${address?.substring(0, 6) || 'Unknown'}...`;
@@ -38,10 +42,12 @@ if (playId) {
 ---
 
 <Layout {title} {description} {image_url} {song_url}>
-	<main class="h-[calc(100vh-52px)] overflow-hidden text-white p-0 md:px-4 max-w-7xl mx-auto -mt-[2px] md:mt-0">
-        <ArtistResults 
-            client:load 
-            address={address} 
+	<main class="h-[calc(100vh-52px)] overflow-hidden text-white p-0 md:px-4 max-w-7xl mx-auto -mt-[2px] md:mt-0" transition:animate="none">
+        <ArtistResults
+            client:only="svelte"
+            address={address}
+            shuffle={shuffle}
+            seed={seed}
         />
 	</main>
 </Layout>

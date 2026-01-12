@@ -5,22 +5,23 @@
 Loading svelte-check in workspace: c:\Users\Jeff\Mixtape Auto\smol-fe
 Getting Svelte diagnostics...
 
-c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\hooks\useMixtapeSupport.ts[39m:45:9
-[31mError[39m: Type '{ totalKale: number; totalUnits: bigint; curatorShare: bigint; artistShare: bigint; minterShare: bigint; recipients: never[]; }' is missing the following properties from type 'SupportPaymentBreakdown': curatorPercent, artistPercent, minterPercent 
-[36m    if (numTracks === 0) {
-        [35mreturn[36m {
-            totalKale: 0,[39m
-
-c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\hooks\useMixtapeSupport.ts[39m:153:29
-[31mError[39m: Property 'transaction' does not exist on type 'Client'. 
-[36m        // Build a single transaction with multiple transfer operations
-        let tx = await kale.[35mtransaction[36m({ from: userState.contractId });[39m
-
-c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\hooks\useMixtapeSupport.ts[39m:156:29
-[31mError[39m: Property 'transferOp' does not exist on type 'Client'. Did you mean 'transfer'? 
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\hooks\useMixtapeSupport.ts[39m:158:45
+[31mError[39m: Cannot find name 'truncate'. 
 [36m        for (const [address, amount] of aggregated) {
-            tx = await kale.[35mtransferOp[36m(tx, {
-                from: userState.contractId,[39m
+            onProgress?.(`Transferring to ${[35mtruncate[36m(address, 4)}...`);
+            let tx = await kale.transfer({[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\hooks\useMixtapeSupport.ts[39m:165:52
+[31mError[39m: Cannot find name 'truncate'. 
+[36m
+            onProgress?.(`Awaiting signature for ${[35mtruncate[36m(address, 4)}...`);
+            const sequence = await getLatestSequence();[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\hooks\useMixtapeSupport.ts[39m:173:52
+[31mError[39m: Cannot find name 'truncate'. 
+[36m
+            onProgress?.(`Submitting transfer to ${[35mtruncate[36m(address, 4)}...`);
+            const result = await server.send(tx);[39m
 
 c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\mixtape\MixtapeCardsGrid.svelte[39m:204:51
 [31mError[39m: Type 'true' has no properties in common with type '{ limit?: number | undefined; }'. (ts)

@@ -1,6 +1,6 @@
 import { getDomain } from 'tldts';
 import { kale, account, server } from '../utils/passkey-kit';
-import { rpc } from '../utils/base';
+import { getLatestSequence } from '../utils/base';
 import { updateContractBalance } from '../stores/balance.svelte';
 
 interface TransferParams {
@@ -48,9 +48,9 @@ export function useKaleTransfer() {
       amount: params.amount,
     });
 
-    const { sequence } = await rpc.getLatestLedger();
+    const sequence = await getLatestSequence();
     tx = await account.sign(tx, {
-      rpId: getDomain(window.location.hostname) || window.location.hostname,
+      rpId: getDomain(window.location.hostname) ?? undefined,
       keyId: params.keyId,
       expiration: sequence + 60,
     });

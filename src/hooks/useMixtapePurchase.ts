@@ -1,7 +1,7 @@
 import { Client as SmolClient } from 'smol-sdk';
 import { getDomain } from 'tldts';
 import type { Smol } from '../types/domain';
-import { rpc } from '../utils/base';
+import { getLatestSequence } from '../utils/base';
 import { account, server } from '../utils/passkey-kit';
 
 interface PurchaseBatchParams {
@@ -33,7 +33,7 @@ export function useMixtapePurchase() {
       fee_recipients: undefined,
     });
 
-    const { sequence } = await rpc.getLatestLedger();
+    const sequence = await getLatestSequence();
     await account.sign(tx, {
       rpId: getDomain(window.location.hostname) ?? undefined,
       keyId: userKeyId,

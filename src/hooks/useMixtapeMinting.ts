@@ -3,7 +3,7 @@ import { Client as SmolClient } from 'smol-sdk';
 import { getDomain } from 'tldts';
 import type { Smol } from '../types/domain';
 import type { MixtapeSmolData } from '../services/api/mixtapes';
-import { rpc } from '../utils/base';
+import { getLatestSequence } from '../utils/base';
 import { account } from '../utils/passkey-kit';
 import { MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from '../utils/mint';
 
@@ -154,7 +154,7 @@ export function useMixtapeMinting() {
       fee_rules: feeRulesArray,
     });
 
-    const { sequence } = await rpc.getLatestLedger();
+    const sequence = await getLatestSequence();
     at = await account.sign(at, {
       rpId: getDomain(window.location.hostname) ?? undefined,
       keyId: userKeyId,

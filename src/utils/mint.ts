@@ -1,7 +1,7 @@
 import { Asset } from "@stellar/stellar-sdk/minimal";
 import { Client as SmolClient } from "smol-sdk";
 import { account } from "./passkey-kit";
-import { rpc } from "./base";
+import { getLatestSequence } from "./base";
 import { getDomain } from "tldts";
 
 export const MINT_POLL_INTERVAL = 1000 * 6;
@@ -67,10 +67,10 @@ export async function createMintTransaction(options: MintOptions) {
         fee_rule: feeRule,
     });
 
-    const { sequence } = await rpc.getLatestLedger();
+    const sequence = await getLatestSequence();
 
     at = await account.sign(at, {
-        rpId: getDomain(window.location.hostname) || window.location.hostname,
+        rpId: getDomain(window.location.hostname) ?? undefined,
         keyId,
         expiration: sequence + 60,
     });

@@ -8,6 +8,7 @@
     "build": "node --max-old-space-size=4096 ./node_modules/astro/astro.js build",
     "preview": "astro preview",
     "astro": "astro",
+    "test": "node --test tests/*.test.js",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-check --tsconfig ./tsconfig.json --watch"
   },
@@ -43,7 +44,8 @@
     "tailwindcss": "^4.1.14",
     "typescript": "^5.9.3",
     "vite-plugin-mkcert": "^1.17.9",
-    "vite-plugin-node-polyfills": "^0.24.0"
+    "vite-plugin-node-polyfills": "^0.24.0",
+    "wrangler": "^4.58.0"
   },
   "packageManager": "pnpm@10.18.1"
 }
