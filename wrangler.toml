@@ -3,5 +3,7 @@ compatibility_date = "2024-04-03"
 pages_build_output_dir = "dist"
 
 [vars]
-# Add non-secret public variables here if desired, 
-# although Cloudflare Dashboard is usually preferred for Pages.
+PUBLIC_API_URL = "https://api.smol.xyz"
+PUBLIC_RPC_URL = "https://mainnet.stellar.rpcpool.com"
+PUBLIC_NETWORK_PASSPHRASE = "Public Global Stellar Network ; September 2015"
+PUBLIC_WALLET_WASM_HASH = "ecd990f0b45ca6817149b6175f79b32efb442f35731985a084131e8265c4cd90"
