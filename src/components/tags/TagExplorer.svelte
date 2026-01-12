@@ -64,22 +64,36 @@
     onMount(async () => {
         updateMobileState();
         window.addEventListener("resize", updateMobileState);
+
+        // Safety timeout to prevent infinite loading
+        const timeout = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Timeout")), 5000),
+        );
+
         try {
-            const snap = await getSnapshotTagStats();
-            tagStats = snap.tags;
-            tagMeta = snap.meta;
+            await Promise.race([
+                (async () => {
+                    const snap = await getSnapshotTagStats();
+                    tagStats = snap.tags;
+                    tagMeta = snap.meta;
 
-            smols = await getFullSnapshot();
-            const liveSmols = await safeFetchSmols();
-            if (liveSmols.length > 0) {
-                smols = liveSmols;
-            }
+                    smols = await getFullSnapshot();
+                    const liveSmols = await safeFetchSmols();
+                    if (liveSmols.length > 0) {
+                        smols = liveSmols;
+                    }
 
-            const unified = await getUnifiedTags({ liveSmols: smols });
-            tagStats = unified.tags;
-            tagMeta = unified.meta;
+                    const unified = await getUnifiedTags({ liveSmols: smols });
+                    tagStats = unified.tags;
+                    tagMeta = unified.meta;
+                })(),
+                timeout,
+            ]);
         } catch (e) {
-            console.error("[TagExplorer] Failed to fetch smols:", e);
+            console.error(
+                "[TagExplorer] Failed to fetch smols (or timed out):",
+                e,
+            );
         } finally {
             isLoading = false;
         }

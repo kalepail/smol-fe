@@ -6,6 +6,6 @@ import TagExplorer from "../components/tags/TagExplorer.svelte";
 
 <Layout title="Tags Explorer">
   <div class="h-[calc(100vh-52px)] overflow-hidden">
-    <TagExplorer client:load />
+    <TagExplorer client:only="svelte" />
   </div>
 </Layout>
