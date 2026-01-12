@@ -1177,19 +1177,19 @@
         >
             {#if showGridView}
                 <div
-                    class="absolute inset-0 z-50 bg-[#121212] p-2 md:p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto dark-scrollbar pb-[env(safe-area-inset-bottom)]"
+                    class="absolute inset-0 z-50 bg-[#121212] p-2 md:p-6 animate-in fade-in zoom-in-95 duration-200 overflow-y-auto overflow-x-hidden dark-scrollbar pb-[env(safe-area-inset-bottom)]"
                     onscroll={handleGridScroll}
                     style="contain: content;"
                 >
                     <div
-                        class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 md:gap-4 pb-20"
+                        class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 md:gap-4 pb-20 max-w-full overflow-x-hidden"
                     >
                         {#each visiblePlaylist as song, index (song.Id)}
                             <div
                                 role="button"
                                 tabindex="0"
                                 id="song-card-{song.Id}"
-                                class="flex flex-col gap-2 group text-left w-full relative transition-opacity duration-300 {currentSong &&
+                                class="flex flex-col gap-2 group text-left w-full relative min-w-0 transition-opacity duration-300 {currentSong &&
                                 song.Id !== currentSong.Id &&
                                 isPlaying()
                                     ? 'opacity-40 hover:opacity-100'

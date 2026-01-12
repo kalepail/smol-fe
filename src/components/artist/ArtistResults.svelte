@@ -1881,7 +1881,7 @@
                     onscroll={handleGridScroll}
                 >
                     <div
-                        class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 md:gap-4 pb-20"
+                        class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 md:gap-4 pb-20 max-w-full overflow-x-hidden"
                     >
                         {#each visiblePlaylist as song, index (song.Id)}
                             <div
@@ -1889,7 +1889,7 @@
                                 tabindex="0"
                                 id="song-{song.Id}"
                                 in:fade={{ duration: 200 }}
-                                class="flex flex-col gap-2 group text-left w-full relative"
+                                class="flex flex-col gap-2 group text-left w-full relative min-w-0"
                                 onclick={() => {
                                     if (
                                         currentSong &&
