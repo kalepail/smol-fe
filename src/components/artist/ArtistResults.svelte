@@ -662,11 +662,25 @@
         ) {
             return;
         }
+
+        // First, ensure the current song is in the visible range
+        const currentSongIndex = displayPlaylist.findIndex(
+            (s) => s.Id === currentSong.Id,
+        );
+
+        if (currentSongIndex !== -1 && currentSongIndex >= gridLimit) {
+            // Expand gridLimit to include the current song plus some buffer
+            gridLimit = currentSongIndex + 50;
+        }
+
+        // Wait for DOM to update with the new sort order and expanded gridLimit
         tick().then(() => {
-            const el = document.getElementById(`song-${currentSong.Id}`);
-            if (el) {
-                el.scrollIntoView({ behavior: "smooth", block: "center" });
-            }
+            setTimeout(() => {
+                const el = document.getElementById(`song-${currentSong.Id}`);
+                if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                }
+            }, 100); // Small delay to ensure DOM has fully settled
         });
     });
 
@@ -846,10 +860,21 @@
         setTimeout(preloadNextBatch, 1000);
     });
 
-    // Reset pagination when playlist changes
+    // Reset pagination when playlist changes (but ensure current song stays visible)
     $effect(() => {
         // Trigger on displayPlaylist change
-        if (displayPlaylist) gridLimit = 50;
+        if (displayPlaylist) {
+            const currentSongIndex = currentSong
+                ? displayPlaylist.findIndex((s) => s.Id === currentSong.Id)
+                : -1;
+
+            // If current song exists and is beyond index 50, keep it visible
+            if (currentSongIndex !== -1 && currentSongIndex >= 50) {
+                gridLimit = Math.max(50, currentSongIndex + 50);
+            } else {
+                gridLimit = 50;
+            }
+        }
     });
 
     function handleGridScroll(e: any) {
