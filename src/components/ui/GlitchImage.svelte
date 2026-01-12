@@ -2,6 +2,7 @@
     import { onMount } from "svelte";
 
     // CSS-based glitch effect placeholder
+    let imageData = $state(null);
 </script>
 
 <div

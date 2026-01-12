@@ -1,5 +1,5 @@
 import { Address, xdr } from '@stellar/stellar-sdk';
-import { rpc } from './base';
+import { getRpcServer } from './base';
 
 /**
  * Represents a batch request for SAC token balances
@@ -181,7 +181,8 @@ export async function getBatchSACBalances(
       const ledgerKeys = keys.map((key) => xdr.LedgerKey.fromXDR(key, 'base64'));
 
       // Make a single RPC call to get all ledger entries
-      const response = await rpc.getLedgerEntries(...ledgerKeys);
+      const server = getRpcServer();
+      const response = await server.getLedgerEntries(...ledgerKeys);
 
       // Map results back to the requests
       const results: BalanceBatchResult[] = requests.map((req, index) => {

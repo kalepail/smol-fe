@@ -31,6 +31,21 @@
     let visibleCount = $state(0);
     // let isTyping = $state(false); // Unused in this version if we don't blink a cursor moving
 
+    const PLACEHOLDERS = [
+        "so people can tip you",
+        "where the $KALE goes",
+        "make it iconic",
+        "so fans can support your art",
+        "your stage name",
+        "don't use 'password'",
+        "something cool",
+        "your tip jar label",
+        "who are you really?",
+        "not your real name",
+        "receive funds here",
+    ];
+    let placeholderIndex = $state(0);
+
     $effect(() => {
         let i = 0;
         const target = TAGLINES[taglineIndex];
@@ -50,9 +65,15 @@
             taglineIndex = (taglineIndex + 1) % TAGLINES.length;
         }, 4000);
 
+        // Rotate placeholders every 2.5s
+        const placeholderInterval = setInterval(() => {
+            placeholderIndex = (placeholderIndex + 1) % PLACEHOLDERS.length;
+        }, 2500);
+
         return () => {
             clearInterval(typeInterval);
             clearTimeout(nextInterval);
+            clearInterval(placeholderInterval);
         };
     });
 
@@ -116,11 +137,25 @@
                 window.location.href = "/";
             }, 500);
         } catch (e: any) {
-            // Login failed/cancelled - assume new user -> sign up flow
-            console.log("Login failed, falling back to signup:", e.message);
-            // Reset loader state but stay on Splash to show username input
-            step = "username";
-            logEvent("passkey_smart_login_fallback_signup");
+            // Login failed/cancelled
+            console.log("Login failed or cancelled:", e.message);
+
+            // Check for user cancellation/abort
+            const message = e.message?.toLowerCase() || "";
+            const isCancellation =
+                message.includes("abort") ||
+                message.includes("cancel") ||
+                message.includes("not allowed");
+
+            if (isCancellation) {
+                // Return to intro on cancellation instead of forcing username input
+                step = "intro";
+                logEvent("passkey_smart_login_cancelled");
+            } else {
+                // assume new user -> sign up flow
+                step = "username";
+                logEvent("passkey_smart_login_fallback_signup");
+            }
         }
     }
 
@@ -284,15 +319,15 @@
                     <div
                         class="text-white/80 font-pixel uppercase tracking-wide text-xs mb-2"
                     >
-                        Enter Callsign
+                        What should we call you?
                     </div>
 
                     <input
                         type="text"
                         bind:value={username}
-                        placeholder="USERNAME"
+                        placeholder={PLACEHOLDERS[placeholderIndex]}
                         class="w-full bg-white/5 border-2 border-white/20 rounded-lg py-3 px-4 text-center font-pixel text-white uppercase tracking-widest placeholder:text-white/20
-                           focus:border-[#d836ff] focus:outline-none focus:bg-white/10 transition-colors"
+                            focus:border-[#d836ff] focus:outline-none focus:bg-white/10 transition-colors"
                         autofocus
                         onkeydown={(e) => e.stopPropagation()}
                     />

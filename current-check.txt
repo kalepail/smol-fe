@@ -5,6 +5,12 @@
 Loading svelte-check in workspace: c:\Users\Jeff\Mixtape Auto\smol-fe
 Getting Svelte diagnostics...
 
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\services\api\mixtapes.ts[39m:235:3
+[31mError[39m: Property 'smolIds' is missing in type '{ id: string; title: string; description: string; trackCount: number; coverUrls: (string | null)[]; updatedAt: string; creator: string; tracks: MixtapeSmolData[]; }' but required in type 'MixtapeDetail'. 
+[36m
+  [35mreturn[36m {
+    id: data.Id,[39m
+
 c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\hooks\useMixtapeSupport.ts[39m:45:9
 [31mError[39m: Type '{ totalKale: number; totalUnits: bigint; curatorShare: bigint; artistShare: bigint; minterShare: bigint; recipients: never[]; }' is missing the following properties from type 'SupportPaymentBreakdown': curatorPercent, artistPercent, minterPercent 
 [36m    if (numTracks === 0) {
@@ -207,5 +213,5 @@ c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\ui\GlitchImage.svelte[39
                 ? "RENDERING_FINAL_PIXELS..."[39m
 
 ====================================
-[31msvelte-check found 29 errors and 3 warnings in 10 files
+[31msvelte-check found 30 errors and 3 warnings in 11 files
 [39mΓÇëELIFECYCLEΓÇë Command failed with exit code 1.
