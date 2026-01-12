@@ -180,23 +180,60 @@
 
   // Update pathname on navigation (for View Transitions/SPA nav)
   $effect(() => {
-    const handlePopState = () => {
-      pathname = window.location.pathname;
-    };
-    window.addEventListener("popstate", handlePopState);
-
-    // Also need to hook into Astro's navigation events if possible,
-    // or just rely on the component re-mounting if pages are not persistent.
-    // Since this is a specialized requested, we'll just check window location reactively.
-    const interval = setInterval(() => {
-      if (pathname !== window.location.pathname) {
-        pathname = window.location.pathname;
+    const handleUpdate = () => {
+      const newPath = window.location.pathname;
+      if (pathname !== newPath) {
+        pathname = newPath;
       }
-    }, 100);
+    };
+
+    window.addEventListener("popstate", handleUpdate);
+    document.addEventListener("astro:page-load", handleUpdate);
+    document.addEventListener("astro:after-swap", handleUpdate);
 
     return () => {
-      window.removeEventListener("popstate", handlePopState);
-      clearInterval(interval);
+      window.removeEventListener("popstate", handleUpdate);
+      document.removeEventListener("astro:page-load", handleUpdate);
+      document.removeEventListener("astro:after-swap", handleUpdate);
+    };
+  });
+
+  // Keep Document Title Updated with "Now Playing" info
+  $effect(() => {
+    const updateTitle = () => {
+      if (!audioState.currentSong) return;
+
+      const artist =
+        audioState.currentSong.Username ||
+        audioState.currentSong.Creator ||
+        audioState.currentSong.artist ||
+        "Smol";
+      const title = audioState.currentSong.Title || "Untitled";
+
+      let newTitle = `${title} • ${artist}`;
+      if (audioState.playingId) {
+        newTitle = `▶ ${newTitle}`;
+      }
+
+      if (document.title !== newTitle) {
+        document.title = newTitle;
+      }
+    };
+
+    // Reactively update when song/play state changes
+    updateTitle();
+
+    // Also re-apply on navigation (Astro swaps title on nav, we want to persist song info if playing)
+    const handleNav = () => {
+      // Tiny timeout to let Astro finish its title swap
+      setTimeout(() => {
+        if (audioState.playingId) updateTitle();
+      }, 50);
+    };
+
+    document.addEventListener("astro:page-load", handleNav);
+    return () => {
+      document.removeEventListener("astro:page-load", handleNav);
     };
   });
 
@@ -210,13 +247,29 @@
 
   const isHomePage = $derived(pathname === "/" || pathname === "");
 
+  let { hideBottomBar = false } = $props();
+
   // Radio mode: on /radio page AND audio is actively playing
   const isRadioMode = $derived(
     (pathname === "/radio" || pathname === "/radio/") && audioState.playingId,
   );
+
+  const isArtistPage = $derived(pathname.startsWith("/artist"));
+  const isTagsPage = $derived(pathname.startsWith("/tags"));
+  const isCreatedPage = $derived(pathname.startsWith("/created"));
+
+  const shouldHidePlayer = $derived(
+    hideBottomBar ||
+      isMixtapesIndex ||
+      isHomePage ||
+      isRadioMode ||
+      isArtistPage ||
+      isTagsPage ||
+      isCreatedPage,
+  );
 </script>
 
-{#if audioState.currentSong && !isMixtapesIndex && !isHomePage && !isRadioMode}
+{#if audioState.currentSong && !shouldHidePlayer}
   <div
     class="fixed z-[150] p-2 bottom-2 lg:w-full left-4 right-4 lg:max-w-1/2 lg:min-w-[300px] lg:left-1/2 lg:-translate-x-1/2 rounded-md bg-slate-950/50 backdrop-blur-lg border border-white/20 shadow-lg"
     transition:fade={{ duration: 200 }}

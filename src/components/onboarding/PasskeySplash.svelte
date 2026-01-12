@@ -10,7 +10,6 @@
     let step = $state<"intro" | "username" | "processing" | "success">("intro");
     let username = $state("");
     let error = $state<string | null>(null);
-    // Audio removed per user request
 
     const authHook = useAuthentication();
 
@@ -29,27 +28,23 @@
     ];
     let taglineIndex = $state(0);
     let visibleCount = $state(0);
-    // let isTyping = $state(false); // Unused in this version if we don't blink a cursor moving
 
     const PLACEHOLDERS = [
-        "so people can tip you",
-        "where the $KALE goes",
-        "make it iconic",
-        "so fans can support your art",
-        "your stage name",
-        "don't use 'password'",
-        "something cool",
-        "your tip jar label",
-        "who are you really?",
-        "not your real name",
-        "receive funds here",
+        "vip_access",
+        "backstage_pass",
+        "front_row",
+        "inner_circle",
+        "all_access",
+        "guest_list",
+        "producer_pass",
+        "studio_key",
+        "sound_check",
     ];
     let placeholderIndex = $state(0);
 
     $effect(() => {
         let i = 0;
         const target = TAGLINES[taglineIndex];
-        // isTyping = true;
         visibleCount = 0;
 
         const typeInterval = setInterval(() => {
@@ -57,7 +52,6 @@
             visibleCount = i;
             if (i >= target.length) {
                 clearInterval(typeInterval);
-                // isTyping = false;
             }
         }, 50);
 
@@ -121,8 +115,6 @@
         console.log(`[Analytics] ${name}`, payload);
     }
 
-    // Audio Logic removed
-
     async function handleSmartLogin() {
         // Try login first (existing passkey)
         logEvent("passkey_smart_login_start");
@@ -133,6 +125,7 @@
             await authHook.login();
             logEvent("passkey_login_success");
             step = "success";
+            if (navigator.vibrate) navigator.vibrate(200);
             setTimeout(() => {
                 window.location.href = "/";
             }, 500);
@@ -168,6 +161,7 @@
             await authHook.signUp(username);
             logEvent("passkey_create_success");
             step = "success";
+            if (navigator.vibrate) navigator.vibrate(200);
             // Redirect after short delay
             setTimeout(() => {
                 window.location.href = "/";
@@ -290,13 +284,11 @@
 
                     <!-- INFO TEXT -->
                     <div class="mt-4 text-center space-y-1">
-                        <p
-                            class="text-[10px] md:text-xs text-lime-400/60 font-pixel"
-                        >
+                        <p class="text-[10px] md:text-xs text-white font-pixel">
                             NO PASSWORDS. INSTANT LOGIN.
                         </p>
                         <p
-                            class="text-[10px] md:text-xs text-lime-400/40 font-pixel"
+                            class="text-[10px] md:text-xs text-white/60 font-pixel"
                         >
                             SECURED BY YOUR DEVICE.
                         </p>
@@ -305,21 +297,27 @@
                     <!-- ESCAPE HATCH -->
                     <button
                         onclick={handleSkip}
-                        class="mt-4 md:mt-8 text-white/60 hover:text-white font-pixel uppercase text-[10px] tracking-widest
-                           focus:outline-none focus:text-white"
+                        class="mt-4 md:mt-8 text-lime-400 hover:text-lime-300 font-pixel uppercase text-[10px] tracking-widest
+                           focus:outline-none focus:text-lime-300"
                     >
                         Enter as Guest
                     </button>
                 </div>
             {:else if step === "username"}
                 <div
-                    class="w-full max-w-xs flex flex-col gap-4 items-center"
+                    class="w-full max-w-lg flex flex-col gap-4 items-center"
                     in:scale={{ duration: 300, start: 0.95 }}
                 >
                     <div
-                        class="text-white/80 font-pixel uppercase tracking-wide text-xs mb-2"
+                        class="text-lime-400 font-pixel uppercase tracking-widest text-sm mb-1"
                     >
-                        What should we call you?
+                        All Access Pass
+                    </div>
+                    <div
+                        class="text-white/60 font-pixel text-[10px] text-center mb-4 leading-relaxed"
+                    >
+                        Secure your connection to the culture.<br />
+                        A private handle for the AI music economy.
                     </div>
 
                     <input
@@ -327,7 +325,7 @@
                         bind:value={username}
                         placeholder={PLACEHOLDERS[placeholderIndex]}
                         class="w-full bg-white/5 border-2 border-white/20 rounded-lg py-3 px-4 text-center font-pixel text-white uppercase tracking-widest placeholder:text-white/20 text-xs
-                            focus:border-[#d836ff] focus:outline-none focus:bg-white/10 transition-colors"
+                            focus:border-lime-400 focus:outline-none focus:bg-white/10 focus:shadow-[0_0_20px_rgba(163,230,53,0.3)] caret-lime-400 transition-all"
                         autofocus
                         onkeydown={(e) => e.stopPropagation()}
                     />
@@ -357,14 +355,20 @@
                             Start Game
                         </button>
                     </div>
+
+                    <div
+                        class="mt-4 text-[10px] text-lime-400 font-pixel uppercase tracking-widest opacity-80 text-center"
+                    >
+                        🔒 Your Keys. Your Music. 🔑
+                    </div>
                 </div>
             {:else if step === "processing"}
                 <div class="flex flex-col items-center gap-4" in:fade>
-                    <Loader classNames="w-12 h-12" textColor="text-[#d836ff]" />
+                    <Loader classNames="w-12 h-12" textColor="text-white" />
                     <p
-                        class="text-[#d836ff] font-pixel animate-pulse text-xs uppercase tracking-widest"
+                        class="text-white font-pixel animate-pulse text-xs uppercase tracking-widest"
                     >
-                        Wait...
+                        Authorizing...
                     </p>
                 </div>
             {:else if step === "success"}

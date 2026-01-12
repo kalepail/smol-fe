@@ -12,21 +12,36 @@ for (const key of REQUIRED_ENV_VARS) {
     }
 }
 
+// Robust RPC Selection Strategy
+// 1. User Preference (Env Var)
+// 2. High Performance Public Nodes (Quasar, Ankr)
+// 3. Official SDF Node
+const RPC_OPTIONS = [
+    import.meta.env.PUBLIC_RPC_URL,
+    "https://quasar.lightsail.network/",
+    "https://rpc.ankr.com/stellar_soroban",
+    "https://soroban-rpc.mainnet.stellar.org",
+    "https://stellar-mainnet.publicnode.com"
+].filter(Boolean) as string[];
+
+// Use the first available defined URL
+const RPC_URL = RPC_OPTIONS[0];
+
 export const account = new PasskeyKit({
-    rpcUrl: import.meta.env.PUBLIC_RPC_URL,
+    rpcUrl: RPC_URL,
     networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
     walletWasmHash: import.meta.env.PUBLIC_WALLET_WASM_HASH,
     timeoutInSeconds: 30,
 });
 
 export const server = new PasskeyServer({
-    rpcUrl: import.meta.env.PUBLIC_RPC_URL,
+    rpcUrl: RPC_URL,
     launchtubeUrl: import.meta.env.PUBLIC_LAUNCHTUBE_URL,
     launchtubeJwt: import.meta.env.PUBLIC_LAUNCHTUBE_JWT,
 });
 
 export const sac = new SACClient({
-    rpcUrl: import.meta.env.PUBLIC_RPC_URL,
+    rpcUrl: RPC_URL,
     networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
 });
 

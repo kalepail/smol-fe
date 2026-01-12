@@ -182,7 +182,8 @@
         const t = urlParams.get("t");
         if (t && audioState.audioElement) {
             const time = parseInt(t);
-            if (!isNaN(time)) {
+            // Only apply URL time if valid AND we are not currently playing a song (to avoid skipping back on history nav)
+            if (!isNaN(time) && !audioState.playingId) {
                 audioState.audioElement.currentTime = time;
             }
         }

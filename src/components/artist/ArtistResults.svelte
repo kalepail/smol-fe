@@ -136,7 +136,7 @@
     let minting = $state(false);
     let showTradeModal = $state(false);
     let tradeMintBalance = $state(0n);
-    let showGridView = $state(false);
+    let showGridView = $state(true);
     let tagsExpanded = $state(false); // Collapsible tags section
     let sortMode = $state<"latest" | "canon" | "shuffle">("latest");
     let showSortDropdown = $state(false);
@@ -207,39 +207,7 @@
                         }
                     }
 
-                    // 3. Snap to Element (Scroll)
-                    // We need to wait for the Grid (if enabled) to actually render the nodes
-                    await tick();
-                    // extra safety delay for DOM paint
-                    setTimeout(() => {
-                        const elementId = `song-${playId}`;
-                        const element = document.getElementById(elementId);
-
-                        if (element) {
-                            console.log("[DeepLink] Scrolling to:", elementId);
-                            element.scrollIntoView({
-                                behavior: "smooth",
-                                block: "center",
-                                inline: "center",
-                            });
-
-                            // Highlight effect
-                            element.classList.add("ring-2", "ring-lime-500");
-                            setTimeout(
-                                () =>
-                                    element.classList.remove(
-                                        "ring-2",
-                                        "ring-lime-500",
-                                    ),
-                                2000,
-                            );
-                        } else {
-                            console.warn(
-                                "[DeepLink] Element not found for scrolling:",
-                                elementId,
-                            );
-                        }
-                    }, 100); // 100ms render buffer
+                    // 3. Selection handles the rest via reactive effects
                 }, 50);
             }
         }
@@ -653,38 +621,39 @@
     }
 
     // Auto-scroll to current song when Grid View opens or Sort/Tab changes
+    // We untrack everything except the core UI triggers to prevent "snapping" while scrolling
     $effect(() => {
-        // Only track the specific state changes that should trigger scrolling
-        const shouldScroll = showGridView;
-        const currentSortMode = sortMode;
-        const currentModule = activeModule;
+        // Triggers: Opening grid, changing sort, or changing tabs
+        const _ = showGridView;
+        const __ = sortMode;
+        const ___ = activeModule;
 
-        if (!isBrowser || !shouldScroll || !currentSong) {
-            return;
-        }
+        if (!isBrowser || !showGridView) return;
 
-        // Use untrack to read currentSong.Id without making it a dependency
-        const songId = untrack(() => currentSong?.Id);
-        if (!songId) return;
+        untrack(() => {
+            if (!currentSong) return;
+            const songId = currentSong.Id;
+            const songIndex = displayPlaylist.findIndex((s) => s.Id === songId);
 
-        // First, ensure the current song is in the visible range
-        const currentSongIndex = untrack(() =>
-            displayPlaylist.findIndex((s) => s.Id === songId),
-        );
+            if (songIndex === -1) return;
 
-        if (currentSongIndex !== -1 && currentSongIndex >= gridLimit) {
-            // Expand gridLimit to include the current song plus some buffer
-            gridLimit = currentSongIndex + 50;
-        }
+            // Expand limit if the song is currently hidden by pagination
+            if (songIndex >= gridLimit) {
+                gridLimit = songIndex + 50;
+            }
 
-        // Wait for DOM to update with the new sort order and expanded gridLimit
-        tick().then(() => {
-            setTimeout(() => {
-                const el = document.getElementById(`song-${songId}`);
-                if (el) {
-                    el.scrollIntoView({ behavior: "smooth", block: "center" });
-                }
-            }, 100); // Small delay to ensure DOM has fully settled
+            // Perform the actual scroll
+            tick().then(() => {
+                setTimeout(() => {
+                    const el = document.getElementById(`song-${songId}`);
+                    if (el) {
+                        el.scrollIntoView({
+                            behavior: "smooth",
+                            block: "center",
+                        });
+                    }
+                }, 100);
+            });
         });
     });
 
@@ -830,38 +799,34 @@
 
     const visiblePlaylist = $derived(displayPlaylist.slice(0, gridLimit));
 
-    // Speculative Image Preloading: Background load all images
+    // OPTIMIZED: Rolling Buffer Preloading
+    // 1. Fixes Cache Miss: Now uses ?scale=8 to match Grid View (rendered as HD pixel art)
+    // 2. Rolling Window: Preloads the current grid + 50 items ahead to maintain "Hardware Feel" without downloading 500+ items at once.
     $effect(() => {
         if (!isBrowser || !displayPlaylist || displayPlaylist.length === 0)
             return;
 
-        let preloadIndex = 0;
-        const BATCH_SIZE = 20;
-
-        const preloadNextBatch = () => {
-            if (preloadIndex >= displayPlaylist.length) return;
-
-            const batch = displayPlaylist.slice(
-                preloadIndex,
-                preloadIndex + BATCH_SIZE,
+        // Debounce to avoid thrashing on rapid scroll
+        const timeout = setTimeout(() => {
+            // Buffer: Load everything currently visible + 50 ahead
+            const PRELOAD_BUFFER = 50;
+            const targetIndex = Math.min(
+                displayPlaylist.length,
+                gridLimit + PRELOAD_BUFFER,
             );
+
+            // We only need to trigger loads for the "new" potential items
+            // But since browser handles deduping cached requests, iterating the slice is fine.
+            const batch = displayPlaylist.slice(0, targetIndex);
+
             batch.forEach((song) => {
                 const img = new Image();
+                // CRITICAL: Must match Grid View src exactly for cache hit
                 img.src = `${API_URL}/image/${song.Id}.png?scale=8`;
             });
+        }, 500);
 
-            preloadIndex += BATCH_SIZE;
-
-            if (preloadIndex < displayPlaylist.length) {
-                if ("requestIdleCallback" in window) {
-                    requestIdleCallback(preloadNextBatch);
-                } else {
-                    setTimeout(preloadNextBatch, 500);
-                }
-            }
-        };
-
-        setTimeout(preloadNextBatch, 1000);
+        return () => clearTimeout(timeout);
     });
 
     // Reset pagination when playlist changes (but ensure current song stays visible)
@@ -896,8 +861,15 @@
     }
 
     // Playlist Sync: Find current song in new playlist when tab/filter changes
+    // Playlist Sync: Find current song in new playlist when tab/filter changes
+    // FIX: Added lastScrolledSongId to prevent aggressive snapping when user scrolls
+    let lastScrolledSongId = $state("");
+
     $effect(() => {
         if (!isBrowser || displayPlaylist.length === 0 || !currentSong) return;
+
+        // Reset scroll tracker if playlist changes drastically (optional, but good for safety)
+
         if (displayPlaylist.length > 0 && currentSong) {
             const foundIndex = displayPlaylist.findIndex(
                 (s) => s.Id === currentSong.Id,
@@ -909,20 +881,25 @@
                 currentIndex = foundIndex;
             }
 
-            // Always attempt to scroll if we have a match (even if index didn't change, the view might have)
-            if (foundIndex !== -1) {
+            // ONLY scroll if the song ID has changed since we last scrolled matched
+            if (foundIndex !== -1 && currentSong.Id !== lastScrolledSongId) {
+                lastScrolledSongId = currentSong.Id;
+
                 // Wait for the fly transition (delay: 100 + duration: 600 slightly overlapping)
                 setTimeout(() => {
-                    const el = document.getElementById(
-                        `song-row-${currentSong.Id}`,
-                    );
+                    // Fix: Dynamic ID based on view mode
+                    const elementId = showGridView
+                        ? `song-${currentSong.Id}`
+                        : `song-row-${currentSong.Id}`;
+
+                    const el = document.getElementById(elementId);
                     if (el) {
                         el.scrollIntoView({
                             block: "center",
                             behavior: "smooth",
                         });
                     }
-                }, 250); // Small delay to allow DOM to settle/start transition
+                }, 250);
             }
         }
     });

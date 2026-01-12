@@ -48,6 +48,14 @@
     }
   }
 
+  import { preferences } from "../../stores/preferences.svelte";
+
+  function handlePointerDown() {
+    if (preferences.renderMode === "thinking") {
+      if (navigator.vibrate) navigator.vibrate(50); // Synth pad "thud"
+    }
+  }
+
   const isInMixtape = $derived(mixtapeTrackIds.current.has(smol.Id));
 </script>
 
@@ -60,6 +68,7 @@
   data-creator={smol.Creator || smol.Address || ""}
   data-address={smol.Address || ""}
   data-minted-by={smol.Mint_Token || ""}
+  onpointerdown={handlePointerDown}
 >
   <div
     class="group relative"
@@ -138,9 +147,9 @@
     </h1>
     <img
       class="absolute inset-0 z-0 opacity-80 scale-y-[-1] w-full h-full blur-lg pointer-events-none"
-      src={`${API_URL}/image/${smol.Id}.png`}
+      src={`${API_URL}/image/${smol.Id}.png?scale=32`}
       style="transform: translateZ(0); -webkit-transform: translateZ(0);"
-      alt={smol.Title}
+      alt="{smol.Title} reflection"
       loading="lazy"
     />
     <div class="relative z-2 pl-2 ml-auto">
