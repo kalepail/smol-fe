@@ -887,9 +887,12 @@
 
                 // Wait for the fly transition (delay: 100 + duration: 600 slightly overlapping)
                 setTimeout(() => {
-                    const el = document.getElementById(
-                        `song-row-${currentSong.Id}`,
-                    );
+                    // Fix: Dynamic ID based on view mode
+                    const elementId = showGridView
+                        ? `song-${currentSong.Id}`
+                        : `song-row-${currentSong.Id}`;
+
+                    const el = document.getElementById(elementId);
                     if (el) {
                         el.scrollIntoView({
                             block: "center",
