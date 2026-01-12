@@ -209,7 +209,6 @@
 
                     // 3. Selection handles the rest via reactive effects
                 }, 50);
-                }, 50);
             }
         }
     });
