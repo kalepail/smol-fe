@@ -1921,97 +1921,105 @@
                                             </div>
                                         {/if}
 
-                                            <!-- Top Left: Artist Profile -->
-                                            <a
-                                                href={`/artist/${song.Address}?play=${song.Id}`}
-                                                class="absolute top-2 left-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#089981]/50 text-[#089981] hover:bg-[#089981]/20 transition-all shadow-[0_0_10px_rgba(8,153,129,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(8,153,129,0.5)] cursor-pointer {currentSong && song.Id === currentSong.Id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}"
-                                                onclick={(e) =>
-                                                    e.stopPropagation()}
-                                                title="View Artist Profile"
+                                        <!-- Top Left: Artist Profile -->
+                                        <a
+                                            href={`/artist/${song.Address}?play=${song.Id}`}
+                                            class="absolute top-2 left-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#089981]/50 text-[#089981] hover:bg-[#089981]/20 transition-all shadow-[0_0_10px_rgba(8,153,129,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(8,153,129,0.5)] cursor-pointer {currentSong &&
+                                            song.Id === currentSong.Id
+                                                ? 'opacity-100'
+                                                : 'opacity-0 group-hover:opacity-100'}"
+                                            onclick={(e) => e.stopPropagation()}
+                                            title="View Artist Profile"
+                                        >
+                                            <svg
+                                                class="w-4 h-4"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
                                             >
-                                                <svg
-                                                    class="w-4 h-4"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <path
-                                                        stroke-linecap="round"
-                                                        stroke-linejoin="round"
-                                                        stroke-width="2"
-                                                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                                                    />
-                                                </svg>
-                                            </a>
-
-                                            <!-- Top Right: Send to Radio -->
-                                            <a
-                                                href={`/radio?play=${song.Id}`}
-                                                class="absolute top-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#f7931a]/50 text-[#f7931a] hover:bg-[#f7931a]/20 transition-all shadow-[0_0_10px_rgba(247,147,26,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(247,147,26,0.5)] cursor-pointer {currentSong && song.Id === currentSong.Id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}"
-                                                onclick={(e) =>
-                                                    e.stopPropagation()}
-                                                title="start Radio from here"
-                                            >
-                                                <svg
-                                                    class="w-4 h-4 ml-0.5"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <path
-                                                        stroke-linecap="round"
-                                                        stroke-linejoin="round"
-                                                        stroke-width="2"
-                                                        d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"
-                                                    />
-                                                </svg>
-                                            </a>
-
-                                            <!-- Bottom Left: Like Button -->
-                                            <div
-                                                class="absolute bottom-2 left-2 z-20"
-                                                onclick={(e) =>
-                                                    e.stopPropagation()}
-                                            >
-                                                <LikeButton
-                                                    smolId={song.Id}
-                                                    liked={song.Liked}
-                                                    classNames="p-1.5 rounded-full bg-black/40 backdrop-blur-md border border-[#FF424C]/50 text-[#FF424C] hover:bg-[#FF424C]/20 transition-all shadow-[0_0_10px_rgba(255,66,76,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(255,66,76,0.5)]"
-                                                    iconSize="size-4"
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                                                 />
-                                            </div>
+                                            </svg>
+                                        </a>
 
-                                            <!-- Bottom Right: Song Detail -->
-                                            <div
-                                                role="button"
-                                                class="absolute bottom-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 transition-all shadow-[0_0_10px_rgba(216,54,255,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(216,54,255,0.5)] cursor-pointer"
-                                                onclick={(e) => {
+                                        <!-- Top Right: Send to Radio -->
+                                        <a
+                                            href={`/radio?play=${song.Id}`}
+                                            class="absolute top-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#f7931a]/50 text-[#f7931a] hover:bg-[#f7931a]/20 transition-all shadow-[0_0_10px_rgba(247,147,26,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(247,147,26,0.5)] cursor-pointer {currentSong &&
+                                            song.Id === currentSong.Id
+                                                ? 'opacity-100'
+                                                : 'opacity-0 group-hover:opacity-100'}"
+                                            onclick={(e) => e.stopPropagation()}
+                                            title="start Radio from here"
+                                        >
+                                            <svg
+                                                class="w-4 h-4 ml-0.5"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"
+                                                />
+                                            </svg>
+                                        </a>
+
+                                        <!-- Bottom Left: Like Button -->
+                                        <div
+                                            class="absolute bottom-2 left-2 z-20 {currentSong &&
+                                            song.Id === currentSong.Id
+                                                ? 'opacity-100'
+                                                : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-300"
+                                            onclick={(e) => e.stopPropagation()}
+                                        >
+                                            <LikeButton
+                                                smolId={song.Id}
+                                                liked={song.Liked}
+                                                classNames="p-1.5 rounded-full bg-black/40 backdrop-blur-md border border-[#FF424C]/50 text-[#FF424C] hover:bg-[#FF424C]/20 transition-all shadow-[0_0_10px_rgba(255,66,76,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(255,66,76,0.5)]"
+                                                iconSize="size-4"
+                                            />
+                                        </div>
+
+                                        <!-- Bottom Right: Song Detail -->
+                                        <div
+                                            role="button"
+                                            class="absolute bottom-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 transition-all shadow-[0_0_10px_rgba(216,54,255,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(216,54,255,0.5)] cursor-pointer {currentSong &&
+                                            song.Id === currentSong.Id
+                                                ? 'opacity-100'
+                                                : 'opacity-0 group-hover:opacity-100'}"
+                                            onclick={(e) => {
+                                                e.stopPropagation();
+                                                navigate(
+                                                    `/${song.Id}?from=artist`,
+                                                );
+                                            }}
+                                            onkeydown={(e) => {
+                                                if (e.key === "Enter") {
                                                     e.stopPropagation();
                                                     navigate(
                                                         `/${song.Id}?from=artist`,
                                                     );
-                                                }}
-                                                onkeydown={(e) => {
-                                                    if (e.key === "Enter") {
-                                                        e.stopPropagation();
-                                                        navigate(
-                                                            `/${song.Id}?from=artist`,
-                                                        );
-                                                    }
-                                                }}
-                                                title="View Song Details"
+                                                }
+                                            }}
+                                            title="View Song Details"
+                                        >
+                                            <svg
+                                                class="w-4 h-4"
+                                                fill="currentColor"
+                                                viewBox="0 0 24 24"
                                             >
-                                                <svg
-                                                    class="w-4 h-4"
-                                                    fill="currentColor"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <path
-                                                        d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
-                                                    />
-                                                </svg>
-                                            </div>
-                                        {/if}
+                                                <path
+                                                    d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
+                                                />
+                                            </svg>
+                                        </div>
                                     </div>
                                 </div>
                                 <span
