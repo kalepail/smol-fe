@@ -10,7 +10,6 @@
     let step = $state<"intro" | "username" | "processing" | "success">("intro");
     let username = $state("");
     let error = $state<string | null>(null);
-    // Audio removed per user request
 
     const authHook = useAuthentication();
 
@@ -29,7 +28,6 @@
     ];
     let taglineIndex = $state(0);
     let visibleCount = $state(0);
-    // let isTyping = $state(false); // Unused in this version if we don't blink a cursor moving
 
     const PLACEHOLDERS = [
         "vip_access",
@@ -45,7 +43,18 @@
     let placeholderIndex = $state(0);
 
     $effect(() => {
-        // ... (lines 49-67 unused in this chunk) ...
+        let i = 0;
+        const target = TAGLINES[taglineIndex];
+        visibleCount = 0;
+
+        const typeInterval = setInterval(() => {
+            i++;
+            visibleCount = i;
+            if (i >= target.length) {
+                clearInterval(typeInterval);
+            }
+        }, 50);
+
         const nextInterval = setTimeout(() => {
             taglineIndex = (taglineIndex + 1) % TAGLINES.length;
         }, 4000);
@@ -56,17 +65,247 @@
         }, 2500);
 
         return () => {
-            // ... (unused)
+            clearInterval(typeInterval);
             clearTimeout(nextInterval);
             clearInterval(placeholderInterval);
         };
     });
 
-// ...
+    onMount(() => {
+        // Enable high-performance background mode
+        setBackgroundAnimations(true);
 
+        // Check if already auth'd or skipped - redirect if so
+        const skipped = localStorage.getItem("smol_passkey_skipped");
+        if (userState.contractId || (skipped && step !== "success")) {
+            if (!userState.contractId && skipped) {
+                // Only skip if explicitly skipped
+            }
+            if (userState.contractId) {
+                window.location.href = "/";
+                return;
+            }
+        }
+
+        // Analytics
+        logEvent("passkey_splash_view", {
+            variant: "arcade",
+            is_new_user: !localStorage.getItem("smol_passkey_skipped"),
+            platform: getPlatform(),
+        });
+
+        return () => {
+            setBackgroundAnimations(false);
+        };
+    });
+
+    function getPlatform() {
+        if (typeof navigator === "undefined") return "other";
+        if (/iPad|iPhone|iPod/.test(navigator.userAgent)) return "ios";
+        if (
+            /Macintosh/.test(navigator.userAgent) &&
+            navigator.maxTouchPoints > 0
+        )
+            return "ios"; // iPad OS 13+
+        return "desktop";
+    }
+
+    function logEvent(name: string, payload: any = {}) {
+        // In a real app, send to analytics backend
+        console.log(`[Analytics] ${name}`, payload);
+    }
+
+    async function handleSmartLogin() {
+        // Try login first (existing passkey)
+        logEvent("passkey_smart_login_start");
+        step = "processing";
+        error = null;
+
+        try {
+            await authHook.login();
+            logEvent("passkey_login_success");
+            step = "success";
+            if (navigator.vibrate) navigator.vibrate(200);
+            setTimeout(() => {
+                window.location.href = "/";
+            }, 500);
+        } catch (e: any) {
+            // Login failed/cancelled
+            console.log("Login failed or cancelled:", e.message);
+
+            // Check for user cancellation/abort
+            const message = e.message?.toLowerCase() || "";
+            const isCancellation =
+                message.includes("abort") ||
+                message.includes("cancel") ||
+                message.includes("not allowed");
+
+            if (isCancellation) {
+                // Return to intro on cancellation instead of forcing username input
+                step = "intro";
+                logEvent("passkey_smart_login_cancelled");
+            } else {
+                // assume new user -> sign up flow
+                step = "username";
+                logEvent("passkey_smart_login_fallback_signup");
+            }
+        }
+    }
+
+    async function submitUsername() {
+        if (!username.trim()) return;
+        step = "processing";
+        error = null;
+
+        try {
+            await authHook.signUp(username);
+            logEvent("passkey_create_success");
+            step = "success";
+            if (navigator.vibrate) navigator.vibrate(200);
+            // Redirect after short delay
+            setTimeout(() => {
+                window.location.href = "/";
+            }, 1500);
+        } catch (e: any) {
+            console.error(e);
+            error = e.message || "Failed to create passkey";
+            logEvent("passkey_create_error", { code: error });
+            step = "username";
+        }
+    }
+
+    function handleSkip() {
+        logEvent("passkey_skip_click");
+        localStorage.setItem("smol_passkey_skipped", "true");
+        localStorage.setItem("smol_onboarding_complete", "true"); // Mark onboarding as done
+        window.location.href = "/";
+    }
+
+    function handleKeydown(e: KeyboardEvent) {
+        if (step === "intro") {
+            if (e.key === "Enter" || e.key === " ") {
+                handleSmartLogin();
+            }
+        } else if (step === "username") {
+            if (e.key === "Enter") {
+                submitUsername();
+            }
+            if (e.key === "Escape") {
+                step = "intro";
+            }
+        }
+    }
+</script>
+
+<svelte:window onkeydown={handleKeydown} />
+
+<div
+    class="fixed inset-0 bg-transparent text-white overflow-y-auto font-pixel z-[9999]"
+>
+    <!-- Background Art (Handled globally by Layout/DynamicBackground) -->
+
+    <!-- CRT Scanline Effect -->
+    <div
+        class="pointer-events-none absolute inset-0 z-10 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_4px,3px_100%] contrast-[100%] brightness-100 opacity-20"
+    ></div>
+
+    <!-- Decorative Game Cabinet Frame (Subtle Vignette) -->
+    <div
+        class="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_50%,rgba(0,0,0,0.8)_100%)] z-20"
+    ></div>
+
+    <main
+        class="relative z-30 min-h-screen flex flex-col items-center justify-center p-6 safe-area-inset-bottom"
+    >
+        <!-- HEADER -->
+        <div
+            class="mb-6 md:mb-8 text-center shrink-0"
+            in:fade={{ duration: 800 }}
+        >
+            <!-- Rotating One-Liner -->
+            <!-- Shift right slightly to align center with the '.' in SMOL.XYZ -->
+            <div
+                class="min-h-[24px] md:min-h-[32px] flex items-center justify-center mb-2 md:mb-6 pl-[0.6ch]"
+            >
+                <p
+                    class="text-lime-400 font-pixel uppercase tracking-widest text-xs md:text-sm drop-shadow-[0_0_10px_rgba(132,204,22,0.5)] whitespace-pre-wrap text-center leading-tight"
+                >
+                    {#each TAGLINES[taglineIndex].split("") as char, i}
+                        <span
+                            class="transition-opacity duration-0 {i <
+                            visibleCount
+                                ? 'opacity-100'
+                                : 'opacity-0'}">{char}</span
+                        >
+                    {/each}
+                    <!-- Zero-width cursor container to prevent centering offset -->
+                    <span class="inline-block w-0 overflow-visible"
+                        ><span class="animate-pulse">_</span></span
+                    >
+                </p>
+            </div>
+
+            <h1
+                class="text-3xl md:text-5xl font-pixel font-black tracking-tighter uppercase text-transparent bg-clip-text bg-gradient-to-b from-lime-400 to-lime-600 drop-shadow-[0_4px_0_rgba(132,204,22,0.2)]"
+            >
+                SMOL.XYZ
+            </h1>
+        </div>
+
+        <!-- CONTENT CONTAINER -->
+        <div
+            class="w-full max-w-md relative min-h-[200px] md:min-h-[300px] flex flex-col items-center justify-center"
+        >
+            {#if step === "intro"}
+                <div
+                    class="w-full flex flex-col items-center gap-3 md:gap-6"
+                    in:fade={{ duration: 300 }}
+                >
+                    <!-- PRIMARY CTA: SMART LOGIN (Handles Both) -->
+                    <button
+                        onclick={handleSmartLogin}
+                        class="group relative w-full max-w-xs py-5 px-8 bg-[#1d293d] text-lime-400 font-pixel font-bold uppercase tracking-widest text-sm md:text-base rounded-lg
+                           hover:bg-[#2a3b55] hover:-translate-y-1 hover:shadow-[0_8px_0_rgba(15,23,42,1)]
+                           active:translate-y-1 active:shadow-none active:bg-[#151e2e]
+                           transition-all duration-100 shadow-[0_4px_0_rgba(15,23,42,1)]
+                           focus:outline-none focus:ring-4 focus:ring-lime-400/20 border-2 border-lime-400/20"
+                        aria-label="Passkey Login"
+                    >
+                        <span
+                            class="relative z-10 flex items-center justify-center gap-3"
+                        >
+                            <img
+                                src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple/img/apple/64/1f96c.png"
+                                alt="Kale"
+                                class="w-5 h-5 md:w-6 md:h-6 object-contain"
+                            /> PASSKEY LOGIN
+                        </span>
+                    </button>
+
+                    <!-- INFO TEXT -->
+                    <div class="mt-4 text-center space-y-1">
+                        <p class="text-[10px] md:text-xs text-white font-pixel">
+                            NO PASSWORDS. INSTANT LOGIN.
+                        </p>
+                        <p
+                            class="text-[10px] md:text-xs text-white/60 font-pixel"
+                        >
+                            SECURED BY YOUR DEVICE.
+                        </p>
+                    </div>
+
+                    <!-- ESCAPE HATCH -->
+                    <button
+                        onclick={handleSkip}
+                        class="mt-4 md:mt-8 text-lime-400 hover:text-lime-300 font-pixel uppercase text-[10px] tracking-widest
+                           focus:outline-none focus:text-lime-300"
+                    >
+                        Enter as Guest
+                    </button>
+                </div>
             {:else if step === "username"}
                 <div
-                    class="w-full max-w-xs flex flex-col gap-4 items-center"
+                    class="w-full max-w-lg flex flex-col gap-4 items-center"
                     in:scale={{ duration: 300, start: 0.95 }}
                 >
                     <div
@@ -74,9 +313,11 @@
                     >
                         All Access Pass
                     </div>
-                    <div class="text-white/60 font-pixel text-[10px] text-center mb-4 leading-relaxed">
-                        Secure your connection to the underground.<br/>
-                        A private handle for the art you value.
+                    <div
+                        class="text-white/60 font-pixel text-[10px] text-center mb-4 leading-relaxed"
+                    >
+                        Secure your connection to the culture.<br />
+                        A private handle for the AI music economy.
                     </div>
 
                     <input
@@ -84,7 +325,7 @@
                         bind:value={username}
                         placeholder={PLACEHOLDERS[placeholderIndex]}
                         class="w-full bg-white/5 border-2 border-white/20 rounded-lg py-3 px-4 text-center font-pixel text-white uppercase tracking-widest placeholder:text-white/20 text-xs
-                            focus:border-[#d836ff] focus:outline-none focus:bg-white/10 transition-colors"
+                            focus:border-lime-400 focus:outline-none focus:bg-white/10 focus:shadow-[0_0_20px_rgba(163,230,53,0.3)] caret-lime-400 transition-all"
                         autofocus
                         onkeydown={(e) => e.stopPropagation()}
                     />
@@ -114,14 +355,20 @@
                             Start Game
                         </button>
                     </div>
+
+                    <div
+                        class="mt-4 text-[10px] text-lime-400 font-pixel uppercase tracking-widest opacity-80 text-center"
+                    >
+                        🔒 Your Keys. Your Music. 🔑
+                    </div>
                 </div>
             {:else if step === "processing"}
                 <div class="flex flex-col items-center gap-4" in:fade>
-                    <Loader classNames="w-12 h-12" textColor="text-[#d836ff]" />
+                    <Loader classNames="w-12 h-12" textColor="text-white" />
                     <p
-                        class="text-[#d836ff] font-pixel animate-pulse text-xs uppercase tracking-widest"
+                        class="text-white font-pixel animate-pulse text-xs uppercase tracking-widest"
                     >
-                        Wait...
+                        Authorizing...
                     </p>
                 </div>
             {:else if step === "success"}

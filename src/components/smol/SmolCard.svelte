@@ -48,6 +48,14 @@
     }
   }
 
+  import { preferences } from "../../stores/preferences.svelte";
+
+  function handlePointerDown() {
+    if (preferences.renderMode === "thinking") {
+      if (navigator.vibrate) navigator.vibrate(50); // Synth pad "thud"
+    }
+  }
+
   const isInMixtape = $derived(mixtapeTrackIds.current.has(smol.Id));
 </script>
 
@@ -60,6 +68,7 @@
   data-creator={smol.Creator || smol.Address || ""}
   data-address={smol.Address || ""}
   data-minted-by={smol.Mint_Token || ""}
+  onpointerdown={handlePointerDown}
 >
   <div
     class="group relative"
