@@ -11,6 +11,7 @@
 
     const STORAGE_KEY = "smol_audio_state_v1";
     let lastSave = 0;
+    const isBrowser = typeof window !== "undefined";
 
     // --- 1. LocalStorage Persistence ---
     function loadState() {
@@ -37,6 +38,7 @@
     }
 
     function saveState() {
+        if (!isBrowser || typeof localStorage === "undefined") return;
         if (!audioState.currentSong) return;
 
         // Throttle saving: max once per 2 seconds
@@ -130,6 +132,7 @@
 
     // --- 4. Smart Pre-fetching ---
     function prefetchNext() {
+        if (!isBrowser || typeof document === "undefined") return;
         if (!audioState.currentSong || playlist.length === 0) return;
 
         const currentIdx = playlist.findIndex(

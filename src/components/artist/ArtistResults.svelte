@@ -25,6 +25,7 @@
     import { backOut } from "svelte/easing";
 
     const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
+    const isBrowser = typeof window !== "undefined";
 
     let {
         discography = [],
@@ -35,6 +36,8 @@
         collectedCount = 0,
         mintedCount = 0,
         topTags = [],
+        shuffle = false,
+        seed = null,
     }: {
         discography?: Smol[];
         minted?: Smol[];
@@ -44,6 +47,8 @@
         collectedCount?: number;
         mintedCount?: number;
         topTags?: string[];
+        shuffle?: boolean;
+        seed?: number | null;
     } = $props();
 
     // Reactive state for hydration (starts with props, updates with live data)
@@ -126,7 +131,7 @@
         "discography",
     );
     let selectedArtistTags = $state<string[]>([]);
-    let shuffleEnabled = $state(false);
+    let shuffleEnabled = $state(shuffle);
     let currentIndex = $state(0);
     let minting = $state(false);
     let showTradeModal = $state(false);
@@ -161,7 +166,7 @@
 
         return () => clearInterval(interval);
     });
-    let shuffleSeed = $state(Date.now());
+    let shuffleSeed = $state(seed ?? Date.now());
     let collageImages = $state<string[]>([]);
     let searchQuery = $state("");
     let isSearchingMobile = $state(false);
@@ -175,19 +180,18 @@
 
     // Fetch artist's badges from API on mount (with static fallback)
     $effect(() => {
-        if (address) {
-            fetch(`/api/artist/badges/${address}`)
-                .then((res) => (res.ok ? res.json() : null))
-                .then((data) => {
-                    if (data) {
-                        artistBadges = data;
-                    }
-                    // No fallback for other artists - we can't know their status without API
-                })
-                .catch(() => {
-                    /* API unavailable - badges stay default (false) */
-                });
-        }
+        if (!isBrowser || !address) return;
+        fetch(`/api/artist/badges/${address}`)
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => {
+                if (data) {
+                    artistBadges = data;
+                }
+                // No fallback for other artists - we can't know their status without API
+            })
+            .catch(() => {
+                /* API unavailable - badges stay default (false) */
+            });
     });
 
     $effect(() => {
@@ -211,106 +215,101 @@
     }
 
     // Initial mount: Check for ?play param AND restore state from URL
-    $effect(() => {
-        if (initialPlayHandled) return;
+    onMount(() => {
+        if (initialPlayHandled || !isBrowser) return;
 
-        if (typeof window !== "undefined") {
-            const urlParams = new URLSearchParams(window.location.search);
+        const urlParams = new URLSearchParams(window.location.search);
 
-            // Restore State (Tab, Tags, Shuffle)
-            const tabParam = urlParams.get("tab");
-            if (
-                tabParam &&
-                ["discography", "minted", "collected", "tags"].includes(
-                    tabParam,
-                )
-            ) {
-                activeModule = tabParam as any;
-            }
-
-            const tagsParam = urlParams.get("tags");
-            if (tagsParam) {
-                selectedArtistTags = tagsParam.split(",").filter(Boolean);
-            }
-
-            const shuffleParam = urlParams.get("shuffle");
-            if (shuffleParam === "true") {
-                shuffleEnabled = true;
-            }
-
-            const seedParam = urlParams.get("seed");
-            if (seedParam) {
-                shuffleSeed = parseInt(seedParam, 10);
-            }
-
-            const gridParam = urlParams.get("grid");
-            if (gridParam === "true") {
-                showGridView = true;
-            }
-
-            // Handle Auto-Play (?play=id)
-            const playId = urlParams.get("play");
-            if (playId && discography.length > 0) {
-                const songIndex = discography.findIndex((s) => s.Id === playId);
-                if (songIndex >= 0) {
-                    currentIndex = songIndex;
-                    if (currentSong?.Id !== playId) {
-                        selectSong(discography[songIndex]);
-                    }
-                }
-            } else if (discography.length > 0) {
-                // If NO play param:
-                // Check if we are already playing a song from this artist (Seamless Return)
-                const playingId = currentSong?.Id;
-
-                if (playingId) {
-                    // Determine what the playlist WILL look like after hydration
-                    let targetList = [...discography];
-                    if (activeModule === "minted") targetList = [...minted];
-                    if (activeModule === "collected")
-                        targetList = [...collected];
-
-                    // Apply Tag Filter
-                    if (selectedArtistTags.length > 0) {
-                        targetList = targetList.filter((s) =>
-                            selectedArtistTags.some((t) => s.Tags?.includes(t)),
-                        );
-                    }
-
-                    // Apply Shuffle
-                    if (shuffleEnabled) {
-                        targetList.sort(
-                            (a, b) =>
-                                getShuffleVal(a.Id, shuffleSeed) -
-                                getShuffleVal(b.Id, shuffleSeed),
-                        );
-                    }
-
-                    const matchIndex = targetList.findIndex(
-                        (s) => s.Id === playingId,
-                    );
-
-                    if (matchIndex >= 0) {
-                        // Seamless return detected - sync index
-                        currentIndex = matchIndex;
-                    } else {
-                        // Song not in current view? Select first of view if exists
-                        if (targetList.length > 0) {
-                            selectSong(targetList[0]);
-                            currentIndex = 0;
-                        } else {
-                            selectSong(discography[0]); // Fallback
-                        }
-                    }
-                } else {
-                    // Not playing anything? Standard start.
-                    selectSong(discography[0]);
-                }
-            }
-
-            isUrlStateLoaded = true;
-            initialPlayHandled = true;
+        // Restore State (Tab, Tags, Shuffle)
+        const tabParam = urlParams.get("tab");
+        if (
+            tabParam &&
+            ["discography", "minted", "collected", "tags"].includes(tabParam)
+        ) {
+            activeModule = tabParam as any;
         }
+
+        const tagsParam = urlParams.get("tags");
+        if (tagsParam) {
+            selectedArtistTags = tagsParam.split(",").filter(Boolean);
+        }
+
+        const shuffleParam = urlParams.get("shuffle");
+        if (shuffleParam === "true") {
+            shuffleEnabled = true;
+        }
+
+        const seedParam = urlParams.get("seed");
+        if (seedParam) {
+            shuffleSeed = parseInt(seedParam, 10);
+        }
+
+        const gridParam = urlParams.get("grid");
+        if (gridParam === "true") {
+            showGridView = true;
+        }
+
+        // Handle Auto-Play (?play=id)
+        const playId = urlParams.get("play");
+        if (playId && discography.length > 0) {
+            const songIndex = discography.findIndex((s) => s.Id === playId);
+            if (songIndex >= 0) {
+                currentIndex = songIndex;
+                if (currentSong?.Id !== playId) {
+                    selectSong(discography[songIndex]);
+                }
+            }
+        } else if (discography.length > 0) {
+            // If NO play param:
+            // Check if we are already playing a song from this artist (Seamless Return)
+            const playingId = currentSong?.Id;
+
+            if (playingId) {
+                // Determine what the playlist WILL look like after hydration
+                let targetList = [...discography];
+                if (activeModule === "minted") targetList = [...minted];
+                if (activeModule === "collected") targetList = [...collected];
+
+                // Apply Tag Filter
+                if (selectedArtistTags.length > 0) {
+                    targetList = targetList.filter((s) =>
+                        selectedArtistTags.some((t) => s.Tags?.includes(t)),
+                    );
+                }
+
+                // Apply Shuffle
+                if (shuffleEnabled) {
+                    targetList.sort(
+                        (a, b) =>
+                            getShuffleVal(a.Id, shuffleSeed) -
+                            getShuffleVal(b.Id, shuffleSeed),
+                    );
+                }
+
+                const matchIndex = targetList.findIndex(
+                    (s) => s.Id === playingId,
+                );
+
+                if (matchIndex >= 0) {
+                    // Seamless return detected - sync index
+                    currentIndex = matchIndex;
+                } else {
+                    // Song not in current view? Select first of view if exists
+                    if (targetList.length > 0) {
+                        selectSong(targetList[0]);
+                        currentIndex = 0;
+                    } else {
+                        selectSong(discography[0]); // Fallback
+                    }
+                }
+            } else {
+                // Not playing anything? Standard start.
+                selectSong(discography[0]);
+            }
+        }
+
+        isUrlStateLoaded = true;
+        initialPlayHandled = true;
     });
 
     // Valid tabs for type safety
@@ -370,19 +369,20 @@
     // Auto-Scroll to Active Song on Mount
     $effect(() => {
         if (
-            !initialScrollHandled &&
-            isUrlStateLoaded &&
-            currentSong &&
-            displayPlaylist.length > 0 &&
-            !isLoadingLive
-        ) {
-            const el = document.getElementById(`song-row-${currentSong.Id}`);
-            if (el) {
-                // Determine if song is in view or needs scrolling
-                // We use 'center' to make it obvious
-                el.scrollIntoView({ block: "center", behavior: "smooth" });
-                initialScrollHandled = true;
-            }
+            !isBrowser ||
+            initialScrollHandled ||
+            !isUrlStateLoaded ||
+            !currentSong ||
+            displayPlaylist.length === 0 ||
+            isLoadingLive
+        )
+            return;
+        const el = document.getElementById(`song-row-${currentSong.Id}`);
+        if (el) {
+            // Determine if song is in view or needs scrolling
+            // We use 'center' to make it obvious
+            el.scrollIntoView({ block: "center", behavior: "smooth" });
+            initialScrollHandled = true;
         }
     });
 
@@ -545,14 +545,15 @@
 
     // Auto-scroll to current song when Grid View opens or Sort/Tab changes
     $effect(() => {
-        if (showGridView && currentSong && (sortMode || activeModule)) {
-            tick().then(() => {
-                const el = document.getElementById(`song-${currentSong.Id}`);
-                if (el) {
-                    el.scrollIntoView({ behavior: "smooth", block: "center" });
-                }
-            });
+        if (!isBrowser || !showGridView || !currentSong || !(sortMode || activeModule)) {
+            return;
         }
+        tick().then(() => {
+            const el = document.getElementById(`song-${currentSong.Id}`);
+            if (el) {
+                el.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+        });
     });
 
     // Derived playlist based on module and shuffle
@@ -699,7 +700,7 @@
 
     // Speculative Image Preloading: Background load all images
     $effect(() => {
-        if (!displayPlaylist || displayPlaylist.length === 0) return;
+        if (!isBrowser || !displayPlaylist || displayPlaylist.length === 0) return;
 
         let preloadIndex = 0;
         const BATCH_SIZE = 20;
@@ -750,6 +751,7 @@
 
     // Playlist Sync: Find current song in new playlist when tab/filter changes
     $effect(() => {
+        if (!isBrowser || displayPlaylist.length === 0 || !currentSong) return;
         if (displayPlaylist.length > 0 && currentSong) {
             const foundIndex = displayPlaylist.findIndex(
                 (s) => s.Id === currentSong.Id,
@@ -796,7 +798,7 @@
 
             // Auto-play: Check for ?play param first (continuing from /[id] page)
             let playedFromParam = false;
-            if (typeof window !== "undefined") {
+            if (isBrowser) {
                 const urlParams = new URLSearchParams(window.location.search);
                 const playId = urlParams.get("play");
                 if (playId) {

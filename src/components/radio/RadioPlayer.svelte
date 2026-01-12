@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Smol } from "../../types/domain";
+  import { onMount } from "svelte";
   import {
     audioState,
     selectSong,
@@ -81,6 +82,7 @@
     variant?: "default" | "arcade";
   } = $props();
 
+  const isBrowser = typeof window !== "undefined";
   const isOverlay = $derived(overlayControls || overlayControlsOnMobile);
 
   // Context-aware back navigation
@@ -160,6 +162,12 @@
   let showQueue = $state(false);
   let isMinimized = $state(false); // Mobile minimize mode - hide art, show playlist
   let controlsTimeout: number | null = null;
+  let isSongDetailPage = $state(false);
+
+  onMount(() => {
+    if (!isBrowser) return;
+    isSongDetailPage = !!window.location.pathname.match(/^\/[a-f0-9]{64}$/i);
+  });
 
   function downloadSong(e: MouseEvent) {
     e.stopPropagation();
@@ -189,6 +197,7 @@
   }
 
   $effect(() => {
+    if (!isBrowser) return;
     const handleFullscreenChange = () => {
       isFullscreen = !!document.fullscreenElement;
       if (!isFullscreen && controlsTimeout) {
@@ -212,6 +221,7 @@
   }
 
   $effect(() => {
+    if (!isBrowser) return;
     // This effect runs when `playing` changes
     const shouldAnimate = playing;
 
@@ -724,7 +734,7 @@
           </div>
 
           <!-- CONTEXT AWARE BACK BUTTON (BOTTOM LEFT) - Hidden on Song ID pages -->
-          {#if backContext && !isFullscreen && !window.location.pathname.match(/^\/[a-f0-9]{64}$/i)}
+          {#if backContext && !isFullscreen && !isSongDetailPage}
             <div
               class="absolute bottom-4 left-4 z-40 animate-in fade-in zoom-in duration-300"
             >
