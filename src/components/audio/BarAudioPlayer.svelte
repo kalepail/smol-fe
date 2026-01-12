@@ -180,23 +180,21 @@
 
   // Update pathname on navigation (for View Transitions/SPA nav)
   $effect(() => {
-    const handlePopState = () => {
-      pathname = window.location.pathname;
-    };
-    window.addEventListener("popstate", handlePopState);
-
-    // Also need to hook into Astro's navigation events if possible,
-    // or just rely on the component re-mounting if pages are not persistent.
-    // Since this is a specialized requested, we'll just check window location reactively.
-    const interval = setInterval(() => {
-      if (pathname !== window.location.pathname) {
-        pathname = window.location.pathname;
+    const handleUpdate = () => {
+      const newPath = window.location.pathname;
+      if (pathname !== newPath) {
+        pathname = newPath;
       }
-    }, 100);
+    };
+
+    window.addEventListener("popstate", handleUpdate);
+    document.addEventListener("astro:page-load", handleUpdate);
+    document.addEventListener("astro:after-swap", handleUpdate);
 
     return () => {
-      window.removeEventListener("popstate", handlePopState);
-      clearInterval(interval);
+      window.removeEventListener("popstate", handleUpdate);
+      document.removeEventListener("astro:page-load", handleUpdate);
+      document.removeEventListener("astro:after-swap", handleUpdate);
     };
   });
 
