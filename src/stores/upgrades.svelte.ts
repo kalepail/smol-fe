@@ -15,8 +15,9 @@
  */
 
 // Keys for localStorage
-const STORAGE_KEY = 'smol_upgrades';
-const ENABLED_KEY = 'smol_upgrades_enabled';
+// v2: Bumped to reset Vibe Matrix lock state (Jan 2026)
+const STORAGE_KEY = 'smol_upgrades_v2';
+const ENABLED_KEY = 'smol_upgrades_enabled_v2';
 
 export interface UnlockedUpgrades {
     premiumHeader: boolean;
