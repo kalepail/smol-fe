@@ -1,4 +1,4 @@
-import { PasskeyKit, PasskeyServer, SACClient } from "passkey-kit";
+import { PasskeyKit, SACClient } from "passkey-kit";
 
 const REQUIRED_ENV_VARS = [
     "PUBLIC_RPC_URL",
@@ -13,6 +13,7 @@ for (const key of REQUIRED_ENV_VARS) {
 }
 
 import { RPC_URL } from "./rpc";
+import { OzChannelsServer } from "./relayer-adapter";
 
 export const account = new PasskeyKit({
     rpcUrl: RPC_URL,
@@ -21,10 +22,9 @@ export const account = new PasskeyKit({
     timeoutInSeconds: 30,
 });
 
-import { RelayerServer } from "./relayer-adapter";
-
-export const server = new RelayerServer({
-    baseUrl: "https://channels.openzeppelin.com", // Mainnet default
+// OZ Channels server for transaction submission (replaces Launchtube)
+export const server = new OzChannelsServer({
+    baseUrl: import.meta.env.PUBLIC_CHANNELS_BASE_URL || "https://channels.openzeppelin.com",
     apiKey: import.meta.env.PUBLIC_CHANNELS_API_KEY,
 });
 
