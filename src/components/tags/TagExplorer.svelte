@@ -364,12 +364,12 @@
                 >
                     <div class="flex items-baseline gap-2">
                         <span
-                            class="text-[#ff424c] font-pixel font-bold text-3xl tracking-tight drop-shadow-[0_0_10px_rgba(255,66,76,0.5)]"
+                            class="text-[#d1d5db] font-pixel font-bold text-3xl tracking-tight"
                             style="text-shadow: 3px 3px 0px #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;"
                             >SMOL</span
                         >
                         <span
-                            class="font-pixel font-bold text-[#d1d5db] text-3xl"
+                            class="font-pixel font-bold text-[#ff424c] text-3xl drop-shadow-[0_0_10px_rgba(255,66,76,0.5)]"
                             style="text-shadow: 3px 3px 0px #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;"
                             >TAGS</span
                         >
