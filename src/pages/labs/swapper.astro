@@ -1,5 +1,6 @@
 ---
 import Layout from "../../layouts/Layout.astro";
+import SwapperCore from "../../components/labs/SwapperCore.svelte";
 
 // LABS-101: Shell Only
 ---
@@ -31,7 +32,7 @@ import Layout from "../../layouts/Layout.astro";
 
         <!-- Svelte Interactive Component -->
         <div class="w-full">
-             <swapper-core client:only="svelte" />
+            <SwapperCore client:only="svelte" />
         </div>
 
     </div>
@@ -40,17 +41,5 @@ import Layout from "../../layouts/Layout.astro";
 </Layout>
 
 <script>
-    import { mount } from 'svelte';
-    import SwapperCore from '../../components/labs/SwapperCore.svelte';
-
-    class SwapperElement extends HTMLElement {
-        connectedCallback() {
-            mount(SwapperCore, {
-                target: this,
-                props: {}
-            });
-        }
-    }
-    
-    customElements.define('swapper-core', SwapperElement);
+    import SwapperCore from "../../components/labs/SwapperCore.svelte";
 </script>

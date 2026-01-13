@@ -129,7 +129,7 @@
                 "User can select a SMOL and the experiment reads its artist C-address",
                 "User can input XLM amount",
                 "Flow simulates first and shows a confirmation summary",
-                "Flow signs/sends using the same safe transaction pipeline pattern as tip modal (without editing tip modal)",
+                "Flow signs/sends using the existing Passkey Kit (Tyler's wallet)",
                 "Handles failure states gracefully (insufficient funds, user reject, simulation fail, RPC timeout)"
             ]
         },
