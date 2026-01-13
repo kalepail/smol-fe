@@ -1,0 +1,103 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import KaleEmoji from "../../components/ui/KaleEmoji.svelte";
+---
+
+<Layout title="Smol Labs">
+  <div class="min-h-screen bg-slate-950 text-[#9ae600] font-pixel p-4 md:p-8 pt-24">
+    <div class="max-w-4xl mx-auto space-y-12">
+      <!-- Header -->
+      <header class="border-b border-[#9ae600] pb-8 relative overflow-hidden">
+        <div class="absolute inset-0 bg-[#9ae600]/5 animate-pulse pointer-events-none"></div>
+        <h1 class="text-4xl md:text-6xl mb-4 tracking-tighter">
+          SMOL <span class="text-white">LABS</span>
+        </h1>
+        <p class="text-lg md:text-xl text-slate-400 font-sans max-w-2xl">
+          Experimental agentic workflows and autonomous constructs.
+          <br />
+          <span class="text-[#f91880] text-sm font-pixel mt-2 block">> CAUTION: ACTIVE NEURAL PATHWAYS</span>
+        </p>
+      </header>
+
+      <!-- Ralph Section -->
+      <section class="grid md:grid-cols-[2fr_1fr] gap-8">
+        <div class="space-y-6">
+          <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-[#9ae600] text-black flex items-center justify-center text-2xl font-bold">
+              R
+            </div>
+            <div>
+              <h2 class="text-2xl text-white">Project RALPH</h2>
+              <code class="text-xs text-slate-500">v1.0.0 // STATION_CORE</code>
+            </div>
+          </div>
+
+          <div class="prose prose-invert prose-p:font-sans text-slate-300">
+            <p>
+              Ralph is an autonomous AI agent orchestration system that executes software development tasks 
+              by running fresh instances in a loop. It solves the context window limitation problem 
+              by using ephemeral agents with persistent memory channels.
+            </p>
+            <p>
+              <strong class="text-[#9ae600]">> The Infinite Loop</strong><br/>
+              Each iteration executes in a clean context window, preventing pollution that degrades 
+              performance over long-running tasks. Memory persists via git history and local artifacts.
+            </p>
+          </div>
+
+          <div class="bg-black/50 border border-slate-800 p-4 rounded font-mono text-xs overflow-x-auto">
+            <p class="text-slate-500"># Execute Ralph Loop</p>
+            <p class="text-white">./scripts/ralph/ralph.sh <span class="text-[#f91880]">5</span></p>
+          </div>
+
+          <div class="flex gap-4 pt-4">
+            <a 
+              href="/ralph/ralph.sh" 
+              download
+              class="px-4 py-2 border border-[#9ae600] hover:bg-[#9ae600] hover:text-black transition-colors"
+            >
+              DOWNLOAD SCRIPT
+            </a>
+             <a 
+              href="/ralph/prompt.md" 
+              download
+              class="px-4 py-2 border border-slate-600 hover:border-white hover:text-white text-slate-400 transition-colors"
+            >
+              GET PROMPT
+            </a>
+          </div>
+        </div>
+
+        <!-- Sidebar / Status -->
+        <div class="border-l border-slate-800 pl-8 space-y-8 hidden md:block">
+          <div>
+            <h3 class="text-xs text-slate-500 mb-2 uppercase tracking-widest">Construct Status</h3>
+            <div class="flex items-center gap-2 text-white">
+              <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+              ONLINE
+            </div>
+          </div>
+
+           <div>
+            <h3 class="text-xs text-slate-500 mb-2 uppercase tracking-widest">Components</h3>
+            <ul class="space-y-2 text-sm">
+              <li class="flex justify-between">
+                <span>Orchestrator</span>
+                <span class="text-[#9ae600]">BASH</span>
+              </li>
+              <li class="flex justify-between">
+                <span>Memory</span>
+                <span class="text-[#9ae600]">JSON</span>
+              </li>
+               <li class="flex justify-between">
+                <span>Agent</span>
+                <span class="text-[#9ae600]">AMP</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</Layout>

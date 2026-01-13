@@ -234,6 +234,25 @@
       <span>What is KALE?</span>
     </a>
 
+    <!-- Smol Labs -->
+    <a
+      class="flex items-center gap-3 hover:text-[#9ae600] transition-colors {path ===
+      '/labs'
+        ? 'text-white'
+        : ''}"
+      href="/labs"
+      onclick={closeMenu}
+    >
+      <span class="text-[#f91880]">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+          <path
+            d="M13,2V11H22V13H14.82C14.43,18.47 9.47,22 4,22V20C8.36,20 12.29,17.18 12.82,13H2V11H11V2H13Z"
+          />
+        </svg>
+      </span>
+      <span>Smol Labs</span>
+    </a>
+
     <!-- 4. Mixtapes Browser + Tiny Mode Toggle -->
     <div class="flex items-center gap-2">
       <a
