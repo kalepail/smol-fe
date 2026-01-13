@@ -20,7 +20,7 @@
             "id": "LABS-000",
             "title": "Add CI scope guard to enforce Labs sandbox allowlist",
             "priority": 0,
-            "passes": false,
+            "passes": true,
             "acceptance": [
                 "PR/push fails if any file outside allowlist is modified",
                 "Workflow is fast and deterministic"
@@ -30,7 +30,7 @@
             "id": "LABS-001",
             "title": "Create /labs landing page with grid of experiment cards (safe container)",
             "priority": 1,
-            "passes": false,
+            "passes": true,
             "acceptance": [
                 "Route /labs loads with no console errors",
                 "Grid layout renders 3+ experiment cards",
