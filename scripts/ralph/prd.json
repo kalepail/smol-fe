@@ -77,7 +77,7 @@
             "id": "LABS-005",
             "title": "Implement Experiment 3: Waveform Match (uses waveform metadata if available)",
             "priority": 5,
-            "passes": false,
+            "passes": true,
             "acceptance": [
                 "Renders simple waveform previews or a fallback visualization",
                 "Plays snippet and asks user to match",
