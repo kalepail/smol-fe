@@ -1,0 +1,175 @@
+{
+    "project": "SMOL Labs (Sandboxed)",
+    "branchName": "labs/ralph-sandbox",
+    "rules": {
+        "allowlist": [
+            "src/pages/labs/**",
+            "src/components/labs/**",
+            "src/lib/labs/**",
+            "src/styles/labs/**",
+            "public/labs/**",
+            "scripts/ralph/**",
+            ".github/workflows/labs-scope-guard.yml"
+        ],
+        "noNewDependencies": true,
+        "readOnlyDataAccess": true,
+        "noCoreSiteChanges": true
+    },
+    "stories": [
+        {
+            "id": "LABS-000",
+            "title": "Add CI scope guard to enforce Labs sandbox allowlist",
+            "priority": 0,
+            "passes": false,
+            "acceptance": [
+                "PR/push fails if any file outside allowlist is modified",
+                "Workflow is fast and deterministic"
+            ]
+        },
+        {
+            "id": "LABS-001",
+            "title": "Create /labs landing page with grid of experiment cards (safe container)",
+            "priority": 1,
+            "passes": false,
+            "acceptance": [
+                "Route /labs loads with no console errors",
+                "Grid layout renders 3+ experiment cards",
+                "Contains visible experimental disclaimer",
+                "No imports from global audio/user stores"
+            ]
+        },
+        {
+            "id": "LABS-002",
+            "title": "Implement Labs-only audio player component (local <audio>, no global store)",
+            "priority": 2,
+            "passes": false,
+            "acceptance": [
+                "Can play/pause/seek",
+                "Cleans up on unmount",
+                "Client-only mounting to avoid SSR issues"
+            ]
+        },
+        {
+            "id": "LABS-003",
+            "title": "Implement Experiment 1: Tag Roulette (MP3 snippet + metadata reveal)",
+            "priority": 3,
+            "passes": false,
+            "acceptance": [
+                "User can select tags",
+                "App picks a matching SMOL and plays 10–20s snippet",
+                "Shows key metadata (title/tags) after play",
+                "Handles missing data/network failure gracefully"
+            ]
+        },
+        {
+            "id": "LABS-004",
+            "title": "Implement Experiment 2: Blind Tag Quiz (snippet + multiple choice tags)",
+            "priority": 4,
+            "passes": false,
+            "acceptance": [
+                "Plays snippet",
+                "Shows 6 options with 1 correct tag",
+                "Tracks score locally",
+                "No global state side effects"
+            ]
+        },
+        {
+            "id": "LABS-005",
+            "title": "Implement Experiment 3: Waveform Match (uses waveform metadata if available)",
+            "priority": 5,
+            "passes": false,
+            "acceptance": [
+                "Renders simple waveform previews or a fallback visualization",
+                "Plays snippet and asks user to match",
+                "Works even if waveform metadata missing (fallback UI)"
+            ]
+        },
+        {
+            "id": "LABS-006",
+            "title": "Polish: Labs README + safety notes + basic UX hardening",
+            "priority": 6,
+            "passes": false,
+            "acceptance": [
+                "Docs explain sandbox boundaries",
+                "All experiments have consistent layout + nav back to /labs",
+                "No crashes on rapid navigation"
+            ]
+        },
+        {
+            "id": "LABS-100",
+            "title": "Research: Can artist C-address hold native XLM? (SAC + Soroswap docs) — write SMOL_LABS/RESEARCH_XLM_C_ADDRESSES.md",
+            "priority": 100,
+            "passes": false,
+            "acceptance": [
+                "Research note exists and is clear",
+                "Explains SAC handling of native XLM and contract balances",
+                "Explains Soroswap asset identifiers (SAC vs CODE:ISSUER)",
+                "Lists exact contract(s) we will call and why",
+                "States whether we can avoid Soroswap API key dependency (preferred: yes via simulation)"
+            ]
+        },
+        {
+            "id": "LABS-101",
+            "title": "Implement Labs experiment shell: Soroswap Swapper (XLM-only) with explicit risk UI + kill-switch",
+            "priority": 101,
+            "passes": false,
+            "acceptance": [
+                "New experiment card appears in /labs grid",
+                "Experiment has an explicit EXPERIMENTAL / RISK banner",
+                "Transaction submit controls are disabled until user checks an 'I understand' checkbox",
+                "No imports that mutate global audio/user stores; no changes outside allowlist"
+            ]
+        },
+        {
+            "id": "LABS-102",
+            "title": "Phase 1: XLM-to-Artist C-address transfer via Stellar Asset Contract (simulate → sign → send)",
+            "priority": 102,
+            "passes": false,
+            "acceptance": [
+                "User can select a SMOL and the experiment reads its artist C-address",
+                "User can input XLM amount",
+                "Flow simulates first and shows a confirmation summary",
+                "Flow signs/sends using the same safe transaction pipeline pattern as tip modal (without editing tip modal)",
+                "Handles failure states gracefully (insufficient funds, user reject, simulation fail, RPC timeout)"
+            ]
+        },
+        {
+            "id": "LABS-103",
+            "title": "Phase 2: Soroswap Router swap (XLM input only), using simulation-derived min_out (NO USDC)",
+            "priority": 103,
+            "passes": false,
+            "acceptance": [
+                "Uses Soroswap Router contract address deterministically (docs/JSON + fallback)",
+                "Builds Router call tx and simulates to estimate output",
+                "Applies conservative slippage to compute min_out",
+                "Signs/sends only after explicit user confirmation",
+                "Does not require Soroswap API keys",
+                "NO USDC support implemented"
+            ]
+        },
+        {
+            "id": "LABS-104",
+            "title": "Optional: Post-swap delivery — transfer output token to artist C-address (Labs-only, explicit confirm)",
+            "priority": 104,
+            "passes": false,
+            "acceptance": [
+                "After swap completes, user may click an explicit 'Send to Artist' button",
+                "Transfer is simulated then signed then sent",
+                "Destination is the artist C-address",
+                "No global side effects"
+            ]
+        },
+        {
+            "id": "LABS-105",
+            "title": "Hardening: edge cases, UX safety, and regression checks to ensure main SMOL unaffected",
+            "priority": 105,
+            "passes": false,
+            "acceptance": [
+                "No impact to global player, tip modal, login, or routing",
+                "No console errors on non-Labs routes",
+                "Scope guard still blocks any out-of-sandbox edits",
+                "Clear error messages and safe defaults"
+            ]
+        }
+    ]
+}
