@@ -65,7 +65,7 @@
             "id": "LABS-004",
             "title": "Implement Experiment 2: Blind Tag Quiz (snippet + multiple choice tags)",
             "priority": 4,
-            "passes": false,
+            "passes": true,
             "acceptance": [
                 "Plays snippet",
                 "Shows 6 options with 1 correct tag",

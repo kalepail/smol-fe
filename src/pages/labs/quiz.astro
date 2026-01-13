@@ -1,0 +1,59 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import { shouldLogTagDiagnostics, getSnapshotTagStats } from "../../services/tags/unifiedTags";
+import { getSnapshotAsync } from "../../services/api/snapshot";
+
+// Fetch data
+const { tags } = await getSnapshotTagStats();
+const allTags = tags.map(t => t.tag);
+const allSmols = await getSnapshotAsync();
+---
+
+<Layout title="Blind Quiz | Smol Labs">
+  <div class="min-h-screen bg-black text-[#9ae600] font-pixel p-4 relative overflow-hidden flex flex-col items-center justify-center pt-20">
+
+    <!-- Background -->
+    <div class="absolute inset-0 opacity-10 pointer-events-none">
+        <div class="absolute inset-0 bg-[linear-gradient(45deg,theme('colors.pink.900')_0%,transparent_70%)] opacity-30"></div>
+    </div>
+    
+    <!-- Nav Back -->
+    <a href="/labs" class="absolute top-24 left-4 md:left-8 z-30 text-xs font-mono uppercase tracking-widest text-[#555] hover:text-[#9ae600] flex items-center gap-2 transition-colors">
+        <span>&larr; Return to Labs</span>
+    </a>
+
+    <!-- Container -->
+    <div class="relative z-20 w-full max-w-2xl flex flex-col gap-8 items-center text-center">
+        
+        <h1 class="text-3xl md:text-5xl font-black tracking-tighter" style="image-rendering: pixelated; text-shadow: 4px 4px 0px #000;">
+            <span class="text-white">BLIND</span><span class="text-[#f91880]">QUIZ</span>
+        </h1>
+
+        <!-- Svelte Interactive Component -->
+        <div class="w-full">
+             <blind-quiz-core client:only="svelte" data-tags={JSON.stringify(allTags)} data-smols={JSON.stringify(allSmols)} />
+        </div>
+
+    </div>
+
+  </div>
+</Layout>
+
+<script>
+    import { mount } from 'svelte';
+    import BlindQuizCore from '../../components/labs/BlindQuizCore.svelte';
+
+    class BlindQuizElement extends HTMLElement {
+        connectedCallback() {
+            const allTags = JSON.parse(this.getAttribute('data-tags') || '[]');
+            const smols = JSON.parse(this.getAttribute('data-smols') || '[]');
+            
+            mount(BlindQuizCore, {
+                target: this,
+                props: { allTags, smols }
+            });
+        }
+    }
+    
+    customElements.define('blind-quiz-core', BlindQuizElement);
+</script>
