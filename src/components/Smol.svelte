@@ -12,6 +12,7 @@
   import { audioState } from "../stores/audio.svelte";
   import { sac } from "../utils/passkey-kit";
   import { getTokenBalance } from "../utils/balance";
+  import { RPC_URL } from "../utils/rpc";
 
   const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
 
@@ -346,7 +347,7 @@
           contractId: userState.contractId,
           keyId: userState.keyId,
           smolContractId,
-          rpcUrl: import.meta.env.PUBLIC_RPC_URL as string,
+          rpcUrl: RPC_URL,
           networkPassphrase: import.meta.env
             .PUBLIC_NETWORK_PASSPHRASE as string,
           creatorAddress: d1?.Address || "",

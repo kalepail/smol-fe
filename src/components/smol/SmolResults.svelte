@@ -17,6 +17,7 @@
     import { useSmolMinting } from "../../hooks/useSmolMinting";
     import { sac } from "../../utils/passkey-kit";
     import { getTokenBalance } from "../../utils/balance";
+    import { RPC_URL } from "../../utils/rpc";
     import MintTradeModal from "../MintTradeModal.svelte";
     import TipArtistModal from "../artist/TipArtistModal.svelte";
 
@@ -326,7 +327,7 @@
                     smolContractId:
                         import.meta.env.PUBLIC_SMOL_CONTRACT_ID ||
                         "CBRNUVLGFM5OYWAGZVGU7CTMP2UJLKZCLFY2ANUCK5UGKND6BBAA5PLA",
-                    rpcUrl: import.meta.env.PUBLIC_RPC_URL!,
+                    rpcUrl: RPC_URL,
                     networkPassphrase: import.meta.env
                         .PUBLIC_NETWORK_PASSPHRASE!,
                     creatorAddress: data?.d1?.Address || "",

@@ -12,20 +12,7 @@ for (const key of REQUIRED_ENV_VARS) {
     }
 }
 
-// Robust RPC Selection Strategy
-// 1. User Preference (Env Var)
-// 2. High Performance Public Nodes (Quasar, Ankr)
-// 3. Official SDF Node
-const RPC_OPTIONS = [
-    import.meta.env.PUBLIC_RPC_URL,
-    "https://quasar.lightsail.network/",
-    "https://rpc.ankr.com/stellar_soroban",
-    "https://soroban-rpc.mainnet.stellar.org",
-    "https://stellar-mainnet.publicnode.com"
-].filter(Boolean) as string[];
-
-// Use the first available defined URL
-const RPC_URL = RPC_OPTIONS[0];
+import { RPC_URL } from "./rpc";
 
 export const account = new PasskeyKit({
     rpcUrl: RPC_URL,

@@ -23,6 +23,7 @@
     import MiniVisualizer from "../ui/MiniVisualizer.svelte";
     import { flip } from "svelte/animate";
     import { backOut } from "svelte/easing";
+    import { RPC_URL } from "../../utils/rpc";
 
     const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
     const isBrowser = typeof window !== "undefined";
@@ -1010,7 +1011,7 @@
                     smolContractId:
                         import.meta.env.PUBLIC_SMOL_CONTRACT_ID ||
                         "CBRNUVLGFM5OYWAGZVGU7CTMP2UJLKZCLFY2ANUCK5UGKND6BBAA5PLA",
-                    rpcUrl: import.meta.env.PUBLIC_RPC_URL!,
+                    rpcUrl: RPC_URL,
                     networkPassphrase: import.meta.env
                         .PUBLIC_NETWORK_PASSPHRASE!,
                     creatorAddress: currentSong.Address || "",

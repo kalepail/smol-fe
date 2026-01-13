@@ -4,7 +4,9 @@ import { Server } from "@stellar/stellar-sdk/minimal/rpc"
 export const keypair = Keypair.fromRawEd25519Seed(hash(Buffer.from('kalepail')))
 export const publicKey = keypair.publicKey()
 
-const rpcUrl = import.meta.env.PUBLIC_RPC_URL;
+import { RPC_URL } from "./rpc";
+
+const rpcUrl = RPC_URL;
 export const rpc = rpcUrl ? new Server(rpcUrl) : (null as Server | null);
 
 export function getRpcServer(): Server {

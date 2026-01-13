@@ -10,6 +10,7 @@
     import MintTradeModal from "../MintTradeModal.svelte";
     import { sac } from "../../utils/passkey-kit";
     import { getTokenBalance } from "../../utils/balance";
+    import { RPC_URL } from "../../utils/rpc";
 
     let {
         generatedPlaylist: playlist = [],
@@ -143,7 +144,7 @@
                     smolContractId:
                         import.meta.env.PUBLIC_SMOL_CONTRACT_ID ||
                         "CBRNUVLGFM5OYWAGZVGU7CTMP2UJLKZCLFY2ANUCK5UGKND6BBAA5PLA",
-                    rpcUrl: import.meta.env.PUBLIC_RPC_URL!,
+                    rpcUrl: RPC_URL,
                     networkPassphrase: import.meta.env
                         .PUBLIC_NETWORK_PASSPHRASE!,
                     creatorAddress: currentSong.Address || "",
