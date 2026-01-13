@@ -1,0 +1,59 @@
+name: Ralph Scope Guard
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - 'labs/*'
+
+jobs:
+  check-allowlist:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for out-of-scope changes
+        run: |
+          # Define allowlist patterns (must match PRD)
+          # Note: Using grep for matching. Adjust regex as needed.
+          ALLOWLIST="^src/pages/labs/|^src/components/labs/|^src/lib/labs/|^public/labs/|^scripts/ralph/|^\.github/workflows/labs-scope-guard\.yml|^src/styles/labs/"
+
+          # Get changed files against the base branch (usually main or the target of PR)
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            BASE_REF="origin/${{ github.base_ref }}"
+          else
+            # For push events, compare against the previous commit
+            BASE_REF="${{ github.event.before }}"
+          fi
+
+          echo "Checking changes against $BASE_REF..."
+          CHANGED_FILES=$(git diff --name-only $BASE_REF HEAD)
+
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          echo "-------------------"
+
+          VIOLATIONS=""
+          for file in $CHANGED_FILES; do
+            if ! echo "$file" | grep -Eq "$ALLOWLIST"; then
+              echo "❌ VIOLATION: $file is NOT in the allowlist."
+              VIOLATIONS="$VIOLATIONS $file"
+            else
+              echo "✅ OK: $file"
+            fi
+          done
+
+          if [ -n "$VIOLATIONS" ]; then
+            echo "-------------------"
+            echo "⛔ SCOPE GUARD FAILED. The following files are strictly prohibited:"
+            echo "$VIOLATIONS"
+            exit 1
+          else
+            echo "-------------------"
+            echo "✅ SCOPE GUARD PASSED. All changes are within the sandbox."
+            exit 0
+          fi

@@ -106,6 +106,15 @@ if (token) {
 				opacity: 0 !important;
 				pointer-events: none !important;
 			}
+
+			/* Hide scrollbars globally but keep functionality */
+			::-webkit-scrollbar {
+				display: none;
+			}
+			* {
+				scrollbar-width: none;  /* Firefox */
+				-ms-overflow-style: none;  /* IE and Edge */
+			}
 		</style>
 	</head>
 	<body class="bg-transparent text-white min-h-screen relative">

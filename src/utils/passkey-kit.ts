@@ -21,10 +21,11 @@ export const account = new PasskeyKit({
     timeoutInSeconds: 30,
 });
 
-export const server = new PasskeyServer({
-    rpcUrl: RPC_URL,
-    launchtubeUrl: import.meta.env.PUBLIC_LAUNCHTUBE_URL,
-    launchtubeJwt: import.meta.env.PUBLIC_LAUNCHTUBE_JWT,
+import { RelayerServer } from "./relayer-adapter";
+
+export const server = new RelayerServer({
+    baseUrl: "https://channels.openzeppelin.com", // Mainnet default
+    apiKey: import.meta.env.PUBLIC_CHANNELS_API_KEY,
 });
 
 export const sac = new SACClient({

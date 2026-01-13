@@ -1,0 +1,188 @@
+<script lang="ts">
+    import LabsPlayer from "./LabsPlayer.svelte";
+    import { onMount } from "svelte";
+
+    interface Props {
+        smols: any[];
+    }
+
+    let { smols }: Props = $props();
+
+    let score = $state(0);
+    let rounds = $state(0);
+    let currentSmol = $state<any | null>(null);
+    let options = $state<any[]>([]);
+    let hasGuessed = $state(false);
+    let lastResult = $state<"correct" | "incorrect" | null>(null);
+
+    // Filter for playable smols
+    const playableSmols = smols.filter((s) => s.audio?.url);
+
+    function startRound() {
+        if (playableSmols.length < 4) return;
+
+        // 1. Pick random target
+        currentSmol =
+            playableSmols[Math.floor(Math.random() * playableSmols.length)];
+
+        // 2. Pick 3 distractors
+        const distractors = new Set<any>();
+        while (distractors.size < 3) {
+            const s =
+                playableSmols[Math.floor(Math.random() * playableSmols.length)];
+            if (s.Id !== currentSmol.Id) {
+                distractors.add(s);
+            }
+        }
+
+        // 3. Shuffle options
+        options = [...distractors, currentSmol].sort(() => Math.random() - 0.5);
+
+        hasGuessed = false;
+        lastResult = null;
+    }
+
+    function handleGuess(smol: any) {
+        if (hasGuessed) return;
+
+        hasGuessed = true;
+        rounds++;
+
+        if (smol.Id === currentSmol.Id) {
+            score++;
+            lastResult = "correct";
+        } else {
+            lastResult = "incorrect";
+        }
+    }
+
+    function getVisualizerBarHeight(
+        index: number,
+        total: number,
+        name: string,
+    ): string {
+        // Deterministic pseudo-random height based on name char codes to simulate different waveforms
+        const seed = name.charCodeAt(index % name.length) + index;
+        const height = 20 + (seed % 80);
+        return `${height}%`;
+    }
+
+    onMount(() => {
+        startRound();
+    });
+</script>
+
+<div class="flex flex-col gap-8 w-full max-w-4xl mx-auto">
+    <!-- Scoreboard -->
+    <div class="flex justify-between items-center border-b border-[#333] pb-4">
+        <div class="flex flex-col">
+            <span class="text-[10px] text-[#555] uppercase tracking-widest"
+                >Matches</span
+            >
+            <span class="text-2xl font-bold text-[#9ae600]"
+                >{score}
+                <span class="text-[#333] text-sm">/ {rounds}</span></span
+            >
+        </div>
+        <button
+            onclick={startRound}
+            disabled={!hasGuessed}
+            class="px-4 py-2 bg-[#222] border border-[#333] rounded text-xs uppercase font-mono hover:bg-[#9ae600] hover:text-black disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+        >
+            Next Pattern &rarr;
+        </button>
+    </div>
+
+    {#if currentSmol}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+            <!-- Left: The Mystery Audio -->
+            <div
+                class="bg-[#111] p-8 rounded-xl border border-[#333] flex flex-col items-center gap-6 text-center"
+            >
+                <div
+                    class="w-16 h-16 bg-[#222] rounded-full flex items-center justify-center animate-pulse"
+                >
+                    <svg
+                        class="w-8 h-8 text-[#555]"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                    >
+                        <path
+                            d="M12,3V15.5A3.5,3.5 0 0,1 8.5,19A3.5,3.5 0 0,1 5,15.5A3.5,3.5 0 0,1 8.5,12C9.28,12 10,12.25 10.59,12.68V5H17V8H12Z"
+                        />
+                    </svg>
+                </div>
+                <div class="text-xs font-mono text-[#555] space-y-1">
+                    <p>INCOMING TRANSMISSION</p>
+                    <p class="text-[#f91880] animate-pulse">
+                        UNIDENTIFIED SIGNAL
+                    </p>
+                </div>
+                <LabsPlayer src={currentSmol.audio.url} autoplay={true} />
+            </div>
+
+            <!-- Right: The Visual Candidates -->
+            <div class="grid grid-cols-1 gap-3">
+                {#each options as smol}
+                    <button
+                        onclick={() => handleGuess(smol)}
+                        disabled={hasGuessed}
+                        class="group relative flex items-center gap-4 p-4 border border-[#333] rounded hover:border-[#9ae600] bg-[#151515] hover:bg-[#222] transition-all
+                        {hasGuessed && smol.Id === currentSmol.Id
+                            ? '!border-[#9ae600] !bg-[#9ae600]/10'
+                            : ''}
+                        {hasGuessed &&
+                        smol.Id !== currentSmol.Id &&
+                        lastResult === 'incorrect'
+                            ? 'opacity-30'
+                            : ''}"
+                    >
+                        <!-- Fake Waveform Visual for this candidate -->
+                        <div
+                            class="flex items-end justify-center gap-[2px] h-8 w-24 opacity-50 group-hover:opacity-100 transition-opacity"
+                        >
+                            {#each Array(15) as _, i}
+                                <div
+                                    class="w-1 bg-[#9ae600] rounded-t-sm transition-all duration-300 group-hover:bg-white"
+                                    style="height: {getVisualizerBarHeight(
+                                        i,
+                                        15,
+                                        smol.name,
+                                    )}"
+                                ></div>
+                            {/each}
+                        </div>
+
+                        <div class="flex flex-col items-start min-w-0 flex-1">
+                            <span
+                                class="text-xs font-bold text-white truncate w-full text-left"
+                                >{smol.name}</span
+                            >
+                            <span class="text-[10px] text-[#555] font-mono"
+                                >{smol.family}</span
+                            >
+                        </div>
+
+                        <!-- Reveal Status -->
+                        {#if hasGuessed && smol.Id === currentSmol.Id}
+                            <div class="absolute right-4 text-[#9ae600]">
+                                <svg
+                                    class="w-6 h-6"
+                                    viewBox="0 0 24 24"
+                                    fill="currentColor"
+                                    ><path
+                                        d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"
+                                    /></svg
+                                >
+                            </div>
+                        {/if}
+                    </button>
+                {/each}
+            </div>
+        </div>
+    {:else}
+        <div class="text-center py-20 animate-pulse text-[#555]">
+            Calibrating Sensors...
+        </div>
+    {/if}
+</div>
