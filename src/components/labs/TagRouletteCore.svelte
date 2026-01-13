@@ -1,0 +1,156 @@
+<script lang="ts">
+    import LabsPlayer from "./LabsPlayer.svelte";
+
+    interface Props {
+        tags: string[];
+        smols: any[];
+    }
+
+    let { tags, smols }: Props = $props();
+
+    let selectedTag = $state<string | null>(null);
+    let isSpinning = $state(false);
+    let result = $state<any | null>(null);
+    let error = $state<string | null>(null);
+
+    function spin(tag: string) {
+        if (isSpinning) return;
+
+        selectedTag = tag;
+        isSpinning = true;
+        result = null;
+        error = null;
+
+        // Artificial delay for "roulette" feel
+        setTimeout(() => {
+            const matches = smols.filter(
+                (s: any) => s.tags?.includes(tag) || s.keywords?.includes(tag),
+            );
+
+            if (matches.length === 0) {
+                error = `No artifacts found for [${tag}]`;
+                isSpinning = false;
+                return;
+            }
+
+            const randomSmol =
+                matches[Math.floor(Math.random() * matches.length)];
+
+            // Ensure audio url exists
+            if (!randomSmol.audio || !randomSmol.audio.url) {
+                // Try another one or fail
+                // For now, strict fail is safer for labs
+                if (matches.length > 1) {
+                    // Quick retry logic could go here, but kept simple
+                }
+            }
+
+            result = randomSmol;
+            isSpinning = false;
+        }, 1500);
+    }
+
+    function reset() {
+        selectedTag = null;
+        result = null;
+    }
+</script>
+
+<div class="flex flex-col gap-6 w-full">
+    {#if !selectedTag}
+        <!-- Tag Selection State -->
+        <div
+            class="flex flex-wrap gap-2 justify-center max-h-[300px] overflow-y-auto pr-2 scrollbar-thin"
+        >
+            {#each tags as tag}
+                <button
+                    onclick={() => spin(tag)}
+                    class="px-3 py-1.5 bg-[#222] border border-[#444] text-[#9ae600] text-xs font-mono uppercase rounded hover:bg-[#9ae600] hover:text-black hover:border-transparent transition-all"
+                >
+                    #{tag}
+                </button>
+            {/each}
+        </div>
+    {:else if isSpinning}
+        <!-- Spinning State -->
+        <div class="flex flex-col items-center justify-center py-12 gap-4">
+            <div
+                class="w-12 h-12 border-4 border-[#333] border-t-[#f91880] rounded-full animate-spin"
+            ></div>
+            <p class="text-xs font-mono text-[#f91880] animate-pulse">
+                Scanning Archives for #{selectedTag}...
+            </p>
+        </div>
+    {:else if result}
+        <!-- Result State -->
+        <div
+            class="flex flex-col gap-4 animate-in fade-in zoom-in duration-300"
+        >
+            <div
+                class="bg-[#222] p-4 rounded-lg flex gap-4 border border-[#9ae600]/30 shadow-[0_0_20px_rgba(154,230,0,0.1)]"
+            >
+                <img
+                    src={result.thumbnail}
+                    alt={result.name}
+                    class="w-24 h-24 object-cover rounded bg-black"
+                />
+                <div class="flex flex-col gap-1 text-left flex-1 min-w-0">
+                    <h3 class="text-lg font-bold text-white truncate">
+                        {result.name}
+                    </h3>
+                    <p class="text-xs text-[#555] font-mono mb-2">
+                        FAMILY: {result.family}
+                    </p>
+                    <div class="flex gap-1 flex-wrap">
+                        {#each result.tags.slice(0, 3) as t}
+                            <span
+                                class="text-[9px] bg-[#111] px-1 rounded text-[#777]"
+                                >#{t}</span
+                            >
+                        {/each}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Labs Player -->
+            <LabsPlayer src={result.audio?.url || ""} autoplay={true} />
+
+            <button
+                onclick={reset}
+                class="mt-4 text-xs font-mono text-[#555] hover:text-white underline decoration-dashed underline-offset-4"
+            >
+                Start Over
+            </button>
+        </div>
+    {:else if error}
+        <!-- Error State -->
+        <div class="text-center py-8 space-y-4">
+            <p class="text-red-500 font-mono text-sm">{error}</p>
+            <button
+                onclick={reset}
+                class="px-4 py-2 bg-[#222] border border-red-500/50 text-white rounded text-xs font-mono uppercase"
+            >
+                Try Again
+            </button>
+        </div>
+    {/if}
+</div>
+
+<style>
+    /* Custom Scrollbar for the tag list since we globally hid them */
+    .scrollbar-thin::-webkit-scrollbar {
+        display: block !important;
+        width: 4px;
+    }
+    .scrollbar-thin::-webkit-scrollbar-track {
+        background: #111;
+    }
+    .scrollbar-thin::-webkit-scrollbar-thumb {
+        background: #333;
+        border-radius: 2px;
+    }
+    .scrollbar-thin {
+        scrollbar-width: thin;
+        scrollbar-color: #333 #111;
+    }
+</style>

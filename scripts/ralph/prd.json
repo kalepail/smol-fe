@@ -53,7 +53,7 @@
             "id": "LABS-003",
             "title": "Implement Experiment 1: Tag Roulette (MP3 snippet + metadata reveal)",
             "priority": 3,
-            "passes": false,
+            "passes": true,
             "acceptance": [
                 "User can select tags",
                 "App picks a matching SMOL and plays 10–20s snippet",
