@@ -99,7 +99,7 @@
             "id": "LABS-100",
             "title": "Research: Can artist C-address hold native XLM? (SAC + Soroswap docs) — write SMOL_LABS/RESEARCH_XLM_C_ADDRESSES.md",
             "priority": 100,
-            "passes": false,
+            "passes": true,
             "acceptance": [
                 "Research note exists and is clear",
                 "Explains SAC handling of native XLM and contract balances",
@@ -112,7 +112,7 @@
             "id": "LABS-101",
             "title": "Implement Labs experiment shell: Soroswap Swapper (XLM-only) with explicit risk UI + kill-switch",
             "priority": 101,
-            "passes": false,
+            "passes": true,
             "acceptance": [
                 "New experiment card appears in /labs grid",
                 "Experiment has an explicit EXPERIMENTAL / RISK banner",
