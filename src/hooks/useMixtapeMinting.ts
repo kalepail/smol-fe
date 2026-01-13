@@ -5,6 +5,7 @@ import type { Smol } from '../types/domain';
 import type { MixtapeSmolData } from '../services/api/mixtapes';
 import { getLatestSequence } from '../utils/base';
 import { account } from '../utils/passkey-kit';
+import { RPC_URL } from '../utils/rpc';
 import { MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from '../utils/mint';
 
 interface MintingState {
@@ -143,7 +144,7 @@ export function useMixtapeMinting() {
     // Create SmolClient and call coin_them
     const smolClient = new SmolClient({
       contractId: smolContractId,
-      rpcUrl: import.meta.env.PUBLIC_RPC_URL!,
+      rpcUrl: RPC_URL,
       networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE!,
     });
 

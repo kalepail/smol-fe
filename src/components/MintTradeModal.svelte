@@ -16,6 +16,7 @@
     formatAmount,
     parseInputToUnits,
   } from "../utils/tradeCalculations";
+  import { RPC_URL } from "../utils/rpc";
 
   const DISPLAY_TOKEN_NAME = "SMOL";
 
@@ -110,7 +111,7 @@
 
       cometClient = new CometClient({
         contractId: ammId,
-        rpcUrl: import.meta.env.PUBLIC_RPC_URL!,
+        rpcUrl: RPC_URL,
         networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE!,
       });
 

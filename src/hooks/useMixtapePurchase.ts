@@ -3,6 +3,7 @@ import { getDomain } from 'tldts';
 import type { Smol } from '../types/domain';
 import { getLatestSequence } from '../utils/base';
 import { account, server } from '../utils/passkey-kit';
+import { RPC_URL } from '../utils/rpc';
 
 interface PurchaseBatchParams {
   tokensOut: string[];
@@ -21,7 +22,7 @@ export function useMixtapePurchase() {
     // Create the swap_them_in transaction
     const smolClient = new SmolClient({
       contractId: smolContractId,
-      rpcUrl: import.meta.env.PUBLIC_RPC_URL!,
+      rpcUrl: RPC_URL,
       networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE!,
     });
 
