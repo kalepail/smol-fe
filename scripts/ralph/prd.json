@@ -42,7 +42,7 @@
             "id": "LABS-002",
             "title": "Implement Labs-only audio player component (local <audio>, no global store)",
             "priority": 2,
-            "passes": false,
+            "passes": true,
             "acceptance": [
                 "Can play/pause/seek",
                 "Cleans up on unmount",
