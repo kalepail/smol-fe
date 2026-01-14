@@ -1,0 +1,28 @@
+{
+    "test": "Soroswap API XLM→KALE Quote",
+    "timestamp": "2026-01-13T23:47:00-06:00",
+    "status": "SUCCESS",
+    "network": "mainnet",
+    "input": {
+        "token": "XLM",
+        "contractId": "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA",
+        "amount": "1 XLM (10,000,000 stroops)"
+    },
+    "output": {
+        "token": "KALE",
+        "contractId": "CB23WRDQWGSP6YPMY4UV5C4OW5CBTXKYN3XEATG7KJEZCXMJBYEHOUOV",
+        "amount": "292.4167133 KALE"
+    },
+    "route": {
+        "platform": "aggregator",
+        "protocol": "soroswap",
+        "hops": 3,
+        "path": [
+            "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA",
+            "CBEM2CAIYLM3HBOPU5HLQL7V5BUAKM3N77DYQKX4FNHTQLQUUD2ZFBOX",
+            "CB23WRDQWGSP6YPMY4UV5C4OW5CBTXKYN3XEATG7KJEZCXMJBYEHOUOV"
+        ],
+        "priceImpact": "2.11%"
+    },
+    "finding": "XLM→KALE route exists via Soroswap AMM using an intermediate token. This unblocks Phase H integration."
+}
