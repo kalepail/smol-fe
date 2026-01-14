@@ -1,9 +1,9 @@
 /**
  * OZ Channels Relayer Adapter
  * 
- * Supports two modes:
- * 1. Soroban func+auth mode (for passkey-signed transactions)
- * 2. Pre-signed XDR mode (fallback)
+ * Uses OpenZeppelin Channels hosted service for Stellar Soroban transaction submission.
+ * Auth: Authorization: Bearer {apiKey}
+ * Endpoint: POST / with { func, auth } body
  */
 
 import type { Transaction, FeeBumpTransaction } from '@stellar/stellar-sdk';
@@ -30,7 +30,7 @@ export class OzChannelsServer {
      * This extracts the host function and signed auth entries from the transaction
      * and submits them to OZ Channels for processing.
      */
-    async sendSoroban(tx: Transaction | FeeBumpTransaction): Promise<OzChannelsResult> {
+    async send(tx: Transaction | FeeBumpTransaction): Promise<OzChannelsResult> {
         if (!this.apiKey) {
             throw new Error('OZ Channels API key not configured');
         }
@@ -54,24 +54,30 @@ export class OzChannelsServer {
         const func = op.func.toXDR('base64');
         const auth = (op.auth ?? []).map((a: any) => a.toXDR('base64'));
 
-        console.log('[OzChannelsServer] Submitting via func+auth mode:', {
+        console.log('[OzChannelsServer] Submitting via OZ Channels:', {
             func: func.substring(0, 50) + '...',
             authCount: auth.length
         });
 
         // Submit to OpenZeppelin Channels
-        const response = await fetch(`${this.baseUrl}/soroban`, {
+        // Per DeepWiki: POST to root path / with Authorization: Bearer header
+        const response = await fetch(`${this.baseUrl}/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Api-Key': this.apiKey,
-                'X-Client-Name': 'passkey-kit',
-                'X-Client-Version': VERSION,
+                'Authorization': `Bearer ${this.apiKey}`,
             },
             body: JSON.stringify({ func, auth }),
         });
 
-        const result = await response.json();
+        const responseText = await response.text();
+        let result;
+
+        try {
+            result = JSON.parse(responseText);
+        } catch {
+            throw new Error(`OZ Channels HTTP Error: ${response.status} ${response.statusText} - ${responseText.substring(0, 200)}`);
+        }
 
         if (!response.ok) {
             const errorCode = result?.code || result?.error || response.statusText;
@@ -98,61 +104,7 @@ export class OzChannelsServer {
             status: result.status || 'pending',
         };
     }
-
-    /**
-     * Send a pre-signed transaction XDR.
-     * This is the fallback mode when you have a fully signed envelope.
-     */
-    async send(tx: Transaction | FeeBumpTransaction | string): Promise<OzChannelsResult> {
-        if (!this.apiKey) {
-            throw new Error('OZ Channels API key not configured');
-        }
-
-        let xdr: string;
-        if (typeof tx === 'string') {
-            xdr = tx;
-        } else {
-            xdr = tx.toXDR();
-        }
-
-        console.log('[OzChannelsServer] Submitting via XDR mode');
-
-        const response = await fetch(`${this.baseUrl}/transactions`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Api-Key': this.apiKey,
-                'X-Client-Name': 'passkey-kit',
-                'X-Client-Version': VERSION,
-            },
-            body: JSON.stringify({ xdr }),
-        });
-
-        const result = await response.json();
-
-        if (!response.ok) {
-            const errorCode = result?.code || result?.error || response.statusText;
-            const errorDetails = result?.details || result?.message || '';
-
-            let userMessage = `Channels API Error: ${errorCode}`;
-            if (errorCode === 'FEE_LIMIT_EXCEEDED') {
-                userMessage = 'Service fee limit reached. Please try again in 24 hours.';
-            } else if (errorCode === 'POOL_CAPACITY') {
-                userMessage = 'Network is busy. Please try again shortly.';
-            } else if (errorCode === 'INVALID_XDR') {
-                userMessage = `Invalid transaction XDR: ${errorDetails}`;
-            }
-
-            throw new Error(userMessage);
-        }
-
-        return {
-            transactionId: result.transactionId,
-            hash: result.hash,
-            status: result.status || 'pending',
-        };
-    }
 }
 
-// Legacy export for backward compatibility
+// Default export for convenience
 export { OzChannelsServer as RelayerServer };
