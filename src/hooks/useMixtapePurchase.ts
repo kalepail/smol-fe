@@ -2,7 +2,7 @@ import { Client as SmolClient } from 'smol-sdk';
 import { getDomain } from 'tldts';
 import type { Smol } from '../types/domain';
 import { rpc } from '../utils/base';
-import { account, server } from '../utils/passkey-kit';
+import { account, send } from '../utils/passkey-kit';
 
 interface PurchaseBatchParams {
   tokensOut: string[];
@@ -46,7 +46,7 @@ export function useMixtapePurchase() {
     console.log('Tokens in batch:', tokensOut);
 
     // Submit transaction via passkey server
-    await server.send(tx);
+    await send(tx);
   }
 
   async function purchaseTracksInBatches(

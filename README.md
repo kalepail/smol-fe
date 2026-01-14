@@ -113,8 +113,9 @@ Create a `.env` file with the following variables:
 PUBLIC_RPC_URL=                    # Stellar RPC endpoint
 PUBLIC_NETWORK_PASSPHRASE=         # Network passphrase (testnet/mainnet)
 PUBLIC_WALLET_WASM_HASH=           # PasskeyKit wallet WASM hash
-PUBLIC_LAUNCHTUBE_URL=             # LaunchTube service URL
-PUBLIC_LAUNCHTUBE_JWT=             # LaunchTube authentication token
+PUBLIC_RELAYER_URL=                # Relayer URL (direct relayer in dev, proxy in prod)
+PUBLIC_RELAYER_API_KEY=            # Dev only: API key (https://channels.openzeppelin.com/gen)
+PUBLIC_TURNSTILE_SITE_KEY=         # Prod only: Cloudflare Turnstile site key
 PUBLIC_API_URL=                    # Backend API URL
 PUBLIC_KALE_SAC_ID=                # KALE token SAC ID
 PUBLIC_SMOL_CONTRACT_ID=           # Smol smart contract ID

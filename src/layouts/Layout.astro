@@ -30,6 +30,8 @@ if (token) {
 	_kid = key;
 	_cid = sub;
 }
+
+const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY;
 ---
 
 <!doctype html>
@@ -47,6 +49,8 @@ if (token) {
 		<meta name="theme-color" content="#9ae600">
 		<link rel="manifest" href="/manifest.json">
 		<ClientRouter />
+
+		{turnstileSiteKey && <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" is:inline></script>}
 
 		<title transition:animate="fade">{title}</title>
 		<meta name="description" content={description}>
@@ -90,5 +94,27 @@ if (token) {
 		<MixtapeBuilderOverlay client:only="svelte" transition:persist="mixtape-overlay" />
 		<BarAudioPlayer client:only="svelte" transition:persist="audio-player" />
 		<slot />
+
+		{turnstileSiteKey && <div class="cf-turnstile"></div>}
+
+		{turnstileSiteKey && (
+			<script>
+				import { turnstileCallback } from "../stores/turnstile.svelte";
+
+				const sitekey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY;
+
+				turnstile.ready(() => {
+					turnstile.render(".cf-turnstile", {
+						appearance: "interaction-only",
+						sitekey,
+						'response-field': false,
+						// @ts-ignore
+						'feedback-enabled': false,
+						callback: (token: string) => turnstileCallback(token),
+						'error-callback': (error: any) => console.error(error),
+					});
+				});
+			</script>
+		)}
 	</body>
 </html>

@@ -1,5 +1,5 @@
 import { getDomain } from 'tldts';
-import { kale, account, server } from '../utils/passkey-kit';
+import { kale, account, send } from '../utils/passkey-kit';
 import { rpc } from '../utils/base';
 import { updateContractBalance } from '../stores/balance.svelte';
 
@@ -55,7 +55,7 @@ export function useKaleTransfer() {
       expiration: sequence + 60,
     });
 
-    await server.send(tx);
+    await send(tx);
 
     await updateContractBalance(params.from);
   }
