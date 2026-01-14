@@ -19,6 +19,11 @@ export const kale = sac.getSACClient(
     import.meta.env.PUBLIC_KALE_SAC_ID || "CB23WRDQWGSP6YPMY4UV5C4OW5CBTXKYN3XEATG7KJEZCXMJBYEHOUOV"
 );
 
+// XLM Stellar Asset Contract (Mainnet)
+export const xlm = sac.getSACClient(
+    import.meta.env.PUBLIC_XLM_SAC_ID || "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA"
+);
+
 /**
  * Send a transaction via OZ Relayer Channels (Raw XDR)
  * 

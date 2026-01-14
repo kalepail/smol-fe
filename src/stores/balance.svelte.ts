@@ -1,4 +1,4 @@
-import { kale } from '../utils/passkey-kit';
+import { kale, xlm } from '../utils/passkey-kit';
 
 /**
  * Balance state using Svelte 5 runes
@@ -6,14 +6,18 @@ import { kale } from '../utils/passkey-kit';
 
 export const balanceState = $state<{
   balance: bigint | null;
+  xlmBalance: bigint | null;
   loading: boolean;
+  lastUpdated: Date | null;
 }>({
   balance: null,
+  xlmBalance: null,
   loading: false,
+  lastUpdated: null,
 });
 
 /**
- * Update contract balance for a given address
+ * Update KALE balance for a given address
  */
 export async function updateContractBalance(address: string | null): Promise<void> {
   if (!address) {
@@ -24,8 +28,9 @@ export async function updateContractBalance(address: string | null): Promise<voi
   try {
     const { result } = await kale.balance({ id: address });
     balanceState.balance = result;
+    balanceState.lastUpdated = new Date();
   } catch (error) {
-    console.error('Failed to update contract balance:', error);
+    console.error('Failed to update KALE balance:', error);
     balanceState.balance = null;
   } finally {
     balanceState.loading = false;
@@ -33,10 +38,47 @@ export async function updateContractBalance(address: string | null): Promise<voi
 }
 
 /**
- * Get current balance (read-only accessor)
+ * Update XLM balance for a given address
+ */
+export async function updateXlmBalance(address: string | null): Promise<void> {
+  if (!address) {
+    balanceState.xlmBalance = null;
+    return;
+  }
+  try {
+    const { result } = await xlm.balance({ id: address });
+    balanceState.xlmBalance = result;
+    balanceState.lastUpdated = new Date();
+  } catch (error) {
+    console.error('Failed to update XLM balance:', error);
+    balanceState.xlmBalance = null;
+  }
+}
+
+/**
+ * Update all balances (KALE + XLM) for a given address
+ */
+export async function updateAllBalances(address: string | null): Promise<void> {
+  balanceState.loading = true;
+  await Promise.all([
+    updateContractBalance(address),
+    updateXlmBalance(address),
+  ]);
+  balanceState.loading = false;
+}
+
+/**
+ * Get current KALE balance (read-only accessor)
  */
 export function getBalance(): bigint | null {
   return balanceState.balance;
+}
+
+/**
+ * Get current XLM balance (read-only accessor)
+ */
+export function getXlmBalance(): bigint | null {
+  return balanceState.xlmBalance;
 }
 
 /**
@@ -47,9 +89,11 @@ export function isBalanceLoading(): boolean {
 }
 
 /**
- * Reset balance to null
+ * Reset all balances to null
  */
 export function resetBalance(): void {
   balanceState.balance = null;
+  balanceState.xlmBalance = null;
   balanceState.loading = false;
+  balanceState.lastUpdated = null;
 }

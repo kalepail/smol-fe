@@ -26,6 +26,7 @@
     "js-cookie": "^3.0.5",
     "passkey-kit": "^0.12.0",
     "smol-sdk": "link:ext\\smol-sdk",
+    "soroswap-router-sdk": "1.2.4",
     "svelte-dnd-action": "^0.9.65",
     "tldts": "^7.0.16"
   },

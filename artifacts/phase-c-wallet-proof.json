@@ -1,0 +1,13 @@
+{
+    "phase": "C - Canary Wallet Validation (FINAL)",
+    "timestamp": "2026-01-13T23:16:33-06:00",
+    "wallet_address": "CBNORBI4DCE7LIC42FWMCIWQRULWAUGF2MH2Z7X2RNTFAYNXIACJ33IM",
+    "source": "noot.smol.xyz (user-provided passkey wallet)",
+    "rpc_url": "https://rpc.ankr.com/stellar_soroban",
+    "results": {
+        "xlm_balance": "0.0000000 XLM",
+        "kale_balance": "7501.8833335 KALE"
+    },
+    "status": "SUCCESS",
+    "notes": "Fixed i128 parsing. Path: retval._value._attributes.lo._value. User confirmed wallet has ~7501 KALE - now verified via CLI harness."
+}
