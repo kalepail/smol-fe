@@ -8,6 +8,7 @@ const { id } = Astro.params;
 let title = "Smol – Mixtape";
 let description = "Smol art onchain";
 let image_url: string | null = null;
+let schema = null;
 
 if (id) {
     try {
@@ -29,6 +30,21 @@ if (id) {
             if (data.Smols?.[0]?.Id) {
                 image_url = `${API_URL}/image/${data.Smols[0].Id}.png`;
             }
+
+            schema = {
+                "@context": "https://schema.org",
+                "@type": "MusicPlaylist",
+                "name": data.Title,
+                "description": description,
+                "url": Astro.url.href,
+                "image": image_url,
+                "numTracks": data.Smols?.length || 0,
+                "track": data.Smols?.map((s: any) => ({
+                    "@type": "MusicRecording",
+                    "name": `Track`, // We don't have track titles in this minimal fetch usually
+                    "url": `${import.meta.env.PUBLIC_URL || 'https://noot.smol.xyz'}/${s.Id}`
+                }))
+            };
         }
     } catch (error) {
         console.error('Failed to fetch mixtape meta data:', error);
@@ -37,6 +53,8 @@ if (id) {
 ---
 
 <Layout {title} {description} {image_url}>
+    {schema && (
+        <script type="application/ld+json" set:html={JSON.stringify(schema)} />
+    )}
     <MixtapeDetailView {id} client:only="svelte" />
 </Layout>
-

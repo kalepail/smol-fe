@@ -6,11 +6,13 @@ import cloudflare from '@astrojs/cloudflare';
 import tailwindcss from '@tailwindcss/vite';
 import mkcert from 'vite-plugin-mkcert';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
+import sitemap from '@astrojs/sitemap';
 
 // https://astro.build/config
 export default defineConfig({
+  site: 'https://noot.smol.xyz',
   output: 'server',
-  integrations: [svelte()],
+  integrations: [svelte(), sitemap()],
   adapter: cloudflare(),
   server: {
     host: 'localhost'
