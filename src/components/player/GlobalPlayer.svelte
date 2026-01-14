@@ -947,6 +947,17 @@
                     </button>
 
                     {#if showSettingsMenu}
+                        <!-- Backdrop to close on click outside -->
+                        <div
+                            class="fixed inset-0 z-[99]"
+                            onclick={() => (showSettingsMenu = false)}
+                            onkeydown={(e) =>
+                                e.key === "Escape" &&
+                                (showSettingsMenu = false)}
+                            role="button"
+                            tabindex="-1"
+                            aria-label="Close menu"
+                        ></div>
                         <div
                             class="absolute top-full right-0 mt-2 w-56 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl p-3 z-[100] shadow-2xl animate-in slide-in-from-top-2"
                         >
