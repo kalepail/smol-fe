@@ -3,6 +3,8 @@ import { AssembledTransaction } from "@stellar/stellar-sdk/minimal/contract";
 import type { Tx } from "@stellar/stellar-sdk/minimal/contract";
 import { RPC_URL } from "./rpc";
 
+console.log("[DEBUG] Initializing PasskeyKit with RPC:", RPC_URL);
+
 export const account = new PasskeyKit({
     rpcUrl: RPC_URL,
     networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
