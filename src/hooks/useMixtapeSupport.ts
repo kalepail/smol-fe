@@ -125,92 +125,95 @@ export function calculateSupportPayment(
  * Build and send support payment transaction
  * Multi-payment TX: one payment per recipient
  */
-turnstileToken: string,
-    onProgress ?: (step: string) => void,
-    getFreshToken ?: () => Promise<string>
-): Promise < { success: boolean; txHash?: string; error?: string } > {
-    if(!userState.contractId || !userState.keyId) {
-    return { success: false, error: 'Wallet not connected' };
-}
-
-try {
-    onProgress?.('Calculating payment...');
-    const breakdown = calculateSupportPayment(curatorAddress, tracks);
-
-    if (breakdown.totalUnits <= 0n) {
-        return { success: false, error: 'No payment amount calculated' };
+export async function sendSupportPayment(
+    curatorAddress: string,
+    tracks: Smol[],
+    turnstileToken: string,
+    onProgress?: (step: string) => void,
+    getFreshToken?: () => Promise<string>
+): Promise<{ success: boolean; txHash?: string; error?: string }> {
+    if (!userState.contractId || !userState.keyId) {
+        return { success: false, error: 'Wallet not connected' };
     }
 
-    onProgress?.('Building transaction...');
+    try {
+        onProgress?.('Calculating payment...');
+        const breakdown = calculateSupportPayment(curatorAddress, tracks);
 
-    // Aggregate payments by address to avoid redundant ops
-    const aggregated = new Map<string, bigint>();
-    for (const r of breakdown.recipients) {
-        if (r.amount > 0n) {
-            aggregated.set(r.address, (aggregated.get(r.address) || 0n) + r.amount);
+        if (breakdown.totalUnits <= 0n) {
+            return { success: false, error: 'No payment amount calculated' };
         }
-    }
 
-    // Send transfers sequentially (sub-optimal but valid API)
-    let lastTxHash = 'multi-payment';
-    const recipients = Array.from(aggregated);
+        onProgress?.('Building transaction...');
 
-    for (let i = 0; i < recipients.length; i++) {
-        const [address, amount] = recipients[i];
-        let currentToken = turnstileToken;
-
-        if (i > 0 && getFreshToken) {
-            onProgress?.('Verifying...');
-            try {
-                currentToken = await getFreshToken();
-            } catch (e) {
-                throw new Error('Verification failed for payment ' + (i + 1));
+        // Aggregate payments by address to avoid redundant ops
+        const aggregated = new Map<string, bigint>();
+        for (const r of breakdown.recipients) {
+            if (r.amount > 0n) {
+                aggregated.set(r.address, (aggregated.get(r.address) || 0n) + r.amount);
             }
         }
 
-        onProgress?.(`Transferring to ${truncate(address, 4)}...`);
-        let tx = await kale.get().transfer({
-            from: userState.contractId,
-            to: address,
-            amount,
-        });
+        // Send transfers sequentially (sub-optimal but valid API)
+        let lastTxHash = 'multi-payment';
+        const recipients = Array.from(aggregated);
 
-        onProgress?.(`Awaiting signature for ${truncate(address, 4)}...`);
-        const sequence = await getLatestSequence();
-        tx = await account.get().sign(tx, {
-            rpId: getDomain(window.location.hostname) ?? undefined,
-            keyId: userState.keyId,
-            expiration: sequence + 60,
-        });
+        for (let i = 0; i < recipients.length; i++) {
+            const [address, amount] = recipients[i];
+            let currentToken = turnstileToken;
 
-        onProgress?.(`Submitting transfer to ${truncate(address, 4)}...`);
+            if (i > 0 && getFreshToken) {
+                onProgress?.('Verifying...');
+                try {
+                    currentToken = await getFreshToken();
+                } catch (e) {
+                    throw new Error('Verification failed for payment ' + (i + 1));
+                }
+            }
 
-        const result = await send(tx, currentToken);
-        if (result?.hash) lastTxHash = result.hash;
+            onProgress?.(`Transferring to ${truncate(address, 4)}...`);
+            let tx = await kale.get().transfer({
+                from: userState.contractId,
+                to: address,
+                amount,
+            });
+
+            onProgress?.(`Awaiting signature for ${truncate(address, 4)}...`);
+            const sequence = await getLatestSequence();
+            tx = await account.get().sign(tx, {
+                rpId: getDomain(window.location.hostname) ?? undefined,
+                keyId: userState.keyId,
+                expiration: sequence + 60,
+            });
+
+            onProgress?.(`Submitting transfer to ${truncate(address, 4)}...`);
+
+            const result = await send(tx, currentToken);
+            if (result?.hash) lastTxHash = result.hash;
+        }
+
+        onProgress?.('Complete!');
+
+        return {
+            success: true,
+            txHash: lastTxHash
+        };
+
+    } catch (error) {
+        console.error('Support payment failed:', error);
+        const message = error instanceof Error ? error.message : String(error);
+
+        // Check for user cancellation
+        if (
+            message.toLowerCase().includes('abort') ||
+            message.toLowerCase().includes('cancel') ||
+            message.toLowerCase().includes('not allowed')
+        ) {
+            return { success: false, error: 'Payment cancelled' };
+        }
+
+        return { success: false, error: message };
     }
-
-    onProgress?.('Complete!');
-
-    return {
-        success: true,
-        txHash: lastTxHash
-    };
-
-} catch (error) {
-    console.error('Support payment failed:', error);
-    const message = error instanceof Error ? error.message : String(error);
-
-    // Check for user cancellation
-    if (
-        message.toLowerCase().includes('abort') ||
-        message.toLowerCase().includes('cancel') ||
-        message.toLowerCase().includes('not allowed')
-    ) {
-        return { success: false, error: 'Payment cancelled' };
-    }
-
-    return { success: false, error: message };
-}
 }
 
 /**
