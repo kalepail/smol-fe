@@ -24,7 +24,7 @@
     "cookie": "^1.0.2",
     "jimp": "^1.6.0",
     "js-cookie": "^3.0.5",
-    "passkey-kit": "^0.11.3",
+    "passkey-kit": "^0.12.0",
     "smol-sdk": "link:ext\\smol-sdk",
     "svelte-dnd-action": "^0.9.65",
     "tldts": "^7.0.16"

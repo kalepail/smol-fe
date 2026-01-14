@@ -22,7 +22,7 @@ export const account = new PasskeyKit({
     timeoutInSeconds: 30,
 });
 
-// OZ Channels server for transaction submission (replaces Launchtube)
+// OZ Channels server for transaction submission
 export const server = new OzChannelsServer({
     baseUrl: import.meta.env.PUBLIC_CHANNELS_BASE_URL || "https://channels.openzeppelin.com",
     apiKey: import.meta.env.PUBLIC_CHANNELS_API_KEY,
