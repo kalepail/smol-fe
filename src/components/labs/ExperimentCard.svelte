@@ -40,7 +40,7 @@
                 <div class="flex gap-2">
                     {#each tags as tag}
                         <span
-                            class="text-[10px] uppercase font-mono text-white/50 border border-white/10 px-1.5 rounded bg-black/30"
+                            class="text-[10px] uppercase font-pixel text-white/50 border border-white/10 px-1.5 rounded bg-black/30"
                             >{tag}</span
                         >
                     {/each}
@@ -48,14 +48,14 @@
             {/if}
         </div>
         <span
-            class="text-[10px] font-mono border border-[#9ae600] text-[#9ae600] px-2 py-0.5 rounded-full uppercase tracking-widest bg-[#9ae600]/10"
+            class="text-[10px] font-pixel border border-[#9ae600] text-[#9ae600] px-2 py-0.5 rounded-full uppercase tracking-widest bg-[#9ae600]/10"
         >
             {badge}
         </span>
     </div>
 
     <p
-        class="text-xs md:text-sm text-white/60 font-mono leading-relaxed relative z-10"
+        class="text-xs md:text-sm text-white/60 font-pixel leading-relaxed relative z-10"
     >
         {description}
     </p>
