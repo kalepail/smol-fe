@@ -28,7 +28,12 @@ export default defineConfig({
     // },
     plugins: [
       nodePolyfills({
-        include: ['buffer']
+        include: ['buffer', 'crypto', 'stream', 'util', 'process', 'vm'],
+        globals: {
+          Buffer: true,
+          global: true,
+          process: true,
+        },
       }),
       // mkcert(),
       tailwindcss()
