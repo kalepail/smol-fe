@@ -14,7 +14,7 @@
         "#ffd700", // Gold
     ];
     const SHIP_SIZE = 15;
-    const SAFE_ZONE_RADIUS = 300; // Radius around center to avoid
+    const SAFE_ZONE_RADIUS = 180; // Radius around center to avoid
 
     // --- Game State ---
     let canvas: HTMLCanvasElement;
@@ -154,25 +154,30 @@
                 shouldThrust = true;
             } else if (nearestThreat) {
                 // 3. Combat Logic
-                const angleToThreaat = Math.atan2(
+                const angleToThread = Math.atan2(
                     nearestThreat.y - this.y,
                     nearestThreat.x - this.x,
                 );
 
                 // Aim at threat
-                targetAngle = angleToThreaat;
-
-                // Shoot if lined up
+                targetAngle = angleToThread;
                 const angleDiff = Math.abs(
                     this.normalizeAngle(targetAngle - this.angle),
                 );
+
+                // Shoot if lined up
                 if (angleDiff < 0.1 && minDist < 400) {
                     shouldShoot = true;
                 }
 
+                // Chase if too far (mobility)
+                if (minDist > 200 && angleDiff < 0.5) {
+                    shouldThrust = true;
+                }
+
                 // Evasive maneuvers if too close
                 if (minDist < 100) {
-                    // Back away or strafe? Just thrust away for now
+                    // Back away
                     targetAngle += Math.PI;
                     shouldThrust = true;
                 }
