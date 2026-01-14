@@ -29,18 +29,30 @@ export class OzChannelsServer {
      * Send a Soroban transaction using func+auth mode.
      * This extracts the host function and signed auth entries from the transaction
      * and submits them to OZ Channels for processing.
+     * 
+     * Accepts Transaction, FeeBumpTransaction, or AssembledTransaction (from passkey-kit)
      */
-    async send(tx: Transaction | FeeBumpTransaction): Promise<OzChannelsResult> {
+    async send(tx: any): Promise<OzChannelsResult> {
         if (!this.apiKey) {
             throw new Error('OZ Channels API key not configured');
         }
 
-        // Get the inner transaction if this is a fee bump
-        const innerTx = 'innerTransaction' in tx ? tx.innerTransaction : tx;
+        // Handle AssembledTransaction from passkey-kit (has .built property)
+        let innerTx: any;
+        if (tx.built) {
+            // AssembledTransaction - access the .built Transaction
+            innerTx = tx.built;
+        } else if ('innerTransaction' in tx) {
+            // FeeBumpTransaction
+            innerTx = tx.innerTransaction;
+        } else {
+            // Regular Transaction
+            innerTx = tx;
+        }
 
         // Extract the Soroban operation (assuming single-op transaction)
         const ops = innerTx.operations;
-        if (ops.length === 0) {
+        if (!ops || ops.length === 0) {
             throw new Error('Transaction has no operations');
         }
 
