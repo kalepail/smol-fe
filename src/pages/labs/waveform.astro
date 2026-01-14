@@ -1,12 +1,12 @@
 ---
 import Layout from "../../layouts/Layout.astro";
-import { getSnapshotAsync } from "../../services/api/snapshot";
+import WaveformMatchCore from "../../components/labs/WaveformMatchCore.svelte";
 
-// Fetch data
-const allSmols = await getSnapshotAsync();
+// Fetch data disabled (fetching client side)
+// const allSmols = await getSnapshotAsync();
 ---
 
-<Layout title="Waveform Match | Smol Labs">
+<Layout title="Audio Recon | Smol Labs">
   <div class="min-h-screen bg-black text-[#9ae600] font-pixel p-4 relative overflow-hidden flex flex-col items-center justify-center pt-20">
 
     <!-- Background -->
@@ -23,37 +23,19 @@ const allSmols = await getSnapshotAsync();
     <div class="relative z-20 w-full max-w-4xl flex flex-col gap-8 items-center text-center">
         
         <h1 class="text-3xl md:text-5xl font-black tracking-tighter" style="image-rendering: pixelated; text-shadow: 4px 4px 0px #000;">
-            <span class="text-white">WAVEFORM</span><span class="text-[#f91880]">MATCH</span>
+            <span class="text-white">AUDIO</span><span class="text-[#ff424c]">RECON</span>
         </h1>
         
         <p class="text-xs md:text-sm font-mono text-[#555] uppercase tracking-widest max-w-md">
-            Visual pattern recognition protocol. <br/>Match the audio signal to its spectral fingerprint.
+            Signal interception active. <br/>Correlate audio input with visual signatures.
         </p>
 
         <!-- Svelte Interactive Component -->
         <div class="w-full">
-             <waveform-match-core client:only="svelte" data-smols={JSON.stringify(allSmols)} />
+             <WaveformMatchCore client:only="svelte" fetchOnMount={true} />
         </div>
 
     </div>
 
   </div>
 </Layout>
-
-<script>
-    import { mount } from 'svelte';
-    import WaveformMatchCore from '../../components/labs/WaveformMatchCore.svelte';
-
-    class WaveformElement extends HTMLElement {
-        connectedCallback() {
-            const smols = JSON.parse(this.getAttribute('data-smols') || '[]');
-            
-            mount(WaveformMatchCore, {
-                target: this,
-                props: { smols }
-            });
-        }
-    }
-    
-    customElements.define('waveform-match-core', WaveformElement);
-</script>

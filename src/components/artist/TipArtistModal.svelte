@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { fade, scale } from "svelte/transition";
-    import { account, kale, server } from "../../utils/passkey-kit";
+    import { account, kale, send } from "../../utils/passkey-kit";
     import { getLatestSequence, truncate } from "../../utils/base";
     import { userState } from "../../stores/user.svelte";
     import { unlockUpgrade } from "../../stores/upgrades.svelte";
@@ -50,7 +50,7 @@
         }
 
         try {
-            const { result } = await kale.decimals();
+            const { result } = await kale.get().decimals();
             kaleDecimals = Number(result);
             decimalsFactor = 10n ** BigInt(kaleDecimals);
         } catch (err) {
@@ -140,20 +140,20 @@
                 return;
             }
 
-            let tx = await kale.transfer({
+            let tx = await kale.get().transfer({
                 from: userState.contractId,
                 to: lockedArtistAddress,
                 amount: amountInUnits,
             });
 
             const sequence = await getLatestSequence();
-            tx = await account.sign(tx, {
+            tx = await account.get().sign(tx, {
                 rpId: getDomain(window.location.hostname) ?? undefined,
                 keyId: userState.keyId,
                 expiration: sequence + 60,
             });
 
-            await server.send(tx);
+            await send(tx);
             await updateContractBalance(userState.contractId);
 
             // Secret Store Unlock Logic

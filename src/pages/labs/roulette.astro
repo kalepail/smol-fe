@@ -1,16 +1,10 @@
 ---
 import Layout from "../../layouts/Layout.astro";
-import LabsPlayer from "../../components/labs/LabsPlayer.svelte";
-import { shouldLogTagDiagnostics, getSnapshotTagStats } from "../../services/tags/unifiedTags";
-import { getSnapshotAsync } from "../../services/api/snapshot";
+import TagRouletteCore from "../../components/labs/TagRouletteCore.svelte";
 
-// Fetch data on the server side
-const { tags } = await getSnapshotTagStats();
-const topTags = tags.slice(0, 50).map(t => t.tag); // Top 50 popular tags
-
-// We'll hydrate the client with the full snapshot for random selection logic
-// Note: In a real "heavy" app we might API this, but for Labs/Snapshot local logic is fine.
-const allSmols = await getSnapshotAsync();
+// SIMPLIFIED: Moved data fetching to client-side to avoid Astro compiler WASM crash on Node 22
+const topTags: string[] = [];
+const allSmols: any[] = [];
 ---
 
 <Layout title="Tag Roulette | Smol Labs">
@@ -30,38 +24,19 @@ const allSmols = await getSnapshotAsync();
     <div class="relative z-20 w-full max-w-xl flex flex-col gap-8 items-center text-center">
         
         <h1 class="text-4xl md:text-6xl font-black tracking-tighter" style="image-rendering: pixelated; text-shadow: 4px 4px 0px #000;">
-            <span class="text-white">TAG</span><span class="text-[#f91880]">ROULETTE</span>
+            <span class="text-white">TAG</span><span class="text-[#ff424c]">ROULETTE</span>
         </h1>
         
         <p class="text-xs md:text-sm font-mono text-[#555] uppercase tracking-widest max-w-sm">
             Select a vibe. The system will retrieve a random artifact from the archives.
         </p>
 
-        <!-- Svelte Interactive Component -->
+        <!-- Svelte Interactive Component - loads data client-side -->
         <div class="w-full bg-[#111] border-2 border-[#333] rounded-xl p-6 md:p-8 shadow-2xl">
-             <tag-roulette-core client:only="svelte" data-tags={JSON.stringify(topTags)} data-smols={JSON.stringify(allSmols)} />
+             <TagRouletteCore client:only="svelte" tags={topTags} smols={allSmols} fetchOnMount={true} />
         </div>
 
     </div>
 
   </div>
 </Layout>
-
-<script>
-    import { mount } from 'svelte';
-    import TagRouletteCore from '../../components/labs/TagRouletteCore.svelte';
-
-    class TagRouletteElement extends HTMLElement {
-        connectedCallback() {
-            const tags = JSON.parse(this.getAttribute('data-tags') || '[]');
-            const smols = JSON.parse(this.getAttribute('data-smols') || '[]');
-            
-            mount(TagRouletteCore, {
-                target: this,
-                props: { tags, smols }
-            });
-        }
-    }
-    
-    customElements.define('tag-roulette-core', TagRouletteElement);
-</script>

@@ -20,9 +20,9 @@
 
 <a
     href={isLocked ? undefined : href}
-    class="group relative flex flex-col gap-4 p-6 bg-[#1e1e1e] border-2 border-white/10 rounded-xl transition-all duration-300 hover:border-[#9ae600]/50 hover:-translate-y-1 overflow-hidden {isLocked
+    class="group relative flex flex-col gap-4 p-6 bg-[#1e1e1e] border-2 border-white/10 rounded-xl transition-all duration-300 hover:border-[#9ae600]/50 hover:-translate-y-1 overflow-hidden shadow-[0_0_20px_rgba(0,0,0,0.5)] {isLocked
         ? 'opacity-50 cursor-not-allowed'
-        : 'hover:shadow-[4px_4px_0px_0px_rgba(154,230,0,0.3)]'}"
+        : 'hover:shadow-[0_0_30px_rgba(154,230,0,0.2)] hover:border-[#9ae600]'}"
 >
     <!-- Background Hover Effect -->
     <div
@@ -40,7 +40,7 @@
                 <div class="flex gap-2">
                     {#each tags as tag}
                         <span
-                            class="text-[10px] uppercase font-mono text-white/50 border border-white/10 px-1.5 rounded bg-black/30"
+                            class="text-[10px] uppercase font-pixel text-white/50 border border-white/10 px-1.5 rounded bg-black/30"
                             >{tag}</span
                         >
                     {/each}
@@ -48,14 +48,14 @@
             {/if}
         </div>
         <span
-            class="text-[10px] font-mono border border-[#9ae600] text-[#9ae600] px-2 py-0.5 rounded-full uppercase tracking-widest bg-[#9ae600]/10"
+            class="text-[10px] font-pixel border border-[#9ae600] text-[#9ae600] px-2 py-0.5 rounded-full uppercase tracking-widest bg-[#9ae600]/10"
         >
             {badge}
         </span>
     </div>
 
     <p
-        class="text-xs md:text-sm text-white/60 font-mono leading-relaxed relative z-10"
+        class="text-xs md:text-sm text-white/60 font-pixel leading-relaxed relative z-10"
     >
         {description}
     </p>

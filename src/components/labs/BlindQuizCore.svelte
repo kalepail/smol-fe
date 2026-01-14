@@ -1,13 +1,16 @@
 <script lang="ts">
     import LabsPlayer from "./LabsPlayer.svelte";
     import { onMount } from "svelte";
+    import { getSnapshotTagStats } from "../../services/tags/unifiedTags";
+    import { getSnapshotAsync } from "../../services/api/snapshot";
 
     interface Props {
-        smols: any[];
-        allTags: string[];
+        smols?: any[];
+        allTags?: string[];
+        fetchOnMount?: boolean;
     }
 
-    let { smols, allTags }: Props = $props();
+    let { smols = [], allTags = [], fetchOnMount = false }: Props = $props();
 
     let score = $state(0);
     let rounds = $state(0);
@@ -16,11 +19,28 @@
     let correctTag = $state<string | null>(null);
     let hasGuessed = $state(false);
     let lastResult = $state<"correct" | "incorrect" | null>(null);
+    let playableSmols = $state<any[]>([]);
 
-    // Filter smols to only those with audio and tags
-    const playableSmols = smols.filter(
-        (s) => s.audio?.url && s.tags?.length > 0,
-    );
+    function updatePlayableSmols() {
+        playableSmols = smols.filter((s) => {
+            const hasAudio = s.audio?.url || s.Song_1 || s.Id;
+            const hasTags = (s.Tags || s.tags || []).length > 0;
+            return hasAudio && hasTags;
+        });
+
+        console.log("[BlindQuiz] Total smols:", smols.length);
+        console.log("[BlindQuiz] Playable smols:", playableSmols.length);
+
+        if (playableSmols.length > 0) {
+            startRound();
+        }
+    }
+
+    $effect(() => {
+        if (smols.length > 0 && playableSmols.length === 0) {
+            updatePlayableSmols();
+        }
+    });
 
     function startRound() {
         if (playableSmols.length === 0) return;
@@ -30,7 +50,7 @@
             playableSmols[Math.floor(Math.random() * playableSmols.length)];
 
         // 2. Pick a correct tag from its list
-        const tags = currentSmol.tags || [];
+        const tags = currentSmol.Tags || currentSmol.tags || [];
         correctTag = tags[Math.floor(Math.random() * tags.length)];
 
         // 3. Generate 5 distinct distractors
@@ -63,8 +83,23 @@
         }
     }
 
-    onMount(() => {
-        startRound();
+    onMount(async () => {
+        if (fetchOnMount) {
+            try {
+                const tagStats = await getSnapshotTagStats();
+                allTags = tagStats.tags.slice(0, 100).map((t) => t.tag);
+                smols = await getSnapshotAsync();
+
+                updatePlayableSmols();
+            } catch (e) {
+                console.error("[BlindQuiz] Fetch failed:", e);
+            }
+        } else if (smols.length > 0) {
+            updatePlayableSmols();
+        } else {
+            // Try start anyway if props came in late
+            startRound();
+        }
     });
 </script>
 
@@ -108,7 +143,13 @@
                 Listen to the snippet. Which tag belongs to this track?
             </p>
 
-            <LabsPlayer src={currentSmol.audio.url} autoplay={true} />
+            <LabsPlayer
+                src={(currentSmol.audio || currentSmol.Audio)?.url ||
+                    (currentSmol.Song_1 || currentSmol.Id
+                        ? `https://api.smol.xyz/song/${currentSmol.Song_1 || currentSmol.Id}.mp3`
+                        : "")}
+                autoplay={true}
+            />
         </div>
 
         <!-- Options Grid -->
@@ -138,7 +179,8 @@
                 class="mt-4 p-4 bg-[#111] border border-[#333] rounded flex items-center gap-4 animate-in slide-in-from-bottom-2 fade-in"
             >
                 <img
-                    src={currentSmol.thumbnail}
+                    src={currentSmol.thumbnail ||
+                        `https://api.smol.xyz/image/${currentSmol.Id}.png?scale=4`}
                     alt="reveal"
                     class="w-16 h-16 rounded object-cover"
                 />
@@ -146,7 +188,9 @@
                     <p class="text-[10px] text-[#555] uppercase">
                         Track Revealed
                     </p>
-                    <h3 class="font-bold text-white">{currentSmol.name}</h3>
+                    <h3 class="font-bold text-white">
+                        {currentSmol.Title || currentSmol.name}
+                    </h3>
                     <p class="text-xs text-[#9ae600]">
                         Correct Answer: #{correctTag}
                     </p>

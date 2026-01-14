@@ -1,12 +1,6 @@
 ---
 import Layout from "../../layouts/Layout.astro";
-import { shouldLogTagDiagnostics, getSnapshotTagStats } from "../../services/tags/unifiedTags";
-import { getSnapshotAsync } from "../../services/api/snapshot";
-
-// Fetch data
-const { tags } = await getSnapshotTagStats();
-const allTags = tags.map(t => t.tag);
-const allSmols = await getSnapshotAsync();
+import BlindQuizCore from "../../components/labs/BlindQuizCore.svelte";
 ---
 
 <Layout title="Blind Quiz | Smol Labs">
@@ -26,34 +20,15 @@ const allSmols = await getSnapshotAsync();
     <div class="relative z-20 w-full max-w-2xl flex flex-col gap-8 items-center text-center">
         
         <h1 class="text-3xl md:text-5xl font-black tracking-tighter" style="image-rendering: pixelated; text-shadow: 4px 4px 0px #000;">
-            <span class="text-white">BLIND</span><span class="text-[#f91880]">QUIZ</span>
+            <span class="text-white">BLIND</span><span class="text-[#ff424c]">QUIZ</span>
         </h1>
 
         <!-- Svelte Interactive Component -->
         <div class="w-full">
-             <blind-quiz-core client:only="svelte" data-tags={JSON.stringify(allTags)} data-smols={JSON.stringify(allSmols)} />
+             <BlindQuizCore client:only="svelte" fetchOnMount={true} />
         </div>
 
     </div>
 
   </div>
 </Layout>
-
-<script>
-    import { mount } from 'svelte';
-    import BlindQuizCore from '../../components/labs/BlindQuizCore.svelte';
-
-    class BlindQuizElement extends HTMLElement {
-        connectedCallback() {
-            const allTags = JSON.parse(this.getAttribute('data-tags') || '[]');
-            const smols = JSON.parse(this.getAttribute('data-smols') || '[]');
-            
-            mount(BlindQuizCore, {
-                target: this,
-                props: { allTags, smols }
-            });
-        }
-    }
-    
-    customElements.define('blind-quiz-core', BlindQuizElement);
-</script>

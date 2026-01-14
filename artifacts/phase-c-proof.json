@@ -1,0 +1,14 @@
+{
+    "phase": "C - Isolated Harness Test",
+    "timestamp": "2026-01-13T23:15:00-06:00",
+    "rpc_url": "https://rpc.ankr.com/stellar_soroban",
+    "network": "Public Global Stellar Network ; September 2015",
+    "test": "balance-check.mjs",
+    "target": "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA (XLM SAC)",
+    "results": {
+        "xlm_balance": "0.0000000 XLM",
+        "kale_balance": "0.0000000 KALE"
+    },
+    "status": "SUCCESS",
+    "notes": "RPC connectivity confirmed. Balance query executed without errors. Zero balance expected as the target is the XLM SAC contract itself (not a wallet with holdings)."
+}

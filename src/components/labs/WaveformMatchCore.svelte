@@ -1,12 +1,14 @@
 <script lang="ts">
     import LabsPlayer from "./LabsPlayer.svelte";
     import { onMount } from "svelte";
+    import { getSnapshotAsync } from "../../services/api/snapshot";
 
     interface Props {
-        smols: any[];
+        smols?: any[];
+        fetchOnMount?: boolean;
     }
 
-    let { smols }: Props = $props();
+    let { smols = [], fetchOnMount = false }: Props = $props();
 
     let score = $state(0);
     let rounds = $state(0);
@@ -14,12 +16,53 @@
     let options = $state<any[]>([]);
     let hasGuessed = $state(false);
     let lastResult = $state<"correct" | "incorrect" | null>(null);
+    let playableSmols = $state<any[]>([]);
 
-    // Filter for playable smols
-    const playableSmols = smols.filter((s) => s.audio?.url);
+    // Scoring state
+    let potentialPoints = $state(1000);
+    let timer: number | undefined;
+    const MAX_POINTS = 1000;
+    const MIN_POINTS = 100;
+    const DECAY_MS = 100; // Update every 100ms
+    const DECAY_AMOUNT = 10; // Lose 10 points every 100ms (100 points/sec)
+
+    import { onDestroy } from "svelte";
+
+    onDestroy(() => {
+        if (timer) clearInterval(timer);
+    });
+
+    function updatePlayableSmols() {
+        playableSmols = smols.filter((s) => s.audio?.url || s.Song_1 || s.Id);
+
+        console.log("[WaveformMatch] Playable count:", playableSmols.length);
+        if (playableSmols.length >= 4) {
+            startRound();
+        }
+    }
+
+    $effect(() => {
+        if (smols.length > 0 && playableSmols.length === 0) {
+            updatePlayableSmols();
+        }
+    });
 
     function startRound() {
         if (playableSmols.length < 4) return;
+
+        // Reset timer
+        if (timer) clearInterval(timer);
+        potentialPoints = MAX_POINTS;
+
+        // Start timer
+        timer = setInterval(() => {
+            if (potentialPoints > MIN_POINTS) {
+                potentialPoints = Math.max(
+                    MIN_POINTS,
+                    potentialPoints - DECAY_AMOUNT,
+                );
+            }
+        }, DECAY_MS);
 
         // 1. Pick random target
         currentSmol =
@@ -45,11 +88,12 @@
     function handleGuess(smol: any) {
         if (hasGuessed) return;
 
+        if (timer) clearInterval(timer);
         hasGuessed = true;
         rounds++;
 
         if (smol.Id === currentSmol.Id) {
-            score++;
+            score += potentialPoints;
             lastResult = "correct";
         } else {
             lastResult = "incorrect";
@@ -62,13 +106,24 @@
         name: string,
     ): string {
         // Deterministic pseudo-random height based on name char codes to simulate different waveforms
-        const seed = name.charCodeAt(index % name.length) + index;
+        const seed =
+            (name || "unknown").charCodeAt(index % (name || "unknown").length) +
+            index;
         const height = 20 + (seed % 80);
         return `${height}%`;
     }
 
-    onMount(() => {
-        startRound();
+    onMount(async () => {
+        if (fetchOnMount) {
+            try {
+                smols = await getSnapshotAsync();
+                updatePlayableSmols();
+            } catch (e) {
+                console.error("[Waveform] Fetch failed:", e);
+            }
+        } else if (smols.length > 0) {
+            updatePlayableSmols();
+        }
     });
 </script>
 
@@ -77,12 +132,18 @@
     <div class="flex justify-between items-center border-b border-[#333] pb-4">
         <div class="flex flex-col">
             <span class="text-[10px] text-[#555] uppercase tracking-widest"
-                >Matches</span
+                >Score</span
             >
-            <span class="text-2xl font-bold text-[#9ae600]"
-                >{score}
-                <span class="text-[#333] text-sm">/ {rounds}</span></span
-            >
+            <div class="flex items-baseline gap-2">
+                <span class="text-2xl font-bold text-[#9ae600]">{score}</span>
+                {#if !hasGuessed}
+                    <span
+                        class="text-xs font-mono text-[#f91880] animate-pulse"
+                    >
+                        Potential: +{potentialPoints}
+                    </span>
+                {/if}
+            </div>
         </div>
         <button
             onclick={startRound}
@@ -118,7 +179,13 @@
                         UNIDENTIFIED SIGNAL
                     </p>
                 </div>
-                <LabsPlayer src={currentSmol.audio.url} autoplay={true} />
+                <LabsPlayer
+                    src={(currentSmol.audio || currentSmol.Audio)?.url ||
+                        (currentSmol.Song_1 || currentSmol.Id
+                            ? `https://api.smol.xyz/song/${currentSmol.Song_1 || currentSmol.Id}.mp3`
+                            : "")}
+                    autoplay={true}
+                />
             </div>
 
             <!-- Right: The Visual Candidates -->
@@ -147,7 +214,7 @@
                                     style="height: {getVisualizerBarHeight(
                                         i,
                                         15,
-                                        smol.name,
+                                        smol.Title || smol.name || 'Unknown',
                                     )}"
                                 ></div>
                             {/each}
@@ -156,10 +223,12 @@
                         <div class="flex flex-col items-start min-w-0 flex-1">
                             <span
                                 class="text-xs font-bold text-white truncate w-full text-left"
-                                >{smol.name}</span
+                                >{smol.Title ||
+                                    smol.name ||
+                                    "Unknown Artifact"}</span
                             >
                             <span class="text-[10px] text-[#555] font-mono"
-                                >{smol.family}</span
+                                >{smol.family || "Unknown Family"}</span
                             >
                         </div>
 

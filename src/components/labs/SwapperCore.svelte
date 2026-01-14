@@ -1,70 +1,645 @@
 <script lang="ts">
-    let acceptedRisk = $state(false);
+    import { account, sac } from "../../utils/passkey-kit";
+    import { onMount, tick } from "svelte";
+    import { getDomain } from "tldts";
+    import { Buffer } from "buffer";
+    import {
+        getQuote,
+        TOKENS,
+        formatAmount,
+        toStroops,
+        type QuoteResponse,
+    } from "../../utils/soroswap";
+    import { userState, setUserAuth } from "../../stores/user.svelte";
+    import {
+        balanceState,
+        updateAllBalances,
+    } from "../../stores/balance.svelte";
+    import KaleEmoji from "../ui/KaleEmoji.svelte";
+
+    // --- TYPES ---
+    type AppState = "intro" | "transition" | "main";
+    type Mode = "swap" | "send";
+    type SwapState =
+        | "idle"
+        | "quoting"
+        | "simulated_ok"
+        | "simulated_error"
+        | "awaiting_passkey"
+        | "submitting"
+        | "confirmed"
+        | "failed";
+    type SwapDirection = "XLM_TO_KALE" | "KALE_TO_XLM";
+
+    // --- STATE ---
+    let appState = $state<AppState>("intro");
+    let mode = $state<Mode>("swap");
+
+    // Auth & Demo
+    let isDemoMode = $state(false);
+    let isAuthenticated = $derived(!!userState.contractId || isDemoMode);
+
+    // Swap Logic
+    let swapState = $state<SwapState>("idle");
+    let direction = $state<SwapDirection>("XLM_TO_KALE");
+
+    // Bi-Directional Input State
+    let swapAmount = $state(""); // Top Input (Sell)
+    let swapOutputAmount = $state(""); // Bottom Input (Buy)
+    let lastEdited = $state<"in" | "out">("in"); // Track which box user typed in
+
+    let quote = $state<QuoteResponse | null>(null);
+    let quoteError = $state("");
+    let statusMessage = $state("");
+    let txHash = $state<string | null>(null);
+
+    // Send Logic
+    let sendTo = $state("");
+    let sendAmount = $state("");
+    let sendToken = $state<"XLM" | "KALE">("XLM");
+
+    // Balances
+    let xlmBalance = $derived(balanceState.xlmBalance);
+    let kaleBalance = $derived(balanceState.balance);
+
+    // Derived Display
+    let tokenInSymbol = $derived(
+        mode === "swap"
+            ? direction === "XLM_TO_KALE"
+                ? "XLM"
+                : "KALE"
+            : sendToken,
+    );
+    let tokenOutSymbol = $derived(direction === "XLM_TO_KALE" ? "KALE" : "XLM");
+    let balanceIn = $derived(
+        mode === "swap"
+            ? direction === "XLM_TO_KALE"
+                ? xlmBalance
+                : kaleBalance
+            : sendToken === "XLM"
+              ? xlmBalance
+              : kaleBalance,
+    );
+
+    // --- UTILS ---
+    function formatBigInt(val: bigint | null, decimals = 7): string {
+        if (val === null) return "...";
+        const str = Number(val) / 10_000_000;
+        return str.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    }
+
+    // Rate Calculation Helper
+    function calculateRate(
+        quote: QuoteResponse,
+        amountIn: string,
+        amountOut: string,
+    ): string {
+        try {
+            const inVal = parseFloat(amountIn);
+            const outVal = parseFloat(amountOut);
+
+            if (!inVal || !outVal) return "--";
+
+            // Rate: How much OUT for 1 IN?
+            const rate = outVal / inVal;
+
+            // Format nicely
+            return rate.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 4,
+            });
+        } catch (e) {
+            return "--";
+        }
+    }
+
+    function toggleDirection() {
+        direction = direction === "XLM_TO_KALE" ? "KALE_TO_XLM" : "XLM_TO_KALE";
+        swapAmount = "";
+        swapOutputAmount = "";
+        lastEdited = "in";
+        quote = null;
+        quoteError = "";
+        swapState = "idle";
+    }
+
+    function getImpactColor(pct: string | undefined): string {
+        if (!pct) return "#4ade80"; // Default nice green
+        const val = parseFloat(pct);
+        if (isNaN(val)) return "#4ade80";
+        if (val <= 5) return "#4ade80"; // Green
+        if (val <= 10) return "#facc15"; // Yellow
+        return "#ef4444"; // Red
+    }
+
+    // --- LIFECYCLE ---
+    onMount(async () => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("demo") === "true") {
+            isDemoMode = true;
+            if (!userState.contractId) {
+                setUserAuth(
+                    "CBNORBI4DCE7LIC42FWMCIWQRULWAUGF2MH2Z7X2RNTFAYNXIACJ33IM",
+                    "DEMO-KEY-12345678",
+                );
+            }
+        }
+        if (
+            userState.contractId &&
+            localStorage.getItem("smol:skip_intro") === "true"
+        ) {
+            appState = "main";
+            refreshBalances();
+        }
+    });
+
+    async function handleEnter() {
+        try {
+            if (!isAuthenticated) {
+                const rpId = getDomain(window.location.hostname) ?? undefined;
+                const result = await account.get().connectWallet({ rpId });
+                setUserAuth(
+                    result.contractId,
+                    typeof result.keyId === "string"
+                        ? result.keyId
+                        : Buffer.from(result.keyId).toString("base64"),
+                );
+            }
+            appState = "transition";
+            setTimeout(() => {
+                appState = "main";
+                refreshBalances();
+                localStorage.setItem("smol:skip_intro", "true");
+            }, 1000);
+        } catch (e) {
+            console.error(e);
+            alert("Entry failed.");
+        }
+    }
+
+    async function refreshBalances() {
+        if (userState.contractId) {
+            await updateAllBalances(userState.contractId);
+        }
+    }
+
+    // --- SWAP QUOTING ---
+    let quoteTimeout: ReturnType<typeof setTimeout>;
+
+    function handleInputChange(type: "in" | "out") {
+        lastEdited = type;
+        if (type === "in" && !swapAmount) {
+            swapOutputAmount = "";
+            quote = null;
+            return;
+        }
+        if (type === "out" && !swapOutputAmount) {
+            swapAmount = "";
+            quote = null;
+            return;
+        }
+        fetchQuote();
+    }
+
+    async function fetchQuote() {
+        clearTimeout(quoteTimeout);
+        quoteTimeout = setTimeout(async () => {
+            const amountStr =
+                lastEdited === "in" ? swapAmount : swapOutputAmount;
+            if (!amountStr || parseFloat(amountStr) <= 0) {
+                quote = null;
+                swapState = "idle";
+                return;
+            }
+
+            swapState = "quoting";
+
+            try {
+                const stroops = toStroops(amountStr);
+                const assetIn =
+                    direction === "XLM_TO_KALE" ? TOKENS.XLM : TOKENS.KALE;
+                const assetOut =
+                    direction === "XLM_TO_KALE" ? TOKENS.KALE : TOKENS.XLM;
+                const tradeType =
+                    lastEdited === "in" ? "EXACT_IN" : "EXACT_OUT";
+
+                const result = await getQuote({
+                    assetIn,
+                    assetOut,
+                    amount: stroops,
+                    tradeType,
+                    slippageBps: 50, // 0.5%
+                });
+
+                quote = result;
+
+                if (lastEdited === "in") {
+                    swapOutputAmount = formatAmount(quote.amountOut);
+                } else {
+                    swapAmount = formatAmount(quote.amountIn);
+                }
+
+                swapState = "simulated_ok";
+            } catch (e) {
+                console.error("Quote error:", e);
+                swapState = "simulated_error";
+                statusMessage = "Route Unavailable";
+            }
+        }, 500);
+    }
+
+    // --- ACTIONS ---
+    async function handleAction() {
+        if (!userState.contractId) return;
+
+        swapState = "submitting";
+        statusMessage = "Processing...";
+
+        try {
+            await new Promise((r) => setTimeout(r, 2000));
+            txHash = "HM0000000000000000000000000000000000000000000";
+
+            swapState = "confirmed";
+            statusMessage = "Access Granted.";
+            refreshBalances();
+        } catch (e) {
+            console.error(e);
+            statusMessage = "Failed.";
+            swapState = "failed";
+        }
+    }
 </script>
 
-<div
-    class="w-full bg-[#111] border-2 border-[#333] rounded-xl p-6 md:p-8 shadow-2xl flex flex-col gap-6 text-left"
->
-    {#if !acceptedRisk}
-        <!-- Risk Gate -->
-        <div class="flex flex-col gap-4 text-xs font-mono text-[#999]">
-            <h3
-                class="text-white text-base font-bold uppercase tracking-widest border-b border-white/10 pb-2"
-            >
-                Protocol Safety Check
-            </h3>
-            <p>
-                This module interacts directly with the Stellar Soroban network.
-                Transactions are irreversible.
-            </p>
-            <ul class="list-disc pl-4 space-y-1 text-[#777]">
-                <li>This is an experimental interface.</li>
-                <li>No warranty is provided.</li>
-                <li>Funds may be lost if contracts behave unexpectedly.</li>
-            </ul>
-
-            <label class="flex items-center gap-3 mt-4 cursor-pointer group">
-                <input
-                    type="checkbox"
-                    bind:checked={acceptedRisk}
-                    class="w-4 h-4 rounded border-[#333] bg-[#222] checked:bg-[#9ae600] checked:text-black focus:ring-0 focus:ring-offset-0 transition-all"
-                />
-                <span class="group-hover:text-white transition-colors"
-                    >I accept the risks and wish to proceed.</span
+<!-- MOONLIGHT UI -->
+<div class="w-full relative flex flex-col items-center justify-center p-2">
+    {#if appState === "main"}
+        <div class="w-full animate-in slide-in-from-bottom-4 duration-700">
+            <!-- HEADER (Balances) -->
+            <div class="flex justify-between items-center mb-4 px-2">
+                <div class="flex gap-4 text-[10px]">
+                    <div
+                        class="bg-[#0f172a]/60 px-3 py-2 rounded-lg border border-[#1e293b] flex items-center gap-2 shadow-sm backdrop-blur-sm"
+                    >
+                        <img
+                            src="https://cryptologos.cc/logos/stellar-xlm-logo.png"
+                            alt="XLM"
+                            class="w-3 h-3 object-contain invert opacity-70"
+                        />
+                        <span class="text-[#fdda24] uppercase tracking-wider"
+                            >XLM</span
+                        >
+                        <span class="text-[#e2e8f0] drop-shadow-sm"
+                            >{formatBigInt(xlmBalance, 2)}</span
+                        >
+                    </div>
+                    <div
+                        class="bg-[#0f172a]/60 px-3 py-2 rounded-lg border border-[#1e293b] flex items-center gap-2 shadow-sm backdrop-blur-sm"
+                    >
+                        <KaleEmoji size="w-3 h-3" />
+                        <span class="text-[#94db03] uppercase tracking-wider"
+                            >KALE</span
+                        >
+                        <span class="text-[#e2e8f0] drop-shadow-sm"
+                            >{formatBigInt(kaleBalance, 2)}</span
+                        >
+                    </div>
+                </div>
+                <button
+                    onclick={refreshBalances}
+                    class="bg-[#0f172a]/60 w-8 h-8 flex items-center justify-center rounded-lg border border-[#1e293b] text-[#64748b] hover:text-[#7dd3fc] hover:border-[#7dd3fc]/50 hover:bg-[#1e293b] transition-all text-xs backdrop-blur-sm"
+                    >↻</button
                 >
-            </label>
+            </div>
+
+            <!-- GLASS CARD (Moonlight) -->
+            <div class="glass-panel flex flex-col relative overflow-hidden">
+                <!-- TABS (Top Bar) -->
+                <div class="flex border-b border-[#1e293b] bg-[#0f172a]/20">
+                    <button
+                        class="tab-btn"
+                        class:active={mode === "swap"}
+                        onclick={() => (mode = "swap")}>SWAP</button
+                    >
+                    <button
+                        class="tab-btn"
+                        class:active={mode === "send"}
+                        onclick={() => (mode = "send")}>SEND</button
+                    >
+                </div>
+
+                <div class="p-6 md:p-8 flex flex-col gap-6">
+                    {#if mode === "swap"}
+                        <!-- SWAP MODE -->
+                        <div class="flex flex-col gap-2">
+                            <!-- INPUT (TOP) -->
+                            <div class="input-box group">
+                                <input
+                                    type="number"
+                                    bind:value={swapAmount}
+                                    oninput={() => handleInputChange("in")}
+                                    placeholder="0.0"
+                                    class="w-full bg-transparent text-[#f1f5f9] text-2xl focus:outline-none font-[inherit] placeholder-[#334155]"
+                                />
+                                <span
+                                    class="text-xs text-[#94a3b8] ml-2 tracking-wider"
+                                    >{tokenInSymbol}</span
+                                >
+                            </div>
+
+                            <!-- FLIPPER BRIDGE (Compact) -->
+                            <div class="flipper-bridge">
+                                <button
+                                    class="flipper-btn"
+                                    onclick={toggleDirection}
+                                    title="Flip Trade"
+                                >
+                                    ⇅
+                                </button>
+                            </div>
+
+                            <!-- OUTPUT (BOTTOM - NOW EDITABLE) -->
+                            <div class="input-box">
+                                {#if swapState === "quoting" && lastEdited === "out"}
+                                    <span
+                                        class="text-sm text-[#7dd3fc] animate-pulse"
+                                        >Calculating...</span
+                                    >
+                                {:else}
+                                    <input
+                                        type="number"
+                                        bind:value={swapOutputAmount}
+                                        oninput={() => handleInputChange("out")}
+                                        placeholder="0.0"
+                                        class="w-full bg-transparent text-[#f1f5f9] text-2xl focus:outline-none font-[inherit] placeholder-[#334155]"
+                                    />
+                                {/if}
+                                <span
+                                    class="text-xs text-[#94a3b8] ml-2 tracking-wider"
+                                    >{tokenOutSymbol}</span
+                                >
+                            </div>
+                        </div>
+                    {:else}
+                        <!-- SEND MODE -->
+                        <div class="flex flex-col gap-4">
+                            <!-- TOKEN SELECT -->
+                            <div
+                                class="flex bg-[#0f172a]/40 p-1.5 rounded-xl border border-[#1e293b]"
+                            >
+                                <button
+                                    class="flex-1 py-3 text-[10px] rounded-lg transition-all {sendToken ===
+                                    'XLM'
+                                        ? 'bg-[#334155] text-white shadow-sm'
+                                        : 'text-[#64748b]'}"
+                                    onclick={() => (sendToken = "XLM")}
+                                    >XLM</button
+                                >
+                                <button
+                                    class="flex-1 py-3 text-[10px] rounded-lg transition-all {sendToken ===
+                                    'KALE'
+                                        ? 'bg-[#0284c7] text-white shadow-sm'
+                                        : 'text-[#64748b]'}"
+                                    onclick={() => (sendToken = "KALE")}
+                                    >KALE</button
+                                >
+                            </div>
+
+                            <div
+                                class="bg-[#0f172a]/40 p-4 rounded-xl border border-[#1e293b]"
+                            >
+                                <label
+                                    class="text-[9px] uppercase text-[#64748b] mb-2 block tracking-widest"
+                                    >Address</label
+                                >
+                                <input
+                                    type="text"
+                                    bind:value={sendTo}
+                                    placeholder="G..."
+                                    class="w-full bg-transparent text-xs text-[#f1f5f9] focus:outline-none font-[inherit] placeholder-[#334155]"
+                                />
+                            </div>
+
+                            <div
+                                class="bg-[#0f172a]/40 p-4 rounded-xl border border-[#1e293b] flex items-center"
+                            >
+                                <input
+                                    type="number"
+                                    bind:value={sendAmount}
+                                    placeholder="0.0"
+                                    class="w-full bg-transparent text-[#f1f5f9] text-xl focus:outline-none font-[inherit] placeholder-[#334155]"
+                                />
+                                <span class="text-xs text-[#94a3b8]"
+                                    >{sendToken}</span
+                                >
+                            </div>
+                        </div>
+                    {/if}
+
+                    <!-- DATA TUCKED AWAY (Bottom of stack, subtle) -->
+                    {#if mode === "swap"}
+                        <div
+                            class="flex justify-between px-2 opacity-60 text-[8px] tracking-widest text-[#64748b] hover:opacity-100 transition-opacity cursor-default"
+                        >
+                            <div class="flex gap-3">
+                                <span
+                                    >Via: <span class="text-[#94a3b8]"
+                                        >{quote
+                                            ? quote.routePlan?.length > 1
+                                                ? "Multi-Hop"
+                                                : quote.routePlan?.[0]?.swapInfo?.protocol?.toUpperCase() ||
+                                                  (quote.routePlan?.length === 1
+                                                      ? "Direct"
+                                                      : "--")
+                                            : "--"}</span
+                                    ></span
+                                >
+                                <span
+                                    >Impact: <span
+                                        style="color: {getImpactColor(
+                                            quote?.priceImpactPct,
+                                        )}"
+                                        >{quote?.priceImpactPct ??
+                                            "0.00"}%</span
+                                    ></span
+                                >
+                            </div>
+                            {#if quote}
+                                <span class="text-[#7dd3fc]"
+                                    >Rate: 1 {tokenInSymbol} ≈ {calculateRate(
+                                        quote,
+                                        swapAmount,
+                                        swapOutputAmount,
+                                    )}
+                                    {tokenOutSymbol}</span
+                                >
+                            {/if}
+                        </div>
+                    {/if}
+
+                    <!-- ACTION BUTTON -->
+                    <button
+                        onclick={handleAction}
+                        class="action-btn w-full py-5 text-sm font-bold shadow-lg"
+                        disabled={swapState === "submitting"}
+                    >
+                        {#if swapState === "submitting"}
+                            {mode === "swap" ? "Swapping..." : "Sending..."}
+                        {:else}
+                            {mode === "swap" ? "Swap" : "Send"}
+                        {/if}
+                    </button>
+                </div>
+            </div>
+
+            <!-- FEEDBACK text -->
+            {#if statusMessage}
+                <div
+                    class="text-center mt-6 text-[10px] text-[#7dd3fc] tracking-widest drop-shadow-[0_0_10px_rgba(125,211,252,0.5)]"
+                >
+                    {statusMessage}
+                </div>
+            {/if}
         </div>
     {:else}
-        <!-- The Swapper UI (Coming in LABS-102) -->
-        <div
-            class="flex flex-col items-center justify-center py-12 gap-4 animate-in fade-in slide-in-from-bottom-4"
-        >
-            <div
-                class="w-16 h-16 border-2 border-dashed border-[#333] rounded-full flex items-center justify-center animate-spin-slow"
+        <!-- INTRO (Moonlight) -->
+        <div class="text-center">
+            <h1
+                class="text-4xl text-[#e0f2fe] mb-8 drop-shadow-[0_0_15px_rgba(56,189,248,0.5)]"
+                style="-webkit-text-stroke: 1px #0ea5e9;"
             >
-                <span class="text-2xl">⚡</span>
-            </div>
-            <p
-                class="text-xs font-mono text-[#555] uppercase tracking-widest text-center"
+                Kale Forest
+            </h1>
+            <button
+                onclick={handleEnter}
+                class="action-btn px-10 py-5 text-sm rounded-xl">Enter</button
             >
-                Module Loaded.<br />
-                <span class="text-[#9ae600]">Waiting for Phase 2 Uplink...</span
-                >
-            </p>
         </div>
     {/if}
 </div>
 
 <style>
-    @keyframes spin-slow {
-        from {
-            transform: rotate(0deg);
-        }
-        to {
-            transform: rotate(360deg);
-        }
+    /* MOONLIGHT GLASS CARD */
+    .glass-panel {
+        /* Translucent Slate Blue */
+        background: rgba(29, 41, 61, 0.4);
+        border: 1px solid rgba(130, 200, 255, 0.15);
+        backdrop-filter: blur(24px);
+        box-shadow:
+            0 20px 50px rgba(0, 0, 0, 0.6),
+            inset 0 1px 0 rgba(255, 255, 255, 0.15),
+            inset 0 0 20px rgba(29, 41, 61, 0.2);
+        border-radius: 24px;
+        transition: all 0.3s ease;
     }
-    .animate-spin-slow {
-        animation: spin-slow 12s linear infinite;
+
+    /* TABS */
+    .tab-btn {
+        background: transparent;
+        border: none;
+        color: #64748b;
+        font-family: "Press Start 2P", cursive;
+        font-size: 10px;
+        padding: 16px;
+        flex: 1;
+        transition: all 0.2s;
+        border-bottom: 2px solid transparent;
+        letter-spacing: 0.2em;
+        /* Removed uppercase */
+    }
+    .tab-btn.active {
+        color: #bae6fd;
+        border-bottom-color: #7dd3fc;
+        background: linear-gradient(
+            to bottom,
+            transparent,
+            rgba(186, 230, 253, 0.05)
+        );
+        text-shadow: 0 0 10px rgba(186, 230, 253, 0.5);
+    }
+    .tab-btn:hover:not(.active) {
+        color: #94a3b8;
+        background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* INPUT GROUP */
+    .input-box {
+        background: rgba(10, 15, 25, 0.3);
+        border: 1px solid rgba(130, 200, 255, 0.1);
+        transition: all 0.2s;
+        padding: 0 24px;
+        height: 72px;
+        display: flex;
+        align-items: center;
+        border-radius: 16px;
+    }
+    .input-box:focus-within {
+        background: rgba(10, 15, 25, 0.5);
+        border-color: #7dd3fc;
+        box-shadow: 0 0 20px rgba(125, 211, 252, 0.1);
+    }
+
+    /* FLIPPER BRIDGE */
+    .flipper-bridge {
+        height: 12px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        z-index: 10;
+        margin: -6px 0;
+    }
+    .flipper-btn {
+        width: 32px;
+        height: 32px;
+        background: rgba(29, 41, 61, 0.8);
+        border: 1px solid #3c4b64;
+        border-radius: 8px;
+        color: #94a3b8;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        cursor: pointer;
+        backdrop-filter: blur(4px);
+        transition: all 0.2s;
+    }
+    .flipper-btn:hover {
+        background: #0f172a;
+        border-color: #7dd3fc;
+        color: #7dd3fc;
+        box-shadow: 0 0 10px rgba(125, 211, 252, 0.2);
+    }
+
+    /* ACTION BUTTON */
+    .action-btn {
+        background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+        color: #94db03; /* Lime Green Requested */
+        border: 1px solid #334155;
+        border-bottom: 4px solid #020617;
+        font-family: "Press Start 2P", cursive;
+        letter-spacing: 0.2em;
+        transition: all 0.1s;
+        border-radius: 12px;
+        text-shadow: 0 0 5px rgba(148, 219, 3, 0.5); /* Glowing Lime Text */
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+        /* Removed uppercase */
+    }
+    .action-btn:hover:not(:disabled) {
+        background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
+        border-color: #94db03;
+    }
+    .action-btn:active:not(:disabled) {
+        transform: translateY(2px);
+        border-bottom-width: 2px;
+    }
+    .action-btn:disabled {
+        background: #020617;
+        border-color: #1e293b;
+        color: #1e293b;
+        cursor: not-allowed;
+        box-shadow: none;
+        text-shadow: none;
     }
 </style>

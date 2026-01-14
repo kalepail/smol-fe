@@ -1,5 +1,5 @@
 import { getDomain } from 'tldts';
-import { account, kale, server, sac } from '../utils/passkey-kit';
+import { account, kale, send, sac } from '../utils/passkey-kit';
 import { getLatestSequence, truncate } from '../utils/base';
 import { userState } from '../stores/user.svelte';
 import type { Smol } from '../types/domain';
@@ -156,7 +156,7 @@ export async function sendSupportPayment(
         let lastTxHash = 'multi-payment';
         for (const [address, amount] of aggregated) {
             onProgress?.(`Transferring to ${truncate(address, 4)}...`);
-            let tx = await kale.transfer({
+            let tx = await kale.get().transfer({
                 from: userState.contractId,
                 to: address,
                 amount,
@@ -164,14 +164,14 @@ export async function sendSupportPayment(
 
             onProgress?.(`Awaiting signature for ${truncate(address, 4)}...`);
             const sequence = await getLatestSequence();
-            tx = await account.sign(tx, {
+            tx = await account.get().sign(tx, {
                 rpId: getDomain(window.location.hostname) ?? undefined,
                 keyId: userState.keyId,
                 expiration: sequence + 60,
             });
 
             onProgress?.(`Submitting transfer to ${truncate(address, 4)}...`);
-            const result = await server.send(tx);
+            const result = await send(tx);
             if (result?.hash) lastTxHash = result.hash;
         }
 

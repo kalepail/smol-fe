@@ -22,9 +22,9 @@ export function abbreviateNumber(value: bigint): string {
 }
 
 export async function getTokenBalance(
-    mintTokenClient: ReturnType<typeof sac.getSACClient>,
+    mintTokenClient: any,
     contractId: string
-): Promise<bigint> {    
+): Promise<bigint> {
     try {
         const { result } = await mintTokenClient.balance({ id: contractId });
         return result;

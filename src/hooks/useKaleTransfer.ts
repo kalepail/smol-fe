@@ -1,5 +1,5 @@
 import { getDomain } from 'tldts';
-import { kale, account, server } from '../utils/passkey-kit';
+import { kale, account, send } from '../utils/passkey-kit';
 import { getLatestSequence } from '../utils/base';
 import { updateContractBalance } from '../stores/balance.svelte';
 
@@ -42,20 +42,20 @@ export function useKaleTransfer() {
   }
 
   async function executeTransfer(params: TransferParams): Promise<void> {
-    let tx = await kale.transfer({
+    let tx = await kale.get().transfer({
       from: params.from,
       to: params.to,
       amount: params.amount,
     });
 
     const sequence = await getLatestSequence();
-    tx = await account.sign(tx, {
+    tx = await account.get().sign(tx, {
       rpId: getDomain(window.location.hostname) ?? undefined,
       keyId: params.keyId,
       expiration: sequence + 60,
     });
 
-    await server.send(tx);
+    await send(tx);
 
     await updateContractBalance(params.from);
   }

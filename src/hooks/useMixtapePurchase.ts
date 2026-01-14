@@ -2,7 +2,7 @@ import { Client as SmolClient } from 'smol-sdk';
 import { getDomain } from 'tldts';
 import type { Smol } from '../types/domain';
 import { getLatestSequence } from '../utils/base';
-import { account, server } from '../utils/passkey-kit';
+import { account, send } from '../utils/passkey-kit';
 import { RPC_URL } from '../utils/rpc';
 
 interface PurchaseBatchParams {
@@ -35,7 +35,7 @@ export function useMixtapePurchase() {
     });
 
     const sequence = await getLatestSequence();
-    await account.sign(tx, {
+    await account.get().sign(tx, {
       rpId: getDomain(window.location.hostname) ?? undefined,
       keyId: userKeyId,
       expiration: sequence + 60,
@@ -46,7 +46,7 @@ export function useMixtapePurchase() {
 
 
     // Submit transaction via passkey server
-    await server.send(tx);
+    await send(tx);
   }
 
   async function purchaseTracksInBatches(

@@ -1,7 +1,7 @@
 import type { Client as CometClient } from 'comet-sdk';
 import { getDomain } from 'tldts';
 import { getLatestSequence } from '../utils/base';
-import { account, server } from '../utils/passkey-kit';
+import { account, send } from '../utils/passkey-kit';
 
 const MAX_PRICE = 170141183460469231731687303715884105727n;
 
@@ -31,13 +31,13 @@ export function useTradeExecution() {
     const [expectedOut] = tx.result ?? [];
 
     const sequence = await getLatestSequence();
-    await account.sign(tx, {
+    await account.get().sign(tx, {
       rpId: getDomain(window.location.hostname) ?? undefined,
       keyId: userKeyId,
       expiration: sequence + 60,
     });
 
-    await server.send(tx);
+    await send(tx);
 
     return expectedOut ?? null;
   }

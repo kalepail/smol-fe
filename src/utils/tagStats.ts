@@ -1,32 +1,25 @@
-/**
- * @typedef {import("../types/domain").Smol} Smol
- */
+import type { Smol } from "../types/domain";
 
-/**
- * @typedef {Object} TagStat
- * @property {string} tag
- * @property {string} key
- * @property {number} count
- * @property {number} popularity
- * @property {string} [latest]
- */
+export interface TagStat {
+  tag: string;
+  key: string;
+  count: number;
+  popularity: number;
+  latest?: string;
+}
 
 /**
  * Normalize a tag key for dedupe.
- * @param {string} tag
- * @returns {string}
  */
-export function normalizeTagKey(tag) {
+export function normalizeTagKey(tag: string): string {
   return tag.trim().toLowerCase();
 }
 
 /**
  * Extract unique tags for a smol entry.
- * @param {Smol} smol
- * @returns {string[]}
  */
-export function extractSmolTags(smol) {
-  const tags = new Set();
+export function extractSmolTags(smol: Smol): string[] {
+  const tags = new Set<string>();
 
   if (smol.Tags) {
     smol.Tags.forEach((tag) => tags.add(tag));
@@ -42,11 +35,9 @@ export function extractSmolTags(smol) {
 
 /**
  * Build tag stats from smols.
- * @param {Smol[]} smols
- * @returns {TagStat[]}
  */
-export function buildTagStats(smols) {
-  const stats = new Map();
+export function buildTagStats(smols: Smol[]): TagStat[] {
+  const stats = new Map<string, TagStat>();
 
   smols.forEach((smol) => {
     const date = smol.Created_At || "1970-01-01";
@@ -83,12 +74,9 @@ export function buildTagStats(smols) {
 
 /**
  * Merge tag stats without shrinking the base set.
- * @param {TagStat[]} baseTags
- * @param {TagStat[]} incomingTags
- * @returns {TagStat[]}
  */
-export function mergeTagStats(baseTags, incomingTags) {
-  const merged = new Map();
+export function mergeTagStats(baseTags: TagStat[], incomingTags: TagStat[]): TagStat[] {
+  const merged = new Map<string, TagStat>();
 
   baseTags.forEach((tag) => {
     merged.set(tag.key || normalizeTagKey(tag.tag), { ...tag });
@@ -109,11 +97,8 @@ export function mergeTagStats(baseTags, incomingTags) {
 
 /**
  * Sort tags without filtering.
- * @param {TagStat[]} tags
- * @param {"popularity" | "frequency" | "alphabetical" | "recent"} mode
- * @returns {TagStat[]}
  */
-export function sortTagStats(tags, mode) {
+export function sortTagStats(tags: TagStat[], mode: "popularity" | "frequency" | "alphabetical" | "recent"): TagStat[] {
   const sorted = [...tags];
 
   if (mode === "popularity") {
@@ -125,6 +110,7 @@ export function sortTagStats(tags, mode) {
   } else if (mode === "recent") {
     sorted.sort((a, b) => (b.latest || "").localeCompare(a.latest || ""));
   } else {
+    // Frequency default
     sorted.sort((a, b) => b.count - a.count);
   }
 

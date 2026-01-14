@@ -1,56 +1,47 @@
 ---
 import Layout from "../../layouts/Layout.astro";
+import SwapperCore from "../../components/labs/SwapperCore.svelte";
+import KaleForestScene from "../../components/labs/KaleForestScene.svelte";
 
 // LABS-101: Shell Only
 ---
 
 <Layout title="Token Swapper | Smol Labs">
-  <div class="min-h-screen bg-black text-[#9ae600] font-pixel p-4 relative overflow-hidden flex flex-col items-center justify-center pt-20">
+  <!-- Google Fonts import -->
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 
-    <!-- Background -->
-    <div class="absolute inset-0 opacity-10 pointer-events-none">
-        <div class="absolute inset-0 bg-[linear-gradient(-45deg,theme('colors.yellow.900')_0%,transparent_70%)] opacity-30"></div>
+  <!-- Transparent Wrapper (Global Scene is Behind) -->
+  <div class="fixed inset-0 text-[#9ae600] overflow-hidden flex flex-col items-center justify-center pointer-events-none" style="font-family: 'Press Start 2P', cursive;">
+
+    <!-- Global Background Scene (Fixed) -->
+    <div class="fixed inset-0 z-0 pointer-events-auto">
+        <KaleForestScene client:load />
     </div>
     
     <!-- Nav Back -->
-    <a href="/labs" class="absolute top-24 left-4 md:left-8 z-30 text-xs font-mono uppercase tracking-widest text-[#555] hover:text-[#9ae600] flex items-center gap-2 transition-colors">
-        <span>&larr; Return to Labs</span>
+    <a href="/labs" class="absolute top-4 left-4 md:top-8 md:left-8 z-30 text-[10px] md:text-xs uppercase tracking-widest text-[#5a8a5a] hover:text-[#9ae600] flex items-center gap-2 transition-colors pointer-events-auto">
+        <span>&larr; LABS</span>
     </a>
 
-    <!-- Container -->
-    <div class="relative z-20 w-full max-w-xl flex flex-col gap-8 items-center text-center">
+    <!-- Main Content (Floating) -->
+    <div class="relative z-10 w-full max-w-lg flex flex-col gap-4 md:gap-6 items-center text-center px-4 pointer-events-auto pb-4 md:pb-0">
         
-        <div class="space-y-2">
-            <h1 class="text-3xl md:text-5xl font-black tracking-tighter" style="image-rendering: pixelated; text-shadow: 4px 4px 0px #000;">
-                <span class="text-white">TOKEN</span><span class="text-[#f91880]">SWAPPER</span>
+        <!-- Header (Floating over Forest) -->
+        <div class="space-y-3 md:space-y-4">
+            <h1 class="text-2xl md:text-4xl font-black tracking-tighter drop-shadow-[4px_4px_0_rgba(0,0,0,0.8)] leading-tight">
+                <span class="text-[#94db03]">SMOL</span><span class="text-white">Swap</span>
             </h1>
-            <p class="text-xs font-mono text-[#f91880] animate-pulse uppercase tracking-widest">
-                ⚠ Experimental Financial Protocol
+            <p class="text-[8px] md:text-[10px] text-[#fdda24] animate-pulse tracking-[0.2em] bg-black/40 px-3 py-1 rounded-full border border-[#fdda24]/30 inline-block backdrop-blur-sm">
+                ⚠ Experimental Protocol
             </p>
         </div>
 
         <!-- Svelte Interactive Component -->
         <div class="w-full">
-             <swapper-core client:only="svelte" />
+            <SwapperCore client:only="svelte" />
         </div>
 
     </div>
 
   </div>
 </Layout>
-
-<script>
-    import { mount } from 'svelte';
-    import SwapperCore from '../../components/labs/SwapperCore.svelte';
-
-    class SwapperElement extends HTMLElement {
-        connectedCallback() {
-            mount(SwapperCore, {
-                target: this,
-                props: {}
-            });
-        }
-    }
-    
-    customElements.define('swapper-core', SwapperElement);
-</script>
