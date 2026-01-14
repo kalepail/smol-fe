@@ -4,12 +4,16 @@ import Layout from "../layouts/Layout.astro";
 
 const { id } = Astro.params;
 
+const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
+
 // Fetch minimal data for SEO/meta tags only
 let title: string | undefined;
 let description: string | undefined;
 let song_url: string | null = null;
-const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
 let image_url: string | null = id ? `${API_URL}/image/${id}.png` : null;
+let schema: any[] = [];
+let lyricsDisplay = "";
+let rawPrompt = "";
 
 if (id) {
     // PREVENT ROUTING CONFLICT: Explicitly reject known static routes that might fall through
@@ -42,6 +46,46 @@ if (id) {
 			} else if (data.kv_do?.songs?.[0]?.audio) {
 				song_url = `${API_URL}/song/${data.kv_do.songs[0].music_id}.mp3`;
 			}
+
+            // Prepare SSR Content
+            lyricsDisplay = data.kv_do?.lyrics?.text || data.kv_do?.lyrics || "";
+            rawPrompt = data.kv_do?.payload?.prompt || "";
+             
+            // Schema
+            const tags = data.kv_do?.tags || [];
+            const created = data.d1?.Created || new Date().toISOString();
+
+            schema = [{
+                "@context": "https://schema.org",
+                "@type": "MusicRecording",
+                "@id": `${import.meta.env.PUBLIC_URL || 'https://noot.smol.xyz'}/${id}#recording`,
+                "name": title,
+                "url": `${import.meta.env.PUBLIC_URL || 'https://noot.smol.xyz'}/${id}`,
+                "description": description,
+                "datePublished": created,
+                "image": image_url ? { "@type": "ImageObject", "url": image_url } : undefined,
+                "audio": song_url ? {
+                    "@type": "AudioObject",
+                    "contentUrl": song_url,
+                    "encodingFormat": "audio/mpeg"
+                } : undefined,
+                "genre": Array.isArray(tags) ? tags.slice(0, 5) : "AI Music",
+                "inLanguage": "en",
+                "isAccessibleForFree": true,
+                "producer": {
+                     "@type": "Organization",
+                     "name": "Smol AI Music Generator"
+                }
+             },
+             {
+                "@context": "https://schema.org",
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                  { "@type": "ListItem", "position": 1, "name": "Smol", "item": "https://noot.smol.xyz" },
+                  { "@type": "ListItem", "position": 2, "name": "Songs", "item": "https://noot.smol.xyz" },
+                  { "@type": "ListItem", "position": 3, "name": title, "item": `${import.meta.env.PUBLIC_URL || 'https://noot.smol.xyz'}/${id}` }
+                ]
+             }];
 		}
 	} catch (error) {
 		console.error('Failed to fetch meta data:', error);
@@ -49,10 +93,34 @@ if (id) {
 }
 ---
 
-<Layout {title} {description} {song_url} {image_url} hideBottomBar={true}>
-	<div class="w-full min-h-[calc(100vh-80px)] lg:h-[calc(100vh-80px)] h-auto flex items-center justify-center lg:overflow-hidden overflow-y-auto pt-4 lg:pt-12 pb-8 px-4 lg:px-6">
+<Layout {title} {description} {song_url} {image_url} hideBottomBar={true} {schema}>
+	<div class="w-full min-h-[calc(100vh-80px)] lg:h-[calc(100vh-80px)] h-auto flex flex-col items-center justify-center lg:overflow-hidden overflow-y-auto pt-4 lg:pt-12 pb-8 px-4 lg:px-6">
 		<div data-astro-transition-scope={`song-${id}`}>
 			<SmolResults id={id as string} client:only="svelte" />
 		</div>
+        
+        <!-- SSR Content for SEO (Visible but unobtrusive) -->
+        <article class="prose dark:prose-invert mt-12 max-w-2xl text-center opacity-70 hover:opacity-100 transition-opacity">
+            <h1 class="text-2xl font-bold mb-2 sr-only">{title}</h1>
+            <p class="text-sm mb-4 sr-only">{description}</p>
+            
+            {lyricsDisplay && (
+                <details class="text-left bg-slate-900/50 p-4 rounded-lg border border-slate-800">
+                    <summary class="cursor-pointer text-sm font-medium text-lime-400">Song Lyrics & Details</summary>
+                    <div class="mt-4 text-xs font-mono whitespace-pre-wrap">{lyricsDisplay}</div>
+                    {rawPrompt && (
+                        <div class="mt-4 pt-4 border-t border-slate-700">
+                            <span class="text-[10px] uppercase tracking-wider text-slate-500">Prompt</span>
+                            <p class="text-xs text-slate-300">{rawPrompt}</p>
+                        </div>
+                    )}
+                    {song_url && (
+                        <div class="mt-4">
+                             <a href={song_url} class="text-xs text-lime-500 hover:underline" download>Download MP3</a>
+                        </div>
+                    )}
+                </details>
+            )}
+        </article>
 	</div>
 </Layout>

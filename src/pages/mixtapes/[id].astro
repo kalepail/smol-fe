@@ -31,7 +31,7 @@ if (id) {
                 image_url = `${API_URL}/image/${data.Smols[0].Id}.png`;
             }
 
-            schema = {
+            schema = [{
                 "@context": "https://schema.org",
                 "@type": "MusicPlaylist",
                 "name": data.Title,
@@ -41,10 +41,10 @@ if (id) {
                 "numTracks": data.Smols?.length || 0,
                 "track": data.Smols?.map((s: any) => ({
                     "@type": "MusicRecording",
-                    "name": `Track`, // We don't have track titles in this minimal fetch usually
+                    "name": `Track`, 
                     "url": `${import.meta.env.PUBLIC_URL || 'https://noot.smol.xyz'}/${s.Id}`
                 }))
-            };
+            }];
         }
     } catch (error) {
         console.error('Failed to fetch mixtape meta data:', error);
@@ -52,9 +52,15 @@ if (id) {
 }
 ---
 
-<Layout {title} {description} {image_url}>
-    {schema && (
-        <script type="application/ld+json" set:html={JSON.stringify(schema)} />
-    )}
+<Layout {title} {description} {image_url} schema={schema || []}>
     <MixtapeDetailView {id} client:only="svelte" />
+    
+    <!-- SSR Content for SEO -->
+    <article class="prose dark:prose-invert mx-auto mt-12 max-w-2xl text-center opacity-70 hover:opacity-100 transition-opacity pb-20 px-4">
+        <h1 class="text-2xl font-bold mb-2 sr-only">{title}</h1>
+        <p class="text-sm mb-8 sr-only">{description}</p>
+        <div class="text-xs text-slate-500">
+             <p>This AI mixtape was curated on Smol. Generate your own AI music and create playlists onchain.</p>
+        </div>
+    </article>
 </Layout>
