@@ -133,6 +133,14 @@
         }
     });
 
+    // Reset scroll tracker when sort mode changes (so it snaps once to the playing song)
+    $effect(() => {
+        // Reactive dependency on sortMode
+        const _ = sortMode;
+        // Reset tracker to allow one snap after sort change
+        lastScrolledSongId = "";
+    });
+
     // Auto-fallback locked themes to slate using centralized validation
     // This runs whenever userState, upgradesState, or preferences change
     $effect(() => {
