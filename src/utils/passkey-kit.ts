@@ -44,7 +44,7 @@ export async function send<T>(txn: AssembledTransaction<T> | Tx | string) {
     const response = await fetch(relayerUrl, {
         method: 'POST',
         headers: {
-            'X-Turnstile-Token': token,
+            'X-Turnstile-Response': token,
         },
         body: new URLSearchParams({ xdr }),
     });
