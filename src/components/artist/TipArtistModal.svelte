@@ -319,7 +319,7 @@
                 </button>
                 <div class="flex justify-center mt-4">
                     <Turnstile
-                        siteKey="0x4AAAAAABBPiK_8QHc6n8E4"
+                        siteKey={import.meta.env.PUBLIC_TURNSTILE_SITE_KEY}
                         on:callback={(e) => {
                             turnstileToken = e.detail.token;
                         }}

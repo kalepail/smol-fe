@@ -223,7 +223,7 @@
             <!-- Visible Turnstile Wrapper to ensure it loads -->
             <div class="flex justify-center -mb-2 scale-75 origin-top">
                 <Turnstile
-                    siteKey="0x4AAAAAABBPiK_8QHc6n8E4"
+                    siteKey={import.meta.env.PUBLIC_TURNSTILE_SITE_KEY}
                     on:callback={(e) => {
                         turnstileToken = e.detail.token;
                     }}

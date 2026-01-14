@@ -13,6 +13,7 @@ interface ImportMetaEnv {
   // OpenZeppelin Channels (preferred relayer)
   readonly PUBLIC_CHANNELS_BASE_URL?: string;  // defaults to https://channels.openzeppelin.com
   readonly PUBLIC_CHANNELS_API_KEY?: string;
+  readonly PUBLIC_TURNSTILE_SITE_KEY: string;
 }
 
 interface ImportMeta {
