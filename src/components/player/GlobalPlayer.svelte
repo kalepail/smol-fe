@@ -133,6 +133,14 @@
         }
     });
 
+    // Reset scroll tracker when sort mode changes (so it snaps once to the playing song)
+    $effect(() => {
+        // Reactive dependency on sortMode
+        const _ = sortMode;
+        // Reset tracker to allow one snap after sort change
+        lastScrolledSongId = "";
+    });
+
     // Auto-fallback locked themes to slate using centralized validation
     // This runs whenever userState, upgradesState, or preferences change
     $effect(() => {
@@ -947,6 +955,17 @@
                     </button>
 
                     {#if showSettingsMenu}
+                        <!-- Backdrop to close on click outside -->
+                        <div
+                            class="fixed inset-0 z-[99]"
+                            onclick={() => (showSettingsMenu = false)}
+                            onkeydown={(e) =>
+                                e.key === "Escape" &&
+                                (showSettingsMenu = false)}
+                            role="button"
+                            tabindex="-1"
+                            aria-label="Close menu"
+                        ></div>
                         <div
                             class="absolute top-full right-0 mt-2 w-56 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl p-3 z-[100] shadow-2xl animate-in slide-in-from-top-2"
                         >

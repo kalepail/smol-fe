@@ -80,7 +80,7 @@ export async function send<T>(txn: AssembledTransaction<T> | Tx | string, turnst
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-Turnstile-Token': turnstileToken,
+            'X-Turnstile-Response': turnstileToken,
         },
         body: JSON.stringify({ xdr }),
     });
