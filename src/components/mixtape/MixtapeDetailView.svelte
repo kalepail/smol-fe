@@ -658,18 +658,6 @@
       onEdit={isCreator ? handleEdit : undefined}
     />
 
-    <!-- Support Banner (Optional Tip Jar) - only show if not creator and not dismissed -->
-    {#if showSupportBanner && !supportBannerDismissed && !isCreator && mixtapeTracks.length > 0}
-      <MixtapeSupportBanner
-        curatorAddress={mixtape.creator}
-        curatorName={mixtape.creator.slice(0, 8) + "..."}
-        tracks={mixtapeTracks}
-        onDismiss={() => {
-          supportBannerDismissed = true;
-        }}
-      />
-    {/if}
-
     <MixtapeTracklist
       {mixtape}
       {mixtapeTracks}
@@ -682,6 +670,18 @@
       onPlayNext={playbackHook.playNext}
       onLikeChanged={handleLikeChanged}
     />
+
+    <!-- Support Banner (Optional Tip Jar) - placed after tracklist to avoid blocking header buttons -->
+    {#if showSupportBanner && !supportBannerDismissed && !isCreator && mixtapeTracks.length > 0}
+      <MixtapeSupportBanner
+        curatorAddress={mixtape.creator}
+        curatorName={mixtape.creator.slice(0, 8) + "..."}
+        tracks={mixtapeTracks}
+        onDismiss={() => {
+          supportBannerDismissed = true;
+        }}
+      />
+    {/if}
   </div>
 {/if}
 
