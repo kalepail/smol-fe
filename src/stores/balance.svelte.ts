@@ -26,7 +26,7 @@ export async function updateContractBalance(address: string | null): Promise<voi
   }
   balanceState.loading = true;
   try {
-    const { result } = await kale.balance({ id: address });
+    const { result } = await kale.get().balance({ id: address });
     balanceState.balance = result;
     balanceState.lastUpdated = new Date();
   } catch (error) {
@@ -46,7 +46,7 @@ export async function updateXlmBalance(address: string | null): Promise<void> {
     return;
   }
   try {
-    const { result } = await xlm.balance({ id: address });
+    const { result } = await xlm.get().balance({ id: address });
     balanceState.xlmBalance = result;
     balanceState.lastUpdated = new Date();
   } catch (error) {

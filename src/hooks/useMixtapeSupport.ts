@@ -156,7 +156,7 @@ export async function sendSupportPayment(
         let lastTxHash = 'multi-payment';
         for (const [address, amount] of aggregated) {
             onProgress?.(`Transferring to ${truncate(address, 4)}...`);
-            let tx = await kale.transfer({
+            let tx = await kale.get().transfer({
                 from: userState.contractId,
                 to: address,
                 amount,
@@ -164,7 +164,7 @@ export async function sendSupportPayment(
 
             onProgress?.(`Awaiting signature for ${truncate(address, 4)}...`);
             const sequence = await getLatestSequence();
-            tx = await account.sign(tx, {
+            tx = await account.get().sign(tx, {
                 rpId: getDomain(window.location.hostname) ?? undefined,
                 keyId: userState.keyId,
                 expiration: sequence + 60,

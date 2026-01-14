@@ -498,7 +498,7 @@
     $effect(() => {
         if (currentSong?.Mint_Token && userState.contractId) {
             getTokenBalance(
-                sac.getSACClient(currentSong.Mint_Token),
+                sac.get().getSACClient(currentSong.Mint_Token),
                 userState.contractId,
             ).then((b) => {
                 tradeMintBalance = b;

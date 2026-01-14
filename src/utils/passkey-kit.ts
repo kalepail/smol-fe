@@ -3,28 +3,58 @@ import { AssembledTransaction } from "@stellar/stellar-sdk/minimal/contract";
 import type { Tx } from "@stellar/stellar-sdk/minimal/contract";
 import { RPC_URL } from "./rpc";
 
-console.log("[DEBUG] Initializing PasskeyKit with RPC:", RPC_URL);
+// Lazy-initialized singletons (avoid SSR initialization on CF Workers)
+let _account: PasskeyKit | null = null;
+let _sac: SACClient | null = null;
+let _kale: ReturnType<SACClient['getSACClient']> | null = null;
+let _xlm: ReturnType<SACClient['getSACClient']> | null = null;
 
-export const account = new PasskeyKit({
-    rpcUrl: RPC_URL,
-    networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
-    walletWasmHash: import.meta.env.PUBLIC_WALLET_WASM_HASH,
-    timeoutInSeconds: 30,
-});
+function getAccount(): PasskeyKit {
+    if (!_account) {
+        console.log("[DEBUG] Initializing PasskeyKit with RPC:", RPC_URL);
+        _account = new PasskeyKit({
+            rpcUrl: RPC_URL,
+            networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
+            walletWasmHash: import.meta.env.PUBLIC_WALLET_WASM_HASH,
+            timeoutInSeconds: 30,
+        });
+    }
+    return _account;
+}
 
-export const sac = new SACClient({
-    rpcUrl: RPC_URL,
-    networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
-});
+function getSac(): SACClient {
+    if (!_sac) {
+        _sac = new SACClient({
+            rpcUrl: RPC_URL,
+            networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
+        });
+    }
+    return _sac;
+}
 
-export const kale = sac.getSACClient(
-    import.meta.env.PUBLIC_KALE_SAC_ID || "CB23WRDQWGSP6YPMY4UV5C4OW5CBTXKYN3XEATG7KJEZCXMJBYEHOUOV"
-);
+function getKale() {
+    if (!_kale) {
+        _kale = getSac().getSACClient(
+            import.meta.env.PUBLIC_KALE_SAC_ID || "CB23WRDQWGSP6YPMY4UV5C4OW5CBTXKYN3XEATG7KJEZCXMJBYEHOUOV"
+        );
+    }
+    return _kale;
+}
 
-// XLM Stellar Asset Contract (Mainnet)
-export const xlm = sac.getSACClient(
-    import.meta.env.PUBLIC_XLM_SAC_ID || "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA"
-);
+function getXlm() {
+    if (!_xlm) {
+        _xlm = getSac().getSACClient(
+            import.meta.env.PUBLIC_XLM_SAC_ID || "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA"
+        );
+    }
+    return _xlm;
+}
+
+// Export getters that lazy-init (safe for SSR)
+export const account = { get: getAccount };
+export const sac = { get: getSac };
+export const kale = { get: getKale };
+export const xlm = { get: getXlm };
 
 /**
  * Send a transaction via OZ Relayer Channels (Raw XDR)

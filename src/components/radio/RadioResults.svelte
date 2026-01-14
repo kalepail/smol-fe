@@ -66,7 +66,7 @@
         const mintToken = currentSong?.Mint_Token;
         const contractId = userState.contractId;
         if (mintToken && contractId) {
-            const client = sac.getSACClient(mintToken);
+            const client = sac.get().getSACClient(mintToken);
             getTokenBalance(client, contractId).then(
                 (b) => (tradeMintBalance = b),
             );

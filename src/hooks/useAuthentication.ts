@@ -21,7 +21,7 @@ export function useAuthentication() {
       rawResponse,
       keyIdBase64,
       contractId: cid,
-    } = await account.connectWallet({
+    } = await account.get().connectWallet({
       rpId,
     });
 
@@ -67,7 +67,7 @@ export function useAuthentication() {
       keyIdBase64,
       contractId: cid,
       signedTx,
-    } = await account.createWallet('smol.xyz', `SMOL — ${username}`, {
+    } = await account.get().createWallet('smol.xyz', `SMOL — ${username}`, {
       rpId,
     });
 

@@ -109,7 +109,7 @@
         lastFetchedMintToken = mintToken;
         lastFetchedUser = contractId;
 
-        const client = sac.getSACClient(mintToken);
+        const client = sac.get().getSACClient(mintToken);
         getTokenBalance(client, contractId)
           .then((balance) => {
             tradeMintBalance = balance;

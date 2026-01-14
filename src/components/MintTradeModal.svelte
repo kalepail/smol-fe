@@ -48,9 +48,7 @@
   let lastSimulatedMode = $state<"buy" | "sell">("buy");
 
   let cometClient = $state<CometClient | null>(null);
-  let mintTokenClient = $state<ReturnType<typeof sac.getSACClient> | null>(
-    null,
-  );
+  let mintTokenClient = $state<any>(null);
 
   let kaleDecimals = $state(7);
   let mintDecimals = $state(7);
@@ -115,16 +113,16 @@
         networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE!,
       });
 
-      mintTokenClient = sac.getSACClient(mintTokenId);
+      mintTokenClient = sac.get().getSACClient(mintTokenId);
 
       const [
         { result: kaleDecRes },
         { result: mintDecRes },
         { result: ammBalanceRes },
       ] = await Promise.all([
-        kale.decimals(),
+        kale.get().decimals(),
         mintTokenClient.decimals(),
-        kale.balance({ id: ammId }),
+        kale.get().balance({ id: ammId }),
       ]);
 
       kaleDecimals = Number(kaleDecRes);
@@ -154,7 +152,7 @@
     try {
       const [{ result: kaleResult }, { result: mintResult }] =
         await Promise.all([
-          kale.balance({ id: currentContractId }),
+          kale.get().balance({ id: currentContractId }),
           mintTokenClient.balance({ id: currentContractId }),
         ]);
       userKaleBalance = kaleResult;
@@ -170,6 +168,7 @@
 
     promises.push(
       kale
+        .get()
         .balance({ id: ammId })
         .then(({ result }) => {
           ammKaleBalance = result;
@@ -182,7 +181,7 @@
     if (currentContractId) {
       promises.push(
         Promise.all([
-          kale.balance({ id: currentContractId }),
+          kale.get().balance({ id: currentContractId }),
           mintTokenClient.balance({ id: currentContractId }),
         ])
           .then(([{ result: kaleResult }, { result: mintResult }]) => {

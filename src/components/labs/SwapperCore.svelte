@@ -157,7 +157,7 @@
         try {
             if (!isAuthenticated) {
                 const rpId = getDomain(window.location.hostname) ?? undefined;
-                const result = await account.connectWallet({ rpId });
+                const result = await account.get().connectWallet({ rpId });
                 setUserAuth(
                     result.contractId,
                     typeof result.keyId === "string"

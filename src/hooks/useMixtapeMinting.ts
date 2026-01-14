@@ -156,7 +156,7 @@ export function useMixtapeMinting() {
     });
 
     const sequence = await getLatestSequence();
-    at = await account.sign(at, {
+    at = await account.get().sign(at, {
       rpId: getDomain(window.location.hostname) ?? undefined,
       keyId: userKeyId,
       expiration: sequence + 60,

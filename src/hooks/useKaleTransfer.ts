@@ -42,14 +42,14 @@ export function useKaleTransfer() {
   }
 
   async function executeTransfer(params: TransferParams): Promise<void> {
-    let tx = await kale.transfer({
+    let tx = await kale.get().transfer({
       from: params.from,
       to: params.to,
       amount: params.amount,
     });
 
     const sequence = await getLatestSequence();
-    tx = await account.sign(tx, {
+    tx = await account.get().sign(tx, {
       rpId: getDomain(window.location.hostname) ?? undefined,
       keyId: params.keyId,
       expiration: sequence + 60,

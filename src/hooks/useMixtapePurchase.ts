@@ -35,7 +35,7 @@ export function useMixtapePurchase() {
     });
 
     const sequence = await getLatestSequence();
-    await account.sign(tx, {
+    await account.get().sign(tx, {
       rpId: getDomain(window.location.hostname) ?? undefined,
       keyId: userKeyId,
       expiration: sequence + 60,
