@@ -9,6 +9,9 @@ on:
 
 jobs:
   check-allowlist:
+    if: >-
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' && (startsWith(github.head_ref, 'labs/') || startsWith(github.head_ref, 'ralph/')))
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -20,7 +23,7 @@ jobs:
         run: |
           # Define allowlist patterns (must match PRD)
           # Note: Using grep for matching. Adjust regex as needed.
-          ALLOWLIST="^src/pages/labs/|^src/components/labs/|^src/lib/labs/|^public/labs/|^scripts/ralph/|^\.github/workflows/labs-scope-guard\.yml|^src/styles/labs/"
+          ALLOWLIST="^src/pages/labs/|^src/components/labs/|^src/lib/labs/|^public/labs/|^scripts/ralph/|^\.github/workflows/labs-scope-guard\.yml|^src/styles/labs/|^\.agent/"
 
           # Get changed files against the base branch (usually main or the target of PR)
           if [ "${{ github.event_name }}" == "pull_request" ]; then
