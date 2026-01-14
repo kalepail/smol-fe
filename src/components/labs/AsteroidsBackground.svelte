@@ -62,7 +62,7 @@
                     Math.floor(Math.random() * ASTEROID_COLORS.length)
                 ];
             const angle = Math.random() * Math.PI * 2;
-            const speed = Math.random() * 0.5 + 0.2;
+            const speed = Math.random() * 0.8 + 0.4;
             this.vx = Math.cos(angle) * speed;
             this.vy = Math.sin(angle) * speed;
             this.rotationSpeed = (Math.random() - 0.5) * 0.1;
@@ -97,8 +97,8 @@
 
         constructor(x: number, y: number, angle: number) {
             super(x, y, 2);
-            this.vx = Math.cos(angle) * 5;
-            this.vy = Math.sin(angle) * 5;
+            this.vx = Math.cos(angle) * 8;
+            this.vy = Math.sin(angle) * 8;
         }
 
         update(w: number, h: number) {
@@ -185,17 +185,17 @@
 
             // Apply inputs
             const diff = this.normalizeAngle(targetAngle - this.angle);
-            this.angle += diff * 0.05; // Turn speed
+            this.angle += diff * 0.08; // Turn speed
 
             this.thrusting = shouldThrust;
             if (shouldThrust) {
-                this.vx += Math.cos(this.angle) * 0.05;
-                this.vy += Math.sin(this.angle) * 0.05;
+                this.vx += Math.cos(this.angle) * 0.12;
+                this.vy += Math.sin(this.angle) * 0.12;
             }
 
             // Friction
-            this.vx *= 0.98;
-            this.vy *= 0.98;
+            this.vx *= 0.985;
+            this.vy *= 0.985;
 
             // Shoot
             if (this.cooldown > 0) this.cooldown--;
