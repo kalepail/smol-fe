@@ -3,6 +3,8 @@ import Layout from "../../layouts/Layout.astro";
 import { shouldLogTagDiagnostics, getSnapshotTagStats } from "../../services/tags/unifiedTags";
 import { getSnapshotAsync } from "../../services/api/snapshot";
 
+import BlindQuizCore from "../../components/labs/BlindQuizCore.svelte";
+
 // Fetch data
 const { tags } = await getSnapshotTagStats();
 const allTags = tags.map(t => t.tag);
@@ -31,29 +33,10 @@ const allSmols = await getSnapshotAsync();
 
         <!-- Svelte Interactive Component -->
         <div class="w-full">
-             <blind-quiz-core client:only="svelte" data-tags={JSON.stringify(allTags)} data-smols={JSON.stringify(allSmols)} />
+             <BlindQuizCore client:only="svelte" allTags={allTags} smols={allSmols} />
         </div>
 
     </div>
 
   </div>
 </Layout>
-
-<script>
-    import { mount } from 'svelte';
-    import BlindQuizCore from '../../components/labs/BlindQuizCore.svelte';
-
-    class BlindQuizElement extends HTMLElement {
-        connectedCallback() {
-            const allTags = JSON.parse(this.getAttribute('data-tags') || '[]');
-            const smols = JSON.parse(this.getAttribute('data-smols') || '[]');
-            
-            mount(BlindQuizCore, {
-                target: this,
-                props: { allTags, smols }
-            });
-        }
-    }
-    
-    customElements.define('blind-quiz-core', BlindQuizElement);
-</script>

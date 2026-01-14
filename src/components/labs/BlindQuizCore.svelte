@@ -18,9 +18,11 @@
     let lastResult = $state<"correct" | "incorrect" | null>(null);
 
     // Filter smols to only those with audio and tags
-    const playableSmols = smols.filter(
-        (s) => s.audio?.url && s.tags?.length > 0,
-    );
+    const playableSmols = smols.filter((s) => {
+        const hasAudio = s.audio?.url || s.Song_1 || s.Id;
+        const hasTags = (s.Tags || s.tags || []).length > 0;
+        return hasAudio && hasTags;
+    });
 
     function startRound() {
         if (playableSmols.length === 0) return;
@@ -30,7 +32,7 @@
             playableSmols[Math.floor(Math.random() * playableSmols.length)];
 
         // 2. Pick a correct tag from its list
-        const tags = currentSmol.tags || [];
+        const tags = currentSmol.Tags || currentSmol.tags || [];
         correctTag = tags[Math.floor(Math.random() * tags.length)];
 
         // 3. Generate 5 distinct distractors
@@ -108,7 +110,13 @@
                 Listen to the snippet. Which tag belongs to this track?
             </p>
 
-            <LabsPlayer src={currentSmol.audio.url} autoplay={true} />
+            <LabsPlayer
+                src={(currentSmol.audio || currentSmol.Audio)?.url ||
+                    (currentSmol.Song_1 || currentSmol.Id
+                        ? `https://api.smol.xyz/song/${currentSmol.Song_1 || currentSmol.Id}.mp3`
+                        : "")}
+                autoplay={true}
+            />
         </div>
 
         <!-- Options Grid -->
@@ -138,7 +146,8 @@
                 class="mt-4 p-4 bg-[#111] border border-[#333] rounded flex items-center gap-4 animate-in slide-in-from-bottom-2 fade-in"
             >
                 <img
-                    src={currentSmol.thumbnail}
+                    src={currentSmol.thumbnail ||
+                        `https://api.smol.xyz/image/${currentSmol.Id}.png?scale=4`}
                     alt="reveal"
                     class="w-16 h-16 rounded object-cover"
                 />
@@ -146,7 +155,9 @@
                     <p class="text-[10px] text-[#555] uppercase">
                         Track Revealed
                     </p>
-                    <h3 class="font-bold text-white">{currentSmol.name}</h3>
+                    <h3 class="font-bold text-white">
+                        {currentSmol.Title || currentSmol.name}
+                    </h3>
                     <p class="text-xs text-[#9ae600]">
                         Correct Answer: #{correctTag}
                     </p>
