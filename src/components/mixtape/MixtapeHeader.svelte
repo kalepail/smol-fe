@@ -16,6 +16,7 @@
     onStopPlayAll: () => void;
     onPurchaseClick: () => void;
     onEdit?: () => void;
+    onArtworkClick?: () => void;
   }
 
   let {
@@ -30,14 +31,18 @@
     onStopPlayAll,
     onPurchaseClick,
     onEdit,
+    onArtworkClick,
   }: Props = $props();
 </script>
 
 <header
   class="flex flex-col gap-4 rounded-xl md:rounded-[2.5rem] border border-white/5 bg-black/20 backdrop-blur-md p-3 md:p-6 shadow-2xl md:flex-row md:gap-8"
 >
-  <div
-    class="grid h-auto w-full grid-cols-2 grid-rows-2 overflow-hidden rounded-xl bg-slate-800 md:h-56 md:w-56 md:shrink-0 border border-white/5"
+  <button
+    type="button"
+    class="grid h-auto w-full grid-cols-2 grid-rows-2 overflow-hidden rounded-xl bg-slate-800 md:h-56 md:w-56 md:shrink-0 border border-white/5 cursor-pointer hover:border-lime-500/30 transition-colors focus:outline-none focus:ring-2 focus:ring-lime-500/50"
+    onclick={onArtworkClick}
+    title="Tap to support this mixtape"
   >
     {#each Array.from({ length: 4 }) as _, index}
       <div class="aspect-square bg-slate-900">
@@ -64,7 +69,7 @@
         {/if}
       </div>
     {/each}
-  </div>
+  </button>
 
   <div class="flex flex-1 flex-col gap-4">
     <div>
@@ -115,7 +120,9 @@
           Play All
         </button>
       {/if}
-      {#if onEdit}
+
+      <!-- Fully Owned Badge (only show if actually fully owned) -->
+      {#if fullyOwned && userState.contractId}
         <span
           class="relative flex items-center justify-center gap-2 rounded px-6 py-2 text-sm font-medium bg-gradient-to-r from-slate-400 to-slate-600"
         >
@@ -126,24 +133,8 @@
             class="absolute -top-4 -right-7 w-12 h-12 transform rotate-12 z-10"
           />
         </span>
-        <button
-          class="text-[10px] text-slate-400 hover:text-white underline decoration-slate-600 hover:decoration-white underline-offset-4 transition-colors font-pixel uppercase tracking-wide"
-          onclick={onEdit}
-        >
-          Edit Mixtape (Creator Only)
-        </button>
-      {:else if fullyOwned && userState.contractId}
-        <span
-          class="relative flex items-center justify-center gap-2 rounded px-6 py-2 text-sm font-medium bg-gradient-to-r from-slate-400 to-slate-600"
-        >
-          Fully Owned
-          <img
-            src="/owned-badge.png"
-            alt="Fully Owned Badge"
-            class="absolute -top-4 -right-7 w-12 h-12 transform rotate-12 z-10"
-          />
-        </span>
-      {:else}
+      {:else if !onEdit}
+        <!-- Buy Mixtape (only show if not creator and not fully owned) -->
         <button
           class="flex items-center justify-center gap-2 rounded-lg md:rounded-xl border border-white/20 bg-white/5 px-4 py-2 text-[10px] md:text-xs font-pixel font-bold uppercase tracking-widest text-white hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           onclick={onPurchaseClick}
@@ -169,13 +160,14 @@
       {/if}
     </div>
 
+    <!-- Edit Button (only for creator) -->
     {#if onEdit}
       <div class="flex justify-center md:justify-start">
         <button
-          class="text-xs text-slate-400 hover:text-white underline decoration-slate-600 hover:decoration-white underline-offset-4 transition-colors"
+          class="text-[10px] text-slate-400 hover:text-white underline decoration-slate-600 hover:decoration-white underline-offset-4 transition-colors font-pixel uppercase tracking-wide"
           onclick={onEdit}
         >
-          Edit Mixtape (Creator Only)
+          Edit Mixtape
         </button>
       </div>
     {/if}

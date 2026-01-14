@@ -45,8 +45,8 @@
   let purchaseCurrentStep = $state("");
   let purchaseCompletedSteps = $state(new Set<string>());
 
-  // Support banner state (optional tip jar)
-  let showSupportBanner = $state(true);
+  // Support banner state (optional tip jar) - hidden by default, shown on artwork tap
+  let showSupportBanner = $state(false);
   let supportBannerDismissed = $state(false);
   let purchaseModal: any;
 
@@ -656,19 +656,10 @@
       onStopPlayAll={playbackHook.stopPlayAll}
       onPurchaseClick={handlePurchaseClick}
       onEdit={isCreator ? handleEdit : undefined}
+      onArtworkClick={() => {
+        showSupportBanner = true;
+      }}
     />
-
-    <!-- Support Banner (Optional Tip Jar) - only show if not creator and not dismissed -->
-    {#if showSupportBanner && !supportBannerDismissed && !isCreator && mixtapeTracks.length > 0}
-      <MixtapeSupportBanner
-        curatorAddress={mixtape.creator}
-        curatorName={mixtape.creator.slice(0, 8) + "..."}
-        tracks={mixtapeTracks}
-        onDismiss={() => {
-          supportBannerDismissed = true;
-        }}
-      />
-    {/if}
 
     <MixtapeTracklist
       {mixtape}
@@ -682,6 +673,18 @@
       onPlayNext={playbackHook.playNext}
       onLikeChanged={handleLikeChanged}
     />
+
+    <!-- Support Banner (Optional Tip Jar) - placed after tracklist to avoid blocking header buttons -->
+    {#if showSupportBanner && !supportBannerDismissed && !isCreator && mixtapeTracks.length > 0}
+      <MixtapeSupportBanner
+        curatorAddress={mixtape.creator}
+        curatorName={mixtape.creator.slice(0, 8) + "..."}
+        tracks={mixtapeTracks}
+        onDismiss={() => {
+          supportBannerDismissed = true;
+        }}
+      />
+    {/if}
   </div>
 {/if}
 
