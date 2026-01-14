@@ -345,8 +345,9 @@
     showPurchaseModal = true;
   }
 
-  async function handlePurchaseConfirm() {
-    if (!mixtape || !userState.contractId || !userState.keyId) return;
+  async function handlePurchaseConfirm(event: CustomEvent<{ token: string }>) {
+    const { token } = event.detail;
+    if (!mixtape || !userState.contractId || !userState.keyId || !token) return;
 
     const smolContractId =
       import.meta.env.PUBLIC_SMOL_CONTRACT_ID ||
@@ -381,6 +382,7 @@
             mixtapeTracks,
             userContractId: userState.contractId,
             userKeyId: userState.keyId,
+            turnstileToken: token,
           },
           mixtape,
           handleMintStatusUpdate,
@@ -471,6 +473,7 @@
           smolContractId,
           userState.contractId,
           userState.keyId,
+          token,
           (trackIds) => {
             for (const trackId of trackIds) {
               purchaseCompletedSteps.add(`purchase-${trackId}`);

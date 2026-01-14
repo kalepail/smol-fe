@@ -1,0 +1,46 @@
+
+> smol-fe@1.5.4 check C:\Users\Jeff\Mixtape Auto\smol-fe
+> svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: c:\Users\Jeff\Mixtape Auto\smol-fe
+Getting Svelte diagnostics...
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\mixtape\MixtapeCardsGrid.svelte[39m:279:173
+[31mError[39m: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Record<GlowTheme, { name: string; gradient: string; color: string; style?: string | undefined; }>'. (ts)
+[36m                <div
+                    class="absolute -inset-2 rounded-xl md:rounded-[1.5rem] blur-[15px] opacity-90 animate-color-cycle pointer-events-none z-0 saturate-150 brightness-125 {[35mTHEMES[
+                        preferences.glowTheme
+                    ][36m.gradient
+                        ? `bg-gradient-to-r ${THEMES[preferences.glowTheme as keyof typeof THEMES].gradient}`[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\mixtape\MixtapeCardsGrid.svelte[39m:290:194
+[31mError[39m: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Record<GlowTheme, { name: string; gradient: string; color: string; style?: string | undefined; }>'. (ts)
+[36m                <div
+                    class="absolute -inset-[1px] rounded-xl md:rounded-[1.5rem] animate-color-cycle pointer-events-none z-0 shadow-[0_0_20px_rgba(255,255,255,0.4)] saturate-150 brightness-150 {[35mTHEMES[
+                        preferences.glowTheme
+                    ][36m.gradient
+                        ? `bg-gradient-to-r ${THEMES[preferences.glowTheme as keyof typeof THEMES].gradient}`[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\mixtape\MixtapesIndex.svelte[39m:70:9
+[33mWarn[39m: Also define the standard property 'background-clip' for compatibility (css)
+[36m        animation: rainbow-flow 4s linear infinite;
+        [35m-webkit-background-clip[36m: text;
+        -webkit-text-fill-color: transparent;[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\radio\RadioBuilder.svelte[39m:1258:3
+[33mWarn[39m: Unused CSS selector ".animate-fade-in-up"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m  }
+  [35m.animate-fade-in-up[36m {
+    animation: fadeInUp 0.4s ease-out forwards;[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\tags\TagExplorer.svelte[39m:902:5
+[33mWarn[39m: Unused CSS selector ".animate-fade-in-up"
+https://svelte.dev/e/css_unused_selector (svelte)
+[36m    }
+    [35m.animate-fade-in-up[36m {
+        animation: fadeInUp 0.4s ease-out forwards;[39m
+
+====================================
+[31msvelte-check found 2 errors and 3 warnings in 4 files
+[39mΓÇëELIFECYCLEΓÇë Command failed with exit code 1.

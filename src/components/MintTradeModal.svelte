@@ -17,6 +17,7 @@
     parseInputToUnits,
   } from "../utils/tradeCalculations";
   import { RPC_URL } from "../utils/rpc";
+  import { Turnstile } from "svelte-turnstile";
 
   const DISPLAY_TOKEN_NAME = "SMOL";
 
@@ -61,6 +62,7 @@
   let maxBuyAmount = $state<bigint>(0n);
   let ammBuyCap = $state<bigint>(0n);
   let maxSellAmount = $state<bigint>(0n);
+  let turnstileToken = $state("");
 
   // Derive current user state directly instead of copying to local state
   let currentContractId = $derived(userState.contractId);
@@ -330,6 +332,11 @@
       return;
     }
 
+    if (!turnstileToken) {
+      simulationError = "Please complete the CAPTCHA.";
+      return;
+    }
+
     submitting = true;
     simulationError = null;
 
@@ -346,6 +353,7 @@
         amount,
         userContractId: currentContractId,
         userKeyId: currentKeyId,
+        turnstileToken,
       });
 
       await refreshAllBalances();
@@ -474,6 +482,19 @@
           displayTokenName={DISPLAY_TOKEN_NAME}
         />
 
+        <div class="flex justify-center -mb-2">
+          <Turnstile
+            siteKey="0x4AAAAAABBPiK_8QHc6n8E4"
+            on:callback={(e) => {
+              turnstileToken = e.detail.token;
+            }}
+            on:expired={() => {
+              turnstileToken = "";
+            }}
+            theme="dark"
+          />
+        </div>
+
         <button
           class="w-full rounded bg-lime-500 px-4 py-2 text-base font-semibold text-slate-900 hover:bg-lime-400 disabled:opacity-60"
           onclick={executeSwap}
@@ -481,7 +502,8 @@
             !currentContractId ||
             !currentKeyId ||
             !inputAmount.trim() ||
-            loading}
+            loading ||
+            !turnstileToken}
         >
           {actionLabel}
         </button>

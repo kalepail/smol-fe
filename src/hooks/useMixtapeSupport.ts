@@ -128,6 +128,7 @@ export function calculateSupportPayment(
 export async function sendSupportPayment(
     curatorAddress: string,
     tracks: Smol[],
+    turnstileToken: string,
     onProgress?: (step: string) => void
 ): Promise<{ success: boolean; txHash?: string; error?: string }> {
     if (!userState.contractId || !userState.keyId) {
@@ -171,7 +172,9 @@ export async function sendSupportPayment(
             });
 
             onProgress?.(`Submitting transfer to ${truncate(address, 4)}...`);
-            const result = await send(tx);
+            // Note: Turnstile token is single-use. Multi-recipient payments will fail after the first one 
+            // until we implement batch transfers or re-tokenization.
+            const result = await send(tx, turnstileToken);
             if (result?.hash) lastTxHash = result.hash;
         }
 

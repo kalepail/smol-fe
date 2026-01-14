@@ -277,21 +277,23 @@
                 <!-- Intense Tight HDR Glow -->
                 <div
                     class="absolute -inset-2 rounded-xl md:rounded-[1.5rem] blur-[15px] opacity-90 animate-color-cycle pointer-events-none z-0 saturate-150 brightness-125 {THEMES[
-                        preferences.glowTheme
+                        preferences.glowTheme as keyof typeof THEMES
                     ].gradient
-                        ? `bg-gradient-to-r ${THEMES[preferences.glowTheme].gradient}`
+                        ? `bg-gradient-to-r ${THEMES[preferences.glowTheme as keyof typeof THEMES].gradient}`
                         : ''}"
-                    style={THEMES[preferences.glowTheme].style || ""}
+                    style={THEMES[preferences.glowTheme as keyof typeof THEMES]
+                        .style || ""}
                 ></div>
 
                 <!-- Razor-thin HDR Rainbow Border -->
                 <div
                     class="absolute -inset-[1px] rounded-xl md:rounded-[1.5rem] animate-color-cycle pointer-events-none z-0 shadow-[0_0_20px_rgba(255,255,255,0.4)] saturate-150 brightness-150 {THEMES[
-                        preferences.glowTheme
+                        preferences.glowTheme as keyof typeof THEMES
                     ].gradient
-                        ? `bg-gradient-to-r ${THEMES[preferences.glowTheme].gradient}`
+                        ? `bg-gradient-to-r ${THEMES[preferences.glowTheme as keyof typeof THEMES].gradient}`
                         : ''} p-[1px]"
-                    style={THEMES[preferences.glowTheme].style || ""}
+                    style={THEMES[preferences.glowTheme as keyof typeof THEMES]
+                        .style || ""}
                 >
                     <div
                         class="h-full w-full rounded-xl md:rounded-[1.5rem] bg-[#111]"

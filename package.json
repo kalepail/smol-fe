@@ -26,6 +26,7 @@
     "smol-sdk": "link:ext\\smol-sdk",
     "soroswap-router-sdk": "1.2.4",
     "svelte-dnd-action": "^0.9.65",
+    "svelte-turnstile": "^0.11.0",
     "tldts": "^7.0.16"
   },
   "devDependencies": {

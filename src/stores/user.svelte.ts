@@ -61,9 +61,11 @@ export async function ensureWalletConnected(): Promise<void> {
 
 
     try {
-      const rpId = getDomain(window.location.hostname) ?? undefined;
+      // Use current hostname as RP ID to avoid PSL issues with pages.dev (tldts returning 'pages.dev' which is invalid)
+      // or let browser default (usually ideal).
+      // Testing with undefined to let browser allow current origin.
       await account.get().connectWallet({
-        rpId,
+        rpId: undefined, // Let browser handle origin validation
         keyId: userState.keyId,
       });
       userState.walletConnected = true;

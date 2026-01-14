@@ -2,6 +2,7 @@
     import { fade, scale } from "svelte/transition";
     import Loader from "../ui/Loader.svelte";
     import KaleEmoji from "../ui/KaleEmoji.svelte";
+    import { Turnstile } from "svelte-turnstile";
     import type { Smol } from "../../types/domain";
     import {
         calculateSupportPayment,
@@ -33,6 +34,7 @@
     let progressMessage = $state("");
     let error = $state<string | null>(null);
     let success = $state(false);
+    let turnstileToken = $state("");
 
     // Calculate payment breakdown
     const breakdown = $derived(calculateSupportPayment(curatorAddress, tracks));
@@ -60,10 +62,16 @@
             return;
         }
 
+        if (!turnstileToken) {
+            error = "please complete the captcha";
+            return;
+        }
+
         submitting = true;
         const result = await sendSupportPayment(
             curatorAddress,
             tracks,
+            turnstileToken,
             (step) => {
                 progressMessage = step;
             },
@@ -211,14 +219,29 @@
         {/if}
 
         <!-- Action Buttons -->
-        <div class="flex gap-2">
+        <div class="flex gap-2 items-center">
+            <!-- Visible Turnstile Wrapper to ensure it loads -->
+            <div class="flex justify-center -mb-2 scale-75 origin-top">
+                <Turnstile
+                    siteKey="0x4AAAAAABBPiK_8QHc6n8E4"
+                    on:callback={(e) => {
+                        turnstileToken = e.detail.token;
+                    }}
+                    on:expired={() => {
+                        turnstileToken = "";
+                    }}
+                    theme="dark"
+                    appearance="interaction-only"
+                />
+            </div>
+
             <button
                 class="flex-1 py-1.5 px-2 rounded-lg font-pixel font-bold text-[9px] transition-all flex items-center justify-center gap-1
                 {submitting
                     ? 'bg-lime-700/50 text-lime-200 cursor-wait'
                     : 'bg-lime-500 text-black hover:bg-lime-400 shadow-[0_0_15px_rgba(132,204,22,0.3)]'}"
                 onclick={handleSupport}
-                disabled={submitting}
+                disabled={submitting || !turnstileToken}
             >
                 {#if submitting}
                     <Loader

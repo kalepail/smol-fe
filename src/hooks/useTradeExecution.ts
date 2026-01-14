@@ -12,11 +12,12 @@ interface SwapParams {
   amount: bigint;
   userContractId: string;
   userKeyId: string;
+  turnstileToken: string;
 }
 
 export function useTradeExecution() {
   async function executeSwap(params: SwapParams): Promise<bigint | null> {
-    const { cometClient, tokenIn, tokenOut, amount, userContractId, userKeyId } = params;
+    const { cometClient, tokenIn, tokenOut, amount, userContractId, userKeyId, turnstileToken } = params;
 
     const tx = await cometClient.swap_exact_amount_in({
       token_in: tokenIn,
@@ -37,7 +38,7 @@ export function useTradeExecution() {
       expiration: sequence + 60,
     });
 
-    await send(tx);
+    await send(tx, turnstileToken);
 
     return expectedOut ?? null;
   }

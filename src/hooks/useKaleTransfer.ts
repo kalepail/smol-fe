@@ -8,6 +8,7 @@ interface TransferParams {
   to: string;
   amount: bigint;
   keyId: string;
+  turnstileToken: string;
 }
 
 interface TransferValidation {
@@ -55,7 +56,7 @@ export function useKaleTransfer() {
       expiration: sequence + 60,
     });
 
-    await send(tx);
+    await send(tx, params.turnstileToken);
 
     await updateContractBalance(params.from);
   }

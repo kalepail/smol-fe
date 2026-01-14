@@ -124,7 +124,7 @@
             super(x, y, SHIP_SIZE);
         }
 
-        update(width: number, height: number, asteroids: Asteroid[]) {
+        update(width: number, height: number, asteroids: Asteroid[] = []) {
             // --- AI LOGIC ---
 
             // 1. Identify threats
@@ -278,6 +278,7 @@
         ctx = canvas.getContext("2d");
 
         const resize = () => {
+            if (!canvas) return;
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
 

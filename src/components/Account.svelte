@@ -9,6 +9,7 @@
     } from "../stores/balance.svelte";
     import { getDomain } from "tldts";
     import KaleEmoji from "./ui/KaleEmoji.svelte";
+    import { Turnstile } from "svelte-turnstile";
 
     let to = $state("");
     let amount = $state("");
@@ -18,6 +19,7 @@
     let kaleDecimals = $state(7);
     let decimalsFactor = $state(10n ** 7n);
     let showKaleInfo = $state(false);
+    let turnstileToken = $state("");
 
     onMount(async () => {
         try {
@@ -102,6 +104,11 @@
             return;
         }
 
+        if (!turnstileToken) {
+            error = "Please complete the CAPTCHA.";
+            return;
+        }
+
         submitting = true;
         try {
             let tx = await kale.get().transfer({
@@ -117,7 +124,7 @@
                 expiration: sequence + 60,
             });
 
-            await send(tx);
+            await send(tx, turnstileToken);
 
             await updateContractBalance(userState.contractId);
 
@@ -392,10 +399,22 @@
                 <button
                     type="submit"
                     class="w-full rounded bg-lime-500 px-4 py-2 text-base font-semibold text-slate-900 hover:bg-lime-400 disabled:opacity-60"
-                    disabled={submitting}
+                    disabled={submitting || !turnstileToken}
                 >
                     {submitting ? "Sending..." : "Send KALE"}
                 </button>
+                <div class="flex justify-center mt-4">
+                    <Turnstile
+                        siteKey="0x4AAAAAABBPiK_8QHc6n8E4"
+                        on:callback={(e) => {
+                            turnstileToken = e.detail.token;
+                        }}
+                        on:expired={() => {
+                            turnstileToken = "";
+                        }}
+                        theme="dark"
+                    />
+                </div>
             </form>
         </div>
     {/if}

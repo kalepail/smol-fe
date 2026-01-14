@@ -60,7 +60,7 @@ export function useAuthentication() {
     Cookies.set('smol_token', jwt, cookieOptions);
   }
 
-  async function signUp(username: string) {
+  async function signUp(username: string, turnstileToken: string) {
     const rpId = getDomain(window.location.hostname) ?? undefined;
     const {
       rawResponse,
@@ -88,7 +88,7 @@ export function useAuthentication() {
       throw await res.text();
     });
 
-    await send(signedTx);
+    await send(signedTx, turnstileToken);
 
     setUserAuth(cid, keyIdBase64);
     // Mark wallet as connected since createWallet was just called (which internally connects)

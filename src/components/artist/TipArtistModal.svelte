@@ -5,6 +5,7 @@
     import { getLatestSequence, truncate } from "../../utils/base";
     import { userState } from "../../stores/user.svelte";
     import { unlockUpgrade } from "../../stores/upgrades.svelte";
+    import { Turnstile } from "svelte-turnstile";
     import {
         balanceState,
         updateContractBalance,
@@ -29,6 +30,7 @@
     let success = $state<string | null>(null);
     let kaleDecimals = $state(7);
     let decimalsFactor = $state(10n ** 7n);
+    let turnstileToken = $state("");
 
     // Lock address at mount time to prevent reactive changes mid-transaction
     let lockedArtistAddress = $state("");
@@ -127,6 +129,11 @@
             return;
         }
 
+        if (!turnstileToken) {
+            error = "Please complete the CAPTCHA.";
+            return;
+        }
+
         submitting = true;
         try {
             // Final guard: ensure locked address is still valid before transaction
@@ -153,7 +160,7 @@
                 expiration: sequence + 60,
             });
 
-            await send(tx);
+            await send(tx, turnstileToken);
             await updateContractBalance(userState.contractId);
 
             // Secret Store Unlock Logic
@@ -294,7 +301,10 @@
 
                 <button
                     type="submit"
-                    disabled={submitting || !amount || !isValidArtistAddress}
+                    disabled={submitting ||
+                        !amount ||
+                        !isValidArtistAddress ||
+                        !turnstileToken}
                     class="w-full py-3 bg-green-500 text-black font-bold rounded-xl hover:bg-green-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all tracking-widest text-xs shadow-[0_0_20px_rgba(34,197,94,0.3)] flex items-center justify-center gap-2"
                 >
                     {#if submitting}
@@ -307,6 +317,18 @@
                         />
                     {/if}
                 </button>
+                <div class="flex justify-center mt-4">
+                    <Turnstile
+                        siteKey="0x4AAAAAABBPiK_8QHc6n8E4"
+                        on:callback={(e) => {
+                            turnstileToken = e.detail.token;
+                        }}
+                        on:expired={() => {
+                            turnstileToken = "";
+                        }}
+                        theme="dark"
+                    />
+                </div>
             </form>
         {/if}
     </div>
