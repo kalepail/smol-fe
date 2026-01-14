@@ -23,8 +23,8 @@ if (id) {
         });
 
         if (data) {
-            title = `${data.Title} – Smol`;
-            description = data.Desc || "Smol art onchain";
+            title = `${data.Title} – AI Mixtape`;
+            description = (data.Desc || "Curated AI music collection") + " | Listen to this AI generated mixtape on Smol";
 
             // Use first track's image as mixtape cover
             if (data.Smols?.[0]?.Id) {

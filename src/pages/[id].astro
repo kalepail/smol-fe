@@ -32,7 +32,9 @@ if (id) {
 
 		if (data) {
 			title = data.kv_do?.lyrics?.title || data.d1?.Title;
-			description = data.kv_do?.payload?.prompt || data.kv_do?.description;
+			const rawDesc = data.kv_do?.payload?.prompt || data.kv_do?.description || "AI generated song";
+            // SEO: append value prop
+            description = `${rawDesc} | Made with Smol AI Music Generator`;
 
 			// Set song URL
 			if (data.d1?.Song_1) {

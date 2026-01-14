@@ -19,7 +19,7 @@ interface Props {
 
 const {
 	title,
-	description = "Smol art onchain",
+	description = "Create and collect AI music onchain. The best AI music generator for making full songs from text prompts. Own your music.",
 	song_url = "https://cdn2.aisonggenerator.io/491bb94b-79df-41bb-b09b-2d295f1dfd05.mp3",
 	image_url,
 	hideBottomBar = false,
@@ -60,6 +60,7 @@ if (token) {
 
 		<title transition:animate="fade">{title}</title>
 		<meta name="description" content={description}>
+        <meta name="keywords" content="AI music generator, AI songs, create music with AI, onchain music, crypto music, text to song, AI mixtape, Suno AI alternative, Udio alternative, make AI music" />
 		<!-- <meta name="medium" content="audio"> -->
 		<link rel="canonical" href={Astro.url}>
 
