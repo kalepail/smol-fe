@@ -75,9 +75,15 @@
             const randomSmol =
                 matches[Math.floor(Math.random() * matches.length)];
 
-            // Ensure audio url exists (handle PascalCase)
-            const audio = randomSmol.audio || randomSmol.Audio;
-            if (!audio || !audio.url) {
+            // Ensure audio url exists (handle PascalCase and numeric keys)
+            // Snapshot has 'Song_1' which is just the UUID usually, or 'Id'
+            const audioId = randomSmol.Song_1 || randomSmol.Id;
+            const audioUrl =
+                randomSmol.audio?.url ||
+                randomSmol.Audio?.url ||
+                (audioId ? `https://api.smol.xyz/song/${audioId}.mp3` : null);
+
+            if (!audioUrl) {
                 // Try another one or fail
                 // For now, strict fail is safer for labs
                 if (matches.length > 1) {
@@ -165,7 +171,10 @@
 
             <!-- Labs Player -->
             <LabsPlayer
-                src={(result.audio || result.Audio)?.url || ""}
+                src={(result.audio || result.Audio)?.url ||
+                    (result.Song_1 || result.Id
+                        ? `https://api.smol.xyz/song/${result.Song_1 || result.Id}.mp3`
+                        : "")}
                 autoplay={true}
             />
 
