@@ -386,6 +386,13 @@
             >
                 {#if tracksToMint.length > 0 || tracksToPurchase.length > 0}
                     {#if !isProcessing || needsVerification}
+                        {#if needsVerification}
+                            <p
+                                class="text-lime-400 text-sm mb-2 text-center animate-pulse"
+                            >
+                                Please verify you are human to continue...
+                            </p>
+                        {/if}
                         <div class="flex justify-center w-full mb-2">
                             <Turnstile
                                 siteKey={import.meta.env
