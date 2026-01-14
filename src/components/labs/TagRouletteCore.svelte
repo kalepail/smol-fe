@@ -1,17 +1,54 @@
 <script lang="ts">
+    import { onMount } from "svelte";
     import LabsPlayer from "./LabsPlayer.svelte";
+    import { getSnapshotTagStats } from "../../services/tags/unifiedTags";
+    import { getSnapshotAsync } from "../../services/api/snapshot";
 
     interface Props {
         tags: string[];
         smols: any[];
+        fetchOnMount?: boolean;
     }
 
-    let { tags, smols }: Props = $props();
+    let { tags = [], smols = [], fetchOnMount = false }: Props = $props();
 
     let selectedTag = $state<string | null>(null);
     let isSpinning = $state(false);
+    let isLoading = $state(false);
     let result = $state<any | null>(null);
     let error = $state<string | null>(null);
+
+    // Client-side data fetching to bypass Astro compiler WASM crash on Node 22 Windows
+    onMount(async () => {
+        if (fetchOnMount) {
+            try {
+                isLoading = true;
+                // Fetch tags
+                const tagStats = await getSnapshotTagStats();
+                tags = tagStats.tags.slice(0, 50).map((t) => t.tag);
+
+                // Fetch smols
+                smols = await getSnapshotAsync();
+                console.log("[TagRoulette] Loaded smols:", smols.length);
+                if (smols.length > 0) {
+                    console.log(
+                        "[TagRoulette] Sample smol tags:",
+                        smols[0].tags || smols[0].keywords,
+                    );
+                } else {
+                    console.warn(
+                        "[TagRoulette] Loaded 0 smols! Check fetch path.",
+                    );
+                }
+                isLoading = false;
+            } catch (e) {
+                console.error("Failed to load lab data", e);
+                error =
+                    "Failed to load system data: " + (e.message || String(e));
+                isLoading = false;
+            }
+        }
+    });
 
     function spin(tag: string) {
         if (isSpinning) return;
@@ -57,7 +94,17 @@
 </script>
 
 <div class="flex flex-col gap-6 w-full">
-    {#if !selectedTag}
+    {#if isLoading}
+        <!-- Loading Data State -->
+        <div class="flex flex-col items-center justify-center py-12 gap-4">
+            <div
+                class="w-8 h-8 border-2 border-[#333] border-t-[#9ae600] rounded-full animate-spin"
+            ></div>
+            <p class="text-xs font-mono text-[#555] animate-pulse">
+                Initializing System...
+            </p>
+        </div>
+    {:else if !selectedTag}
         <!-- Tag Selection State -->
         <div
             class="flex flex-wrap gap-2 justify-center max-h-[300px] overflow-y-auto pr-2 scrollbar-thin"

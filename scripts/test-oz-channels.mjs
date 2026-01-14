@@ -28,7 +28,13 @@ async function testOzChannelsConnection() {
             }),
         });
 
-        const result = await response.json();
+        const text = await response.text();
+        let result;
+        try {
+            result = JSON.parse(text);
+        } catch {
+            result = { raw: text };
+        }
 
         console.log(`Status: ${response.status} ${response.statusText}`);
         console.log('Response:', JSON.stringify(result, null, 2));
