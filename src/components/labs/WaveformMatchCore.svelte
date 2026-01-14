@@ -1,12 +1,13 @@
-<script lang="ts">
     import LabsPlayer from "./LabsPlayer.svelte";
     import { onMount } from "svelte";
+    import { getSnapshotAsync } from "../../services/api/snapshot";
 
     interface Props {
-        smols: any[];
+        smols?: any[];
+        fetchOnMount?: boolean;
     }
 
-    let { smols }: Props = $props();
+    let { smols = [], fetchOnMount = false }: Props = $props();
 
     let score = $state(0);
     let rounds = $state(0);
@@ -14,9 +15,22 @@
     let options = $state<any[]>([]);
     let hasGuessed = $state(false);
     let lastResult = $state<"correct" | "incorrect" | null>(null);
+    let playableSmols = $state<any[]>([]);
 
-    // Filter for playable smols
-    const playableSmols = smols.filter((s) => s.audio?.url);
+    function updatePlayableSmols() {
+        playableSmols = smols.filter((s) => s.audio?.url || s.Song_1 || s.Id);
+        
+        console.log("[WaveformMatch] Playable count:", playableSmols.length);
+        if (playableSmols.length >= 4) {
+            startRound();
+        }
+    }
+
+    $effect(() => {
+        if (smols.length > 0 && playableSmols.length === 0) {
+            updatePlayableSmols();
+        }
+    });
 
     function startRound() {
         if (playableSmols.length < 4) return;
@@ -62,13 +76,22 @@
         name: string,
     ): string {
         // Deterministic pseudo-random height based on name char codes to simulate different waveforms
-        const seed = name.charCodeAt(index % name.length) + index;
+        const seed = (name || "unknown").charCodeAt(index % (name || "unknown").length) + index;
         const height = 20 + (seed % 80);
         return `${height}%`;
     }
 
-    onMount(() => {
-        startRound();
+    onMount(async () => {
+        if (fetchOnMount) {
+            try {
+                smols = await getSnapshotAsync();
+                updatePlayableSmols();
+            } catch (e) {
+                console.error("[Waveform] Fetch failed:", e);
+            }
+        } else if (smols.length > 0) {
+            updatePlayableSmols();
+        }
     });
 </script>
 
@@ -118,7 +141,13 @@
                         UNIDENTIFIED SIGNAL
                     </p>
                 </div>
-                <LabsPlayer src={currentSmol.audio.url} autoplay={true} />
+                <LabsPlayer 
+                    src={(currentSmol.audio || currentSmol.Audio)?.url || 
+                        (currentSmol.Song_1 || currentSmol.Id 
+                            ? `https://api.smol.xyz/song/${currentSmol.Song_1 || currentSmol.Id}.mp3` 
+                            : "")} 
+                    autoplay={true} 
+                />
             </div>
 
             <!-- Right: The Visual Candidates -->
@@ -147,7 +176,7 @@
                                     style="height: {getVisualizerBarHeight(
                                         i,
                                         15,
-                                        smol.name,
+                                        smol.Title || smol.name || 'Unknown',
                                     )}"
                                 ></div>
                             {/each}
@@ -156,10 +185,10 @@
                         <div class="flex flex-col items-start min-w-0 flex-1">
                             <span
                                 class="text-xs font-bold text-white truncate w-full text-left"
-                                >{smol.name}</span
+                                >{smol.Title || smol.name || "Unknown Artifact"}</span
                             >
                             <span class="text-[10px] text-[#555] font-mono"
-                                >{smol.family}</span
+                                >{smol.family || "Unknown Family"}</span
                             >
                         </div>
 

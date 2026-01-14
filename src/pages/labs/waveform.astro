@@ -1,9 +1,9 @@
 ---
 import Layout from "../../layouts/Layout.astro";
-import { getSnapshotAsync } from "../../services/api/snapshot";
+import WaveformMatchCore from "../../components/labs/WaveformMatchCore.svelte";
 
-// Fetch data
-const allSmols = await getSnapshotAsync();
+// Fetch data disabled (fetching client side)
+// const allSmols = await getSnapshotAsync();
 ---
 
 <Layout title="Waveform Match | Smol Labs">
@@ -32,28 +32,10 @@ const allSmols = await getSnapshotAsync();
 
         <!-- Svelte Interactive Component -->
         <div class="w-full">
-             <waveform-match-core client:only="svelte" data-smols={JSON.stringify(allSmols)} />
+             <WaveformMatchCore client:only="svelte" fetchOnMount={true} />
         </div>
 
     </div>
 
   </div>
 </Layout>
-
-<script>
-    import { mount } from 'svelte';
-    import WaveformMatchCore from '../../components/labs/WaveformMatchCore.svelte';
-
-    class WaveformElement extends HTMLElement {
-        connectedCallback() {
-            const smols = JSON.parse(this.getAttribute('data-smols') || '[]');
-            
-            mount(WaveformMatchCore, {
-                target: this,
-                props: { smols }
-            });
-        }
-    }
-    
-    customElements.define('waveform-match-core', WaveformElement);
-</script>
