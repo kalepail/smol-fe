@@ -140,19 +140,20 @@
                 class="bg-[#222] p-4 rounded-lg flex gap-4 border border-[#9ae600]/30 shadow-[0_0_20px_rgba(154,230,0,0.1)]"
             >
                 <img
-                    src={result.thumbnail}
-                    alt={result.name}
+                    src={result.thumbnail ||
+                        `https://api.smol.xyz/image/${result.Id}.png?scale=4`}
+                    alt={result.Title || result.name}
                     class="w-24 h-24 object-cover rounded bg-black"
                 />
                 <div class="flex flex-col gap-1 text-left flex-1 min-w-0">
                     <h3 class="text-lg font-bold text-white truncate">
-                        {result.name}
+                        {result.Title || result.name || "Unknown Artifact"}
                     </h3>
                     <p class="text-xs text-[#555] font-mono mb-2">
-                        FAMILY: {result.family}
+                        ID: {result.Id?.substring(0, 8)}...
                     </p>
                     <div class="flex gap-1 flex-wrap">
-                        {#each result.tags.slice(0, 3) as t}
+                        {#each (result.Tags || result.tags || []).slice(0, 3) as t}
                             <span
                                 class="text-[9px] bg-[#111] px-1 rounded text-[#777]"
                                 >#{t}</span
