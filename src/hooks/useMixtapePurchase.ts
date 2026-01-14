@@ -57,7 +57,8 @@ export function useMixtapePurchase() {
     userContractId: string,
     userKeyId: string,
     turnstileToken: string,
-    onBatchComplete: (trackIds: string[]) => void
+    onBatchComplete: (trackIds: string[]) => void,
+    getFreshToken?: () => Promise<string>
   ): Promise<void> {
     const BATCH_SIZE = 9;
 
@@ -91,7 +92,17 @@ export function useMixtapePurchase() {
     // Process each chunk sequentially
     for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
       const chunk = chunks[chunkIndex];
+      let currentToken = turnstileToken;
 
+      // If this is a subsequent batch, we need a fresh token
+      if (chunkIndex > 0 && getFreshToken) {
+        try {
+          currentToken = await getFreshToken();
+        } catch (e) {
+          console.error("Failed to get fresh Turnstile token for batch", chunkIndex + 1);
+          throw new Error("Verification failed for batch " + (chunkIndex + 1));
+        }
+      }
 
       try {
         const tokensOutChunk = chunk.map((d) => d.token);
@@ -103,7 +114,7 @@ export function useMixtapePurchase() {
           smolContractId,
           userContractId,
           userKeyId,
-          turnstileToken,
+          turnstileToken: currentToken,
         });
 
         // Mark substeps as complete

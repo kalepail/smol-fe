@@ -68,6 +68,16 @@
     ]);
 
     let turnstileToken = $state("");
+    let needsVerification = $state(false);
+    let resolveTokenPromise: ((token: string) => void) | null = null;
+
+    export async function requestNewToken(): Promise<string> {
+        return new Promise((resolve) => {
+            turnstileToken = "";
+            needsVerification = true;
+            resolveTokenPromise = resolve;
+        });
+    }
 
     function handleClose() {
         if (!isProcessing) {
@@ -375,13 +385,19 @@
                 class="sticky bottom-0 z-10 flex flex-col gap-3 border-t border-slate-700 bg-slate-900 p-6"
             >
                 {#if tracksToMint.length > 0 || tracksToPurchase.length > 0}
-                    {#if !isProcessing}
+                    {#if !isProcessing || needsVerification}
                         <div class="flex justify-center w-full mb-2">
                             <Turnstile
                                 siteKey={import.meta.env
                                     .PUBLIC_TURNSTILE_SITE_KEY}
                                 on:callback={(e) => {
-                                    turnstileToken = e.detail.token;
+                                    const token = e.detail.token;
+                                    turnstileToken = token;
+                                    if (resolveTokenPromise) {
+                                        resolveTokenPromise(token);
+                                        resolveTokenPromise = null;
+                                        needsVerification = false;
+                                    }
                                 }}
                                 on:expired={() => {
                                     turnstileToken = "";

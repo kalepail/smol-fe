@@ -48,6 +48,7 @@
   // Support banner state (optional tip jar)
   let showSupportBanner = $state(true);
   let supportBannerDismissed = $state(false);
+  let purchaseModal: any;
 
   // Initialize hooks
   const mintingHook = useMixtapeMinting();
@@ -479,6 +480,9 @@
               purchaseCompletedSteps.add(`purchase-${trackId}`);
             }
           },
+          async () => {
+            return await purchaseModal.requestNewToken();
+          },
         );
         purchaseCompletedSteps.add("purchase");
       }
@@ -682,6 +686,7 @@
 {/if}
 
 <PurchaseModal
+  bind:this={purchaseModal}
   isOpen={showPurchaseModal}
   {tracksToMint}
   {tracksToPurchase}
