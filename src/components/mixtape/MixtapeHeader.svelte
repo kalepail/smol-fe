@@ -120,7 +120,9 @@
           Play All
         </button>
       {/if}
-      {#if onEdit}
+
+      <!-- Fully Owned Badge (only show if actually fully owned) -->
+      {#if fullyOwned && userState.contractId}
         <span
           class="relative flex items-center justify-center gap-2 rounded px-6 py-2 text-sm font-medium bg-gradient-to-r from-slate-400 to-slate-600"
         >
@@ -131,24 +133,8 @@
             class="absolute -top-4 -right-7 w-12 h-12 transform rotate-12 z-10"
           />
         </span>
-        <button
-          class="text-[10px] text-slate-400 hover:text-white underline decoration-slate-600 hover:decoration-white underline-offset-4 transition-colors font-pixel uppercase tracking-wide"
-          onclick={onEdit}
-        >
-          Edit Mixtape (Creator Only)
-        </button>
-      {:else if fullyOwned && userState.contractId}
-        <span
-          class="relative flex items-center justify-center gap-2 rounded px-6 py-2 text-sm font-medium bg-gradient-to-r from-slate-400 to-slate-600"
-        >
-          Fully Owned
-          <img
-            src="/owned-badge.png"
-            alt="Fully Owned Badge"
-            class="absolute -top-4 -right-7 w-12 h-12 transform rotate-12 z-10"
-          />
-        </span>
-      {:else}
+      {:else if !onEdit}
+        <!-- Buy Mixtape (only show if not creator and not fully owned) -->
         <button
           class="flex items-center justify-center gap-2 rounded-lg md:rounded-xl border border-white/20 bg-white/5 px-4 py-2 text-[10px] md:text-xs font-pixel font-bold uppercase tracking-widest text-white hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           onclick={onPurchaseClick}
@@ -174,13 +160,14 @@
       {/if}
     </div>
 
+    <!-- Edit Button (only for creator) -->
     {#if onEdit}
       <div class="flex justify-center md:justify-start">
         <button
-          class="text-xs text-slate-400 hover:text-white underline decoration-slate-600 hover:decoration-white underline-offset-4 transition-colors"
+          class="text-[10px] text-slate-400 hover:text-white underline decoration-slate-600 hover:decoration-white underline-offset-4 transition-colors font-pixel uppercase tracking-wide"
           onclick={onEdit}
         >
-          Edit Mixtape (Creator Only)
+          Edit Mixtape
         </button>
       </div>
     {/if}
