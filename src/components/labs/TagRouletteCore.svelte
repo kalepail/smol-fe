@@ -33,7 +33,7 @@
                 if (smols.length > 0) {
                     console.log(
                         "[TagRoulette] Sample smol tags:",
-                        smols[0].tags || smols[0].keywords,
+                        smols[0].Tags || smols[0].tags || smols[0].keywords,
                     );
                 } else {
                     console.warn(
@@ -60,9 +60,11 @@
 
         // Artificial delay for "roulette" feel
         setTimeout(() => {
-            const matches = smols.filter(
-                (s: any) => s.tags?.includes(tag) || s.keywords?.includes(tag),
-            );
+            const matches = smols.filter((s: any) => {
+                const tags = s.Tags || s.tags || [];
+                const keywords = s.Keywords || s.keywords || [];
+                return tags.includes(tag) || keywords.includes(tag);
+            });
 
             if (matches.length === 0) {
                 error = `No artifacts found for [${tag}]`;
@@ -73,8 +75,9 @@
             const randomSmol =
                 matches[Math.floor(Math.random() * matches.length)];
 
-            // Ensure audio url exists
-            if (!randomSmol.audio || !randomSmol.audio.url) {
+            // Ensure audio url exists (handle PascalCase)
+            const audio = randomSmol.audio || randomSmol.Audio;
+            if (!audio || !audio.url) {
                 // Try another one or fail
                 // For now, strict fail is safer for labs
                 if (matches.length > 1) {
@@ -160,7 +163,10 @@
             </div>
 
             <!-- Labs Player -->
-            <LabsPlayer src={result.audio?.url || ""} autoplay={true} />
+            <LabsPlayer
+                src={(result.audio || result.Audio)?.url || ""}
+                autoplay={true}
+            />
 
             <button
                 onclick={reset}
