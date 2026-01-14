@@ -178,7 +178,7 @@ export function useMixtapeMinting() {
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        'X-Turnstile-Token': turnstileToken,
+        'X-Turnstile-Response': turnstileToken,
       },
       body: JSON.stringify({
         xdr: xdrString,
