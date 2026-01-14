@@ -5,6 +5,7 @@
     import Loader from "../ui/Loader.svelte";
     import KaleEmoji from "../ui/KaleEmoji.svelte";
     import { preferences, THEMES } from "../../stores/preferences.svelte";
+    import { Turnstile } from "svelte-turnstile";
 
     // Mock ID for development (legacy ref)
     const MOCK_CID = "CBNORBI4DCE7LIC42FWMCIWQRULWAUGF2MH2Z7X2RNTFAYNXIACJ2KKA";
@@ -15,12 +16,19 @@
 
     // Auth & Theme Logic for Splash
     const authHook = useAuthentication();
-    const activeTheme = $derived(THEMES[preferences.glowTheme]);
+    const activeTheme = $derived(
+        THEMES[preferences.glowTheme as keyof typeof THEMES],
+    );
     const isTechnicolor = $derived(preferences.glowTheme === "technicolor_v2");
 
     let creating = $state(false);
     let loggingIn = $state(false);
     let showThemeMenu = $state(false);
+
+    // Cleanup: Signup Form State
+    let showSignupForm = $state(false);
+    let username = $state("");
+    let turnstileToken = $state("");
 
     // Background Options
     const bgOptions = [
@@ -46,35 +54,36 @@
             // Fall back to account creation flow
             console.log("Login failed, falling back to signup:", e.message);
             loggingIn = false;
-
-            // Prompt for username and create account
-            const username = prompt("Create your account - Enter username:");
-            if (!username) return;
-
-            creating = true;
-            try {
-                await authHook.signUp(username);
-
-                // Valentine's Promo Logic
-                const now = new Date();
-                const cutoff = new Date("2026-02-15");
-                if (now < cutoff) {
-                    const currentUnlocks = preferences.unlockedThemes || [];
-                    if (!currentUnlocks.includes("valentine_2026")) {
-                        preferences.unlockedThemes = [
-                            ...currentUnlocks,
-                            "valentine_2026",
-                        ];
-                        alert(
-                            "❤️ UNLOCKED: Valentine's 2026 Theme! Happy Valentine's Day! ❤️",
-                        );
-                    }
-                }
-            } finally {
-                creating = false;
-            }
+            showSignupForm = true;
         } finally {
             loggingIn = false;
+        }
+    }
+
+    async function handleSignUpSubmit() {
+        if (!username || !turnstileToken) return;
+
+        creating = true;
+        try {
+            await authHook.signUp(username, turnstileToken);
+
+            // Valentine's Promo Logic
+            const now = new Date();
+            const cutoff = new Date("2026-02-15");
+            if (now < cutoff) {
+                const currentUnlocks = preferences.unlockedThemes || [];
+                if (!currentUnlocks.includes("valentine_2026")) {
+                    preferences.unlockedThemes = [
+                        ...currentUnlocks,
+                        "valentine_2026",
+                    ];
+                    alert(
+                        "❤️ UNLOCKED: Valentine's 2026 Theme! Happy Valentine's Day! ❤️",
+                    );
+                }
+            }
+        } finally {
+            creating = false;
         }
     }
 </script>
@@ -231,35 +240,84 @@
                             >
                         </div>
 
-                        <!-- Smart Single Passkey Button -->
+                        <!-- Login/Signup Area -->
                         <div class="space-y-3">
-                            <!-- Single Smart Passkey Button -->
-                            <button
-                                class="w-full py-4 px-6 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-400 hover:to-rose-400 text-white font-pixel font-bold rounded-xl transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg hover:shadow-pink-400/30 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                                onclick={handlePasskeyLogin}
-                                disabled={loggingIn || creating}
-                            >
-                                {#if loggingIn || creating}
-                                    <Loader
-                                        classNames="w-5 h-5"
-                                        textColor="text-white"
-                                    />
-                                    <span>
-                                        {#if loggingIn}Signing In...{:else}Creating Account...{/if}
-                                    </span>
-                                {:else}
-                                    <svg
-                                        class="w-5 h-5"
-                                        viewBox="0 0 24 24"
-                                        fill="currentColor"
-                                    >
-                                        <path
-                                            d="M7 14C5.9 14 5 13.1 5 12S5.9 10 7 10 9 10.9 9 12 8.1 14 7 14M12.6 10C11.8 7.7 9.6 6 7 6C3.7 6 1 8.7 1 12S3.7 18 7 18C9.6 18 11.8 16.3 12.6 14H16V18H20V14H23V10H12.6Z"
+                            {#if !showSignupForm}
+                                <!-- Single Smart Passkey Button -->
+                                <button
+                                    class="w-full py-4 px-6 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-400 hover:to-rose-400 text-white font-pixel font-bold rounded-xl transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg hover:shadow-pink-400/30 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                                    onclick={handlePasskeyLogin}
+                                    disabled={loggingIn || creating}
+                                >
+                                    {#if loggingIn}
+                                        <Loader
+                                            classNames="w-5 h-5"
+                                            textColor="text-white"
                                         />
-                                    </svg>
-                                    <span>Passkey Login</span>
-                                {/if}
-                            </button>
+                                        <span>Signing In...</span>
+                                    {:else}
+                                        <svg
+                                            class="w-5 h-5"
+                                            viewBox="0 0 24 24"
+                                            fill="currentColor"
+                                        >
+                                            <path
+                                                d="M7 14C5.9 14 5 13.1 5 12S5.9 10 7 10 9 10.9 9 12 8.1 14 7 14M12.6 10C11.8 7.7 9.6 6 7 6C3.7 6 1 8.7 1 12S3.7 18 7 18C9.6 18 11.8 16.3 12.6 14H16V18H20V14H23V10H12.6Z"
+                                            />
+                                        </svg>
+                                        <span>Passkey Login</span>
+                                    {/if}
+                                </button>
+                            {:else}
+                                <!-- SignUp Form -->
+                                <div
+                                    class="bg-black/40 rounded-xl p-4 space-y-3 border border-lime-400/30"
+                                >
+                                    <input
+                                        type="text"
+                                        bind:value={username}
+                                        placeholder="Choose Username"
+                                        class="w-full bg-black/60 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-lime-400 transition-colors font-pixel text-sm"
+                                    />
+
+                                    <div class="flex justify-center">
+                                        <Turnstile
+                                            siteKey={import.meta.env
+                                                .PUBLIC_TURNSTILE_SITE_KEY}
+                                            on:callback={(e) => {
+                                                turnstileToken = e.detail.token;
+                                            }}
+                                            on:expired={() => {
+                                                turnstileToken = "";
+                                            }}
+                                            theme="dark"
+                                        />
+                                    </div>
+
+                                    <div class="flex gap-2">
+                                        <button
+                                            class="flex-1 py-2 rounded-lg border border-slate-600 text-slate-400 hover:bg-slate-800 transition-colors font-pixel text-xs"
+                                            onclick={() =>
+                                                (showSignupForm = false)}
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            class="flex-1 py-2 rounded-lg bg-lime-400 text-slate-900 font-bold hover:bg-lime-300 transition-colors font-pixel text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                                            disabled={!username ||
+                                                !turnstileToken ||
+                                                creating}
+                                            onclick={handleSignUpSubmit}
+                                        >
+                                            {#if creating}
+                                                Creating...
+                                            {:else}
+                                                Start!
+                                            {/if}
+                                        </button>
+                                    </div>
+                                </div>
+                            {/if}
                         </div>
 
                         <!-- Bottom info -->

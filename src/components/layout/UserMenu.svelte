@@ -81,22 +81,6 @@
     await authHook.login();
   }
 
-  async function handleSignUp() {
-    creating = true;
-
-    try {
-      const username = prompt("Enter your username");
-
-      if (!username) {
-        throw new Error("Username is required");
-      }
-
-      await authHook.signUp(username);
-    } finally {
-      creating = false;
-    }
-  }
-
   async function handleLogout() {
     await authHook.logout();
   }

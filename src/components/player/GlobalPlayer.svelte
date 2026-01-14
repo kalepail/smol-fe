@@ -746,7 +746,7 @@
     <!-- Main Player Card -->
     <div
         class="max-w-6xl w-full mx-auto reactive-glass border border-white/5 backdrop-blur-xl md:rounded-2xl rounded-none shadow-2xl relative flex flex-col flex-1 min-h-0 transition-all duration-700 bg-cover bg-center"
-        style={THEMES[preferences.glowTheme].style ||
+        style={THEMES[preferences.glowTheme as keyof typeof THEMES].style ||
             "background-color: rgba(29, 29, 29, 0.7);"}
     >
         <!-- Control Bar -->
@@ -761,11 +761,13 @@
             >
                 <!-- Rainbow Gradient Background/Border -->
                 <div
-                    class="absolute inset-[-100%] {THEMES[preferences.glowTheme]
-                        .gradient
-                        ? `bg-gradient-to-r ${THEMES[preferences.glowTheme].gradient}`
+                    class="absolute inset-[-100%] {THEMES[
+                        preferences.glowTheme as keyof typeof THEMES
+                    ].gradient
+                        ? `bg-gradient-to-r ${THEMES[preferences.glowTheme as keyof typeof THEMES].gradient}`
                         : ''} animate-[spin_4s_linear_infinite] opacity-70 group-hover:opacity-100 transition-opacity"
-                    style={THEMES[preferences.glowTheme].style || ""}
+                    style={THEMES[preferences.glowTheme as keyof typeof THEMES]
+                        .style || ""}
                 ></div>
 
                 <!-- Inner Mask -->
@@ -1216,12 +1218,13 @@
                                 {#if currentSong && song.Id === currentSong.Id && preferences.renderMode === "thinking"}
                                     <div
                                         class="absolute -inset-2 rounded-2xl blur-xl transition-opacity duration-500 animate-[spin_4s_linear_infinite] {THEMES[
-                                            preferences.glowTheme
+                                            preferences.glowTheme as keyof typeof THEMES
                                         ].gradient
-                                            ? `bg-gradient-to-r ${THEMES[preferences.glowTheme].gradient}`
+                                            ? `bg-gradient-to-r ${THEMES[preferences.glowTheme as keyof typeof THEMES].gradient}`
                                             : ''} opacity-50"
-                                        style={THEMES[preferences.glowTheme]
-                                            .style || ""}
+                                        style={THEMES[
+                                            preferences.glowTheme as keyof typeof THEMES
+                                        ].style || ""}
                                     ></div>
                                 {/if}
 
@@ -1235,12 +1238,13 @@
                                         <!-- Spinning Lightwire (Disabled in Fast Mode) -->
                                         <div
                                             class="absolute inset-[-100%] {THEMES[
-                                                preferences.glowTheme
+                                                preferences.glowTheme as keyof typeof THEMES
                                             ].gradient
-                                                ? `bg-gradient-to-r ${THEMES[preferences.glowTheme].gradient}`
+                                                ? `bg-gradient-to-r ${THEMES[preferences.glowTheme as keyof typeof THEMES].gradient}`
                                                 : ''} transition-opacity duration-500 animate-[spin_4s_linear_infinite] opacity-100"
-                                            style={THEMES[preferences.glowTheme]
-                                                .style || ""}
+                                            style={THEMES[
+                                                preferences.glowTheme as keyof typeof THEMES
+                                            ].style || ""}
                                         ></div>
                                     {/if}
 

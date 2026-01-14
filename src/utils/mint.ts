@@ -69,7 +69,7 @@ export async function createMintTransaction(options: MintOptions) {
 
     const sequence = await getLatestSequence();
 
-    at = await account.sign(at, {
+    at = await account.get().sign(at, {
         rpId: getDomain(window.location.hostname) ?? undefined,
         keyId,
         expiration: sequence + 60,

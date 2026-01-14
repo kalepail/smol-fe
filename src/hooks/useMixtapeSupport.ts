@@ -128,7 +128,9 @@ export function calculateSupportPayment(
 export async function sendSupportPayment(
     curatorAddress: string,
     tracks: Smol[],
-    onProgress?: (step: string) => void
+    turnstileToken: string,
+    onProgress?: (step: string) => void,
+    getFreshToken?: () => Promise<string>
 ): Promise<{ success: boolean; txHash?: string; error?: string }> {
     if (!userState.contractId || !userState.keyId) {
         return { success: false, error: 'Wallet not connected' };
@@ -154,7 +156,21 @@ export async function sendSupportPayment(
 
         // Send transfers sequentially (sub-optimal but valid API)
         let lastTxHash = 'multi-payment';
-        for (const [address, amount] of aggregated) {
+        const recipients = Array.from(aggregated);
+
+        for (let i = 0; i < recipients.length; i++) {
+            const [address, amount] = recipients[i];
+            let currentToken = turnstileToken;
+
+            if (i > 0 && getFreshToken) {
+                onProgress?.('Verifying...');
+                try {
+                    currentToken = await getFreshToken();
+                } catch (e) {
+                    throw new Error('Verification failed for payment ' + (i + 1));
+                }
+            }
+
             onProgress?.(`Transferring to ${truncate(address, 4)}...`);
             let tx = await kale.get().transfer({
                 from: userState.contractId,
@@ -171,7 +187,8 @@ export async function sendSupportPayment(
             });
 
             onProgress?.(`Submitting transfer to ${truncate(address, 4)}...`);
-            const result = await send(tx);
+
+            const result = await send(tx, currentToken);
             if (result?.hash) lastTxHash = result.hash;
         }
 

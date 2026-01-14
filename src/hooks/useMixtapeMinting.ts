@@ -19,12 +19,14 @@ interface MintBatchParams {
   userContractId: string;
   userKeyId: string;
   kaleSacId: string;
+  turnstileToken: string;
 }
 
 interface MintAllTracksParams {
   mixtapeTracks: Smol[];
   userContractId: string;
   userKeyId: string;
+  turnstileToken: string;
 }
 
 export function useMixtapeMinting() {
@@ -83,7 +85,7 @@ export function useMixtapeMinting() {
     params: MintBatchParams,
     onMinted: (trackId: string, mintToken: string, mintAmm: string) => void
   ): Promise<void> {
-    const { tracksWithData, smolContractId, userContractId, userKeyId, kaleSacId } = params;
+    const { tracksWithData, smolContractId, userContractId, userKeyId, kaleSacId, turnstileToken } = params;
 
     // Prepare arrays for coin_them
     const assetBytesArray: Buffer[] = [];
@@ -169,12 +171,14 @@ export function useMixtapeMinting() {
     }
 
 
-    // Submit to backend
+    // Submit to backend with Turnstile token
+    // Note: Turnstile token is single-use. Multi-batch minting will fail after the first batch.
     const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/mint`, {
       method: 'POST',
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
+        'X-Turnstile-Token': turnstileToken,
       },
       body: JSON.stringify({
         xdr: xdrString,
@@ -211,7 +215,7 @@ export function useMixtapeMinting() {
     onMinted: (trackId: string, mintToken: string, mintAmm: string) => void,
     onBatchError: (chunkIndex: number, error: Error) => void
   ): Promise<void> {
-    const { mixtapeTracks, userContractId, userKeyId } = params;
+    const { mixtapeTracks, userContractId, userKeyId, turnstileToken } = params;
 
     const smolContractId = import.meta.env.PUBLIC_SMOL_CONTRACT_ID || "CBRNUVLGFM5OYWAGZVGU7CTMP2UJLKZCLFY2ANUCK5UGKND6BBAA5PLA";
     if (!smolContractId) {
@@ -265,6 +269,7 @@ export function useMixtapeMinting() {
             userContractId,
             userKeyId,
             kaleSacId,
+            turnstileToken,
           },
           onMinted
         );
@@ -312,6 +317,7 @@ export function useMixtapeMinting() {
                 userContractId,
                 userKeyId,
                 kaleSacId,
+                turnstileToken,
               },
               onMinted
             );

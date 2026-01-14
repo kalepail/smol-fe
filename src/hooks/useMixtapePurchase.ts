@@ -11,11 +11,12 @@ interface PurchaseBatchParams {
   smolContractId: string;
   userContractId: string;
   userKeyId: string;
+  turnstileToken: string;
 }
 
 export function useMixtapePurchase() {
   async function purchaseBatch(params: PurchaseBatchParams): Promise<void> {
-    const { tokensOut, cometAddresses, smolContractId, userContractId, userKeyId } = params;
+    const { tokensOut, cometAddresses, smolContractId, userContractId, userKeyId, turnstileToken } = params;
 
     const costPerToken = 33_0000000n; // 33 KALE per token
 
@@ -46,7 +47,7 @@ export function useMixtapePurchase() {
 
 
     // Submit transaction via passkey server
-    await send(tx);
+    await send(tx, turnstileToken);
   }
 
   async function purchaseTracksInBatches(
@@ -55,7 +56,9 @@ export function useMixtapePurchase() {
     smolContractId: string,
     userContractId: string,
     userKeyId: string,
-    onBatchComplete: (trackIds: string[]) => void
+    turnstileToken: string,
+    onBatchComplete: (trackIds: string[]) => void,
+    getFreshToken?: () => Promise<string>
   ): Promise<void> {
     const BATCH_SIZE = 9;
 
@@ -89,7 +92,17 @@ export function useMixtapePurchase() {
     // Process each chunk sequentially
     for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
       const chunk = chunks[chunkIndex];
+      let currentToken = turnstileToken;
 
+      // If this is a subsequent batch, we need a fresh token
+      if (chunkIndex > 0 && getFreshToken) {
+        try {
+          currentToken = await getFreshToken();
+        } catch (e) {
+          console.error("Failed to get fresh Turnstile token for batch", chunkIndex + 1);
+          throw new Error("Verification failed for batch " + (chunkIndex + 1));
+        }
+      }
 
       try {
         const tokensOutChunk = chunk.map((d) => d.token);
@@ -101,6 +114,7 @@ export function useMixtapePurchase() {
           smolContractId,
           userContractId,
           userKeyId,
+          turnstileToken: currentToken,
         });
 
         // Mark substeps as complete

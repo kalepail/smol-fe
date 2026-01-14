@@ -2,6 +2,7 @@
     import { fade, scale } from "svelte/transition";
     import Loader from "../ui/Loader.svelte";
     import KaleEmoji from "../ui/KaleEmoji.svelte";
+    import { Turnstile } from "svelte-turnstile";
     import type { Smol } from "../../types/domain";
     import {
         calculateSupportPayment,
@@ -33,6 +34,17 @@
     let progressMessage = $state("");
     let error = $state<string | null>(null);
     let success = $state(false);
+    let turnstileToken = $state("");
+    let needsVerification = $state(false);
+    let resolveTokenPromise: ((token: string) => void) | null = null;
+
+    async function requestNewToken(): Promise<string> {
+        return new Promise((resolve) => {
+            turnstileToken = "";
+            needsVerification = true;
+            resolveTokenPromise = resolve;
+        });
+    }
 
     // Calculate payment breakdown
     const breakdown = $derived(calculateSupportPayment(curatorAddress, tracks));
@@ -60,13 +72,20 @@
             return;
         }
 
+        if (!turnstileToken) {
+            error = "please complete the captcha";
+            return;
+        }
+
         submitting = true;
         const result = await sendSupportPayment(
             curatorAddress,
             tracks,
+            turnstileToken,
             (step) => {
                 progressMessage = step;
             },
+            requestNewToken,
         );
 
         if (result.success) {
@@ -211,14 +230,72 @@
         {/if}
 
         <!-- Action Buttons -->
-        <div class="flex gap-2">
+        <div class="flex gap-2 items-center">
+            <!-- Visible Turnstile Wrapper to ensure it loads -->
+            {#if !submitting || needsVerification}
+                {#if needsVerification}
+                    <div
+                        class="absolute inset-0 bg-black/80 z-20 flex flex-col items-center justify-center p-4 text-center rounded-2xl"
+                        transition:fade
+                    >
+                        <p
+                            class="text-lime-400 text-[10px] font-pixel mb-2 animate-pulse"
+                        >
+                            verify to continue next payment...
+                        </p>
+                        <div
+                            class="scale-90 origin-center bg-black p-2 rounded-lg border border-lime-500/30"
+                        >
+                            <Turnstile
+                                siteKey={import.meta.env
+                                    .PUBLIC_TURNSTILE_SITE_KEY}
+                                on:callback={(e) => {
+                                    const token = e.detail.token;
+                                    turnstileToken = token;
+                                    if (resolveTokenPromise) {
+                                        resolveTokenPromise(token);
+                                        resolveTokenPromise = null;
+                                        needsVerification = false;
+                                    }
+                                }}
+                                on:expired={() => {
+                                    turnstileToken = "";
+                                }}
+                                theme="dark"
+                                appearance="interaction-only"
+                            />
+                        </div>
+                    </div>
+                {:else}
+                    <div class="flex justify-center -mb-2 scale-75 origin-top">
+                        <Turnstile
+                            siteKey={import.meta.env.PUBLIC_TURNSTILE_SITE_KEY}
+                            on:callback={(e) => {
+                                const token = e.detail.token;
+                                turnstileToken = token;
+                                if (resolveTokenPromise) {
+                                    resolveTokenPromise(token);
+                                    resolveTokenPromise = null;
+                                    needsVerification = false;
+                                }
+                            }}
+                            on:expired={() => {
+                                turnstileToken = "";
+                            }}
+                            theme="dark"
+                            appearance="interaction-only"
+                        />
+                    </div>
+                {/if}
+            {/if}
+
             <button
                 class="flex-1 py-1.5 px-2 rounded-lg font-pixel font-bold text-[9px] transition-all flex items-center justify-center gap-1
                 {submitting
                     ? 'bg-lime-700/50 text-lime-200 cursor-wait'
                     : 'bg-lime-500 text-black hover:bg-lime-400 shadow-[0_0_15px_rgba(132,204,22,0.3)]'}"
                 onclick={handleSupport}
-                disabled={submitting}
+                disabled={submitting || !turnstileToken}
             >
                 {#if submitting}
                     <Loader

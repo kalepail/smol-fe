@@ -55,7 +55,7 @@
         potentialPoints = MAX_POINTS;
 
         // Start timer
-        timer = setInterval(() => {
+        timer = window.setInterval(() => {
             if (potentialPoints > MIN_POINTS) {
                 potentialPoints = Math.max(
                     MIN_POINTS,

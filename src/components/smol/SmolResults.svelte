@@ -434,8 +434,9 @@
                                     alt="Loading artwork"
                                     class="w-full h-full object-cover animate-in fade-in duration-500"
                                     onerror={(e) =>
-                                        (e.currentTarget.style.display =
-                                            "none")}
+                                        ((
+                                            e.currentTarget as HTMLElement
+                                        ).style.display = "none")}
                                 />
                             </div>
                         {:else}
@@ -470,11 +471,11 @@
                             {/if}
 
                             <!-- Artist -->
-                            {#if data?.d1?.Artist}
+                            {#if data?.d1?.Creator}
                                 <p
                                     class="text-sm text-[#d836ff]/80 truncate mb-3 animate-in fade-in slide-in-from-right-2 duration-700"
                                 >
-                                    {data.d1.Artist}
+                                    {data.d1.Creator}
                                 </p>
                             {:else}
                                 <div

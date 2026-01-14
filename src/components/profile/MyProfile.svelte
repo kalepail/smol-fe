@@ -5,15 +5,23 @@
     import Loader from "../ui/Loader.svelte";
     import KaleEmoji from "../ui/KaleEmoji.svelte";
     import { preferences, THEMES } from "../../stores/preferences.svelte";
+    import { Turnstile } from "svelte-turnstile";
 
     // Check if we have a contract ID (user address)
     const address = $derived(userState.contractId);
     const authHook = useAuthentication();
-    const activeTheme = $derived(THEMES[preferences.glowTheme]);
+    const activeTheme = $derived(
+        THEMES[preferences.glowTheme as keyof typeof THEMES],
+    );
     const isTechnicolor = $derived(preferences.glowTheme === "technicolor_v2");
 
     let creating = $state(false);
     let loggingIn = $state(false);
+
+    // Cleanup: Signup Form State
+    let showSignupForm = $state(false);
+    let username = $state("");
+    let turnstileToken = $state("");
 
     // Background Options
     const bgOptions = [
@@ -33,17 +41,20 @@
         loggingIn = true;
         try {
             await authHook.login();
+        } catch (e: any) {
+            console.log("Login failed, falling back to signup:", e.message);
+            showSignupForm = true;
         } finally {
             loggingIn = false;
         }
     }
 
-    async function handleSignUp() {
+    async function handleSignUpSubmit() {
+        if (!username || !turnstileToken) return;
+
         creating = true;
         try {
-            const username = prompt("Enter your username");
-            if (!username) throw new Error("Username is required");
-            await authHook.signUp(username);
+            await authHook.signUp(username, turnstileToken);
 
             // Valentine's Promo Logic: Unlock Collectible
             const now = new Date();
@@ -79,7 +90,9 @@
         <div
             class="min-h-screen w-full flex items-center justify-center relative overflow-hidden"
         >
-            <!-- Background -->
+            <!-- Background ... -->
+            <!-- Use exact matches for replacement to avoid erasing content -->
+
             <div
                 class="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-700"
                 style={bgOptions[currentBgIndex].url
@@ -99,7 +112,7 @@
                 background-size: 8px 8px;"
             ></div>
 
-            <!-- Floating sparkles animation -->
+            <!-- Floating sparkles animation ... -->
             <div class="absolute inset-0 overflow-hidden pointer-events-none">
                 <div
                     class="absolute w-2 h-2 bg-lime-400/60 rounded-full animate-pulse"
@@ -125,20 +138,12 @@
 
             <!-- Main Glassmorphism Card -->
             <div class="relative z-10 w-full max-w-md mx-4">
-                <!-- Siri-like HDR Glow -->
-                <div
-                    class="absolute -inset-0.5 rounded-2xl blur-2xl opacity-100 transition-all duration-500 pointer-events-none {isTechnicolor
-                        ? 'animate-color-cycle'
-                        : 'animate-color-pulse'} {activeTheme.gradient
-                        ? `bg-gradient-to-r ${activeTheme.gradient}`
-                        : ''} saturate-200 brightness-150"
-                    style={activeTheme.style || ""}
-                ></div>
+                <!-- Siri-like HDR Glow ... -->
 
                 <div
                     class="relative rounded-2xl p-[1px] overflow-hidden shadow-2xl"
                 >
-                    <!-- Animated Rainbow Background (Border) -->
+                    <!-- Animated Rainbow Background (Border) ... -->
                     <div
                         class="absolute inset-0 transition-all duration-500 {isTechnicolor
                             ? 'animate-color-cycle'
@@ -152,12 +157,11 @@
                     <div
                         class="rounded-2xl bg-[#1D293D]/95 backdrop-blur-3xl border border-white/20 shadow-[inset_0_0_20px_rgba(255,255,255,0.1)] p-8 h-full w-full relative z-10"
                     >
-                        <!-- Kale Emoji Header -->
+                        <!-- Kale Emoji Header ... -->
                         <div class="flex justify-center mb-6">
                             <div
                                 class="relative w-20 h-20 flex items-center justify-center"
                             >
-                                <!-- Animated glow ring -->
                                 <div
                                     class="absolute inset-0 rounded-full bg-gradient-to-r from-lime-400/30 to-emerald-400/30 animate-pulse"
                                 ></div>
@@ -169,13 +173,14 @@
                             </div>
                         </div>
 
-                        <!-- Title -->
+                        <!-- Title ... -->
                         <h1
                             class="text-2xl md:text-3xl font-pixel text-center text-lime-400 mb-2"
                         >
                             Your Creations
                         </h1>
 
+                        <!-- Styles ... -->
                         <style>
                             @keyframes color-cycle {
                                 from {
@@ -202,7 +207,7 @@
                             }
                         </style>
 
-                        <!-- Subtitle -->
+                        <!-- Subtitle ... -->
                         <p
                             class="text-center text-gray-300 mb-8 font-pixel text-sm"
                         >
@@ -210,78 +215,100 @@
                             unlock creative features powered by $KALE.
                         </p>
 
-                        <!-- Feature pills -->
+                        <!-- Feature pills ... -->
                         <div class="flex flex-wrap justify-center gap-2 mb-8">
                             <span
                                 class="px-3 py-1 bg-lime-400/10 border border-lime-400/30 rounded-full text-lime-400 text-xs font-pixel"
+                                >🎵 Your Songs</span
                             >
-                                🎵 Your Songs
-                            </span>
                             <span
                                 class="px-3 py-1 bg-purple-400/10 border border-purple-400/30 rounded-full text-purple-400 text-xs font-pixel"
+                                >💎 Mint NFTs</span
                             >
-                                💎 Mint NFTs
-                            </span>
                             <span
                                 class="px-3 py-1 bg-pink-400/10 border border-pink-400/30 rounded-full text-pink-400 text-xs font-pixel"
+                                >🎨 Earn $KALE</span
                             >
-                                🎨 Earn $KALE
-                            </span>
                         </div>
 
                         <!-- Login Buttons -->
                         <div class="space-y-3">
-                            <!-- Primary Login Button (Passkey) -->
-                            <button
-                                class="w-full py-4 px-6 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-400 hover:to-rose-400 text-white font-pixel font-bold rounded-xl transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg hover:shadow-pink-400/30 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                                onclick={handleLogin}
-                                disabled={loggingIn || creating}
-                            >
-                                {#if loggingIn}
-                                    <Loader
-                                        classNames="w-5 h-5"
-                                        textColor="text-white"
-                                    />
-                                    <span>Signing In...</span>
-                                {:else}
-                                    <svg
-                                        class="w-5 h-5"
-                                        viewBox="0 0 24 24"
-                                        fill="currentColor"
-                                    >
-                                        <path
-                                            d="M7 14C5.9 14 5 13.1 5 12S5.9 10 7 10 9 10.9 9 12 8.1 14 7 14M12.6 10C11.8 7.7 9.6 6 7 6C3.7 6 1 8.7 1 12S3.7 18 7 18C9.6 18 11.8 16.3 12.6 14H16V18H20V14H23V10H12.6Z"
+                            {#if !showSignupForm}
+                                <!-- Primary Login Button (Passkey) -->
+                                <button
+                                    class="w-full py-4 px-6 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-400 hover:to-rose-400 text-white font-pixel font-bold rounded-xl transition-all duration-300 transform hover:scale-[1.02] hover:shadow-lg hover:shadow-pink-400/30 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                                    onclick={handleLogin}
+                                    disabled={loggingIn || creating}
+                                >
+                                    {#if loggingIn}
+                                        <Loader
+                                            classNames="w-5 h-5"
+                                            textColor="text-white"
                                         />
-                                    </svg>
-                                    <span>Passkey Login</span>
-                                {/if}
-                            </button>
+                                        <span>Signing In...</span>
+                                    {:else}
+                                        <svg
+                                            class="w-5 h-5"
+                                            viewBox="0 0 24 24"
+                                            fill="currentColor"
+                                        >
+                                            <path
+                                                d="M7 14C5.9 14 5 13.1 5 12S5.9 10 7 10 9 10.9 9 12 8.1 14 7 14M12.6 10C11.8 7.7 9.6 6 7 6C3.7 6 1 8.7 1 12S3.7 18 7 18C9.6 18 11.8 16.3 12.6 14H16V18H20V14H23V10H12.6Z"
+                                            />
+                                        </svg>
+                                        <span>Passkey Login</span>
+                                    {/if}
+                                </button>
+                            {:else}
+                                <!-- SignUp Form -->
+                                <div
+                                    class="bg-black/40 rounded-xl p-4 space-y-3 border border-lime-400/30"
+                                >
+                                    <input
+                                        type="text"
+                                        bind:value={username}
+                                        placeholder="Choose Username"
+                                        class="w-full bg-black/60 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-lime-400 transition-colors font-pixel text-sm"
+                                    />
 
-                            <!-- Create Account Button -->
-                            <button
-                                class="w-full py-3 px-6 bg-transparent border-2 border-lime-400/50 hover:border-lime-400 hover:bg-lime-400/10 text-lime-400 font-pixel font-bold rounded-xl transition-all duration-300 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
-                                onclick={handleSignUp}
-                                disabled={loggingIn || creating}
-                            >
-                                {#if creating}
-                                    <Loader
-                                        classNames="w-5 h-5"
-                                        textColor="text-lime-400"
-                                    />
-                                    <span>Creating Account...</span>
-                                {:else}
-                                    <svg
-                                        class="w-5 h-5"
-                                        viewBox="0 0 24 24"
-                                        fill="currentColor"
-                                    >
-                                        <path
-                                            d="M15,14C12.33,14 7,15.33 7,18V20H23V18C23,15.33 17.67,14 15,14M6,10V7H4V10H1V12H4V15H6V12H9V10M15,12A4,4 0 0,0 19,8A4,4 0 0,0 15,4A4,4 0 0,0 11,8A4,4 0 0,0 15,12Z"
+                                    <div class="flex justify-center">
+                                        <Turnstile
+                                            siteKey={import.meta.env
+                                                .PUBLIC_TURNSTILE_SITE_KEY}
+                                            on:callback={(e) => {
+                                                turnstileToken = e.detail.token;
+                                            }}
+                                            on:expired={() => {
+                                                turnstileToken = "";
+                                            }}
+                                            theme="dark"
                                         />
-                                    </svg>
-                                    <span>Create New Account</span>
-                                {/if}
-                            </button>
+                                    </div>
+
+                                    <div class="flex gap-2">
+                                        <button
+                                            class="flex-1 py-2 rounded-lg border border-slate-600 text-slate-400 hover:bg-slate-800 transition-colors font-pixel text-xs"
+                                            onclick={() =>
+                                                (showSignupForm = false)}
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            class="flex-1 py-2 rounded-lg bg-lime-400 text-slate-900 font-bold hover:bg-lime-300 transition-colors font-pixel text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                                            disabled={!username ||
+                                                !turnstileToken ||
+                                                creating}
+                                            onclick={handleSignUpSubmit}
+                                        >
+                                            {#if creating}
+                                                Creating...
+                                            {:else}
+                                                Start!
+                                            {/if}
+                                        </button>
+                                    </div>
+                                </div>
+                            {/if}
                         </div>
 
                         <!-- Bottom info -->

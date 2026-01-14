@@ -44,7 +44,8 @@
             } catch (e) {
                 console.error("Failed to load lab data", e);
                 error =
-                    "Failed to load system data: " + (e.message || String(e));
+                    "Failed to load system data: " +
+                    ((e as any).message || String(e));
                 isLoading = false;
             }
         }

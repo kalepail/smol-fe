@@ -30,45 +30,43 @@ async function testOzChannelsConnection() {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${OZ_CHANNELS_API_KEY}`,
             },
-            auth: []
-        }),
-    });
+        });
 
-    const text = await response.text();
-    let result;
-    try {
-        result = JSON.parse(text);
-    } catch {
-        result = { raw: text };
-    }
+        const text = await response.text();
+        let result;
+        try {
+            result = JSON.parse(text);
+        } catch {
+            result = { raw: text };
+        }
 
-    console.log(`Status: ${response.status} ${response.statusText}`);
-    console.log('Response:', JSON.stringify(result, null, 2));
-    console.log('');
+        console.log(`Status: ${response.status} ${response.statusText}`);
+        console.log('Response:', JSON.stringify(result, null, 2));
+        console.log('');
 
-    if (response.status === 401 || response.status === 403) {
-        console.log('❌ FAIL: API key is invalid or unauthorized');
+        if (response.status === 401 || response.status === 403) {
+            console.log('❌ FAIL: API key is invalid or unauthorized');
+            return false;
+        } else if (response.status === 400) {
+            // This is GOOD - means API key works, just invalid payload
+            console.log('✅ PASS: API key is valid! (Got expected validation error for test payload)');
+            return true;
+        } else if (response.status === 422) {
+            // Unprocessable entity - also means auth worked
+            console.log('✅ PASS: API key is valid! (Got expected XDR parsing error)');
+            return true;
+        } else if (response.status === 429) {
+            console.log('⚠️ WARNING: Rate limited - API key works but you hit the limit');
+            return true;
+        } else {
+            console.log(`⚠️ Unexpected status: ${response.status}`);
+            return response.status < 500;
+        }
+
+    } catch (error) {
+        console.error('❌ FAIL: Network error', error.message);
         return false;
-    } else if (response.status === 400) {
-        // This is GOOD - means API key works, just invalid payload
-        console.log('✅ PASS: API key is valid! (Got expected validation error for test payload)');
-        return true;
-    } else if (response.status === 422) {
-        // Unprocessable entity - also means auth worked
-        console.log('✅ PASS: API key is valid! (Got expected XDR parsing error)');
-        return true;
-    } else if (response.status === 429) {
-        console.log('⚠️ WARNING: Rate limited - API key works but you hit the limit');
-        return true;
-    } else {
-        console.log(`⚠️ Unexpected status: ${response.status}`);
-        return response.status < 500;
     }
-
-} catch (error) {
-    console.error('❌ FAIL: Network error', error.message);
-    return false;
-}
 }
 
 // Run the test

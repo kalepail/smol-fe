@@ -4,11 +4,13 @@
     import { useAuthentication } from "../../hooks/useAuthentication";
     import { userState } from "../../stores/user.svelte";
     import Loader from "../ui/Loader.svelte";
+    import { Turnstile } from "svelte-turnstile";
 
     // State
     let step = $state<"intro" | "username" | "processing" | "success">("intro");
     let username = $state("");
     let error = $state<string | null>(null);
+    let turnstileToken = $state("");
 
     const authHook = useAuthentication();
 
@@ -99,7 +101,7 @@
         error = null;
 
         try {
-            await authHook.signUp(username);
+            await authHook.signUp(username, turnstileToken);
             step = "success";
             setTimeout(() => {
                 window.location.href = "/create";
@@ -110,7 +112,6 @@
             step = "username";
         }
     }
-
 
     function handleSkip() {
         localStorage.setItem("smol_passkey_skipped", "true");
@@ -494,13 +495,27 @@
                     </button>
                     <button
                         onclick={submitUsername}
-                        disabled={!username.trim()}
+                        disabled={!username.trim() || !turnstileToken}
                         class="flex-[2] py-3 bg-lime-500 text-black font-pixel font-bold uppercase text-xs rounded-lg shadow-[0_4px_0_rgba(65,130,22,0.6)]
                            hover:bg-lime-400 active:translate-y-1 active:shadow-none disabled:opacity-50 disabled:cursor-not-allowed
                            transition-all"
                     >
                         Create Account
                     </button>
+                </div>
+
+                <div class="flex justify-center -mb-2 scale-75 origin-top">
+                    <Turnstile
+                        siteKey={import.meta.env.PUBLIC_TURNSTILE_SITE_KEY}
+                        on:callback={(e) => {
+                            turnstileToken = e.detail.token;
+                        }}
+                        on:expired={() => {
+                            turnstileToken = "";
+                        }}
+                        theme="dark"
+                        appearance="interaction-only"
+                    />
                 </div>
             </div>
         {:else if step === "processing"}
@@ -529,8 +544,8 @@
             <p
                 class="mt-3 md:mt-8 text-white/30 text-[10px] font-pixel text-center max-w-sm leading-relaxed shrink-0"
             >
-                Passkey login is free, instant, secure, and passwordless. Works across
-                all your devices.
+                Passkey login is free, instant, secure, and passwordless. Works
+                across all your devices.
                 <br />
                 🔒Your Keys. Your Music.
             </p>

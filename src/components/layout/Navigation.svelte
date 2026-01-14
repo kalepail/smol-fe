@@ -28,18 +28,6 @@
     closeMenu();
   }
 
-  async function handleSignUp() {
-    creating = true;
-    try {
-      const username = prompt("Enter your username");
-      if (!username) throw new Error("Username is required");
-      await authHook.signUp(username);
-      closeMenu();
-    } finally {
-      creating = false;
-    }
-  }
-
   async function handleLogout() {
     await authHook.logout();
     closeMenu();

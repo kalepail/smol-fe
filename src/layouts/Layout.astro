@@ -8,6 +8,7 @@ import OnboardingGuard from '../components/onboarding/OnboardingGuard.svelte'
 import PasskeyReprompt from '../components/retention/PasskeyReprompt.svelte'
 import DynamicBackground from '../components/layout/DynamicBackground.svelte'
 import '../styles/global.css'
+import { buildCanonical, robotsMetaForUrl, jsonLd } from '../lib/seo';
 
 interface Props {
 	title?: string;
@@ -15,15 +16,21 @@ interface Props {
 	song_url?: string | null;
 	image_url?: string | null;
 	hideBottomBar?: boolean;
+    schema?: any[]; // page-specific JSON-LD blocks
 }
 
 const {
 	title,
-	description = "Smol art onchain",
+	description = "Create and collect AI music onchain. The best AI music generator for making full songs from text prompts. Own your music.",
 	song_url = "https://cdn2.aisonggenerator.io/491bb94b-79df-41bb-b09b-2d295f1dfd05.mp3",
 	image_url,
 	hideBottomBar = false,
+    schema = []
 } = Astro.props;
+
+const siteOrigin = "https://noot.smol.xyz";
+const canonical = buildCanonical(Astro.url, siteOrigin);
+const robots = robotsMetaForUrl(Astro.url);
 
 let _kid = null
 let _cid = null
@@ -37,19 +44,59 @@ if (token) {
 	_cid = sub;
 }
 
+// Global structured data
+const siteSchema = [
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": `${siteOrigin}#org`,
+    "name": "Smol",
+    "url": siteOrigin,
+    "logo": `${siteOrigin}/favicon.png`,
+    "sameAs": [
+        "https://twitter.com/smolxyz",
+        "https://github.com/smol-ai" 
+    ]
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": `${siteOrigin}#website`,
+    "url": siteOrigin,
+    "name": "Smol — AI Music Generator",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": `${siteOrigin}/search?q={search_term_string}`,
+      "query-input": "required name=search_term_string"
+    }
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "@id": `${siteOrigin}#app`,
+    "name": "Smol",
+    "url": siteOrigin,
+    "applicationCategory": "MultimediaApplication",
+    "operatingSystem": "Web",
+    "description": "Generate songs from text prompts and collect them onchain."
+  }
+];
 
-
+// Combine global schema with page-specific schema
+const fullSchema = [...siteSchema, ...schema];
 ---
 
 <!doctype html>
 <html lang="en">
 	<head>
 		<meta charset="utf-8">
-		<meta name="robots" content="index, follow" />
 		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-		<link rel="apple-touch-icon" href={image_url ? image_url : "https://smol.xyz/favicon.png"} />
-		<link rel="icon" type="image/png" href={image_url ? image_url : "https://smol.xyz/favicon.png"} />
-		<meta name="generator" content={Astro.generator} />
+		<meta name="robots" content={robots} />
+		
+        <link rel="apple-touch-icon" href={image_url ? image_url : `${siteOrigin}/favicon.png`} />
+		<link rel="icon" type="image/png" href={image_url ? image_url : `${siteOrigin}/favicon.png`} />
+		
+        <meta name="generator" content={Astro.generator} />
 		<meta name="mobile-web-app-capable" content="yes">
 		<meta name="color-scheme" content="dark">
 		<meta name="theme-color" content="#020617">
@@ -60,36 +107,24 @@ if (token) {
 
 		<title transition:animate="fade">{title}</title>
 		<meta name="description" content={description}>
-		<!-- <meta name="medium" content="audio"> -->
-		<link rel="canonical" href={Astro.url}>
+        <meta name="keywords" content="AI music generator, AI songs, create music with AI, onchain music, crypto music, text to song, AI mixtape, Suno AI alternative, Udio alternative, make AI music" />
+		<link rel="canonical" href={canonical}>
 
 		<meta property="og:title" content={title} />
 		<meta property="og:description" content={description} />
 		<meta property="og:type" content="music.song" />
-		<meta property="og:url" content={Astro.url} />
-		<meta property="og:image" content={image_url ? `${image_url}?scale=16` : "https://smol.xyz/meta.png"} />
-		<!-- <meta property="og:image:width" content="1024">
-		<meta property="og:image:height" content="1024"> -->
-		<!-- <meta property="og:image:type" content="image/png"> -->
+		<meta property="og:url" content={canonical} />
+		<meta property="og:site_name" content="Smol" />
+		<meta property="og:image" content={image_url ? `${image_url}?scale=16` : `${siteOrigin}/meta.png`} />
 		<meta property="og:audio" content={song_url} />
 		<meta property="og:audio:secure_url" content={song_url} />
 		<meta property="og:audio:type" content="audio/mpeg" />
 
-		<!-- <link rel="alternate" type="application/json+oembed" href="//embed//"> -->
-
-		<!-- <meta property="og:video" content="">
-		<meta property="og:video:secure_url" content="">
-		<meta property="og:video:type" content="video/mp4">
-		<meta property="og:video:width" content="1024">
-		<meta property="og:video:height" content="1024">
-		<meta property="og:type" content="video.other"> -->
-
 		<meta name="twitter:card" content={song_url ? "player" : "summary_large_image"} />
-		<!-- <meta name="twitter:site" content="@smolxyz"> -->
 		<meta name="twitter:title" content={title} />
 		<meta name="twitter:description" content={description} />
-		<meta name="twitter:image" content={image_url ? `${image_url}?scale=16` : "https://smol.xyz/meta.png"} />
-		<meta name="twitter:url" content={Astro.url} />
+		<meta name="twitter:image" content={image_url ? `${image_url}?scale=16` : `${siteOrigin}/meta.png`} />
+		<meta name="twitter:url" content={canonical} />
 		
 		{song_url && (
 			<>
@@ -98,6 +133,11 @@ if (token) {
 				<meta name="twitter:player:height" content="80" />
 			</>
 		)}
+
+        {fullSchema.map(block => (
+            <script type="application/ld+json" set:html={jsonLd(block)} />
+        ))}
+
 		<style is:global>
 			/* Nuclear CSS option: globally hide SmolResults loading cards */
 			[data-smol-loading] {

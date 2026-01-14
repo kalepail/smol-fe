@@ -59,9 +59,9 @@ export const xlm = { get: getXlm };
 /**
  * Send a transaction via OZ Relayer Channels (Raw XDR)
  * 
- * Aligns with upstream architecture but uses API keys instead of Turnstile.
+ * Aligns with upstream architecture but uses Turnstile for Sybil resistance.
  */
-export async function send<T>(txn: AssembledTransaction<T> | Tx | string) {
+export async function send<T>(txn: AssembledTransaction<T> | Tx | string, turnstileToken: string) {
     // Extract XDR from transaction
     let xdr: string;
     if (txn instanceof AssembledTransaction) {
@@ -72,22 +72,17 @@ export async function send<T>(txn: AssembledTransaction<T> | Tx | string) {
         xdr = txn;
     }
 
-    const relayerUrl = import.meta.env.PUBLIC_CHANNELS_BASE_URL || "https://channels.openzeppelin.com";
-    const apiKey = import.meta.env.PUBLIC_CHANNELS_API_KEY;
+    // Use the new Kale Farm API endpoint
+    const relayerUrl = "https://api.kalefarm.xyz";
 
-    if (!apiKey) {
-        throw new Error('Relayer API key not configured');
-    }
-
-    // Submit XDR to OZ Channels endpoint
+    // Submit XDR to Kale Farm API with Turnstile token
     const response = await fetch(`${relayerUrl}/`, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            'X-Turnstile-Token': turnstileToken,
         },
-        // Tyler uses URLSearchParams for body, likely matching OZ expectation for XDR POST
-        body: new URLSearchParams({ xdr }),
+        body: JSON.stringify({ xdr }),
     });
 
     if (!response.ok) {

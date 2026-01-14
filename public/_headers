@@ -1,5 +1,10 @@
-/*
-  Cache-Control: no-cache
-
 /_astro/*
   Cache-Control: public, max-age=31536000, immutable
+
+/covers/*
+  Cache-Control: public, max-age=86400
+  CDN-Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+
+/song/*.mp3
+  Cache-Control: public, max-age=86400
+  CDN-Cache-Control: public, max-age=604800, stale-while-revalidate=86400

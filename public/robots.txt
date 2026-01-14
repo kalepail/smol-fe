@@ -1,2 +1,22 @@
 User-agent: *
+Disallow: /api/
+Disallow: /auth/
+Disallow: /account/
+Disallow: /settings/
+Disallow: /create/
+Disallow: /admin/
+Disallow: /*?utm_
+Disallow: /*&utm_
+Disallow: /*?ref=
+Disallow: /*&ref=
+
+Allow: /song/
+Allow: /mixtape/
+Allow: /tags/
+Allow: /ai-music/
+Allow: /prompts/
+Allow: /onchain/
+Allow: /artist/
+
+Sitemap: https://noot.smol.xyz/sitemap-index.xml
 Allow: /
