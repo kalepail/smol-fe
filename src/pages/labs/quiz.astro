@@ -1,14 +1,6 @@
 ---
 import Layout from "../../layouts/Layout.astro";
-import { shouldLogTagDiagnostics, getSnapshotTagStats } from "../../services/tags/unifiedTags";
-import { getSnapshotAsync } from "../../services/api/snapshot";
-
 import BlindQuizCore from "../../components/labs/BlindQuizCore.svelte";
-
-// Fetch data
-const { tags } = await getSnapshotTagStats();
-const allTags = tags.map(t => t.tag);
-const allSmols = await getSnapshotAsync();
 ---
 
 <Layout title="Blind Quiz | Smol Labs">
@@ -33,7 +25,7 @@ const allSmols = await getSnapshotAsync();
 
         <!-- Svelte Interactive Component -->
         <div class="w-full">
-             <BlindQuizCore client:only="svelte" allTags={allTags} smols={allSmols} />
+             <BlindQuizCore client:only="svelte" fetchOnMount={true} />
         </div>
 
     </div>

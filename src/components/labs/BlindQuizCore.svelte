@@ -1,13 +1,15 @@
-<script lang="ts">
     import LabsPlayer from "./LabsPlayer.svelte";
     import { onMount } from "svelte";
+    import { getSnapshotTagStats } from "../../services/tags/unifiedTags";
+    import { getSnapshotAsync } from "../../services/api/snapshot";
 
     interface Props {
-        smols: any[];
-        allTags: string[];
+        smols?: any[];
+        allTags?: string[];
+        fetchOnMount?: boolean;
     }
 
-    let { smols, allTags }: Props = $props();
+    let { smols = [], allTags = [], fetchOnMount = false }: Props = $props();
 
     let score = $state(0);
     let rounds = $state(0);
@@ -16,12 +18,27 @@
     let correctTag = $state<string | null>(null);
     let hasGuessed = $state(false);
     let lastResult = $state<"correct" | "incorrect" | null>(null);
+    let playableSmols = $state<any[]>([]);
 
-    // Filter smols to only those with audio and tags
-    const playableSmols = smols.filter((s) => {
-        const hasAudio = s.audio?.url || s.Song_1 || s.Id;
-        const hasTags = (s.Tags || s.tags || []).length > 0;
-        return hasAudio && hasTags;
+    function updatePlayableSmols() {
+        playableSmols = smols.filter((s) => {
+            const hasAudio = s.audio?.url || s.Song_1 || s.Id;
+            const hasTags = (s.Tags || s.tags || []).length > 0;
+            return hasAudio && hasTags;
+        });
+
+        console.log("[BlindQuiz] Total smols:", smols.length);
+        console.log("[BlindQuiz] Playable smols:", playableSmols.length);
+        
+        if (playableSmols.length > 0) {
+            startRound();
+        }
+    }
+
+    $effect(() => {
+        if (smols.length > 0 && playableSmols.length === 0) {
+            updatePlayableSmols();
+        }
     });
 
     function startRound() {
@@ -65,8 +82,23 @@
         }
     }
 
-    onMount(() => {
-        startRound();
+    onMount(async () => {
+        if (fetchOnMount) {
+            try {
+                const tagStats = await getSnapshotTagStats();
+                allTags = tagStats.tags.slice(0, 100).map((t) => t.tag);
+                smols = await getSnapshotAsync();
+                
+                updatePlayableSmols();
+            } catch (e) {
+                console.error("[BlindQuiz] Fetch failed:", e);
+            }
+        } else if (smols.length > 0) {
+             updatePlayableSmols();
+        } else {
+             // Try start anyway if props came in late
+             startRound();
+        }
     });
 </script>
 
