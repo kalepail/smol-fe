@@ -35,6 +35,16 @@
     let error = $state<string | null>(null);
     let success = $state(false);
     let turnstileToken = $state("");
+    let needsVerification = $state(false);
+    let resolveTokenPromise: ((token: string) => void) | null = null;
+
+    async function requestNewToken(): Promise<string> {
+        return new Promise((resolve) => {
+            turnstileToken = "";
+            needsVerification = true;
+            resolveTokenPromise = resolve;
+        });
+    }
 
     // Calculate payment breakdown
     const breakdown = $derived(calculateSupportPayment(curatorAddress, tracks));
@@ -75,6 +85,7 @@
             (step) => {
                 progressMessage = step;
             },
+            requestNewToken,
         );
 
         if (result.success) {
@@ -221,19 +232,27 @@
         <!-- Action Buttons -->
         <div class="flex gap-2 items-center">
             <!-- Visible Turnstile Wrapper to ensure it loads -->
-            <div class="flex justify-center -mb-2 scale-75 origin-top">
-                <Turnstile
-                    siteKey={import.meta.env.PUBLIC_TURNSTILE_SITE_KEY}
-                    on:callback={(e) => {
-                        turnstileToken = e.detail.token;
-                    }}
-                    on:expired={() => {
-                        turnstileToken = "";
-                    }}
-                    theme="dark"
-                    appearance="interaction-only"
-                />
-            </div>
+            {#if !submitting || needsVerification}
+                <div class="flex justify-center -mb-2 scale-75 origin-top">
+                    <Turnstile
+                        siteKey={import.meta.env.PUBLIC_TURNSTILE_SITE_KEY}
+                        on:callback={(e) => {
+                            const token = e.detail.token;
+                            turnstileToken = token;
+                            if (resolveTokenPromise) {
+                                resolveTokenPromise(token);
+                                resolveTokenPromise = null;
+                                needsVerification = false;
+                            }
+                        }}
+                        on:expired={() => {
+                            turnstileToken = "";
+                        }}
+                        theme="dark"
+                        appearance="interaction-only"
+                    />
+                </div>
+            {/if}
 
             <button
                 class="flex-1 py-1.5 px-2 rounded-lg font-pixel font-bold text-[9px] transition-all flex items-center justify-center gap-1
