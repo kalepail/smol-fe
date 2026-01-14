@@ -518,11 +518,6 @@
 </div>
 
 <style>
-    :global(body) {
-        font-family: "Press Start 2P", cursive;
-        letter-spacing: -0.5px;
-    }
-
     /* MOONLIGHT GLASS CARD */
     .glass-panel {
         /* Translucent Slate Blue */

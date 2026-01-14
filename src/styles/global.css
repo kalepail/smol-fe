@@ -1,6 +1,12 @@
 @import "tailwindcss";
 
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+@font-face {
+    font-family: 'Press Start 2P';
+    src: url('/fonts/PressStart2P.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
 
 :root {
     color-scheme: dark only;
@@ -10,6 +16,12 @@
 @layer base {
 
     /* Remove 300ms tap delay on mobile */
+    html,
+    body {
+        font-family: 'Press Start 2P', cursive;
+        letter-spacing: -0.5px;
+    }
+
     button:not(:disabled),
     [role="button"]:not(:disabled) {
         cursor: pointer;
