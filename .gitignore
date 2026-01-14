@@ -27,4 +27,4 @@ pnpm-debug.log*
 .wrangler/
 
 # Large data files (exceed Cloudflare 25 MiB limit)
-data/all-smols.json
+data/all-smols.json!.agent/

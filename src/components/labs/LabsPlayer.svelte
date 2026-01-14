@@ -48,7 +48,10 @@
     function togglePlay() {
         if (!audio) return;
         if (audio.paused) {
-            audio.play();
+            audio.play().catch((e) => {
+                console.warn("LabsPlayer: Play failed", e);
+                error = "Playback failed";
+            });
         } else {
             audio.pause();
         }

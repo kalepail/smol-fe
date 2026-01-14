@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { account, kale, server } from "../utils/passkey-kit";
+    import { account, kale, send } from "../utils/passkey-kit";
     import { getLatestSequence, truncate } from "../utils/base";
     import { userState } from "../stores/user.svelte";
     import {
@@ -117,7 +117,7 @@
                 expiration: sequence + 60,
             });
 
-            await server.send(tx);
+            await send(tx);
 
             await updateContractBalance(userState.contractId);
 

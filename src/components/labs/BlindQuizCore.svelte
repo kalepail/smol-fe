@@ -1,3 +1,4 @@
+<script lang="ts">
     import LabsPlayer from "./LabsPlayer.svelte";
     import { onMount } from "svelte";
     import { getSnapshotTagStats } from "../../services/tags/unifiedTags";
@@ -29,7 +30,7 @@
 
         console.log("[BlindQuiz] Total smols:", smols.length);
         console.log("[BlindQuiz] Playable smols:", playableSmols.length);
-        
+
         if (playableSmols.length > 0) {
             startRound();
         }
@@ -88,16 +89,16 @@
                 const tagStats = await getSnapshotTagStats();
                 allTags = tagStats.tags.slice(0, 100).map((t) => t.tag);
                 smols = await getSnapshotAsync();
-                
+
                 updatePlayableSmols();
             } catch (e) {
                 console.error("[BlindQuiz] Fetch failed:", e);
             }
         } else if (smols.length > 0) {
-             updatePlayableSmols();
+            updatePlayableSmols();
         } else {
-             // Try start anyway if props came in late
-             startRound();
+            // Try start anyway if props came in late
+            startRound();
         }
     });
 </script>

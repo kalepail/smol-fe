@@ -135,13 +135,16 @@
                 >Score</span
             >
             <div class="flex items-baseline gap-2">
-                 <span class="text-2xl font-bold text-[#9ae600]">{score}</span>
-                 {#if !hasGuessed}
-                    <span class="text-xs font-mono text-[#f91880] animate-pulse">
+                <span class="text-2xl font-bold text-[#9ae600]">{score}</span>
+                {#if !hasGuessed}
+                    <span
+                        class="text-xs font-mono text-[#f91880] animate-pulse"
+                    >
                         Potential: +{potentialPoints}
                     </span>
-                 {/if}
+                {/if}
             </div>
+        </div>
         <button
             onclick={startRound}
             disabled={!hasGuessed}

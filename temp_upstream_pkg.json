@@ -1,31 +1,25 @@
 {
   "name": "smol-fe",
   "type": "module",
-  "version": "1.5.4",
+  "version": "0.0.1",
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
-    "build": "node --max-old-space-size=4096 ./node_modules/astro/astro.js build",
+    "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "test": "node --test tests/*.test.js",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-check --tsconfig ./tsconfig.json --watch"
   },
   "dependencies": {
-    "@google/genai": "^1.34.0",
-    "@google/generative-ai": "^0.24.1",
-    "@openzeppelin/relayer-plugin-channels": "^0.5.0",
-    "@stellar/stellar-sdk": "^14.4.3",
-    "@types/canvas-confetti": "^1.9.0",
+    "@stellar/stellar-sdk": "^14.2.0",
     "buffer": "^6.0.3",
-    "canvas-confetti": "^1.9.4",
-    "comet-sdk": "link:ext\\comet-sdk",
+    "comet-sdk": "link:./ext/comet-sdk",
     "cookie": "^1.0.2",
     "jimp": "^1.6.0",
     "js-cookie": "^3.0.5",
     "passkey-kit": "^0.12.0",
-    "smol-sdk": "link:ext\\smol-sdk",
+    "smol-sdk": "link:./ext/smol-sdk",
     "svelte-dnd-action": "^0.9.65",
     "tldts": "^7.0.16"
   },
@@ -45,8 +39,7 @@
     "tailwindcss": "^4.1.14",
     "typescript": "^5.9.3",
     "vite-plugin-mkcert": "^1.17.9",
-    "vite-plugin-node-polyfills": "^0.24.0",
-    "wrangler": "^4.58.0"
+    "vite-plugin-node-polyfills": "^0.24.0"
   },
   "packageManager": "pnpm@10.18.1"
 }

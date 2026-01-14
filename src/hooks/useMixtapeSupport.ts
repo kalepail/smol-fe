@@ -1,5 +1,5 @@
 import { getDomain } from 'tldts';
-import { account, kale, server, sac } from '../utils/passkey-kit';
+import { account, kale, send, sac } from '../utils/passkey-kit';
 import { getLatestSequence, truncate } from '../utils/base';
 import { userState } from '../stores/user.svelte';
 import type { Smol } from '../types/domain';
@@ -171,7 +171,7 @@ export async function sendSupportPayment(
             });
 
             onProgress?.(`Submitting transfer to ${truncate(address, 4)}...`);
-            const result = await server.send(tx);
+            const result = await send(tx);
             if (result?.hash) lastTxHash = result.hash;
         }
 

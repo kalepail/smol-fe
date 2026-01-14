@@ -12,3 +12,16 @@ Start: 2026-01-13
 
 ## Iteration 1
 
+
+## Iteration 2
+- failure: N/A (Changing approach based on user feedback)
+- hypothesis: Use upstream XDR-based send() but with API key auth.
+- change: Refactor passkey-kit.ts, update Account.svelte, delete relayer-adapter.ts.
+
+
+## Iteration 4
+- failure: N/A (PASS)
+- change: Upgraded stellar-sdk to 14.4.3. Deleted orphan temp files.
+- verification: pnpm check PASSED (Exit 0).
+- result: All Passkey Migration errors resolved.
+

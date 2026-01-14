@@ -18,8 +18,8 @@ importers:
         specifier: ^0.5.0
         version: 0.5.0
       '@stellar/stellar-sdk':
-        specifier: ^14.2.0
-        version: 14.2.0
+        specifier: ^14.4.3
+        version: 14.4.3
       '@types/canvas-confetti':
         specifier: ^1.9.0
         version: 1.9.0
@@ -42,8 +42,8 @@ importers:
         specifier: ^3.0.5
         version: 3.0.5
       passkey-kit:
-        specifier: ^0.11.3
-        version: 0.11.3
+        specifier: ^0.12.0
+        version: 0.12.0
       smol-sdk:
         specifier: link:ext\smol-sdk
         version: link:ext/smol-sdk
@@ -1246,16 +1246,8 @@ packages:
   '@stellar/js-xdr@3.1.2':
     resolution: {integrity: sha512-VVolPL5goVEIsvuGqDc5uiKxV03lzfWdvYg1KikvwheDmTBO68CKDji3bAZ/kppZrx5iTA8z3Ld5yuytcvhvOQ==}
 
-  '@stellar/stellar-base@14.0.1':
-    resolution: {integrity: sha512-mI6Kjh9hGWDA1APawQTtCbR7702dNT/8Te1uuRFPqqdoAKBk3WpXOQI3ZSZO+5olW7BSHpmVG5KBPZpIpQxIvw==}
-    engines: {node: '>=20.0.0'}
-
   '@stellar/stellar-base@14.0.4':
     resolution: {integrity: sha512-UbNW6zbdOBXJwLAV2mMak0bIC9nw3IZVlQXkv2w2dk1jgCbJjy3oRVC943zeGE5JAm0Z9PHxrIjmkpGhayY7kw==}
-    engines: {node: '>=20.0.0'}
-
-  '@stellar/stellar-sdk@14.2.0':
-    resolution: {integrity: sha512-7nh2ogzLRMhfkIC0fGjn1LHUzk3jqVw8tjAuTt5ADWfL9CSGBL18ILucE9igz2L/RU2AZgeAvhujAnW91Ut/oQ==}
     engines: {node: '>=20.0.0'}
 
   '@stellar/stellar-sdk@14.4.3':
@@ -2736,8 +2728,8 @@ packages:
   passkey-kit-sdk@0.7.2:
     resolution: {integrity: sha512-+JwND3tUfygT1zw+MdAmqO8NpaATJFo9+1spEkwv1tiFX+/DIJjQXyw8M54hrhQIEiIFevLpOXSQXMTV78m2wQ==}
 
-  passkey-kit@0.11.3:
-    resolution: {integrity: sha512-N5isW4guSwMx/AInXcwF4c0vie5oLx2ZM2ct5yvNyjv7tMentzgt9rmSOPyss73bOzKuGgcRDO6hiLKeja6xpw==}
+  passkey-kit@0.12.0:
+    resolution: {integrity: sha512-7FB0TCPepwdiR+lotnE8LvmJzRLLk8Y68mWmvTNjUhrcI7XA2eB5agrDzd2SAs+hqvH4MbSXUnTpQq+qxoJw7w==}
 
   path-browserify@1.0.1:
     resolution: {integrity: sha512-b7uo2UCUOYZcnF/3ID0lulOJi/bafxa1xPe7ZPsammBSpjSWQkjNxlt635YGS2MiR9GjvuXCtz2emr3jbsz98g==}
@@ -4584,15 +4576,6 @@ snapshots:
 
   '@stellar/js-xdr@3.1.2': {}
 
-  '@stellar/stellar-base@14.0.1':
-    dependencies:
-      '@noble/curves': 1.9.7
-      '@stellar/js-xdr': 3.1.2
-      base32.js: 0.1.0
-      bignumber.js: 9.3.1
-      buffer: 6.0.3
-      sha.js: 2.4.12
-
   '@stellar/stellar-base@14.0.4':
     dependencies:
       '@noble/curves': 1.9.7
@@ -4601,19 +4584,6 @@ snapshots:
       bignumber.js: 9.3.1
       buffer: 6.0.3
       sha.js: 2.4.12
-
-  '@stellar/stellar-sdk@14.2.0':
-    dependencies:
-      '@stellar/stellar-base': 14.0.1
-      axios: 1.12.2(debug@4.4.3)
-      bignumber.js: 9.3.1
-      eventsource: 2.0.2
-      feaxios: 0.0.23
-      randombytes: 2.1.0
-      toml: 3.0.0
-      urijs: 1.19.11
-    transitivePeerDependencies:
-      - debug
 
   '@stellar/stellar-sdk@14.4.3':
     dependencies:
@@ -6549,15 +6519,16 @@ snapshots:
 
   passkey-kit-sdk@0.7.2:
     dependencies:
-      '@stellar/stellar-sdk': 14.2.0
+      '@stellar/stellar-sdk': 14.4.3
       buffer: 6.0.3
     transitivePeerDependencies:
       - debug
 
-  passkey-kit@0.11.3:
+  passkey-kit@0.12.0:
     dependencies:
+      '@openzeppelin/relayer-plugin-channels': 0.5.0
       '@simplewebauthn/browser': 13.2.2
-      '@stellar/stellar-sdk': 14.2.0
+      '@stellar/stellar-sdk': 14.4.3
       base64url: 3.0.1
       buffer: 6.0.3
       passkey-kit-sdk: 0.7.2
@@ -6857,7 +6828,7 @@ snapshots:
 
   sac-sdk@0.4.2:
     dependencies:
-      '@stellar/stellar-sdk': 14.2.0
+      '@stellar/stellar-sdk': 14.4.3
       buffer: 6.0.3
     transitivePeerDependencies:
       - debug

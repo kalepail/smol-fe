@@ -1,6 +1,6 @@
 import Cookies from 'js-cookie';
 import { getDomain } from 'tldts';
-import { account, server } from '../utils/passkey-kit';
+import { account, send } from '../utils/passkey-kit';
 import { setUserAuth, clearUserAuth, userState } from '../stores/user.svelte';
 
 interface ConnectResult {
@@ -88,7 +88,7 @@ export function useAuthentication() {
       throw await res.text();
     });
 
-    await server.send(signedTx);
+    await send(signedTx);
 
     setUserAuth(cid, keyIdBase64);
     // Mark wallet as connected since createWallet was just called (which internally connects)

@@ -1,42 +1,51 @@
-# Repository Map & Architecture
+# Smol FE Repository Map
 
-## Search Notes
-*   **Method:** `ls -R src`, `view_file package.json`, `view_file astro.config.mjs`
-*   **Date:** 2026-01-09
-
-## Tech Stack (Verified)
-*   **Framework:** Astro 5.14.1 (SSR Enabled)
-*   **UI Library:** Svelte 5.39.9 (Runes)
-*   **Style:** TailwindCSS 4.1.14 (Vite Plugin)
-*   **Build:** Vite 5 (via Astro)
-*   **Deploy:** Cloudflare Pages (`@astrojs/cloudflare` v12.6.9)
+## Overview
+- **Stack**: Astro + Svelte 5 (Runes) + TailwindCSS
+- **State Management**: Svelte 5 Rune Stores (`src/stores/*.svelte.ts`)
+- **API**: Astro Endpoints (`src/pages/api/*`), Backend Handoff (`BACKEND_HANDOFF.md`)
+- **Blockchains**: Stellar (Soroban) via `smol-sdk` and `comet-sdk`.
 
 ## Directory Structure
 
-### `src/pages` (Router)
-*   **SSR Context:** All `.astro` files here run on the server (Cloudflare Worker).
-*   **Routes:**
-    *   `src/pages/index.astro` -> `/`
-    *   `src/pages/[id].astro` -> `/:id` (Song Detail)
-    *   `src/pages/create.astro` -> `/create` (Creation Flow)
-    *   `src/pages/radio.astro` -> `/radio`
+### Top Level
+- `.agent/`: Antigravity configuration (Rules, Skills, Workflows).
+- `ext/`: Linked dependencies (`smol-sdk`, `comet-sdk`).
+- `scripts/`: Utility scripts (data processing, snapshot management).
+- `src/`: Source code.
 
-### `src/components`
-*   **`audio/`**: `BarAudioPlayer.svelte` (Canonical persistent player).
-*   **`smol/`**:
-    *   `Smol.svelte`: Hybrid component (Splash vs Generator). Orchestrates creation.
-    *   `SmolResults.svelte`: Detail view component. Fetching logic isolated here.
-*   **`radio/`**: `RadioBuilder.svelte`.
+### Source (`src/`)
+- **`components/`**: UI building blocks.
+  - `components/labs/`: Experiments (Asteroids, Quiz, Roulette).
+  - `components/ui/`: Shared atomic components.
+- **`pages/`**: Routing.
+  - `pages/api/`: Server-side API endpoints.
+  - `pages/labs/`: Labs section pages.
+  - `pages/[id].astro`: Song detail page (potential consistency hotspot).
+- **`services/`**: Business logic & Integrations.
+  - `services/ai/`: Gemini/AI integration.
+  - `services/api/`: Wrapper for backend API calls.
+  - `services/tags/`: Tag logic.
+- **`stores/`** (⚠️ HOTSPOT): Global state using Svelte 5 Runes.
+  - `audio.svelte.ts`: Audio playback state (Howler/WebAudio).
+  - `user.svelte.ts`: Auth & User profile state.
+  - `preferences.svelte.ts`: Local persistence.
+- **`utils/`**: Helpers.
 
-### `src/stores` (Global State)
-*   `audio.svelte.ts`: Svelte 5 Rune store for playback state.
-*   `user.svelte.ts`: Authentication state.
+## Key Hotspots & Danger Zones
+1.  **Audio State** (`src/stores/audio.svelte.ts`):
+    - Central playback logic. Modifications here affect Global Player, Radio, and Artist pages.
+2.  **Auth & Tipping** (Requires Ralph Loop):
+    - **Passkey Kit**: Hard interaction with `passkey-kit` and `OpenZeppelin Relayer`.
+    - **Relayer**: Configured via environment variables (~`RELAYER_URL`).
+    - **Files**: `src/stores/user.svelte.ts`, `src/services/api/transact.ts` (hypothetical).
+3.  **Data Consistency**:
+    - `GalacticSnapshot.json` (Static) vs Live API.
+    - `src/services/api/snapshot.ts`: Unification logic.
+4.  **Svelte 5 Runes**:
+    - This project uses Runes (`$state`, `$effect`). Do NOT introduce Svelte 4 stores (`writable`) without good reason.
 
-## Build Pipeline
-*   **Command:** `pnpm run build` -> `astro build`
-*   **Output:** `dist/` (Static assets + Worker)
-*   **Adapter:** Cloudflare Pages (SSR)
-
-## Risk Assessment
-1.  **Hydration Latency:** `[id].astro` relies on SSR fetch, or client-side fetch in `SmolResults`.
-2.  **Navigation Consistency:** Creation flow uses `history.pushState` (Client-only URL change), creating a "Sticky" state that differs from a fresh page load.
+## Deploy
+- **Target**: Cloudflare Pages.
+- **Config**: `wrangler.toml`.
+- **Constraint**: Edge runtime limitations apply.
