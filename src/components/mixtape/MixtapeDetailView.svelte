@@ -45,8 +45,8 @@
   let purchaseCurrentStep = $state("");
   let purchaseCompletedSteps = $state(new Set<string>());
 
-  // Support banner state (optional tip jar)
-  let showSupportBanner = $state(true);
+  // Support banner state (optional tip jar) - hidden by default, shown on artwork tap
+  let showSupportBanner = $state(false);
   let supportBannerDismissed = $state(false);
   let purchaseModal: any;
 
@@ -656,6 +656,9 @@
       onStopPlayAll={playbackHook.stopPlayAll}
       onPurchaseClick={handlePurchaseClick}
       onEdit={isCreator ? handleEdit : undefined}
+      onArtworkClick={() => {
+        showSupportBanner = true;
+      }}
     />
 
     <MixtapeTracklist

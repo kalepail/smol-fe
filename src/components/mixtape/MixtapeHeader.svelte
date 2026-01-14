@@ -16,6 +16,7 @@
     onStopPlayAll: () => void;
     onPurchaseClick: () => void;
     onEdit?: () => void;
+    onArtworkClick?: () => void;
   }
 
   let {
@@ -30,14 +31,18 @@
     onStopPlayAll,
     onPurchaseClick,
     onEdit,
+    onArtworkClick,
   }: Props = $props();
 </script>
 
 <header
   class="flex flex-col gap-4 rounded-xl md:rounded-[2.5rem] border border-white/5 bg-black/20 backdrop-blur-md p-3 md:p-6 shadow-2xl md:flex-row md:gap-8"
 >
-  <div
-    class="grid h-auto w-full grid-cols-2 grid-rows-2 overflow-hidden rounded-xl bg-slate-800 md:h-56 md:w-56 md:shrink-0 border border-white/5"
+  <button
+    type="button"
+    class="grid h-auto w-full grid-cols-2 grid-rows-2 overflow-hidden rounded-xl bg-slate-800 md:h-56 md:w-56 md:shrink-0 border border-white/5 cursor-pointer hover:border-lime-500/30 transition-colors focus:outline-none focus:ring-2 focus:ring-lime-500/50"
+    onclick={onArtworkClick}
+    title="Tap to support this mixtape"
   >
     {#each Array.from({ length: 4 }) as _, index}
       <div class="aspect-square bg-slate-900">
@@ -64,7 +69,7 @@
         {/if}
       </div>
     {/each}
-  </div>
+  </button>
 
   <div class="flex flex-1 flex-col gap-4">
     <div>
