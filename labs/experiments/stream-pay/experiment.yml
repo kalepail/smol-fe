@@ -1,8 +1,8 @@
 id: lab_stream_pay
 title: "StreamPay (EXP-005)"
 owner: "Ralph"
-status_color: ORANGE
-readiness_score: 65
+status_color: RED
+readiness_score: 40
 risk_level: MEDIUM
 blast_radius: LABS_ONLY
 env: LOCALNET

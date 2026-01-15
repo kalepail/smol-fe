@@ -24,7 +24,7 @@
     import KaleEmoji from "../ui/KaleEmoji.svelte";
     import { Turnstile } from "svelte-turnstile";
     import { getLatestSequence } from "../../utils/base";
-    import { Transaction, Networks } from "@stellar/stellar-sdk/minimal";
+    import { Transaction, Networks } from "@stellar/stellar-sdk";
 
     // --- TYPES ---
     type AppState = "intro" | "transition" | "main";
