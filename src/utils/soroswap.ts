@@ -83,7 +83,8 @@ export async function getQuote(request: QuoteRequest, network: 'mainnet' | 'test
         assetOut: request.assetOut,
         amount: request.amount,
         tradeType: request.tradeType,
-        protocols: request.protocols ?? ['soroswap', 'phoenix', 'aqua', 'sdex'],
+        // SDEX excluded: returns different format without rawTrade.distribution
+        protocols: request.protocols ?? ['soroswap', 'phoenix', 'aqua'],
         parts: request.parts ?? 10,
         slippageBps: request.slippageBps ?? 100, // 1% default
         maxHops: request.maxHops ?? 3
