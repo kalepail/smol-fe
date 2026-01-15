@@ -929,55 +929,6 @@
                 </h3>
               </div>
               <div class="flex items-center gap-2">
-                {#if showBuilder && audioState.currentSong}
-                  <div
-                    class="flex items-center gap-2 mr-0 sm:mr-2 bg-white/5 hover:bg-white/10 transition-colors rounded-full pl-1 pr-3 py-1 border border-white/5"
-                    transition:fade={{ duration: 200 }}
-                  >
-                    <img
-                      src={`${API_URL}/image/${audioState.currentSong.Id}.png?scale=8`}
-                      alt="Art"
-                      class="w-5 h-5 rounded-full object-cover"
-                    />
-                    <!-- Marquee or truncated title -->
-                    <span
-                      class="text-[10px] text-white/80 font-bold max-w-[80px] sm:max-w-[120px] truncate hidden sm:block"
-                    >
-                      {audioState.currentSong.Title || "Untitled"}
-                    </span>
-                    <!-- Play/Pause Mini -->
-                    <button
-                      onclick={(e) => {
-                        e.stopPropagation();
-                        togglePlayPause();
-                      }}
-                      class="w-4 h-4 flex items-center justify-center text-white hover:scale-110 active:scale-95 transition-transform ml-1"
-                    >
-                      {#if isPlaying}
-                        <svg
-                          class="w-3 h-3"
-                          fill="currentColor"
-                          viewBox="0 0 24 24"
-                          ><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg
-                        >
-                      {:else}
-                        <svg
-                          class="w-3 h-3"
-                          fill="currentColor"
-                          viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg
-                        >
-                      {/if}
-                    </button>
-
-                    <button
-                      onclick={() => (showBuilder = false)}
-                      class="text-[10px] text-[#9ae600] font-pixel ml-2 hover:underline uppercase tracking-wide"
-                    >
-                      MAXIMIZE
-                    </button>
-                  </div>
-                {/if}
-
                 {#if !isCompact}
                   <button
                     class="text-[10px] font-pixel font-bold text-slate-500 hover:text-white uppercase tracking-widest transition-colors underline"
@@ -997,12 +948,92 @@
               </p>
 
               {#if generatedPlaylist.length > 0}
-                <button
-                  class="bg-white text-black font-pixel px-6 py-2 border-4 border-white shadow-[8px_8px_0px_0px_rgba(255,255,255,0.2)] hover:bg-[#9ae600] hover:border-[#9ae600] active:translate-y-1 active:shadow-none transition-none uppercase tracking-widest text-xs"
-                  onclick={() => (showBuilder = false)}
-                >
-                  Return to Player →
-                </button>
+                {#if audioState.currentSong}
+                  <div
+                    class="w-full max-w-[90%] md:max-w-[400px] mt-2 mb-2 bg-[#2a2a2a] border border-white/10 rounded-xl p-2 pr-4 flex items-center gap-3 shadow-lg cursor-pointer hover:bg-[#333] transition-colors group relative overflow-hidden"
+                    onclick={() => (showBuilder = false)}
+                    transition:fade
+                  >
+                    <div class="relative w-12 h-12 shrink-0">
+                      <img
+                        src={`${API_URL}/image/${audioState.currentSong.Id}.png?scale=8`}
+                        alt="Art"
+                        class="w-full h-full rounded-lg object-cover shadow-sm bg-black"
+                      />
+                      <div
+                        class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg"
+                      >
+                        <span class="text-white text-xs">⤢</span>
+                      </div>
+                    </div>
+
+                    <div class="flex flex-col flex-1 min-w-0 z-10">
+                      <div class="flex items-center gap-2 mb-0.5">
+                        {#if isPlaying}
+                          <div
+                            class="w-1.5 h-1.5 rounded-full bg-[#9ae600] animate-pulse"
+                          ></div>
+                          <span
+                            class="text-[#9ae600] font-pixel text-[8px] tracking-wider"
+                            >ON AIR</span
+                          >
+                        {:else}
+                          <div
+                            class="w-1.5 h-1.5 rounded-full bg-slate-500"
+                          ></div>
+                          <span
+                            class="text-slate-400 font-pixel text-[8px] tracking-wider"
+                            >PAUSED</span
+                          >
+                        {/if}
+                      </div>
+                      <span
+                        class="text-white font-bold text-sm truncate leading-tight"
+                        >{audioState.currentSong.Title || "Untitled"}</span
+                      >
+                      <span class="text-white/60 text-xs truncate leading-tight"
+                        >{audioState.currentSong.artist || "Smol"}</span
+                      >
+                    </div>
+
+                    <!-- Play Button (Action) -->
+                    <button
+                      class="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-[#9ae600] hover:text-black transition-all shrink-0 z-20"
+                      onclick={(e) => {
+                        e.stopPropagation();
+                        togglePlayPause();
+                      }}
+                    >
+                      {#if isPlaying}
+                        <svg
+                          class="w-3 h-3"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"
+                          ><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg
+                        >
+                      {:else}
+                        <svg
+                          class="w-3 h-3 ml-0.5"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg
+                        >
+                      {/if}
+                    </button>
+                  </div>
+                  <p
+                    class="text-[9px] text-zinc-500 font-pixel uppercase tracking-widest mt-1 mb-2 hover:text-zinc-300 cursor-pointer"
+                    onclick={() => (showBuilder = false)}
+                  >
+                    Click to Resume Session
+                  </p>
+                {:else}
+                  <button
+                    class="bg-white text-black font-pixel px-6 py-2 border-4 border-white shadow-[8px_8px_0px_0px_rgba(255,255,255,0.2)] hover:bg-[#9ae600] hover:border-[#9ae600] active:translate-y-1 active:shadow-none transition-none uppercase tracking-widest text-xs"
+                    onclick={() => (showBuilder = false)}
+                  >
+                    Return to Player →
+                  </button>
+                {/if}
               {/if}
             </div>
 
