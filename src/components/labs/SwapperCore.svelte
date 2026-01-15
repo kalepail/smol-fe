@@ -12,6 +12,10 @@
         toStroops,
         type QuoteResponse,
     } from "../../utils/soroswap";
+    import {
+        buildSwapTransactionForCAddress,
+        isCAddress,
+    } from "../../utils/swap-builder";
     import { userState, setUserAuth } from "../../stores/user.svelte";
     import {
         balanceState,
@@ -287,12 +291,26 @@
         statusMessage = "Building swap...";
 
         try {
-            // 1. Build unsigned XDR from Soroswap API
-            const { xdr } = await buildTransaction(
-                quote,
-                userState.contractId, // from (C address)
-                userState.contractId, // to (same wallet receives output)
-            );
+            // 1. Build unsigned XDR
+            // Use direct aggregator invocation for C addresses (smart wallets)
+            // Fall back to Soroswap API for G addresses
+            let xdr: string;
+            if (isCAddress(userState.contractId)) {
+                // C address: Build via direct aggregator contract invocation
+                statusMessage = "Building C-address swap...";
+                xdr = await buildSwapTransactionForCAddress(
+                    quote,
+                    userState.contractId,
+                );
+            } else {
+                // G address: Use Soroswap API (may work for traditional accounts)
+                const result = await buildTransaction(
+                    quote,
+                    userState.contractId,
+                    userState.contractId,
+                );
+                xdr = result.xdr;
+            }
 
             // 2. Parse XDR and sign with passkey
             statusMessage = "Sign with passkey...";
