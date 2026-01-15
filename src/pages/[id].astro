@@ -100,27 +100,10 @@ if (id) {
 		</div>
         
         <!-- SSR Content for SEO (Visible but unobtrusive) -->
-        <article class="prose dark:prose-invert mt-12 max-w-2xl text-center opacity-70 hover:opacity-100 transition-opacity">
-            <h1 class="text-2xl font-bold mb-2 sr-only">{title}</h1>
-            <p class="text-sm mb-4 sr-only">{description}</p>
-            
-            {lyricsDisplay && (
-                <details class="text-left bg-slate-900/50 p-4 rounded-lg border border-slate-800">
-                    <summary class="cursor-pointer text-sm font-medium text-lime-400">Song Lyrics & Details</summary>
-                    <div class="mt-4 text-xs font-mono whitespace-pre-wrap">{lyricsDisplay}</div>
-                    {rawPrompt && (
-                        <div class="mt-4 pt-4 border-t border-slate-700">
-                            <span class="text-[10px] uppercase tracking-wider text-slate-500">Prompt</span>
-                            <p class="text-xs text-slate-300">{rawPrompt}</p>
-                        </div>
-                    )}
-                    {song_url && (
-                        <div class="mt-4">
-                             <a href={song_url} class="text-xs text-lime-500 hover:underline" download>Download MP3</a>
-                        </div>
-                    )}
-                </details>
-            )}
-        </article>
+        <!-- SSR Content for SEO -->
+        <div class="sr-only">
+            <h1>{title}</h1>
+            <p>{description}</p>
+        </div>
 	</div>
 </Layout>
