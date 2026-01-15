@@ -1,10 +1,11 @@
 <script lang="ts">
-    import { account, sac } from "../../utils/passkey-kit";
+    import { account, sac, send } from "../../utils/passkey-kit";
     import { onMount, tick } from "svelte";
     import { getDomain } from "tldts";
     import { Buffer } from "buffer";
     import {
         getQuote,
+        buildTransaction,
         TOKENS,
         formatAmount,
         toStroops,
@@ -16,6 +17,9 @@
         updateAllBalances,
     } from "../../stores/balance.svelte";
     import KaleEmoji from "../ui/KaleEmoji.svelte";
+    import { Turnstile } from "svelte-turnstile";
+    import { getLatestSequence } from "../../utils/base";
+    import { Transaction, Networks } from "@stellar/stellar-sdk/minimal";
 
     // --- TYPES ---
     type AppState = "intro" | "transition" | "main";
@@ -52,6 +56,7 @@
     let quoteError = $state("");
     let statusMessage = $state("");
     let txHash = $state<string | null>(null);
+    let turnstileToken = $state("");
 
     // Send Logic
     let sendTo = $state("");
@@ -250,23 +255,91 @@
 
     // --- ACTIONS ---
     async function handleAction() {
-        if (!userState.contractId) return;
+        if (!userState.contractId || !userState.keyId) {
+            statusMessage = "Connect wallet first";
+            return;
+        }
 
-        swapState = "submitting";
-        statusMessage = "Processing...";
+        if (mode === "swap") {
+            await executeSwap();
+        } else {
+            await executeSend();
+        }
+    }
+
+    async function executeSwap() {
+        if (!quote || !userState.contractId || !userState.keyId) {
+            statusMessage = "No quote available";
+            return;
+        }
+
+        if (!turnstileToken) {
+            statusMessage = "Complete verification first";
+            return;
+        }
+
+        swapState = "awaiting_passkey";
+        statusMessage = "Building swap...";
 
         try {
-            await new Promise((r) => setTimeout(r, 2000));
-            txHash = "HM0000000000000000000000000000000000000000000";
+            // 1. Build unsigned XDR from Soroswap API
+            const { xdr } = await buildTransaction(
+                quote,
+                userState.contractId, // from (C address)
+                userState.contractId, // to (same wallet receives output)
+            );
 
+            // 2. Parse XDR and sign with passkey
+            statusMessage = "Sign with passkey...";
+            let tx = new Transaction(
+                xdr,
+                import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
+            );
+            const sequence = await getLatestSequence();
+            const signedTx = await account.get().sign(tx, {
+                rpId: getDomain(window.location.hostname) ?? undefined,
+                keyId: userState.keyId,
+                expiration: sequence + 60,
+            });
+
+            // 3. Submit to relayer
+            swapState = "submitting";
+            statusMessage = "Submitting swap...";
+            const result = await send(signedTx, turnstileToken);
+
+            txHash = result?.hash || "submitted";
             swapState = "confirmed";
-            statusMessage = "Access Granted.";
+            statusMessage = "Swap complete!";
+
+            // Reset for next swap
+            swapAmount = "";
+            swapOutputAmount = "";
+            quote = null;
+            turnstileToken = "";
+
             refreshBalances();
         } catch (e) {
-            console.error(e);
-            statusMessage = "Failed.";
+            console.error("Swap error:", e);
+            const message = e instanceof Error ? e.message : "Swap failed";
+
+            // Check for user cancellation
+            if (
+                message.toLowerCase().includes("abort") ||
+                message.toLowerCase().includes("cancel") ||
+                message.toLowerCase().includes("not allowed")
+            ) {
+                statusMessage = "Swap cancelled";
+            } else {
+                statusMessage = message;
+            }
             swapState = "failed";
         }
+    }
+
+    async function executeSend() {
+        // TODO: Implement send functionality
+        statusMessage = "Send not implemented yet";
+        swapState = "failed";
     }
 </script>
 
@@ -473,6 +546,26 @@
                                     {tokenOutSymbol}</span
                                 >
                             {/if}
+                        </div>
+                    {/if}
+
+                    <!-- Turnstile Verification (for swap mode) -->
+                    {#if mode === "swap" && quote && !turnstileToken}
+                        <div
+                            class="flex justify-center -mb-2 scale-90 origin-center"
+                        >
+                            <Turnstile
+                                siteKey={import.meta.env
+                                    .PUBLIC_TURNSTILE_SITE_KEY}
+                                on:callback={(e) => {
+                                    turnstileToken = e.detail.token;
+                                }}
+                                on:expired={() => {
+                                    turnstileToken = "";
+                                }}
+                                theme="dark"
+                                appearance="interaction-only"
+                            />
                         </div>
                     {/if}
 
