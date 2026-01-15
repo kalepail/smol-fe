@@ -16,6 +16,7 @@
   import AudioManager from "../audio/AudioManager.svelte";
   import { userState } from "../../stores/user.svelte";
   import { buildRadioUrl } from "../../utils/radio";
+  import CastButton from "../ui/CastButton.svelte";
 
   let {
     playlist = [],
@@ -564,7 +565,7 @@
 
                 <!-- Song ID (Pink Double Note) -->
                 <a
-                  href={`/${currentSong?.Id || ""}`}
+                  href={`/${currentSong?.Id || ""}?from=radio`}
                   class="w-7 h-7 flex items-center justify-center rounded-full bg-[#d836ff]/10 hover:bg-[#d836ff]/20 border border-[#d836ff]/30 text-[#d836ff] transition-colors active:scale-95"
                   onclick={(e) => e.stopPropagation()}
                   title="Song Details"
@@ -797,6 +798,12 @@
               ? 'opacity-0 group-hover/fs:opacity-100 transition-opacity'
               : ''}"
           >
+            <!-- Cast Button -->
+            <CastButton
+              size={16}
+              classNames="w-8 h-8 flex items-center justify-center rounded-full bg-black/40 hover:bg-black/60 border border-white/10 text-white/60 hover:text-white backdrop-blur-md transition-all active:scale-95"
+            />
+
             <!-- Queue Toggle (Fullscreen Only) -->
             {#if isFullscreen}
               <button

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { fade } from "svelte/transition";
   import type { Smol } from "../../types/domain";
   import {
     audioState,
@@ -143,6 +144,38 @@
 
   // Handle URL params for "Send to Radio" feature from TagExplorer
   onMount(async () => {
+    // 1. Load persisted state IMMEDIATELY (Before async calls)
+    const saved = localStorage.getItem("smol_radio_state");
+    if (saved) {
+      try {
+        const state = JSON.parse(saved);
+        if (state.selectedTags) selectedTags = state.selectedTags;
+        if (state.generatedPlaylist)
+          generatedPlaylist = state.generatedPlaylist;
+        if (state.stationName) stationName = state.stationName;
+        if (state.stationDescription)
+          stationDescription = state.stationDescription;
+        if (state.isActiveGlobalShuffle !== undefined)
+          isActiveGlobalShuffle = state.isActiveGlobalShuffle;
+        if (state.currentIndex !== undefined) currentIndex = state.currentIndex;
+
+        if (state.generatedPlaylist && state.generatedPlaylist.length > 0) {
+          showBuilder = false;
+        } else if (state.showBuilder !== undefined) {
+          showBuilder = state.showBuilder;
+        }
+
+        // Reset history set from loaded IDs
+        if (state.generatedPlaylist) {
+          recentlyGeneratedIds = new Set(
+            state.generatedPlaylist.map((s: Smol) => s.Id),
+          );
+        }
+      } catch (e) {
+        // console.error("Failed to restore radio state:", e);
+      }
+    }
+
     // Load snapshot tags immediately
     try {
       const snap = await getSnapshotTagStats();
@@ -186,42 +219,6 @@
       tagMeta = unified.meta;
     } catch (error) {
       // console.error("[Radio] Failed to load unified tags", error);
-    }
-
-    // 1. Load persisted state
-
-    const saved = localStorage.getItem("smol_radio_state");
-    if (saved) {
-      try {
-        const state = JSON.parse(saved);
-        if (state.selectedTags) selectedTags = state.selectedTags;
-        if (state.generatedPlaylist)
-          generatedPlaylist = state.generatedPlaylist;
-        if (state.stationName) stationName = state.stationName;
-        if (state.stationDescription)
-          stationDescription = state.stationDescription;
-        if (state.isActiveGlobalShuffle !== undefined)
-          isActiveGlobalShuffle = state.isActiveGlobalShuffle;
-        if (state.currentIndex !== undefined) currentIndex = state.currentIndex;
-
-        if (state.showBuilder !== undefined) {
-          showBuilder = state.showBuilder;
-        } else if (
-          state.generatedPlaylist &&
-          state.generatedPlaylist.length > 0
-        ) {
-          showBuilder = false;
-        }
-
-        // Reset history set from loaded IDs
-        if (state.generatedPlaylist) {
-          recentlyGeneratedIds = new Set(
-            state.generatedPlaylist.map((s: Smol) => s.Id),
-          );
-        }
-      } catch (e) {
-        // console.error("Failed to restore radio state:", e);
-      }
     }
 
     // 2. Handle URL params (overrides persisted state if present)
@@ -932,6 +929,55 @@
                 </h3>
               </div>
               <div class="flex items-center gap-2">
+                {#if showBuilder && audioState.currentSong}
+                  <div
+                    class="flex items-center gap-2 mr-0 sm:mr-2 bg-white/5 hover:bg-white/10 transition-colors rounded-full pl-1 pr-3 py-1 border border-white/5"
+                    transition:fade={{ duration: 200 }}
+                  >
+                    <img
+                      src={`${API_URL}/image/${audioState.currentSong.Id}.png?scale=8`}
+                      alt="Art"
+                      class="w-5 h-5 rounded-full object-cover"
+                    />
+                    <!-- Marquee or truncated title -->
+                    <span
+                      class="text-[10px] text-white/80 font-bold max-w-[80px] sm:max-w-[120px] truncate hidden sm:block"
+                    >
+                      {audioState.currentSong.Title || "Untitled"}
+                    </span>
+                    <!-- Play/Pause Mini -->
+                    <button
+                      onclick={(e) => {
+                        e.stopPropagation();
+                        togglePlayPause();
+                      }}
+                      class="w-4 h-4 flex items-center justify-center text-white hover:scale-110 active:scale-95 transition-transform ml-1"
+                    >
+                      {#if isPlaying}
+                        <svg
+                          class="w-3 h-3"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"
+                          ><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg
+                        >
+                      {:else}
+                        <svg
+                          class="w-3 h-3"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg
+                        >
+                      {/if}
+                    </button>
+
+                    <button
+                      onclick={() => (showBuilder = false)}
+                      class="text-[10px] text-[#9ae600] font-pixel ml-2 hover:underline uppercase tracking-wide"
+                    >
+                      MAXIMIZE
+                    </button>
+                  </div>
+                {/if}
+
                 {#if !isCompact}
                   <button
                     class="text-[10px] font-pixel font-bold text-slate-500 hover:text-white uppercase tracking-widest transition-colors underline"

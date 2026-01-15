@@ -4,7 +4,7 @@ import RadioBuilder from "../components/radio/RadioBuilder.svelte";
 // LIVE DATA: RadioBuilder now fetches smols on mount, no more snapshot needed!
 ---
 
-<Layout title="Radio Station">
+<Layout title="Radio Station" hideBottomBar={true}>
   <div class="h-[calc(100dvh-80px)] overflow-hidden flex flex-col pb-[env(safe-area-inset-bottom)]">
     <RadioBuilder client:only="svelte" />
   </div>
