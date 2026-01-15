@@ -6,6 +6,7 @@
     import {
         getQuote,
         buildTransaction,
+        sendTransaction,
         TOKENS,
         formatAmount,
         toStroops,
@@ -57,6 +58,7 @@
     let statusMessage = $state("");
     let txHash = $state<string | null>(null);
     let turnstileToken = $state("");
+    let turnstileFailed = $state(false); // Fallback mode when Turnstile returns 401
 
     // Send Logic
     let sendTo = $state("");
@@ -273,7 +275,9 @@
             return;
         }
 
-        if (!turnstileToken) {
+        // Require either Turnstile token OR fallback mode
+        const useFallback = turnstileFailed && !turnstileToken;
+        if (!turnstileToken && !useFallback) {
             statusMessage = "Complete verification first";
             return;
         }
@@ -302,14 +306,25 @@
                 expiration: sequence + 60,
             });
 
-            // 3. Submit to relayer
+            // 3. Submit transaction
             swapState = "submitting";
-            statusMessage = "Submitting swap...";
-            const result = await send(signedTx, turnstileToken);
+
+            let result;
+            if (useFallback) {
+                // Fallback: Direct to Soroswap (user pays XLM fee)
+                statusMessage = "Submitting via Soroswap...";
+                result = await sendTransaction(signedTx.toXDR(), false);
+            } else {
+                // Primary: Tyler's relayer (sponsored fees)
+                statusMessage = "Submitting swap...";
+                result = await send(signedTx, turnstileToken);
+            }
 
             txHash = result?.hash || "submitted";
             swapState = "confirmed";
-            statusMessage = "Swap complete!";
+            statusMessage = useFallback
+                ? "Swap complete! (paid fee)"
+                : "Swap complete!";
 
             // Reset for next swap
             swapAmount = "";
@@ -550,7 +565,7 @@
                     {/if}
 
                     <!-- Turnstile Verification (for swap mode) -->
-                    {#if mode === "swap" && quote && !turnstileToken}
+                    {#if mode === "swap" && quote && !turnstileToken && !turnstileFailed}
                         <div
                             class="flex justify-center -mb-2 scale-90 origin-center"
                         >
@@ -559,9 +574,22 @@
                                     .PUBLIC_TURNSTILE_SITE_KEY}
                                 on:callback={(e) => {
                                     turnstileToken = e.detail.token;
+                                    turnstileFailed = false;
                                 }}
                                 on:expired={() => {
                                     turnstileToken = "";
+                                }}
+                                on:error={() => {
+                                    console.log(
+                                        "Turnstile failed, enabling fallback",
+                                    );
+                                    turnstileFailed = true;
+                                }}
+                                on:timeout={() => {
+                                    console.log(
+                                        "Turnstile timeout, enabling fallback",
+                                    );
+                                    turnstileFailed = true;
                                 }}
                                 theme="dark"
                                 appearance="interaction-only"
@@ -569,14 +597,30 @@
                         </div>
                     {/if}
 
+                    <!-- Fallback Notice (when Turnstile fails) -->
+                    {#if mode === "swap" && quote && turnstileFailed && !turnstileToken}
+                        <div
+                            class="text-center text-[9px] text-[#fbbf24] bg-[#fbbf24]/10 px-3 py-2 rounded-lg border border-[#fbbf24]/30"
+                        >
+                            ⚠️ Verification unavailable. You'll pay ~0.0001 XLM
+                            fee.
+                        </div>
+                    {/if}
+
                     <!-- ACTION BUTTON -->
                     <button
                         onclick={handleAction}
                         class="action-btn w-full py-5 text-sm font-bold shadow-lg"
-                        disabled={swapState === "submitting"}
+                        disabled={swapState === "submitting" ||
+                            (mode === "swap" &&
+                                quote &&
+                                !turnstileToken &&
+                                !turnstileFailed)}
                     >
                         {#if swapState === "submitting"}
                             {mode === "swap" ? "Swapping..." : "Sending..."}
+                        {:else if mode === "swap" && turnstileFailed && !turnstileToken}
+                            Swap (pay fee)
                         {:else}
                             {mode === "swap" ? "Swap" : "Send"}
                         {/if}
