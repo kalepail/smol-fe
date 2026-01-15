@@ -291,7 +291,10 @@
 
             // 2. Parse XDR and sign with passkey
             statusMessage = "Sign with passkey...";
-            let tx = new Transaction(xdr, Networks.PUBLIC);
+            let tx = new Transaction(
+                xdr,
+                import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
+            );
             const sequence = await getLatestSequence();
             const signedTx = await account.get().sign(tx, {
                 rpId: getDomain(window.location.hostname) ?? undefined,
