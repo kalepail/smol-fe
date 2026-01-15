@@ -8,12 +8,13 @@ description: Frontend and styling conventions for Smol FE. Use when writing new 
 Follow these conventions when developing for Smol FE.
 
 ## 1. Typography 🔡
-- **Pixel Font**: Use `font-pixel` for all text in the Labs and Arcade sections.
+- **Pixel Font**: Use `font-pixel` for all text in Labs and Arcade sections.
 - **Headers**: `text-4xl` or `text-8xl` for main titles.
 - **Colors**:
   - Primary Text: `#9ae600` (Terminal Green)
   - Accent: `#ff424c` (Labs Red)
   - Warning: `#FDDA24` (Biohazard Yellow)
+  - Sky Blue: `#7dd3fc` (Moonlight accent)
 
 ## 2. API & Data Fetching 📡
 - **RPC Calls**: ALWAYS use `src/utils/rpc.ts`. Do NOT use `PUBLIC_RPC_URL` directly.
@@ -22,10 +23,43 @@ Follow these conventions when developing for Smol FE.
   - Avoid `Astro.props` for large datasets to prevent build-time OOMs.
 
 ## 3. Component Structure 🧩
-- **Svelte**: Preferred for interactive components (games, tools).
+- **Svelte 5**: Use runes (`$state`, `$derived`, `$effect`) for reactivity.
 - **Astro**: Preferred for static pages and layouts.
-- **Imports**: Use standard imports. Avoid custom element hydration unless absolutely necessary.
+- **Client Hydration**: Use `client:only="svelte"` for interactive components.
 
-## 4. Troubleshooting 🔧
-- **"client:only" Error**: Ensure the component name matches the import.
-- **Build Hangs**: Check if large data files are being loaded in the frontmatter of `.astro` files. Move to client-side fetch.
+## 4. State Management 📊
+- **Global Stores**: Located in `src/stores/*.svelte.ts`
+  - `userState` — Authentication, contractId, keyId
+  - `balanceState` — XLM and KALE balances
+  - `audioState` — Playback state
+  - `preferences` — User settings, themes
+
+## 5. Environment Variables 🔧
+```
+PUBLIC_RPC_URL          → Stellar RPC endpoint
+PUBLIC_NETWORK_PASSPHRASE → "Public Global Stellar Network ; September 2015"
+PUBLIC_KALE_SAC_ID      → KALE token contract
+PUBLIC_XLM_SAC_ID       → XLM wrapped contract
+PUBLIC_TURNSTILE_SITE_KEY → Cloudflare Turnstile
+PUBLIC_SOROSWAP_API_KEY → Soroswap API access
+```
+
+## 6. Labs Components 🧪
+- **Location**: `src/components/labs/`
+- **Naming**: PascalCase for components (e.g., `SwapperCore.svelte`)
+- **Styling**: Glass morphism with `backdrop-blur`, dark slate backgrounds
+
+## 7. Transaction Patterns 💳
+- See `blockchain-transactions` skill for detailed Stellar/Soroban patterns
+- Key rule: C addresses → direct aggregator, G addresses → API
+
+## 8. Testing & Deployment 🚀
+- **Build**: `npm run build`
+- **Local Dev**: `npm run dev` (requires HTTPS for passkeys)
+- **Deployment**: PR to `kalepail/smol-fe:noot` branch for noot.smol.xyz
+
+## 9. Troubleshooting 🔧
+- **"client:only" Error**: Ensure component name matches import.
+- **Build Hangs**: Move large data files from frontmatter to client-side fetch.
+- **Passkey Errors**: Check rpId matches domain, ensure HTTPS.
+- **Turnstile 401**: Domain not in sitekey allowlist in Cloudflare dashboard.
