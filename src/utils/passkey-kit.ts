@@ -11,7 +11,7 @@ let _xlm: ReturnType<SACClient['getSACClient']> | null = null;
 
 function getAccount(): PasskeyKit {
     if (!_account) {
-        console.log("[DEBUG] Initializing PasskeyKit with RPC:", RPC_URL);
+        // console.log("[DEBUG] Initializing PasskeyKit with RPC:", RPC_URL);
         _account = new PasskeyKit({
             rpcUrl: RPC_URL,
             networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,

@@ -1,0 +1,25 @@
+id: lab_stream_pay
+title: "StreamPay (EXP-005)"
+owner: "Ralph"
+status_color: ORANGE
+readiness_score: 65
+risk_level: MEDIUM
+blast_radius: LABS_ONLY
+env: LOCALNET
+feature_flag: "labs.stream_pay.enabled"
+last_reviewed: "2026-01-15"
+dependencies:
+  - "src/utils/passkey-kit"
+links:
+  spec: "src/components/labs/STREAM_PAY_README.md"
+  pr: ""
+  docs: []
+definition_of_done:
+  - "Pay-per-second Sim"
+  - "Session Keys Architecture"
+  - "Trap Forfeiture Logic"
+  - "Turnstile Integration"
+notes: |
+  Core logic implemented and safeguarded.
+  Needs real Stellar Integration (currently mocked).
+  Status is ORANGE because we are mocking the money.

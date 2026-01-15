@@ -1,0 +1,104 @@
+[
+    {
+        "id": "lab_roulette",
+        "title": "Tag Roulette",
+        "badge": "EXP-001",
+        "status_color": "YELLOW",
+        "readiness_score": 75,
+        "last_reviewed": "2026-01-15",
+        "blast_radius": "LABS_ONLY",
+        "path": "experiments/roulette/experiment.yml",
+        "href": "/labs/roulette",
+        "description": "Spin the wheel of metadata. Select hashtags to uncover hidden tracks from the archives.",
+        "tags": [
+            "Music",
+            "Discovery"
+        ],
+        "isLocked": false
+    },
+    {
+        "id": "lab_quiz",
+        "title": "Blind Quiz",
+        "badge": "EXP-002",
+        "status_color": "YELLOW",
+        "readiness_score": 75,
+        "last_reviewed": "2026-01-15",
+        "blast_radius": "LABS_ONLY",
+        "path": "experiments/quiz/experiment.yml",
+        "href": "/labs/quiz",
+        "description": "Test your sonic knowledge. Listen to a snippet and guess the correct genre tags.",
+        "tags": [
+            "Game",
+            "Audio"
+        ],
+        "isLocked": false
+    },
+    {
+        "id": "lab_waveform",
+        "title": "Audio Recon",
+        "badge": "EXP-003",
+        "status_color": "YELLOW",
+        "readiness_score": 72,
+        "last_reviewed": "2026-01-15",
+        "blast_radius": "LABS_ONLY",
+        "path": "experiments/waveform/experiment.yml",
+        "href": "/labs/waveform",
+        "description": "Signal interception active. Correlate audio input with visual signatures.",
+        "tags": [
+            "Visuals",
+            "Puzzle"
+        ],
+        "isLocked": false
+    },
+    {
+        "id": "lab_swapper",
+        "title": "Swapper",
+        "badge": "BETA",
+        "status_color": "ORANGE",
+        "readiness_score": 68,
+        "last_reviewed": "2026-01-15",
+        "blast_radius": "PROD_GATED",
+        "path": "experiments/swapper/experiment.yml",
+        "href": "/labs/swapper",
+        "description": "Exchange tokens on the Kale Chain. Powered by Soroswap Aggregator.",
+        "tags": [
+            "DeFi",
+            "Tool"
+        ],
+        "isLocked": false
+    },
+    {
+        "id": "lab_kale_or_fail",
+        "title": "Kale or Fail",
+        "badge": "EXP-004",
+        "status_color": "YELLOW",
+        "readiness_score": 75,
+        "last_reviewed": "2026-01-15",
+        "blast_radius": "LABS_ONLY",
+        "path": "experiments/kale-or-fail/experiment.yml",
+        "href": "/labs/kale-or-fail",
+        "description": "Curate the airwaves. Swipe right to tip artists, swipe left to skip.",
+        "tags": [
+            "Game",
+            "Curator"
+        ],
+        "isLocked": false
+    },
+    {
+        "id": "lab_stream_pay",
+        "title": "StreamPay",
+        "badge": "EXP-005",
+        "status_color": "ORANGE",
+        "readiness_score": 65,
+        "last_reviewed": "2026-01-15",
+        "blast_radius": "LABS_ONLY",
+        "path": "experiments/stream-pay/experiment.yml",
+        "href": "/labs/stream-pay",
+        "description": "Pay-Per-Second Audio Streaming Protocol. Continuous micro-transactions.",
+        "tags": [
+            "DeFi",
+            "Music"
+        ],
+        "isLocked": false
+    }
+]

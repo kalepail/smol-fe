@@ -624,6 +624,11 @@
     });
     enterMixtapeMode();
   }
+
+  function handleSendToRadio() {
+    if (!mixtape) return;
+    window.location.href = `/radio?mixtape=${mixtape.id}&from=mixtape`;
+  }
 </script>
 
 {#if loading}
@@ -656,6 +661,7 @@
       onStopPlayAll={playbackHook.stopPlayAll}
       onPurchaseClick={handlePurchaseClick}
       onEdit={isCreator ? handleEdit : undefined}
+      onSendToRadio={handleSendToRadio}
       onArtworkClick={() => {
         showSupportBanner = true;
       }}

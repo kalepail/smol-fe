@@ -16,6 +16,7 @@
   import AudioManager from "../audio/AudioManager.svelte";
   import { userState } from "../../stores/user.svelte";
   import { buildRadioUrl } from "../../utils/radio";
+  import CastButton from "../ui/CastButton.svelte";
 
   let {
     playlist = [],
@@ -87,7 +88,7 @@
 
   // Context-aware back navigation
   let backContext = $state<{
-    type: "radio" | "artist" | "home";
+    type: "radio" | "artist" | "home" | "mixtape";
     label: string;
     url: string;
   } | null>(null);
@@ -100,6 +101,12 @@
         backContext = { type: "radio", label: "Back to Radio", url: "back" };
       } else if (from === "artist") {
         backContext = { type: "artist", label: "Back to Artist", url: "back" };
+      } else if (from === "mixtape") {
+        backContext = {
+          type: "mixtape",
+          label: "Back to Mixtape",
+          url: "back",
+        };
       }
     }
   });
@@ -564,7 +571,7 @@
 
                 <!-- Song ID (Pink Double Note) -->
                 <a
-                  href={`/${currentSong?.Id || ""}`}
+                  href={`/${currentSong?.Id || ""}?from=radio`}
                   class="w-7 h-7 flex items-center justify-center rounded-full bg-[#d836ff]/10 hover:bg-[#d836ff]/20 border border-[#d836ff]/30 text-[#d836ff] transition-colors active:scale-95"
                   onclick={(e) => e.stopPropagation()}
                   title="Song Details"
@@ -757,6 +764,14 @@
                     />
                     <path d="M13 13h-2v10h2V13z" />
                   </svg>
+                {:else if backContext.type === "mixtape"}
+                  <!-- Mixtape Icon (Cassette) -->
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                      d="M21 8c0-1.66-1.34-3-3-3H6C4.34 5 3 6.34 3 8v8c0 1.66 1.34 3 3 3h12c1.66 0 3-1.34 3-3V8zM8.5 15c-1.38 0-2.5-1.12-2.5-2.5S7.12 10 8.5 10s2.5 1.12 2.5 2.5S9.88 15 8.5 15zm7 0c-1.38 0-2.5-1.12-2.5-2.5S14.12 10 15.5 10s2.5 1.12 2.5 2.5S16.88 15 15.5 15z"
+                    />
+                    <path d="M6 8h12v1.5H6z" opacity="0.5" />
+                  </svg>
                 {:else}
                   <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"
                     ><path
@@ -797,6 +812,12 @@
               ? 'opacity-0 group-hover/fs:opacity-100 transition-opacity'
               : ''}"
           >
+            <!-- Cast Button -->
+            <CastButton
+              size={16}
+              classNames="w-8 h-8 flex items-center justify-center rounded-full bg-black/40 hover:bg-black/60 border border-white/10 text-white/60 hover:text-white backdrop-blur-md transition-all active:scale-95"
+            />
+
             <!-- Queue Toggle (Fullscreen Only) -->
             {#if isFullscreen}
               <button

@@ -44,6 +44,9 @@ export function useMixtapePurchase() {
 
     // Log the XDR for inspection
     const xdrString = tx.built?.toXDR();
+    if (tx.built) {
+      console.log("Purchase Tx Hash:", tx.built.hash().toString('hex'));
+    }
 
 
     // Submit transaction via passkey server
@@ -60,7 +63,7 @@ export function useMixtapePurchase() {
     onBatchComplete: (trackIds: string[]) => void,
     getFreshToken?: () => Promise<string>
   ): Promise<void> {
-    const BATCH_SIZE = 9;
+    const BATCH_SIZE = 3;
 
     // Build arrays of tokens and their corresponding comet addresses
     const tokenData: Array<{

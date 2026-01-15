@@ -16,6 +16,7 @@
     onStopPlayAll: () => void;
     onPurchaseClick: () => void;
     onEdit?: () => void;
+    onSendToRadio?: () => void;
     onArtworkClick?: () => void;
   }
 
@@ -31,6 +32,7 @@
     onStopPlayAll,
     onPurchaseClick,
     onEdit,
+    onSendToRadio,
     onArtworkClick,
   }: Props = $props();
 </script>
@@ -52,8 +54,7 @@
             alt={mixtape.title}
             class="h-full w-full object-cover pixelated"
             onerror={(e) => {
-              // @ts-ignore
-              e.currentTarget.style.display = "none";
+              (e.currentTarget as HTMLImageElement).style.display = "none";
             }}
           />
         {:else}
@@ -86,6 +87,44 @@
     </div>
 
     <div class="flex flex-col gap-2 md:flex-row md:items-center md:gap-4">
+      <!-- 1. Fully Owned / Buy -->
+      {#if fullyOwned && userState.contractId}
+        <span
+          class="relative flex items-center justify-center gap-2 rounded px-6 py-2 text-sm font-medium bg-gradient-to-r from-slate-400 to-slate-600"
+        >
+          Fully Owned
+          <img
+            src="/owned-badge.png"
+            alt="Fully Owned Badge"
+            class="absolute -top-4 -right-7 w-12 h-12 transform rotate-12 z-10"
+          />
+        </span>
+      {:else if !onEdit}
+        <button
+          class="flex items-center justify-center gap-2 rounded-lg md:rounded-xl border border-white/20 bg-white/5 px-4 py-2 text-[10px] md:text-xs font-pixel font-bold uppercase tracking-widest text-white hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+          onclick={onPurchaseClick}
+          disabled={isPurchasing}
+        >
+          {#if isPurchasing}
+            <Loader classNames="w-4 h-4" />
+            Processing...
+          {:else}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              class="w-3 h-3 md:w-4 md:h-4"
+            >
+              <path
+                d="M1 1.75A.75.75 0 011.75 1h1.628a1.75 1.75 0 011.734 1.51L5.18 3a65.25 65.25 0 0113.36 1.412.75.75 0 01.58.875 48.645 48.645 0 01-1.618 6.2.75.75 0 01-.712.513H6a2.503 2.503 0 00-2.292 1.5H17.25a.75.75 0 010 1.5H2.76a.75.75 0 01-.748-.807 4.002 4.002 0 012.716-3.486L3.626 2.716a.25.25 0 00-.248-.216H1.75A.75.75 0 011 1.75zM6 17.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15.5 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"
+              />
+            </svg>
+            Buy Mixtape
+          {/if}
+        </button>
+      {/if}
+
+      <!-- 2. Play All -->
       {#if isPlayingAll && isAnyPlaying}
         <button
           class="flex items-center justify-center gap-2 rounded-lg md:rounded-xl bg-rose-500/20 border border-rose-500/50 px-4 py-2 text-[10px] md:text-xs font-pixel font-bold uppercase tracking-widest text-rose-400 hover:bg-rose-500 hover:text-white transition-all shadow-[0_0_15px_rgba(244,63,94,0.2)]"
@@ -121,41 +160,26 @@
         </button>
       {/if}
 
-      <!-- Fully Owned Badge (only show if actually fully owned) -->
-      {#if fullyOwned && userState.contractId}
-        <span
-          class="relative flex items-center justify-center gap-2 rounded px-6 py-2 text-sm font-medium bg-gradient-to-r from-slate-400 to-slate-600"
-        >
-          Fully Owned
-          <img
-            src="/owned-badge.png"
-            alt="Fully Owned Badge"
-            class="absolute -top-4 -right-7 w-12 h-12 transform rotate-12 z-10"
-          />
-        </span>
-      {:else if !onEdit}
-        <!-- Buy Mixtape (only show if not creator and not fully owned) -->
+      <!-- 3. Send to Radio -->
+      {#if onSendToRadio}
         <button
-          class="flex items-center justify-center gap-2 rounded-lg md:rounded-xl border border-white/20 bg-white/5 px-4 py-2 text-[10px] md:text-xs font-pixel font-bold uppercase tracking-widest text-white hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-          onclick={onPurchaseClick}
-          disabled={isPurchasing}
+          class="flex items-center justify-center gap-2 rounded-lg md:rounded-xl bg-[#f97316]/20 border border-[#f97316]/50 px-4 py-2 text-[10px] md:text-xs font-pixel font-bold uppercase tracking-widest text-[#f97316] hover:bg-[#f97316] hover:text-white transition-all shadow-[0_0_15px_rgba(249,115,22,0.2)]"
+          onclick={onSendToRadio}
         >
-          {#if isPurchasing}
-            <Loader classNames="w-4 h-4" />
-            Processing...
-          {:else}
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              class="w-3 h-3 md:w-4 md:h-4"
-            >
-              <path
-                d="M1 1.75A.75.75 0 011.75 1h1.628a1.75 1.75 0 011.734 1.51L5.18 3a65.25 65.25 0 0113.36 1.412.75.75 0 01.58.875 48.645 48.645 0 01-1.618 6.2.75.75 0 01-.712.513H6a2.503 2.503 0 00-2.292 1.5H17.25a.75.75 0 010 1.5H2.76a.75.75 0 01-.748-.807 4.002 4.002 0 012.716-3.486L3.626 2.716a.25.25 0 00-.248-.216H1.75A.75.75 0 011 1.75zM6 17.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15.5 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"
-              />
-            </svg>
-            Buy Mixtape
-          {/if}
+          <svg
+            class="w-3 h-3 md:w-4 md:h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"
+            />
+          </svg>
+          Radio
         </button>
       {/if}
     </div>

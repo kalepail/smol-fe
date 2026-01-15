@@ -25,11 +25,11 @@
 
     // Background Options
     const bgOptions = [
-        { name: "Kale Field", url: "/images/kale-field-bg.png" },
+        { name: "Kale Field", url: "/images/kale-field-bg.webp" },
         { name: "Solid Slate", url: "", style: "background-color: #1D293D;" },
         {
             name: "Valentine's ❤️",
-            url: "/images/valentine_hearts.png",
+            url: "/images/valentine_hearts.webp",
             special: true,
             tooltip: "Sign Up Before Feb 14th!",
         },

@@ -1,0 +1,25 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import StreamPayCore from '../../components/labs/StreamPayCore.svelte';
+import BackLink from '../../components/labs/BackLink.astro';
+---
+
+<Layout title="StreamPay (EXP-005)">
+  <main class="min-h-screen bg-black text-[#9ae600] font-pixel p-4">
+    <div class="max-w-md mx-auto pt-20">
+      <BackLink href="/labs" label="Back to Labs" />
+      
+      <div class="mb-8 border-b-2 border-[#9ae600] pb-4">
+        <h1 class="text-2xl uppercase mb-2">StreamPay Protocol</h1>
+        <div class="flex gap-2 text-[10px] text-[#555] uppercase tracking-widest">
+            <span>EXP-005</span>
+            <span>//</span>
+            <span>Pay-Per-Second</span>
+        </div>
+      </div>
+
+      <StreamPayCore client:only="svelte" />
+      
+    </div>
+  </main>
+</Layout>

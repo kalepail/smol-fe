@@ -68,6 +68,7 @@
         background-size: 200% auto;
         animation: rainbow-flow 4s linear infinite;
         -webkit-background-clip: text;
+        background-clip: text;
         -webkit-text-fill-color: transparent;
     }
 </style>

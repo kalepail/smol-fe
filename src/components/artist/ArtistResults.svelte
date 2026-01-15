@@ -20,6 +20,7 @@
     import { sac } from "../../utils/passkey-kit";
     import { safeFetchSmols } from "../../services/api/smols";
     import { fly, fade, scale } from "svelte/transition";
+    import CastButton from "../ui/CastButton.svelte";
     import MiniVisualizer from "../ui/MiniVisualizer.svelte";
     import { flip } from "svelte/animate";
     import { backOut } from "svelte/easing";
@@ -1324,6 +1325,12 @@
                                 />
                             </svg>
                         </button>
+
+                        <!-- Cast Button -->
+                        <CastButton
+                            size={14}
+                            classNames="w-7 h-7 flex items-center justify-center active:scale-95 border rounded-full transition-all border-white/10 bg-white/5 hover:bg-white/10 text-white/60 hover:text-white shadow-lg"
+                        />
                     </div>
                 {/if}
 
@@ -1454,6 +1461,14 @@
                 >
                     Collected
                 </button>
+            </div>
+
+            <!-- Cast Button (Desktop) -->
+            <div class="hidden md:flex items-center mr-1">
+                <CastButton
+                    size={16}
+                    classNames="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
+                />
             </div>
 
             <!-- Search Input (Desktop Only) -->

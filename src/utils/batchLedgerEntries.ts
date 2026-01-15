@@ -165,7 +165,7 @@ export async function getBatchSACBalances(
   const cacheKey = createBatchCacheKey(requests);
   const existing = inflightRequests.get(cacheKey);
   if (existing) {
-    console.log('Deduplicating batch balance request');
+    // console.log('Deduplicating batch balance request');
     return existing;
   }
 

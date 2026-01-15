@@ -8,7 +8,7 @@
     <!-- Background Image Layer -->
     <div class="absolute inset-0 z-0 overflow-hidden">
         <img
-            src="/images/kale-planet.png"
+            src="/images/kale-planet.webp"
             alt="Planet Demeter"
             class="w-full h-full object-cover scale-[1.15] md:scale-105 -translate-y-8 md:-translate-y-4 opacity-30 transition-transform duration-[30s]"
         />

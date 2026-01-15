@@ -6,6 +6,8 @@
         badge?: string;
         isLocked?: boolean;
         tags?: string[];
+        status_color?: string;
+        readiness_score?: number;
     }
 
     let {
@@ -15,7 +17,17 @@
         badge = "ALPHA",
         isLocked = false,
         tags = [],
+        status_color = "GRAY",
+        readiness_score = 0,
     }: Props = $props();
+
+    const colors: Record<string, string> = {
+        GREEN: "#4ade80",
+        YELLOW: "#facc15",
+        ORANGE: "#fb923c",
+        RED: "#ef4444",
+        GRAY: "#666",
+    };
 </script>
 
 <a
@@ -47,11 +59,29 @@
                 </div>
             {/if}
         </div>
-        <span
-            class="text-[10px] font-pixel border border-[#9ae600] text-[#9ae600] px-2 py-0.5 rounded-full uppercase tracking-widest bg-[#9ae600]/10"
-        >
-            {badge}
-        </span>
+        <div class="flex flex-col items-end gap-1">
+            <span
+                class="text-[10px] font-pixel border border-[#9ae600] text-[#9ae600] px-2 py-0.5 rounded-full uppercase tracking-widest bg-[#9ae600]/10"
+            >
+                {badge}
+            </span>
+            <!-- LabTech Badge -->
+            <div
+                class="flex items-center gap-1 cursor-help"
+                title="READINESS: {readiness_score}/100 ({status_color})"
+            >
+                <div
+                    class="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[10px]"
+                    style="border-bottom-color: {colors[status_color] ||
+                        '#666'}; filter: drop-shadow(0 0 5px {colors[
+                        status_color
+                    ] || '#666'});"
+                ></div>
+                <span class="text-[8px] text-[#555] font-mono"
+                    >{readiness_score}</span
+                >
+            </div>
+        </div>
     </div>
 
     <p

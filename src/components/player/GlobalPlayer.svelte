@@ -26,6 +26,7 @@
         unlikeSmol,
     } from "../../services/api/smols";
     import { fly, fade, scale } from "svelte/transition";
+    import CastButton from "../ui/CastButton.svelte";
     import MiniVisualizer from "../ui/MiniVisualizer.svelte";
     import { backOut } from "svelte/easing";
     import type { Smol } from "../../types/domain";
@@ -744,6 +745,12 @@
                                     />
                                 </svg>
                             </button>
+
+                            <!-- Cast Button -->
+                            <CastButton
+                                size={14}
+                                classNames="w-7 h-7 bg-white/5 rounded-full hover:bg-white/10 border border-white/5"
+                            />
                         </div>
                     </div>
                 {/if}

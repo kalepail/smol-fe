@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { fade } from "svelte/transition";
   import type { Smol } from "../../types/domain";
   import {
     audioState,
@@ -15,7 +16,10 @@
     generateStationName,
     generateStationDescription,
   } from "../../services/ai/gemini";
-  import { publishMixtape } from "../../services/api/mixtapes";
+  import {
+    publishMixtape,
+    getMixtapeDetail,
+  } from "../../services/api/mixtapes";
   import { isAuthenticated } from "../../stores/user.svelte";
   import type { MixtapeDraft } from "../../types/domain";
   import { getFullSnapshot, safeFetchSmols } from "../../services/api/smols";
@@ -143,6 +147,38 @@
 
   // Handle URL params for "Send to Radio" feature from TagExplorer
   onMount(async () => {
+    // 1. Load persisted state IMMEDIATELY (Before async calls)
+    const saved = localStorage.getItem("smol_radio_state");
+    if (saved) {
+      try {
+        const state = JSON.parse(saved);
+        if (state.selectedTags) selectedTags = state.selectedTags;
+        if (state.generatedPlaylist)
+          generatedPlaylist = state.generatedPlaylist;
+        if (state.stationName) stationName = state.stationName;
+        if (state.stationDescription)
+          stationDescription = state.stationDescription;
+        if (state.isActiveGlobalShuffle !== undefined)
+          isActiveGlobalShuffle = state.isActiveGlobalShuffle;
+        if (state.currentIndex !== undefined) currentIndex = state.currentIndex;
+
+        if (state.generatedPlaylist && state.generatedPlaylist.length > 0) {
+          showBuilder = false;
+        } else if (state.showBuilder !== undefined) {
+          showBuilder = state.showBuilder;
+        }
+
+        // Reset history set from loaded IDs
+        if (state.generatedPlaylist) {
+          recentlyGeneratedIds = new Set(
+            state.generatedPlaylist.map((s: Smol) => s.Id),
+          );
+        }
+      } catch (e) {
+        // console.error("Failed to restore radio state:", e);
+      }
+    }
+
     // Load snapshot tags immediately
     try {
       const snap = await getSnapshotTagStats();
@@ -185,42 +221,49 @@
       tagStats = unified.tags;
       tagMeta = unified.meta;
     } catch (error) {
-      // console.error("[Radio] Failed to load unified tags", error);
+      // console.error("Failed to harmonize tags:", error);
     }
 
-    // 1. Load persisted state
-
-    const saved = localStorage.getItem("smol_radio_state");
-    if (saved) {
+    // Check for Mixtape param to seed radio
+    const urlParams = new URLSearchParams(window.location.search);
+    const mixtapeId = urlParams.get("mixtape");
+    if (mixtapeId && !generatedPlaylist.length) {
       try {
-        const state = JSON.parse(saved);
-        if (state.selectedTags) selectedTags = state.selectedTags;
-        if (state.generatedPlaylist)
-          generatedPlaylist = state.generatedPlaylist;
-        if (state.stationName) stationName = state.stationName;
-        if (state.stationDescription)
-          stationDescription = state.stationDescription;
-        if (state.isActiveGlobalShuffle !== undefined)
-          isActiveGlobalShuffle = state.isActiveGlobalShuffle;
-        if (state.currentIndex !== undefined) currentIndex = state.currentIndex;
+        const detail = await getMixtapeDetail(mixtapeId);
+        if (detail && detail.tracks.length > 0) {
+          // Map to Smol format. Try to enrich with loaded smols if available.
+          const smolMap = new Map(smols.map((s) => [s.Id, s]));
 
-        if (state.showBuilder !== undefined) {
-          showBuilder = state.showBuilder;
-        } else if (
-          state.generatedPlaylist &&
-          state.generatedPlaylist.length > 0
-        ) {
+          generatedPlaylist = detail.tracks.map((t) => {
+            const existing = smolMap.get(t.Id);
+            if (existing) return existing;
+
+            // Fallback minimal smol
+            return {
+              Id: t.Id,
+              Title: t.Title,
+              Address: t.Address,
+              Song_1: t.Song_1 || t.Id,
+              artist: t.Address, // Helper for UI
+              // Add other required fields with defaults
+              n: 0,
+              ar: 0,
+              att: 0,
+              sa: 0,
+              lat: 0,
+              lng: 0,
+              style: "",
+              img: "",
+              thumb: "",
+            } as unknown as Smol;
+          });
+
+          stationName = detail.title;
+          stationDescription = detail.description || "Imported Mixtape";
           showBuilder = false;
         }
-
-        // Reset history set from loaded IDs
-        if (state.generatedPlaylist) {
-          recentlyGeneratedIds = new Set(
-            state.generatedPlaylist.map((s: Smol) => s.Id),
-          );
-        }
       } catch (e) {
-        // console.error("Failed to restore radio state:", e);
+        console.error("Failed to seed radio from mixtape:", e);
       }
     }
 
@@ -951,12 +994,92 @@
               </p>
 
               {#if generatedPlaylist.length > 0}
-                <button
-                  class="bg-white text-black font-pixel px-6 py-2 border-4 border-white shadow-[8px_8px_0px_0px_rgba(255,255,255,0.2)] hover:bg-[#9ae600] hover:border-[#9ae600] active:translate-y-1 active:shadow-none transition-none uppercase tracking-widest text-xs"
-                  onclick={() => (showBuilder = false)}
-                >
-                  Return to Player →
-                </button>
+                {#if audioState.currentSong}
+                  <div
+                    class="w-full max-w-[90%] md:max-w-[400px] mt-2 mb-2 bg-[#2a2a2a] border border-white/10 rounded-xl p-2 pr-4 flex items-center gap-3 shadow-lg cursor-pointer hover:bg-[#333] transition-colors group relative overflow-hidden"
+                    onclick={() => (showBuilder = false)}
+                    transition:fade
+                  >
+                    <div class="relative w-12 h-12 shrink-0">
+                      <img
+                        src={`${API_URL}/image/${audioState.currentSong.Id}.png?scale=8`}
+                        alt="Art"
+                        class="w-full h-full rounded-lg object-cover shadow-sm bg-black"
+                      />
+                      <div
+                        class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg"
+                      >
+                        <span class="text-white text-xs">⤢</span>
+                      </div>
+                    </div>
+
+                    <div class="flex flex-col flex-1 min-w-0 z-10">
+                      <div class="flex items-center gap-2 mb-0.5">
+                        {#if isPlaying}
+                          <div
+                            class="w-1.5 h-1.5 rounded-full bg-[#9ae600] animate-pulse"
+                          ></div>
+                          <span
+                            class="text-[#9ae600] font-pixel text-[8px] tracking-wider"
+                            >ON AIR</span
+                          >
+                        {:else}
+                          <div
+                            class="w-1.5 h-1.5 rounded-full bg-slate-500"
+                          ></div>
+                          <span
+                            class="text-slate-400 font-pixel text-[8px] tracking-wider"
+                            >PAUSED</span
+                          >
+                        {/if}
+                      </div>
+                      <span
+                        class="text-white font-bold text-sm truncate leading-tight"
+                        >{audioState.currentSong.Title || "Untitled"}</span
+                      >
+                      <span class="text-white/60 text-xs truncate leading-tight"
+                        >{audioState.currentSong.artist || "Smol"}</span
+                      >
+                    </div>
+
+                    <!-- Play Button (Action) -->
+                    <button
+                      class="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-[#9ae600] hover:text-black transition-all shrink-0 z-20"
+                      onclick={(e) => {
+                        e.stopPropagation();
+                        togglePlayPause();
+                      }}
+                    >
+                      {#if isPlaying}
+                        <svg
+                          class="w-3 h-3"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"
+                          ><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg
+                        >
+                      {:else}
+                        <svg
+                          class="w-3 h-3 ml-0.5"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg
+                        >
+                      {/if}
+                    </button>
+                  </div>
+                  <p
+                    class="text-[9px] text-zinc-500 font-pixel uppercase tracking-widest mt-1 mb-2 hover:text-zinc-300 cursor-pointer"
+                    onclick={() => (showBuilder = false)}
+                  >
+                    Click to Resume Session
+                  </p>
+                {:else}
+                  <button
+                    class="bg-white text-black font-pixel px-6 py-2 border-4 border-white shadow-[8px_8px_0px_0px_rgba(255,255,255,0.2)] hover:bg-[#9ae600] hover:border-[#9ae600] active:translate-y-1 active:shadow-none transition-none uppercase tracking-widest text-xs"
+                    onclick={() => (showBuilder = false)}
+                  >
+                    Return to Player →
+                  </button>
+                {/if}
               {/if}
             </div>
 
@@ -1255,9 +1378,7 @@
   .animate-arcade-pulse {
     animation: arcadePulse 1.2s infinite steps(4, end);
   }
-  .animate-fade-in-up {
-    animation: fadeInUp 0.4s ease-out forwards;
-  }
+
   .tag-pill {
     max-width: 280px;
     overflow: hidden;

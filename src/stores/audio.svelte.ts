@@ -19,6 +19,7 @@ export const audioState = $state<{
   sourceNode: MediaElementAudioSourceNode | null;
   duration: number;
   repeatMode: "off" | "once" | "one";
+  isCasting: boolean;
 }>({
   playingId: null,
   currentSong: null,
@@ -31,6 +32,7 @@ export const audioState = $state<{
   sourceNode: null,
   duration: 0,
   repeatMode: "off",
+  isCasting: false,
 });
 
 // Cross-tab synchronization (Golfed)

@@ -4,40 +4,10 @@ import ExperimentCard from "../../components/labs/ExperimentCard.svelte";
 import AsteroidsBackground from "../../components/labs/AsteroidsBackground.svelte";
 
 // Experiment Registry
-const EXPERIMENTS = [
-  {
-    title: "Tag Roulette",
-    description: "Spin the wheel of metadata. Select hashtags to uncover hidden tracks from the archives.",
-    href: "/labs/roulette",
-    badge: "EXP-001",
-    tags: ["Music", "Discovery"],
-    isLocked: false // Unlocking in LABS-003
-  },
-  {
-    title: "Blind Quiz",
-    description: "Test your sonic knowledge. Listen to a snippet and guess the correct genre tags.",
-    href: "/labs/quiz",
-    badge: "EXP-002",
-    tags: ["Game", "Audio"],
-    isLocked: false // Unlocking in LABS-004
-  },
-  {
-    title: "Audio Recon",
-    description: "Signal interception active. Correlate audio input with visual signatures.",
-    href: "/labs/waveform",
-    badge: "EXP-003",
-    tags: ["Visuals", "Puzzle"],
-    isLocked: false // Unlocking in LABS-005
-  },
-  {
-    title: "Swapper",
-    description: "Exchange tokens on the Kale Chain. Powered by Soroswap Aggregator.",
-    href: "/labs/swapper",
-    badge: "BETA",
-    tags: ["DeFi", "Tool"],
-    isLocked: false 
-  }
-];
+// Experiment Registry (LabTech Source of Truth)
+import registry from "../../../labs/registry.json";
+
+const EXPERIMENTS = registry;
 ---
 
 <Layout title="Smol Labs">
@@ -90,6 +60,8 @@ const EXPERIMENTS = [
                 badge={exp.badge}
                 isLocked={exp.isLocked}
                 tags={exp.tags}
+                status_color={exp.status_color}
+                readiness_score={exp.readiness_score}
             />
         ))}
 

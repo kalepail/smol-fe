@@ -179,10 +179,9 @@
             src={`${API_URL}/image/${id}.png`}
             style="transform: translateZ(0); -webkit-transform: translateZ(0);"
             onerror={(e) => {
-              // @ts-ignore
               if (kv_do?.image_base64) {
-                // @ts-ignore
-                e.currentTarget.src = `data:image/png;base64,${kv_do.image_base64}`;
+                (e.currentTarget as HTMLImageElement).src =
+                  `data:image/png;base64,${kv_do.image_base64}`;
               }
             }}
             alt={kv_do?.lyrics?.title}
@@ -218,8 +217,8 @@
                     ? song.audio
                     : `${API_URL}/song/${song.music_id}.mp3`}
                   onerror={(e) => {
-                    // @ts-ignore
-                    e.currentTarget.src = song.audio;
+                    if (song.audio)
+                      (e.currentTarget as HTMLAudioElement).src = song.audio;
                   }}
                   preload="none"
                   controls

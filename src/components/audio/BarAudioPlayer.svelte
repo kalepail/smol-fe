@@ -3,6 +3,7 @@
   import { onMount } from "svelte";
   import MiniAudioPlayer from "./MiniAudioPlayer.svelte";
   import LikeButton from "../ui/LikeButton.svelte";
+  import CastButton from "../ui/CastButton.svelte";
   import { trackView } from "../../lib/analytics";
   import {
     audioState,
@@ -45,6 +46,8 @@
     }
   });
 
+  import { castService } from "../../services/cast";
+
   /**
    * Effect: Sync playback state with playing ID
    * When playingId changes, play or pause the audio accordingly
@@ -55,6 +58,19 @@
     const audio = audioState.audioElement;
 
     if (!audio || !audio.src) return;
+
+    // If casting, ensure local audio is paused and delegate to cast service
+    if (audioState.isCasting) {
+      if (!audio.paused) audio.pause();
+
+      // Sync local state to cast service
+      if (currentSong && playingId === currentSong.Id) {
+        castService.play();
+      } else {
+        castService.pause();
+      }
+      return;
+    }
 
     if (currentSong && playingId === currentSong.Id) {
       // Prevent redundant play() calls that cause glitches on iOS
@@ -71,6 +87,15 @@
     } else {
       // Should be paused
       audio.pause();
+    }
+  });
+
+  /**
+   * Effect: Sync Current Song with Cast Service
+   */
+  $effect(() => {
+    if (audioState.isCasting && audioState.currentSong) {
+      castService.loadMedia(audioState.currentSong);
     }
   });
 
@@ -293,6 +318,11 @@
           smolId={audioState.currentSong.Id}
           liked={audioState.currentSong?.Liked || false}
           on:likeChanged={(e) => handleLikeChanged(e.detail.liked)}
+        />
+
+        <CastButton
+          size={16}
+          classNames="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white rounded-full bg-white/5 border border-white/5"
         />
 
         <!-- Shuffle/Radio Button -->
