@@ -1,0 +1,38 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import BackLink from "../../components/labs/BackLink.astro";
+import KaleOrFailCore from "../../components/labs/KaleOrFailCore.svelte";
+---
+
+<Layout title="Smol Labs | Kale or Fail">
+  <div class="min-h-screen bg-black text-[#9ae600] font-pixel p-4 pt-24 relative overflow-hidden">
+    <!-- Background -->
+    <div class="absolute inset-0 opacity-20 pointer-events-none">
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,theme('colors.lime.900')_0%,transparent_70%)] opacity-20"></div>
+    </div>
+
+    <div class="max-w-2xl mx-auto space-y-8 relative z-10">
+      <BackLink href="/labs" label="Return to Lab" />
+      
+      <div class="border border-[#333] rounded-xl p-8 bg-[#111]/80 backdrop-blur-md">
+        <div class="flex items-center justify-between mb-8 pb-8 border-b border-[#333]">
+           <div>
+              <span class="text-xs text-[#555] uppercase tracking-widest">EXP-006</span>
+              <h1 class="text-4xl text-[#9ae600] mt-2 tracking-tighter" style="text-shadow: 0 0 10px rgba(154,230,0,0.5)">KALE OR FAIL</h1>
+           </div>
+           <div class="text-right">
+              <span class="text-xs text-[#ff424c] animate-pulse">● LIVE</span>
+           </div>
+        </div>
+
+        <p class="mb-8 text-xs text-slate-400 leading-relaxed text-center">
+            Swipe LEFT to PASS.<br/>
+            Swipe RIGHT to TIP (100 KALE).<br/>
+            <span class="text-[#9ae600]">Tips are batched and sent at the end.</span>
+        </p>
+
+        <KaleOrFailCore client:visible />
+      </div>
+    </div>
+  </div>
+</Layout>

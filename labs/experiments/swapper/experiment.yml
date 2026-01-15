@@ -1,0 +1,21 @@
+id: lab_swapper
+title: "Swapper"
+owner: "Smol Labs"
+status_color: ORANGE
+readiness_score: 68
+risk_level: HIGH
+blast_radius: PROD_GATED
+env: TESTNET
+feature_flag: "labs.swapper.enabled"
+last_reviewed: "2026-01-15"
+dependencies:
+  - "soroswap-router-sdk"
+links:
+  spec: ""
+  pr: ""
+  docs: []
+definition_of_done:
+  - "Quote fetching"
+  - "Swap execution"
+notes: |
+  Interacts with Soroswap. Functional but requires strict safety review.
