@@ -16,7 +16,10 @@
     generateStationName,
     generateStationDescription,
   } from "../../services/ai/gemini";
-  import { publishMixtape } from "../../services/api/mixtapes";
+  import {
+    publishMixtape,
+    getMixtapeDetail,
+  } from "../../services/api/mixtapes";
   import { isAuthenticated } from "../../stores/user.svelte";
   import type { MixtapeDraft } from "../../types/domain";
   import { getFullSnapshot, safeFetchSmols } from "../../services/api/smols";
@@ -218,7 +221,50 @@
       tagStats = unified.tags;
       tagMeta = unified.meta;
     } catch (error) {
-      // console.error("[Radio] Failed to load unified tags", error);
+      // console.error("Failed to harmonize tags:", error);
+    }
+
+    // Check for Mixtape param to seed radio
+    const urlParams = new URLSearchParams(window.location.search);
+    const mixtapeId = urlParams.get("mixtape");
+    if (mixtapeId && !generatedPlaylist.length) {
+      try {
+        const detail = await getMixtapeDetail(mixtapeId);
+        if (detail && detail.tracks.length > 0) {
+          // Map to Smol format. Try to enrich with loaded smols if available.
+          const smolMap = new Map(smols.map((s) => [s.Id, s]));
+
+          generatedPlaylist = detail.tracks.map((t) => {
+            const existing = smolMap.get(t.Id);
+            if (existing) return existing;
+
+            // Fallback minimal smol
+            return {
+              Id: t.Id,
+              Title: t.Title,
+              Address: t.Address,
+              Song_1: t.Song_1 || t.Id,
+              artist: t.Address, // Helper for UI
+              // Add other required fields with defaults
+              n: 0,
+              ar: 0,
+              att: 0,
+              sa: 0,
+              lat: 0,
+              lng: 0,
+              style: "",
+              img: "",
+              thumb: "",
+            } as unknown as Smol;
+          });
+
+          stationName = detail.title;
+          stationDescription = detail.description || "Imported Mixtape";
+          showBuilder = false;
+        }
+      } catch (e) {
+        console.error("Failed to seed radio from mixtape:", e);
+      }
     }
 
     // 2. Handle URL params (overrides persisted state if present)

@@ -88,7 +88,7 @@
 
   // Context-aware back navigation
   let backContext = $state<{
-    type: "radio" | "artist" | "home";
+    type: "radio" | "artist" | "home" | "mixtape";
     label: string;
     url: string;
   } | null>(null);
@@ -101,6 +101,12 @@
         backContext = { type: "radio", label: "Back to Radio", url: "back" };
       } else if (from === "artist") {
         backContext = { type: "artist", label: "Back to Artist", url: "back" };
+      } else if (from === "mixtape") {
+        backContext = {
+          type: "mixtape",
+          label: "Back to Mixtape",
+          url: "back",
+        };
       }
     }
   });
@@ -757,6 +763,14 @@
                       d="M12 5c-3.87 0-7 3.13-7 7h2c0-2.76 2.24-5 5-5s5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4C6.48 1 2 5.48 2 11h2c0-4.42 3.58-8 8-8s8 3.58 8 8h2c0-5.52-4.48-10-10-10z"
                     />
                     <path d="M13 13h-2v10h2V13z" />
+                  </svg>
+                {:else if backContext.type === "mixtape"}
+                  <!-- Mixtape Icon (Cassette) -->
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path
+                      d="M21 8c0-1.66-1.34-3-3-3H6C4.34 5 3 6.34 3 8v8c0 1.66 1.34 3 3 3h12c1.66 0 3-1.34 3-3V8zM8.5 15c-1.38 0-2.5-1.12-2.5-2.5S7.12 10 8.5 10s2.5 1.12 2.5 2.5S9.88 15 8.5 15zm7 0c-1.38 0-2.5-1.12-2.5-2.5S14.12 10 15.5 10s2.5 1.12 2.5 2.5S16.88 15 15.5 15z"
+                    />
+                    <path d="M6 8h12v1.5H6z" opacity="0.5" />
                   </svg>
                 {:else}
                   <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"
