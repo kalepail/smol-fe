@@ -158,7 +158,7 @@ export const THEMES: Record<GlowTheme, { name: string, gradient: string, color: 
         name: "Valentine's ❤️",
         gradient: 'from-pink-500 via-red-500 to-purple-500',
         color: '#ec4899',
-        style: 'background-image: url("/images/valentine_hearts.png"); background-size: cover;'
+        style: 'background-image: url("/images/valentine_hearts.webp"); background-size: cover;'
     },
     slate: {
         name: 'Solid Slate',
@@ -170,7 +170,7 @@ export const THEMES: Record<GlowTheme, { name: string, gradient: string, color: 
         name: 'Kale Field',
         gradient: 'from-green-400 via-emerald-500 to-teal-400',
         color: '#10b981',
-        style: 'background-image: url("/images/kale-field-bg.png"); background-size: cover;'
+        style: 'background-image: url("/images/kale-field-bg.webp"); background-size: cover;'
     }
 };
 
