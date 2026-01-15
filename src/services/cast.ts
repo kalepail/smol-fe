@@ -1,3 +1,10 @@
+/**
+ * Google Cast Integration Service
+ * 
+ * Enables casting audio playback to Chromecast devices.
+ * Uses Cast Application Framework (CAF) for modern Cast integration.
+ */
+
 import { audioState } from "../stores/audio.svelte";
 
 declare const chrome: any;
@@ -9,9 +16,15 @@ class CastService {
     private playerController: any = null;
 
     constructor() {
-        if (typeof window !== "undefined") {
-            // @ts-ignore
-            window["__onGCastApiAvailable"] = (isAvailable: boolean) => {
+        if (typeof window === "undefined") return;
+
+        // Check if Cast SDK is already loaded
+        if ((window as any).chrome?.cast?.isAvailable) {
+            this.initializeCastApi();
+        } else {
+            // Register callback for when SDK loads
+            (window as any)["__onGCastApiAvailable"] = (isAvailable: boolean) => {
+                console.log("[Cast] SDK available:", isAvailable);
                 if (isAvailable) {
                     this.initializeCastApi();
                 }
@@ -22,166 +35,195 @@ class CastService {
     private initializeCastApi() {
         if (this.initialized) return;
 
-        const sessionRequest = new chrome.cast.SessionRequest(
-            chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID
-        );
+        try {
+            // Initialize Cast Context (CAF approach)
+            cast.framework.CastContext.getInstance().setOptions({
+                receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+                autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
+            });
 
-        const apiConfig = new chrome.cast.ApiConfig(
-            sessionRequest,
-            this.sessionListener.bind(this),
-            this.receiverListener.bind(this)
-        );
+            this.initialized = true;
+            console.log("[Cast] Initialized with CastContext");
 
-        chrome.cast.initialize(
-            apiConfig,
-            () => {
-                console.log("[Cast] Initialized");
-                this.initialized = true;
-            },
-            (e: any) => console.error("[Cast] Init Error", e)
-        );
-    }
+            // Set up Remote Player for controlling playback
+            this.player = new cast.framework.RemotePlayer();
+            this.playerController = new cast.framework.RemotePlayerController(this.player);
 
-    private sessionListener(session: any) {
-        console.log("[Cast] Session started", session.sessionId);
-        audioState.isCasting = true;
-        this.setupRemotePlayer(session);
-    }
+            // Listen for connection changes
+            this.playerController.addEventListener(
+                cast.framework.RemotePlayerEventType.IS_CONNECTED_CHANGED,
+                () => {
+                    const isConnected = this.player.isConnected;
+                    console.log("[Cast] Connection changed:", isConnected);
+                    audioState.isCasting = isConnected;
 
-    private receiverListener(e: string) {
-        if (e === "available") {
-            console.log("[Cast] Receiver available");
-        }
-    }
-
-    private setupRemotePlayer(session: any) {
-        // Initialize Remote Player Controller
-        this.player = new cast.framework.RemotePlayer();
-        this.playerController = new cast.framework.RemotePlayerController(this.player);
-
-        this.playerController.addEventListener(
-            cast.framework.RemotePlayerEventType.IS_CONNECTED_CHANGED,
-            () => {
-                const isConnected = this.player.isConnected;
-                console.log("[Cast] Connection changed:", isConnected);
-                audioState.isCasting = isConnected;
-
-                if (!isConnected) {
-                    // Disconnected
-                    this.player = null;
-                    this.playerController = null;
-                } else {
-                    // Connected - Load current media if playing locally
-                    if (audioState.currentSong) {
+                    if (isConnected && audioState.currentSong) {
+                        // Auto-load current song when connected
                         this.loadMedia(audioState.currentSong);
                     }
-                }
-            }
-        );
 
-        // Sync Play/Pause state from Remote to Local Store
-        this.playerController.addEventListener(
-            cast.framework.RemotePlayerEventType.IS_PAUSED_CHANGED,
-            () => {
-                if (this.player.isPaused) {
-                    // Remote paused -> ensure local state reflects pause (playingId = null)
-                    if (audioState.playingId !== null) {
-                        // We don't want to trigger a 'stop' command back to cast, just update UI
-                        // But audioState.playingId logic implies "playing locally". 
-                        // We might need to decouple slightly, but for now:
-                        audioState.playingId = null;
+                    if (!isConnected) {
+                        // Resume local playback when disconnected
+                        // (optional: could auto-resume local audio)
                     }
-                } else {
-                    // Remote playing -> ensure local state reflects play
-                    if (audioState.currentSong && audioState.playingId === null) {
-                        audioState.playingId = audioState.currentSong.Id;
-                        // Mute local audio element to prevent double audio
-                        if (audioState.audioElement) {
-                            audioState.audioElement.pause();
+                }
+            );
+
+            // Sync play/pause state from remote
+            this.playerController.addEventListener(
+                cast.framework.RemotePlayerEventType.IS_PAUSED_CHANGED,
+                () => {
+                    if (this.player.isPaused) {
+                        // Remote paused
+                        if (audioState.playingId !== null) {
+                            audioState.playingId = null;
+                        }
+                    } else {
+                        // Remote playing
+                        if (audioState.currentSong && audioState.playingId === null) {
+                            audioState.playingId = audioState.currentSong.Id;
+                            // Pause local audio to prevent double playback
+                            if (audioState.audioElement) {
+                                audioState.audioElement.pause();
+                            }
                         }
                     }
                 }
-            }
-        );
+            );
 
-        // Initial load if we just connected and have a song
-        if (audioState.currentSong) {
-            this.loadMedia(audioState.currentSong);
+        } catch (e) {
+            console.error("[Cast] Initialization failed:", e);
         }
     }
 
+    /**
+     * Request a Cast session (shows device picker)
+     */
     public requestSession() {
         if (!this.initialized) {
-            console.warn("[Cast] Not initialized");
-            return;
+            console.warn("[Cast] Not initialized yet - SDK may still be loading");
+            // Try to initialize now in case it loaded late
+            if (typeof cast !== "undefined" && cast.framework) {
+                this.initializeCastApi();
+            } else {
+                console.error("[Cast] SDK not available. Ensure Cast SDK script is loaded.");
+                return;
+            }
         }
-        chrome.cast.requestSession(
-            this.sessionListener.bind(this),
-            (e: any) => console.error("[Cast] Request Error", e)
-        );
+
+        try {
+            const context = cast.framework.CastContext.getInstance();
+            context.requestSession().then(
+                () => {
+                    console.log("[Cast] Session started");
+                    audioState.isCasting = true;
+                },
+                (error: any) => {
+                    if (error === "cancel") {
+                        console.log("[Cast] User cancelled session request");
+                    } else {
+                        console.error("[Cast] Session request error:", error);
+                    }
+                }
+            );
+        } catch (e) {
+            console.error("[Cast] requestSession failed:", e);
+        }
     }
 
+    /**
+     * Load media to the Cast device
+     */
     public loadMedia(song: any) {
-        if (!audioState.isCasting) return;
+        if (!audioState.isCasting || !this.initialized) return;
 
-        const session = chrome.cast.requestSession
-            ? chrome.cast.framework.CastContext.getInstance().getCurrentSession()
-            : null;
+        try {
+            const castSession = cast.framework.CastContext.getInstance().getCurrentSession();
+            if (!castSession) {
+                console.warn("[Cast] No active session");
+                return;
+            }
 
-        // Fallback to legacy getSession if framework unavailable (though we loaded framework)
-        // Standard chrome.cast approach:
-        const legacySession = new Promise((resolve, reject) => {
-            chrome.cast.requestSession(resolve, reject);
-        });
+            // Build audio URL
+            const audioUrl = song.audio || `https://api.smol.xyz/song/${song.music_id || song.Id}.mp3`;
 
-        // But we already have a session from sessionListener? 
-        // Actually, let's use the simplest way: functionality via SESSION object.
+            const mediaInfo = new chrome.cast.media.MediaInfo(audioUrl, "audio/mp3");
 
-        // Getting current session via framework is safer
-        const castSession = cast.framework.CastContext.getInstance().getCurrentSession();
-        if (!castSession) return;
+            // Set up metadata
+            mediaInfo.metadata = new chrome.cast.media.MusicTrackMediaMetadata();
+            mediaInfo.metadata.metadataType = chrome.cast.media.MetadataType.MUSIC_TRACK;
+            mediaInfo.metadata.title = song.title || "Unknown Title";
+            mediaInfo.metadata.artist = song.artist || "Smol AI Music";
 
-        const mediaInfo = new chrome.cast.media.MediaInfo(
-            (song.audio || `https://api.smol.xyz/song/${song.music_id || song.Id}.mp3`),
-            'audio/mp3'
-        );
+            // Cover image
+            let imageUrl = "/meta.png";
+            if (song.image_url) imageUrl = song.image_url;
+            else if (song.id || song.Id) imageUrl = `https://api.smol.xyz/image/${song.id || song.Id}.png`;
 
-        mediaInfo.metadata = new chrome.cast.media.MusicTrackMediaMetadata();
-        mediaInfo.metadata.metadataType = chrome.cast.media.MetadataType.MUSIC_TRACK;
-        mediaInfo.metadata.title = song.title || "Unknown Title";
-        mediaInfo.metadata.artist = "Smol AI Music";
+            mediaInfo.metadata.images = [new chrome.cast.Image(imageUrl)];
 
-        // Extract image
-        let imageUrl = "/meta.png"; // Default
-        if (song.image_url) imageUrl = song.image_url;
-        else if (song.id || song.Id) imageUrl = `https://api.smol.xyz/image/${song.id || song.Id}.png`;
+            // Load request
+            const request = new chrome.cast.media.LoadRequest(mediaInfo);
+            request.autoplay = true;
 
-        mediaInfo.metadata.images = [new chrome.cast.Image(imageUrl)];
-
-        const request = new chrome.cast.media.LoadRequest(mediaInfo);
-        request.autoplay = true;
-
-        castSession.loadMedia(request).then(
-            () => console.log('[Cast] Load success'),
-            (errorCode: any) => console.error('[Cast] Load error', errorCode)
-        );
+            castSession.loadMedia(request).then(
+                () => {
+                    console.log("[Cast] Media loaded successfully");
+                    // Pause local audio
+                    if (audioState.audioElement) {
+                        audioState.audioElement.pause();
+                    }
+                },
+                (errorCode: any) => console.error("[Cast] Load error:", errorCode)
+            );
+        } catch (e) {
+            console.error("[Cast] loadMedia failed:", e);
+        }
     }
 
-    // Commands
+    /**
+     * Toggle play/pause on Cast device
+     */
+    public playPause() {
+        if (!this.playerController) return;
+        this.playerController.playOrPause();
+    }
+
+    /**
+     * Play on Cast device (alias for playPause)
+     */
     public play() {
-        if (!this.playerController) return;
-        this.playerController.playOrPause();
+        this.playPause();
     }
 
+    /**
+     * Pause on Cast device (alias for playPause)
+     */
     public pause() {
-        if (!this.playerController) return;
-        this.playerController.playOrPause();
+        this.playPause();
+    }
+
+    /**
+     * Stop Cast session and disconnect
+     */
+    public stop() {
+        if (!this.initialized) return;
+
+        try {
+            const context = cast.framework.CastContext.getInstance();
+            context.endCurrentSession(true);
+            audioState.isCasting = false;
+        } catch (e) {
+            console.error("[Cast] Stop failed:", e);
+        }
+    }
+
+    /**
+     * Check if Cast is available
+     */
+    public get isAvailable(): boolean {
+        return this.initialized;
     }
 }
 
 export const castService = new CastService();
-
-// Define a watcher to sync FROM local TO remote
-// This needs to run in a component or effect, but since this is a module,
-// we can't easily use $effect.root here without passing a cleanup.
-// Better to expose methods and call them from the store or components.
