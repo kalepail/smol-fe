@@ -44,6 +44,9 @@ export function useMixtapePurchase() {
 
     // Log the XDR for inspection
     const xdrString = tx.built?.toXDR();
+    if (tx.built) {
+      console.log("Purchase Tx Hash:", tx.built.hash().toString('hex'));
+    }
 
 
     // Submit transaction via passkey server

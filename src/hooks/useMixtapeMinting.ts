@@ -165,6 +165,9 @@ export function useMixtapeMinting() {
     });
 
     const xdrString = at.built?.toXDR();
+    if (at.built) {
+      console.log("Mint Tx Hash:", at.built.hash().toString('hex'));
+    }
 
     if (!xdrString) {
       throw new Error('Failed to build signed coin_them transaction');
