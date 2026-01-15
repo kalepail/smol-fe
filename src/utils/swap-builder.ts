@@ -61,7 +61,16 @@ interface ExtendedDistribution extends RawTradeDistribution {
 export async function buildSwapTransactionForCAddress(
     quote: QuoteResponse,
     fromAddress: string
-): Promise<string> {
+export async function buildSwapTransactionForCAddress(
+        quote: QuoteResponse,
+        fromAddress: string
+    ): Promise<string> {
+    console.log("[SwapBuilder] Starting buildSwapTransactionForCAddress", {
+        quoteAmountIn: quote.amountIn,
+        quoteAmountOut: quote.amountOut,
+        fromAddress
+    });
+
     const rawTrade = quote.rawTrade as {
         amountIn: string;
         amountOutMin: string;
@@ -69,9 +78,11 @@ export async function buildSwapTransactionForCAddress(
     };
 
     if (!rawTrade || !rawTrade.distribution) {
-        console.error("Invalid rawTrade:", rawTrade);
+        console.error("[SwapBuilder] Invalid rawTrade - missing distribution", JSON.stringify(quote, null, 2));
         throw new Error("Quote does not contain valid rawTrade distribution");
     }
+
+    console.log("[SwapBuilder] RawTrade:", JSON.stringify(rawTrade, null, 2));
 
     // Fallbacks for amountIn and amountOutMin if missing in rawTrade
     let amountIn = rawTrade.amountIn;
@@ -119,6 +130,15 @@ export async function buildSwapTransactionForCAddress(
         nativeToScVal(new Address(fromAddress)),                      // to (C-address)
         nativeToScVal(deadline, { type: "u64" }),                    // deadline
     ];
+
+    console.log("[SwapBuilder] Contract Invocation Args:", {
+        tokenIn,
+        tokenOut,
+        amountIn,
+        amountOutMin,
+        to: fromAddress,
+        deadline
+    });
 
     const invokeOp = contract.call("swap_exact_tokens_for_tokens", ...invokeArgs);
 
