@@ -69,7 +69,23 @@ export async function buildSwapTransactionForCAddress(
     };
 
     if (!rawTrade || !rawTrade.distribution) {
+        console.error("Invalid rawTrade:", rawTrade);
         throw new Error("Quote does not contain valid rawTrade distribution");
+    }
+
+    // Fallbacks for amountIn and amountOutMin if missing in rawTrade
+    let amountIn = rawTrade.amountIn;
+    let amountOutMin = rawTrade.amountOutMin;
+
+    if (!amountIn) {
+        console.warn("rawTrade.amountIn missing, falling back to quote.amountIn");
+        amountIn = quote.amountIn;
+    }
+
+    if (!amountOutMin) {
+        console.warn("rawTrade.amountOutMin missing, falling back to quote.otherAmountThreshold");
+        // otherAmountThreshold is likely a number in stroops, convert to string
+        amountOutMin = String(quote.otherAmountThreshold);
     }
 
     // Deadline: 1 hour from now
@@ -97,8 +113,8 @@ export async function buildSwapTransactionForCAddress(
     const invokeArgs = [
         nativeToScVal(new Address(tokenIn)),                         // token_in
         nativeToScVal(new Address(tokenOut)),                        // token_out
-        nativeToScVal(BigInt(rawTrade.amountIn), { type: "i128" }),  // amount_in
-        nativeToScVal(BigInt(rawTrade.amountOutMin), { type: "i128" }), // amount_out_min
+        nativeToScVal(BigInt(amountIn), { type: "i128" }),  // amount_in
+        nativeToScVal(BigInt(amountOutMin), { type: "i128" }), // amount_out_min
         distributionArg,                                              // distribution
         nativeToScVal(new Address(fromAddress)),                      // to (C-address)
         nativeToScVal(deadline, { type: "u64" }),                    // deadline
