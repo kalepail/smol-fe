@@ -60,7 +60,7 @@ export function useMixtapePurchase() {
     onBatchComplete: (trackIds: string[]) => void,
     getFreshToken?: () => Promise<string>
   ): Promise<void> {
-    const BATCH_SIZE = 9;
+    const BATCH_SIZE = 3;
 
     // Build arrays of tokens and their corresponding comet addresses
     const tokenData: Array<{

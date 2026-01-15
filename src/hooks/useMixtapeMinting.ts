@@ -245,8 +245,8 @@ export function useMixtapeMinting() {
 
     if (tracksWithData.length === 0) return;
 
-    // Process in chunks of 5
-    const CHUNK_SIZE = 5;
+    // Process in chunks of 3
+    const CHUNK_SIZE = 3;
     const chunks: Array<Array<{ track: MixtapeSmolData; trackData: Smol }>> = [];
 
     for (let i = 0; i < tracksWithData.length; i += CHUNK_SIZE) {

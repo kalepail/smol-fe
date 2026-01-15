@@ -26,8 +26,8 @@
     const totalMintCost = $derived(tracksToMint.length * 100); // 100 KALE per mint
     const totalPurchaseCost = $derived(tracksToPurchase.length * 33); // 33 KALE per token
     const totalCost = $derived(totalMintCost + totalPurchaseCost);
-    const mintBatches = $derived(Math.ceil(tracksToMint.length / 5));
-    const swapBatches = $derived(Math.ceil(tracksToPurchase.length / 9)); // Must match BATCH_SIZE in useMixtapePurchase
+    const mintBatches = $derived(Math.ceil(tracksToMint.length / 3));
+    const swapBatches = $derived(Math.ceil(tracksToPurchase.length / 3)); // Must match BATCH_SIZE in useMixtapePurchase
     const totalSignatures = $derived(mintBatches + swapBatches);
     const estimatedSeconds = $derived(totalSignatures * 10); // 10 seconds per transaction
     const estimatedMinutes = $derived(Math.floor(estimatedSeconds / 60));
