@@ -1255,9 +1255,7 @@
   .animate-arcade-pulse {
     animation: arcadePulse 1.2s infinite steps(4, end);
   }
-  .animate-fade-in-up {
-    animation: fadeInUp 0.4s ease-out forwards;
-  }
+
   .tag-pill {
     max-width: 280px;
     overflow: hidden;

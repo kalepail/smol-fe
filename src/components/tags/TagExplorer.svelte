@@ -899,9 +899,6 @@
             transform: translateY(0);
         }
     }
-    .animate-fade-in-up {
-        animation: fadeInUp 0.4s ease-out forwards;
-    }
 
     .custom-scrollbar::-webkit-scrollbar {
         width: 4px;

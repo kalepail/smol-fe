@@ -52,8 +52,7 @@
             alt={mixtape.title}
             class="h-full w-full object-cover pixelated"
             onerror={(e) => {
-              // @ts-ignore
-              e.currentTarget.style.display = "none";
+              (e.currentTarget as HTMLImageElement).style.display = "none";
             }}
           />
         {:else}
