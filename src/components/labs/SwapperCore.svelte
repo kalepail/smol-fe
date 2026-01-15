@@ -220,6 +220,7 @@
             }
 
             swapState = "quoting";
+            turnstileFailed = false; // Reset to allow Turnstile retry on new quote
 
             try {
                 const stroops = toStroops(amountStr);
