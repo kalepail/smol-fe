@@ -15,10 +15,9 @@ import {
     xdr,
     TransactionBuilder,
     Networks,
-    Operation,
-    Account,
-    SorobanRpc
-} from "@stellar/stellar-sdk";
+    Account
+} from "@stellar/stellar-sdk/minimal";
+import { Server, Api, assembleTransaction } from "@stellar/stellar-sdk/minimal/rpc";
 import type { QuoteResponse, RawTradeDistribution } from "./soroswap";
 
 /** Soroswap Aggregator Contract (Mainnet) */
@@ -61,7 +60,7 @@ export async function buildSwapTransactionForCAddress(
     const deadline = BigInt(Math.floor(Date.now() / 1000) + 300);
 
     // Create RPC server
-    const server = new SorobanRpc.Server(RPC_URL);
+    const server = new Server(RPC_URL);
 
     // Get source account (we'll use the aggregator as placeholder, auth comes from C address)
     // For Soroban, we need a valid source account for the TX envelope
@@ -104,12 +103,12 @@ export async function buildSwapTransactionForCAddress(
     // Simulate to get proper footprint and auth requirements
     const simulated = await server.simulateTransaction(tx);
 
-    if (SorobanRpc.Api.isSimulationError(simulated)) {
+    if (Api.isSimulationError(simulated)) {
         throw new Error(`Simulation failed: ${simulated.error}`);
     }
 
     // Prepare the transaction with simulation results
-    const prepared = SorobanRpc.assembleTransaction(tx, simulated).build();
+    const prepared = assembleTransaction(tx, simulated).build();
 
     return prepared.toXDR();
 }
