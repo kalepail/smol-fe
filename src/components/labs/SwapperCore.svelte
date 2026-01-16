@@ -16,7 +16,11 @@
         buildSwapTransactionForCAddress,
         isCAddress,
     } from "../../utils/swap-builder";
-    import { userState, setUserAuth } from "../../stores/user.svelte";
+    import {
+        userState,
+        setUserAuth,
+        ensureWalletConnected,
+    } from "../../stores/user.svelte";
     import {
         balanceState,
         updateAllBalances,
@@ -186,12 +190,18 @@
 
                 try {
                     const result = await account.get().connectWallet({ rpId });
-                    setUserAuth(
-                        result.contractId,
-                        typeof result.keyId === "string"
+                    // Use keyIdBase64 if available (PasskeyKit v0.6+), otherwise convert with URL-safe replacement
+                    const keyIdSafe =
+                        result.keyIdBase64 ||
+                        (typeof result.keyId === "string"
                             ? result.keyId
-                            : Buffer.from(result.keyId).toString("base64"),
-                    );
+                            : Buffer.from(result.keyId)
+                                  .toString("base64")
+                                  .replace(/\+/g, "-")
+                                  .replace(/\//g, "_")
+                                  .replace(/=+$/, ""));
+
+                    setUserAuth(result.contractId, keyIdSafe);
                 } catch (connectErr) {
                     console.warn(
                         "Connect failed, prompting creation:",
@@ -202,16 +212,25 @@
                         const result = await account
                             .get()
                             .createWallet("Smol Swapper", "User", { rpId });
-                        setUserAuth(
-                            result.contractId,
-                            typeof result.keyId === "string"
+                        // createWallet returns keyIdBase64 explicitly
+                        const keyIdSafe =
+                            result.keyIdBase64 ||
+                            (typeof result.keyId === "string"
                                 ? result.keyId
-                                : Buffer.from(result.keyId).toString("base64"),
-                        );
+                                : Buffer.from(result.keyId)
+                                      .toString("base64")
+                                      .replace(/\+/g, "-")
+                                      .replace(/\//g, "_")
+                                      .replace(/=+$/, ""));
+
+                        setUserAuth(result.contractId, keyIdSafe);
                     } else {
                         throw connectErr;
                     }
                 }
+            } else {
+                // Already authenticated (localStorage), but ensure wallet instance is connected
+                await ensureWalletConnected();
             }
             appState = "transition";
             setTimeout(() => {
@@ -221,8 +240,21 @@
             }, 1000);
         } catch (e) {
             console.error(e);
-            const msg = e instanceof Error ? e.message : String(e);
+            const msg = e instanceof Error ? e.message : String(e); // Keep concise
             alert(`Entry failed: ${msg}`);
+
+            // If ensureWalletConnected failed, it might be due to bad localStorage state
+            if (isAuthenticated()) {
+                if (
+                    confirm(
+                        "Session seems invalid (maybe from previous loop). Clear wallet and start over?",
+                    )
+                ) {
+                    localStorage.removeItem("smol:contractId");
+                    localStorage.removeItem("smol:keyId");
+                    window.location.reload();
+                }
+            }
         }
     }
 
