@@ -26,9 +26,15 @@
     import { getLatestSequence, pollTransaction } from "../../utils/base";
     import { Transaction, Networks } from "@stellar/stellar-sdk/minimal";
 
+    import {
+        getXBullQuote,
+        buildXBullTransaction,
+    } from "../../utils/xbull-api";
+
     // --- TYPES ---
     type AppState = "intro" | "transition" | "main";
     type Mode = "swap" | "send";
+    type Provider = "soroswap" | "xbull";
     type SwapState =
         | "idle"
         | "quoting"
@@ -63,6 +69,9 @@
     let txHash = $state<string | null>(null);
     let turnstileToken = $state("");
     let turnstileFailed = $state(false); // Fallback mode when Turnstile returns 401
+
+    // Provider Logic
+    let provider = $state<Provider>("soroswap");
 
     // Send Logic
     let sendTo = $state("");
@@ -235,20 +244,48 @@
                 const tradeType =
                     lastEdited === "in" ? "EXACT_IN" : "EXACT_OUT";
 
-                const result = await getQuote({
-                    assetIn,
-                    assetOut,
-                    amount: stroops,
-                    tradeType,
-                    slippageBps: 50, // 0.5%
-                });
+                let result;
+                if (provider === "soroswap") {
+                    result = await getQuote({
+                        assetIn,
+                        assetOut,
+                        amount: stroops,
+                        tradeType,
+                        slippageBps: 50, // 0.5%
+                    });
+                } else {
+                    // xBull API
+                    const sender = userState.contractId || undefined;
+                    const xbullResult = await getXBullQuote({
+                        fromAsset: assetIn,
+                        toAsset: assetOut,
+                        fromAmount: String(stroops),
+                        sender: sender,
+                    });
+
+                    // Map xBull response to local QuoteResponse format
+                    result = {
+                        amountIn: xbullResult.fromAmount,
+                        amountOut: xbullResult.toAmount,
+                        minAmountOut: xbullResult.toAmount, // xBull pre-calculates slippage in toAmount maybe? or user sets minToGet in accept
+                        price: (
+                            Number(xbullResult.toAmount) /
+                            Number(xbullResult.fromAmount)
+                        ).toFixed(7),
+                        path: [], // xBull handles routing internally via UUID
+                        tradeType,
+                        // Custom props for xBull
+                        xbullRoute: xbullResult.route,
+                        otherAmountThreshold: xbullResult.toAmount, // Placeholder
+                    } as any;
+                }
 
                 quote = result;
 
                 if (lastEdited === "in") {
-                    swapOutputAmount = formatAmount(quote.amountOut);
+                    swapOutputAmount = formatAmount(quote!.amountOut);
                 } else {
-                    swapAmount = formatAmount(quote.amountIn);
+                    swapAmount = formatAmount(quote!.amountIn);
                 }
 
                 swapState = "simulated_ok";
@@ -291,72 +328,131 @@
         statusMessage = "Building swap...";
 
         try {
-            // 1. Build unsigned XDR
-            // Use direct aggregator invocation for C addresses (smart wallets)
-            // Fall back to Soroswap API for G addresses
-            let xdr: string;
+            // 1. Build Transaction
+            let signedTx;
+            let transactionXDR;
+
             console.log(
                 "[SwapperCore] Executing swap for:",
                 userState.contractId,
+                "via:",
+                provider,
             );
 
-            if (isCAddress(userState.contractId)) {
-                // C address: Build via direct aggregator contract invocation
-                statusMessage = "Building C-address swap...";
-                console.log(
-                    "[SwapperCore] Building C-address swap with quote:",
-                    quote,
-                );
-                xdr = await buildSwapTransactionForCAddress(
-                    quote,
-                    userState.contractId,
-                );
+            if (provider === "soroswap") {
+                if (isCAddress(userState.contractId)) {
+                    // C address: Build via direct aggregator contract invocation
+                    statusMessage = "Building C-address swap...";
+                    const t = await buildSwapTransactionForCAddress(
+                        quote,
+                        userState.contractId,
+                    );
+
+                    // Convert AssembledTransaction to XDR string for signing
+                    // Note: passkey-kit sign() can take AssembledTransaction directly,
+                    // but for consistency with xBull path (which returns XDR string), we use XDR path if possible,
+                    // OR we just pass 't' if it's an AssembledTx.
+                    // Let's pass 't' directly for C-Address path as before.
+
+                    // Sign with passkey
+                    const kit = account.get();
+                    if (!kit.wallet) {
+                        console.log(
+                            "[SwapperCore] Wallet not connected, attempting reconnect...",
+                        );
+                        await kit.connectWallet({
+                            keyId: userState.keyId,
+                            getContractId: async () =>
+                                userState.contractId ?? undefined,
+                        });
+                    }
+                    const sequence = await getLatestSequence();
+                    signedTx = await kit.sign(t, {
+                        rpId: getDomain(window.location.hostname) ?? undefined,
+                        keyId: userState.keyId,
+                        expiration: sequence + 60,
+                    });
+                } else {
+                    // G address: Use Soroswap API (may work for traditional accounts)
+                    const result = await buildTransaction(
+                        quote,
+                        userState.contractId,
+                        userState.contractId,
+                    );
+                    transactionXDR = result.xdr;
+
+                    // Sign with passkey
+                    const kit = account.get();
+                    if (!kit.wallet) {
+                        console.log(
+                            "[SwapperCore] Wallet not connected, attempting reconnect...",
+                        );
+                        await kit.connectWallet({
+                            keyId: userState.keyId,
+                            getContractId: async () =>
+                                userState.contractId ?? undefined,
+                        });
+                    }
+                    const sequence = await getLatestSequence();
+
+                    // Wrap XDR in Transaction object for kit.sign (minimal SDK)
+                    const tx = new Transaction(
+                        transactionXDR,
+                        import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
+                    );
+
+                    signedTx = await kit.sign(tx, {
+                        rpId: getDomain(window.location.hostname) ?? undefined,
+                        keyId: userState.keyId,
+                        expiration: sequence + 60,
+                    });
+                }
             } else {
-                // G address: Use Soroswap API (may work for traditional accounts)
-                const result = await buildTransaction(
-                    quote,
-                    userState.contractId,
-                    userState.contractId,
-                );
-                xdr = result.xdr;
-            }
+                // xBull Logic
+                statusMessage = "Building xBull swap...";
+                // Note: quote cast as 'any' to access xbullRoute.
+                const xbullQuote = quote as any;
+                if (!xbullQuote.xbullRoute) {
+                    throw new Error("Invalid xBull quote");
+                }
 
-            // 2. Parse XDR and sign with passkey
-            statusMessage = "Sign with passkey...";
-            let tx = new Transaction(
-                xdr,
-                import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
-            );
+                // Call xBull Accept Quote API to get XDR
+                const result = await buildXBullTransaction({
+                    fromAmount: xbullQuote.amountIn,
+                    minToGet: xbullQuote.amountOut, // Using amountOut as minToGet for now
+                    route: xbullQuote.xbullRoute,
+                    sender: userState.contractId,
+                    recipient: userState.contractId,
+                    gasless: false,
+                });
+                transactionXDR = result.xdr;
 
-            // Ensure PasskeyKit wallet is connected (required for sign to work)
-            const kit = account.get();
-            if (!kit.wallet) {
-                console.log(
-                    "[SwapperCore] Wallet not connected, attempting reconnect...",
-                );
-                try {
+                // Sign with passkey
+                const kit = account.get();
+                if (!kit.wallet) {
+                    console.log(
+                        "[SwapperCore] Wallet not connected, attempting reconnect...",
+                    );
                     await kit.connectWallet({
                         keyId: userState.keyId,
                         getContractId: async () =>
                             userState.contractId ?? undefined,
                     });
-                } catch (connErr) {
-                    console.error(
-                        "[SwapperCore] Wallet reconnect failed:",
-                        connErr,
-                    );
-                    throw new Error(
-                        "Wallet session expired. Please refresh and try again.",
-                    );
                 }
-            }
+                const sequence = await getLatestSequence();
 
-            const sequence = await getLatestSequence();
-            const signedTx = await kit.sign(tx, {
-                rpId: getDomain(window.location.hostname) ?? undefined,
-                keyId: userState.keyId,
-                expiration: sequence + 60,
-            });
+                // Wrap XDR in Transaction object for kit.sign (minimal SDK)
+                const tx = new Transaction(
+                    transactionXDR,
+                    import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
+                );
+
+                signedTx = await kit.sign(tx, {
+                    rpId: getDomain(window.location.hostname) ?? undefined,
+                    keyId: userState.keyId,
+                    expiration: sequence + 60,
+                });
+            }
 
             // 3. Submit transaction with timeout recovery
             swapState = "submitting";
@@ -650,6 +746,38 @@
 
                 <div class="p-6 md:p-8 flex flex-col gap-6">
                     {#if mode === "swap"}
+                        <!-- PROVIDER TOGGLE -->
+                        <div class="flex justify-center gap-2 mb-2">
+                            <button
+                                class="px-3 py-1 text-[10px] font-mono tracking-wider rounded-full border transition-all {provider ===
+                                'soroswap'
+                                    ? 'bg-white text-black border-white'
+                                    : 'bg-transparent text-white/50 border-white/20 hover:text-white hover:border-white/50'}"
+                                onclick={() => {
+                                    provider = "soroswap";
+                                    quote = null;
+                                    if (swapAmount || swapOutputAmount)
+                                        fetchQuote();
+                                }}
+                            >
+                                SOROSWAP
+                            </button>
+                            <button
+                                class="px-3 py-1 text-[10px] font-mono tracking-wider rounded-full border transition-all {provider ===
+                                'xbull'
+                                    ? 'bg-white text-black border-white'
+                                    : 'bg-transparent text-white/50 border-white/20 hover:text-white hover:border-white/50'}"
+                                onclick={() => {
+                                    provider = "xbull";
+                                    quote = null;
+                                    if (swapAmount || swapOutputAmount)
+                                        fetchQuote();
+                                }}
+                            >
+                                XBULL
+                            </button>
+                        </div>
+
                         <!-- SWAP MODE -->
                         <div class="flex flex-col gap-2">
                             <!-- INPUT (TOP) -->
