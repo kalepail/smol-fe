@@ -184,13 +184,34 @@
 
                 // console.log("Connecting with rpId:", rpId); // Debug logging if needed
 
-                const result = await account.get().connectWallet({ rpId });
-                setUserAuth(
-                    result.contractId,
-                    typeof result.keyId === "string"
-                        ? result.keyId
-                        : Buffer.from(result.keyId).toString("base64"),
-                );
+                try {
+                    const result = await account.get().connectWallet({ rpId });
+                    setUserAuth(
+                        result.contractId,
+                        typeof result.keyId === "string"
+                            ? result.keyId
+                            : Buffer.from(result.keyId).toString("base64"),
+                    );
+                } catch (connectErr) {
+                    console.warn(
+                        "Connect failed, prompting creation:",
+                        connectErr,
+                    );
+                    // On localhost or real fail, offer creation
+                    if (confirm("Wallet not found. Create a new one?")) {
+                        const result = await account
+                            .get()
+                            .createWallet("Smol Swapper", "User", { rpId });
+                        setUserAuth(
+                            result.contractId,
+                            typeof result.keyId === "string"
+                                ? result.keyId
+                                : Buffer.from(result.keyId).toString("base64"),
+                        );
+                    } else {
+                        throw connectErr;
+                    }
+                }
             }
             appState = "transition";
             setTimeout(() => {
