@@ -129,6 +129,9 @@
    * Register Media Session action handlers on mount
    */
   onMount(() => {
+    let resumeAttempts = 0;
+    const maxResumeAttempts = 3;
+
     if (!("mediaSession" in navigator)) return;
 
     navigator.mediaSession.setActionHandler("play", () => {
@@ -147,22 +150,109 @@
       playNextSong();
     });
 
-    // Auto-resume on interruption end (e.g. phone call, alarm)
-    const handleInterruptionEnd = () => {
-      if (
-        document.visibilityState === "visible" &&
-        audioState.playingId &&
-        audioState.audioElement?.paused
-      ) {
-        console.log("[Audio] Attempting auto-resume after interruption...");
-        audioState.audioElement.play().catch((e) => {
-          console.warn("[Audio] Auto-resume failed:", e);
-        });
+    // Track audio interruptions via pause event
+    const handleAudioPause = () => {
+      // If audio paused but playingId is still set, it's an interruption
+      if (audioState.playingId && audioState.currentSong) {
+        console.log("[Audio] Interruption detected - audio paused unexpectedly");
+        audioState.wasInterrupted = true;
       }
     };
 
-    document.addEventListener("visibilitychange", handleInterruptionEnd);
-    window.addEventListener("focus", handleInterruptionEnd);
+    // Clear interruption flag when audio successfully plays
+    const handleAudioPlay = () => {
+      if (audioState.wasInterrupted) {
+        console.log("[Audio] Playback resumed successfully after interruption");
+        audioState.wasInterrupted = false;
+        resumeAttempts = 0;
+      }
+    };
+
+    // Attempt to resume playback with retry logic
+    const attemptResume = async () => {
+      if (
+        !audioState.wasInterrupted ||
+        !audioState.playingId ||
+        !audioState.audioElement ||
+        !audioState.currentSong
+      ) {
+        return;
+      }
+
+      // Don't resume if audio is already playing
+      if (!audioState.audioElement.paused) {
+        audioState.wasInterrupted = false;
+        return;
+      }
+
+      resumeAttempts++;
+      console.log(
+        `[Audio] Attempting auto-resume after interruption (attempt ${resumeAttempts}/${maxResumeAttempts})...`,
+      );
+
+      try {
+        await audioState.audioElement.play();
+        console.log("[Audio] Auto-resume successful");
+        audioState.wasInterrupted = false;
+        resumeAttempts = 0;
+      } catch (error) {
+        console.warn(
+          `[Audio] Auto-resume failed (attempt ${resumeAttempts}):`,
+          error,
+        );
+
+        // Retry with exponential backoff
+        if (resumeAttempts < maxResumeAttempts) {
+          const delay = Math.min(1000 * Math.pow(2, resumeAttempts - 1), 4000);
+          console.log(`[Audio] Retrying in ${delay}ms...`);
+          setTimeout(attemptResume, delay);
+        } else {
+          console.warn(
+            "[Audio] Max resume attempts reached. User interaction may be required.",
+          );
+          resumeAttempts = 0;
+        }
+      }
+    };
+
+    // iOS-specific: Handle visibility changes (phone calls, switching apps)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        // Small delay to let the system settle
+        setTimeout(attemptResume, 100);
+      }
+    };
+
+    // iOS-specific: Handle window focus (returning from notifications, Siri, etc.)
+    const handleFocus = () => {
+      setTimeout(attemptResume, 100);
+    };
+
+    // iOS-specific: Handle audio session interruptions
+    const handleBeginInactive = () => {
+      console.log("[Audio] iOS audio session becoming inactive");
+      if (audioState.playingId && audioState.currentSong) {
+        audioState.wasInterrupted = true;
+      }
+    };
+
+    const handleEndInactive = () => {
+      console.log("[Audio] iOS audio session ending inactive state");
+      setTimeout(attemptResume, 100);
+    };
+
+    // Register all event listeners
+    if (audioState.audioElement) {
+      audioState.audioElement.addEventListener("pause", handleAudioPause);
+      audioState.audioElement.addEventListener("play", handleAudioPlay);
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+
+    // iOS-specific webkit events
+    document.addEventListener("webkitbegininactive", handleBeginInactive);
+    document.addEventListener("webkitendactive", handleEndInactive);
 
     // Clean up on unmount
     return () => {
@@ -171,8 +261,16 @@
         navigator.mediaSession.setActionHandler("pause", null);
         navigator.mediaSession.setActionHandler("nexttrack", null);
       }
-      document.removeEventListener("visibilitychange", handleInterruptionEnd);
-      window.removeEventListener("focus", handleInterruptionEnd);
+
+      if (audioState.audioElement) {
+        audioState.audioElement.removeEventListener("pause", handleAudioPause);
+        audioState.audioElement.removeEventListener("play", handleAudioPlay);
+      }
+
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("webkitbegininactive", handleBeginInactive);
+      document.removeEventListener("webkitendactive", handleEndInactive);
     };
   });
 
