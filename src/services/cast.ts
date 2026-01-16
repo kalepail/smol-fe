@@ -195,17 +195,25 @@ class CastService {
     }
 
     /**
-     * Play on Cast device (alias for playPause)
+     * Play on Cast device
      */
     public play() {
-        this.playPause();
+        if (!this.playerController || !this.player) return;
+        // Only toggle if currently paused
+        if (this.player.isPaused) {
+            this.playerController.playOrPause();
+        }
     }
 
     /**
-     * Pause on Cast device (alias for playPause)
+     * Pause on Cast device
      */
     public pause() {
-        this.playPause();
+        if (!this.playerController || !this.player) return;
+        // Only toggle if currently playing
+        if (!this.player.isPaused) {
+            this.playerController.playOrPause();
+        }
     }
 
     /**
