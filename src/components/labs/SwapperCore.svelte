@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { account, sac, send } from "../../utils/passkey-kit";
+    import { account, sac, kale, xlm, send } from "../../utils/passkey-kit";
     import { onMount, tick } from "svelte";
     import { getDomain } from "tldts";
     import { Buffer } from "buffer";
@@ -16,19 +16,29 @@
         buildSwapTransactionForCAddress,
         isCAddress,
     } from "../../utils/swap-builder";
-    import { userState, setUserAuth } from "../../stores/user.svelte";
+    import {
+        userState,
+        setUserAuth,
+        ensureWalletConnected,
+    } from "../../stores/user.svelte";
     import {
         balanceState,
         updateAllBalances,
     } from "../../stores/balance.svelte";
     import KaleEmoji from "../ui/KaleEmoji.svelte";
     import { Turnstile } from "svelte-turnstile";
-    import { getLatestSequence } from "../../utils/base";
-    import { Transaction, Networks } from "@stellar/stellar-sdk";
+    import { getLatestSequence, pollTransaction } from "../../utils/base";
+    import { Transaction, Networks } from "@stellar/stellar-sdk/minimal";
+
+    import {
+        getXBullQuote,
+        buildXBullTransaction,
+    } from "../../utils/xbull-api";
 
     // --- TYPES ---
     type AppState = "intro" | "transition" | "main";
     type Mode = "swap" | "send";
+    type Provider = "soroswap" | "xbull";
     type SwapState =
         | "idle"
         | "quoting"
@@ -63,6 +73,9 @@
     let txHash = $state<string | null>(null);
     let turnstileToken = $state("");
     let turnstileFailed = $state(false); // Fallback mode when Turnstile returns 401
+
+    // Provider Logic
+    let provider = $state<Provider>("soroswap");
 
     // Send Logic
     let sendTo = $state("");
@@ -167,14 +180,30 @@
     async function handleEnter() {
         try {
             if (!isAuthenticated) {
-                const rpId = getDomain(window.location.hostname) ?? undefined;
+                const hostname = window.location.hostname;
+                const rpId =
+                    hostname === "localhost"
+                        ? "localhost"
+                        : (getDomain(hostname) ?? undefined);
+
+                // console.log("Connecting with rpId:", rpId); // Debug logging if needed
+
                 const result = await account.get().connectWallet({ rpId });
-                setUserAuth(
-                    result.contractId,
-                    typeof result.keyId === "string"
+                // Use keyIdBase64 if available (PasskeyKit v0.6+), otherwise convert with URL-safe replacement
+                const keyIdSafe =
+                    result.keyIdBase64 ||
+                    (typeof result.keyId === "string"
                         ? result.keyId
-                        : Buffer.from(result.keyId).toString("base64"),
-                );
+                        : Buffer.from(result.keyId)
+                              .toString("base64")
+                              .replace(/\+/g, "-")
+                              .replace(/\//g, "_")
+                              .replace(/=+$/, ""));
+
+                setUserAuth(result.contractId, keyIdSafe);
+            } else {
+                // Already authenticated (localStorage), but ensure wallet instance is connected
+                await ensureWalletConnected();
             }
             appState = "transition";
             setTimeout(() => {
@@ -184,7 +213,8 @@
             }, 1000);
         } catch (e) {
             console.error(e);
-            alert("Entry failed.");
+            const msg = e instanceof Error ? e.message : String(e); // Keep concise
+            alert(`Entry failed: ${msg}`);
         }
     }
 
@@ -235,20 +265,48 @@
                 const tradeType =
                     lastEdited === "in" ? "EXACT_IN" : "EXACT_OUT";
 
-                const result = await getQuote({
-                    assetIn,
-                    assetOut,
-                    amount: stroops,
-                    tradeType,
-                    slippageBps: 50, // 0.5%
-                });
+                let result;
+                if (provider === "soroswap") {
+                    result = await getQuote({
+                        assetIn,
+                        assetOut,
+                        amount: stroops,
+                        tradeType,
+                        slippageBps: 50, // 0.5%
+                    });
+                } else {
+                    // xBull API
+                    const sender = userState.contractId || undefined;
+                    const xbullResult = await getXBullQuote({
+                        fromAsset: assetIn,
+                        toAsset: assetOut,
+                        fromAmount: String(stroops),
+                        sender: sender,
+                    });
+
+                    // Map xBull response to local QuoteResponse format
+                    result = {
+                        amountIn: xbullResult.fromAmount,
+                        amountOut: xbullResult.toAmount,
+                        minAmountOut: xbullResult.toAmount, // xBull pre-calculates slippage in toAmount maybe? or user sets minToGet in accept
+                        price: (
+                            Number(xbullResult.toAmount) /
+                            Number(xbullResult.fromAmount)
+                        ).toFixed(7),
+                        path: [], // xBull handles routing internally via UUID
+                        tradeType,
+                        // Custom props for xBull
+                        xbullRoute: xbullResult.route,
+                        otherAmountThreshold: xbullResult.toAmount, // Placeholder
+                    } as any;
+                }
 
                 quote = result;
 
                 if (lastEdited === "in") {
-                    swapOutputAmount = formatAmount(quote.amountOut);
+                    swapOutputAmount = formatAmount(quote!.amountOut);
                 } else {
-                    swapAmount = formatAmount(quote.amountIn);
+                    swapAmount = formatAmount(quote!.amountIn);
                 }
 
                 swapState = "simulated_ok";
@@ -291,51 +349,154 @@
         statusMessage = "Building swap...";
 
         try {
-            // 1. Build unsigned XDR
-            // Use direct aggregator invocation for C addresses (smart wallets)
-            // Fall back to Soroswap API for G addresses
-            let xdr: string;
+            // 1. Build Transaction
+            let signedTx;
+            let transactionXDR;
+
             console.log(
                 "[SwapperCore] Executing swap for:",
                 userState.contractId,
+                "via:",
+                provider,
             );
 
-            if (isCAddress(userState.contractId)) {
-                // C address: Build via direct aggregator contract invocation
-                statusMessage = "Building C-address swap...";
-                console.log(
-                    "[SwapperCore] Building C-address swap with quote:",
-                    quote,
-                );
-                xdr = await buildSwapTransactionForCAddress(
-                    quote,
-                    userState.contractId,
-                );
+            if (provider === "soroswap") {
+                if (isCAddress(userState.contractId)) {
+                    // C address: Build via direct aggregator contract invocation
+                    statusMessage = "Building C-address swap...";
+                    const t = await buildSwapTransactionForCAddress(
+                        quote,
+                        userState.contractId,
+                    );
+
+                    // Convert AssembledTransaction to XDR string for signing
+                    // Note: passkey-kit sign() can take AssembledTransaction directly,
+                    // but for consistency with xBull path (which returns XDR string), we use XDR path if possible,
+                    // OR we just pass 't' if it's an AssembledTx.
+                    // Let's pass 't' directly for C-Address path as before.
+
+                    // Sign with passkey
+                    const kit = account.get();
+                    if (!kit.wallet) {
+                        console.log(
+                            "[SwapperCore] Wallet not connected, attempting reconnect...",
+                        );
+                        await kit.connectWallet({
+                            keyId: userState.keyId,
+                            getContractId: async () =>
+                                userState.contractId ?? undefined,
+                        });
+                    }
+                    const sequence = await getLatestSequence();
+                    signedTx = await kit.sign(t, {
+                        rpId:
+                            window.location.hostname === "localhost"
+                                ? "localhost"
+                                : (getDomain(window.location.hostname) ??
+                                  undefined),
+                        keyId: userState.keyId,
+                        expiration: sequence + 60,
+                    });
+                } else {
+                    // G address: Use Soroswap API (may work for traditional accounts)
+                    const result = await buildTransaction(
+                        quote,
+                        userState.contractId,
+                        userState.contractId,
+                    );
+                    transactionXDR = result.xdr;
+
+                    // Sign with passkey
+                    const kit = account.get();
+                    if (!kit.wallet) {
+                        console.log(
+                            "[SwapperCore] Wallet not connected, attempting reconnect...",
+                        );
+                        await kit.connectWallet({
+                            keyId: userState.keyId,
+                            getContractId: async () =>
+                                userState.contractId ?? undefined,
+                        });
+                    }
+                    const sequence = await getLatestSequence();
+
+                    // Wrap XDR in Transaction object for kit.sign (minimal SDK)
+                    const tx = new Transaction(
+                        transactionXDR,
+                        import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
+                    );
+
+                    signedTx = await kit.sign(tx, {
+                        rpId:
+                            window.location.hostname === "localhost"
+                                ? "localhost"
+                                : (getDomain(window.location.hostname) ??
+                                  undefined),
+                        keyId: userState.keyId,
+                        expiration: sequence + 60,
+                    });
+                }
             } else {
-                // G address: Use Soroswap API (may work for traditional accounts)
-                const result = await buildTransaction(
-                    quote,
-                    userState.contractId,
-                    userState.contractId,
+                // xBull Logic
+                statusMessage = "Building xBull swap...";
+                // Note: quote cast as 'any' to access xbullRoute.
+                const xbullQuote = quote as any;
+                if (!xbullQuote.xbullRoute) {
+                    throw new Error("Invalid xBull quote");
+                }
+
+                // Call xBull Accept Quote API to get XDR
+                const result = await buildXBullTransaction({
+                    fromAmount: xbullQuote.amountIn,
+                    minToGet: xbullQuote.amountOut, // Using amountOut as minToGet for now
+                    route: xbullQuote.xbullRoute,
+                    sender: userState.contractId,
+                    recipient: userState.contractId,
+                    gasless: false,
+                });
+                transactionXDR = result.xdr;
+
+                // Sign with passkey
+                const kit = account.get();
+                if (!kit.wallet) {
+                    console.log(
+                        "[SwapperCore] Wallet not connected, attempting reconnect...",
+                    );
+                    await kit.connectWallet({
+                        keyId: userState.keyId,
+                        getContractId: async () =>
+                            userState.contractId ?? undefined,
+                    });
+                }
+                const sequence = await getLatestSequence();
+
+                // Wrap XDR in Transaction object for kit.sign (minimal SDK)
+                const tx = new Transaction(
+                    transactionXDR,
+                    import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
                 );
-                xdr = result.xdr;
+
+                signedTx = await kit.sign(tx, {
+                    rpId:
+                        window.location.hostname === "localhost"
+                            ? "localhost"
+                            : (getDomain(window.location.hostname) ??
+                              undefined),
+                    keyId: userState.keyId,
+                    expiration: sequence + 60,
+                });
             }
 
-            // 2. Parse XDR and sign with passkey
-            statusMessage = "Sign with passkey...";
-            let tx = new Transaction(
-                xdr,
-                import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
-            );
-            const sequence = await getLatestSequence();
-            const signedTx = await account.get().sign(tx, {
-                rpId: getDomain(window.location.hostname) ?? undefined,
-                keyId: userState.keyId,
-                expiration: sequence + 60,
-            });
-
-            // 3. Submit transaction
+            // 3. Submit transaction with timeout recovery
             swapState = "submitting";
+
+            // Calculate txHash BEFORE submission for recovery polling
+            const builtTx = signedTx.built;
+            const calculatedHash = builtTx?.hash().toString("hex");
+            console.log(
+                "[SwapperCore] Calculated txHash before submit:",
+                calculatedHash,
+            );
 
             let result;
             if (useFallback) {
@@ -343,12 +504,46 @@
                 statusMessage = "Submitting via Soroswap...";
                 result = await sendTransaction(signedTx.toXDR(), false);
             } else {
-                // Primary: Tyler's relayer (sponsored fees)
+                // Primary: Tyler's relayer (sponsored fees) with timeout recovery
                 statusMessage = "Submitting swap...";
-                result = await send(signedTx, turnstileToken);
+                try {
+                    result = await send(signedTx, turnstileToken);
+
+                    // Even on success, verify ledger state
+                    if (calculatedHash) {
+                        console.log(
+                            "[SwapperCore] Verifying tx on network:",
+                            calculatedHash,
+                        );
+                        await pollTransaction(calculatedHash);
+                    }
+                } catch (submitErr) {
+                    console.warn(
+                        "[SwapperCore] Relayer timeout/error, attempting recovery...",
+                        submitErr,
+                    );
+
+                    // Timeout Recovery: If relayer timed out (30s), it might still be processing.
+                    // Poll the network directly to see if it landed.
+                    if (calculatedHash) {
+                        statusMessage = "Verifying transaction...";
+                        console.log(
+                            "[SwapperCore] Recovery polling for:",
+                            calculatedHash,
+                        );
+                        await pollTransaction(calculatedHash);
+                        console.log(
+                            "[SwapperCore] Recovery successful:",
+                            calculatedHash,
+                        );
+                        result = { hash: calculatedHash };
+                    } else {
+                        throw submitErr; // Can't recover without hash
+                    }
+                }
             }
 
-            txHash = result?.hash || "submitted";
+            txHash = result?.hash || calculatedHash || "submitted";
             swapState = "confirmed";
             statusMessage = useFallback
                 ? "Swap complete! (paid fee)"
@@ -380,9 +575,151 @@
     }
 
     async function executeSend() {
-        // TODO: Implement send functionality
-        statusMessage = "Send not implemented yet";
-        swapState = "failed";
+        if (!userState.contractId || !userState.keyId) {
+            statusMessage = "Connect wallet first";
+            return;
+        }
+
+        const recipient = sendTo.trim();
+        if (!recipient) {
+            statusMessage = "Enter a recipient address";
+            return;
+        }
+
+        if (recipient === userState.contractId) {
+            statusMessage = "Cannot send to yourself";
+            return;
+        }
+
+        const amountNum = parseFloat(sendAmount);
+        if (isNaN(amountNum) || amountNum <= 0) {
+            statusMessage = "Enter a valid amount";
+            return;
+        }
+
+        // Convert to stroops (7 decimals)
+        const amountInStroops = BigInt(Math.floor(amountNum * 10_000_000));
+
+        // Check balance
+        const currentBalance = sendToken === "KALE" ? kaleBalance : xlmBalance;
+        if (
+            typeof currentBalance === "bigint" &&
+            amountInStroops > currentBalance
+        ) {
+            statusMessage = "Insufficient balance";
+            return;
+        }
+
+        // Require Turnstile or fallback
+        const useFallback = turnstileFailed && !turnstileToken;
+        if (!turnstileToken && !useFallback) {
+            statusMessage = "Complete verification first";
+            return;
+        }
+
+        swapState = "awaiting_passkey";
+        statusMessage = `Sending ${sendToken}...`;
+
+        try {
+            // Build transfer transaction
+            let tx;
+            if (sendToken === "KALE") {
+                tx = await kale.get().transfer({
+                    from: userState.contractId,
+                    to: recipient,
+                    amount: amountInStroops,
+                });
+            } else {
+                // XLM transfer via SAC
+                tx = await xlm.get().transfer({
+                    from: userState.contractId,
+                    to: recipient,
+                    amount: amountInStroops,
+                });
+            }
+
+            // Sign with passkey
+            const kit = account.get();
+            if (!kit.wallet) {
+                console.log(
+                    "[SwapperCore] Send: Wallet not connected, attempting reconnect...",
+                );
+                await kit.connectWallet({
+                    keyId: userState.keyId,
+                    getContractId: async () =>
+                        userState.contractId ?? undefined,
+                });
+            }
+
+            const sequence = await getLatestSequence();
+            const signedTx = await kit.sign(tx, {
+                rpId:
+                    window.location.hostname === "localhost"
+                        ? "localhost"
+                        : (getDomain(window.location.hostname) ?? undefined),
+                keyId: userState.keyId,
+                expiration: sequence + 60,
+            });
+
+            // Submit with timeout recovery
+            swapState = "submitting";
+            statusMessage = "Submitting transfer...";
+
+            const calculatedHash = signedTx.built?.hash().toString("hex");
+            console.log("[SwapperCore] Send txHash:", calculatedHash);
+
+            try {
+                await send(signedTx, turnstileToken);
+
+                if (calculatedHash) {
+                    console.log(
+                        "[SwapperCore] Send: Verifying tx:",
+                        calculatedHash,
+                    );
+                    await pollTransaction(calculatedHash);
+                }
+            } catch (submitErr) {
+                console.warn(
+                    "[SwapperCore] Send: Relayer error, attempting recovery...",
+                    submitErr,
+                );
+                if (calculatedHash) {
+                    statusMessage = "Verifying transfer...";
+                    await pollTransaction(calculatedHash);
+                    console.log(
+                        "[SwapperCore] Send: Recovery successful:",
+                        calculatedHash,
+                    );
+                } else {
+                    throw submitErr;
+                }
+            }
+
+            txHash = calculatedHash || "submitted";
+            swapState = "confirmed";
+            statusMessage = `Sent ${amountNum} ${sendToken}!`;
+
+            // Reset
+            sendTo = "";
+            sendAmount = "";
+            turnstileToken = "";
+
+            refreshBalances();
+        } catch (e) {
+            console.error("Send error:", e);
+            const message = e instanceof Error ? e.message : "Send failed";
+
+            if (
+                message.toLowerCase().includes("abort") ||
+                message.toLowerCase().includes("cancel") ||
+                message.toLowerCase().includes("not allowed")
+            ) {
+                statusMessage = "Send cancelled";
+            } else {
+                statusMessage = message;
+            }
+            swapState = "failed";
+        }
     }
 </script>
 
@@ -445,6 +782,38 @@
 
                 <div class="p-6 md:p-8 flex flex-col gap-6">
                     {#if mode === "swap"}
+                        <!-- PROVIDER TOGGLE -->
+                        <div class="flex justify-center gap-2 mb-2">
+                            <button
+                                class="px-3 py-1 text-[10px] font-mono tracking-wider rounded-full border transition-all {provider ===
+                                'soroswap'
+                                    ? 'bg-white text-black border-white'
+                                    : 'bg-transparent text-white/50 border-white/20 hover:text-white hover:border-white/50'}"
+                                onclick={() => {
+                                    provider = "soroswap";
+                                    quote = null;
+                                    if (swapAmount || swapOutputAmount)
+                                        fetchQuote();
+                                }}
+                            >
+                                SOROSWAP
+                            </button>
+                            <button
+                                class="px-3 py-1 text-[10px] font-mono tracking-wider rounded-full border transition-all {provider ===
+                                'xbull'
+                                    ? 'bg-white text-black border-white'
+                                    : 'bg-transparent text-white/50 border-white/20 hover:text-white hover:border-white/50'}"
+                                onclick={() => {
+                                    provider = "xbull";
+                                    quote = null;
+                                    if (swapAmount || swapOutputAmount)
+                                        fetchQuote();
+                                }}
+                            >
+                                XBULL
+                            </button>
+                        </div>
+
                         <!-- SWAP MODE -->
                         <div class="flex flex-col gap-2">
                             <!-- INPUT (TOP) -->

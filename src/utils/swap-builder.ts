@@ -23,10 +23,10 @@ import type { QuoteResponse, RawTradeDistribution } from "./soroswap";
 
 /** 
  * Soroswap Aggregator Contract (Mainnet)
- * Uses the same contract as kalepail/ohloss which has confirmed compatible function signature
+ * Uses environment variable for consistency across the codebase
  * @see https://github.com/kalepail/ohloss/blob/main/ohloss-frontend/src/lib/swapService.ts
  */
-export const AGGREGATOR_CONTRACT = "CAYP3UWLJM7ZPTUKL6R6BFGTRWLZ46LRKOXTERI2K6BIJAWGYY62TXTO";
+export const AGGREGATOR_CONTRACT = import.meta.env.PUBLIC_AGGREGATOR_CONTRACT_ID || "CAG5LRYQ5JVEUI5TEID72EYOVX44TTUJT5BQR2J6J77FH65PCCFAJDDH";
 
 /** Protocol ID mapping (matches aggregator contract enum) */
 const PROTOCOL_MAP: Record<string, number> = {
@@ -86,20 +86,7 @@ export async function buildSwapTransactionForCAddress(
     let amountOutMin = rawTrade.amountOutMin;
 
     if (!amountIn || !amountOutMin) {
-        console.warn("rawTrade amounts missing, deriving from quote strategy");
-
-        // Strategy depends on tradeType (EXACT_IN vs EXACT_OUT)
-        if (quote.tradeType === "EXACT_OUT") {
-            // EXACT_OUT: We want to receive exactly amountOut. 
-            // otherAmountThreshold is the MAX input we are willing to spend.
-            if (!amountIn) amountIn = String(quote.otherAmountThreshold);
-            if (!amountOutMin) amountOutMin = String(quote.amountOut);
-        } else {
-            // EXACT_IN (Default): We are spending exactly amountIn.
-            // otherAmountThreshold is the MIN output we expect to receive.
-            if (!amountIn) amountIn = quote.amountIn;
-            if (!amountOutMin) amountOutMin = String(quote.otherAmountThreshold);
-        }
+        throw new Error("rawTrade missing amountIn or amountOutMin - API/Quote error");
     }
 
     // Deadline: 1 hour from now

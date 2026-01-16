@@ -83,10 +83,10 @@ export async function getQuote(request: QuoteRequest, network: 'mainnet' | 'test
         assetOut: request.assetOut,
         amount: request.amount,
         tradeType: request.tradeType,
-        // SDEX excluded: returns different format without rawTrade.distribution
-        protocols: request.protocols ?? ['soroswap', 'phoenix', 'aqua'],
+        // Default protocols (Factory Spec: Exact match to ohloss/api-worker)
+        protocols: request.protocols ?? ['soroswap', 'aqua', 'phoenix'],
         parts: request.parts ?? 10,
-        slippageBps: request.slippageBps ?? 100, // 1% default
+        slippageBps: request.slippageBps ?? 500, // 5% default (matches ohloss reference)
         maxHops: request.maxHops ?? 3
     };
 
@@ -201,8 +201,9 @@ export function toStroops(amount: number | string, decimals: number = 7): number
 
 /**
  * Soroswap Aggregator Contract (Mainnet)
+ * Uses environment variable for consistency
  */
-export const AGGREGATOR_CONTRACT = 'CAG5LRYQ5JVEUI5TEID72EYOVX44TTUJT5BQR2J6J77FH65PCCFAJDDH';
+export const AGGREGATOR_CONTRACT = import.meta.env.PUBLIC_AGGREGATOR_CONTRACT_ID || 'CAG5LRYQ5JVEUI5TEID72EYOVX44TTUJT5BQR2J6J77FH65PCCFAJDDH';
 
 /**
  * RawTrade distribution from quote

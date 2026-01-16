@@ -1,0 +1,1 @@
+{"statusCode":400,"timestamp":"2026-01-16T06:54:15.238Z","path":"http://swap.apis.xbull.app/swaps/accept-quote","message":["Transaction simulation failed, make sure you have enough funds and trust the asset you will receive"]}

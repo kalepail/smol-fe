@@ -16,25 +16,47 @@ interface CreateResult extends ConnectResult {
 export function useAuthentication() {
   const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
   async function login() {
-    const rpId = getDomain(window.location.hostname) ?? undefined;
-    const {
-      rawResponse,
-      keyIdBase64,
-      contractId: cid,
-    } = await account.get().connectWallet({
-      rpId,
-    });
+    const hostname = window.location.hostname;
+    const rpId = hostname === "localhost" ? "localhost" : (getDomain(hostname) ?? undefined);
 
+    // Standard Passkey Flow: Let the browser discover keys.
+    // const savedKeyId = ... (Removed)
+
+    try {
+      const result = await account.get().connectWallet({
+        rpId,
+        // keyId: savedKeyId || undefined // REMOVED: standard flow
+      });
+
+      const {
+        rawResponse,
+        contractId: cid,
+      } = result;
+
+      // Ensure we get a string keyId (passkey-kit v0.6+ vs older)
+      const keyIdBase64 = result.keyIdBase64 ||
+        (typeof result.keyId === 'string' ? result.keyId : Buffer.from(result.keyId).toString('base64').replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""));
+
+      await performLogin(cid, keyIdBase64, rawResponse, 'connect');
+    } catch (connectErr) {
+      console.error("Connect failed:", connectErr);
+      throw connectErr;
+    }
+  }
+
+  async function performLogin(cid: string, keyIdBase64: string, rawResponse: any, type: 'connect' | 'create', username?: string) {
+    const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
     const jwt = await fetch(`${API_URL}/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        type: 'connect',
+        type,
         keyId: keyIdBase64,
         contractId: cid,
         response: rawResponse,
+        username
       }),
     }).then(async (res) => {
       if (res.ok) return res.text();
@@ -61,52 +83,29 @@ export function useAuthentication() {
   }
 
   async function signUp(username: string, turnstileToken: string) {
-    const rpId = getDomain(window.location.hostname) ?? undefined;
+    const hostname = window.location.hostname;
+    const rpId = hostname === "localhost" ? "localhost" : (getDomain(hostname) ?? undefined);
+    const result = await account.get().createWallet('smol.xyz', `SMOL — ${username}`, {
+      rpId,
+      authenticatorSelection: {
+        residentKey: "required",
+        requireResidentKey: true,
+        userVerification: "required"
+      }
+    });
+
     const {
       rawResponse,
-      keyIdBase64,
       contractId: cid,
       signedTx,
-    } = await account.get().createWallet('smol.xyz', `SMOL — ${username}`, {
-      rpId,
-    });
+    } = result;
 
-    const jwt = await fetch(`${API_URL}/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        type: 'create',
-        keyId: keyIdBase64,
-        contractId: cid,
-        response: rawResponse,
-        username,
-      }),
-    }).then(async (res) => {
-      if (res.ok) return res.text();
-      throw await res.text();
-    });
+    const keyIdBase64 = result.keyIdBase64 ||
+      (typeof result.keyId === 'string' ? result.keyId : Buffer.from(result.keyId).toString('base64').replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""));
+
+    await performLogin(cid, keyIdBase64, rawResponse, 'create', username);
 
     await send(signedTx, turnstileToken);
-
-    setUserAuth(cid, keyIdBase64);
-    // Mark wallet as connected since createWallet was just called (which internally connects)
-    userState.walletConnected = true;
-
-    const domain = getDomain(window.location.hostname);
-    const isSecure = window.location.protocol === 'https:';
-    const cookieOptions: Cookies.CookieAttributes = {
-      path: '/',
-      secure: isSecure,
-      sameSite: 'Lax',
-      expires: 30,
-    };
-    if (domain) {
-      cookieOptions.domain = `.${domain}`;
-    }
-
-    Cookies.set('smol_token', jwt, cookieOptions);
   }
 
   async function logout() {
@@ -125,13 +124,16 @@ export function useAuthentication() {
     Cookies.remove('smol_token', cookieOptions);
 
     Object.keys(localStorage).forEach((key) => {
-      if (key.includes('smol:')) {
+      // Preserve keyId and contractId for "Soft Logout" (Wallet Remembered)
+      // This allows 'Targeted Authentication' which is required for localhost stability.
+      // If the key is invalid, ensureWalletConnected will auto-burn it (see stores/user.svelte.ts).
+      if (key.includes('smol:') && key !== 'smol:contractId' && key !== 'smol:keyId') {
         localStorage.removeItem(key);
       }
     });
 
     Object.keys(sessionStorage).forEach((key) => {
-      if (key.includes('smol:')) {
+      if (key.includes('smol:') && key !== 'smol:contractId' && key !== 'smol:keyId') {
         sessionStorage.removeItem(key);
       }
     });

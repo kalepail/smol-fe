@@ -5,13 +5,17 @@
 import { account } from '../utils/passkey-kit';
 import { getDomain } from 'tldts';
 
+// Initialize from localStorage if available (client-side only)
+const storedContractId = typeof localStorage !== "undefined" ? localStorage.getItem("smol:contractId") : null;
+const storedKeyId = typeof localStorage !== "undefined" ? localStorage.getItem("smol:keyId") : null;
+
 export const userState = $state<{
   contractId: string | null;
   keyId: string | null;
   walletConnected: boolean;
 }>({
-  contractId: null,
-  keyId: null,
+  contractId: storedContractId,
+  keyId: storedKeyId,
   walletConnected: false,
 });
 
@@ -25,6 +29,10 @@ export function isAuthenticated(): boolean {
  */
 export function setContractId(id: string | null) {
   userState.contractId = id;
+  if (typeof localStorage !== "undefined") {
+    if (id) localStorage.setItem("smol:contractId", id);
+    else localStorage.removeItem("smol:contractId");
+  }
 }
 
 /**
@@ -32,6 +40,10 @@ export function setContractId(id: string | null) {
  */
 export function setKeyId(id: string | null) {
   userState.keyId = id;
+  if (typeof localStorage !== "undefined") {
+    if (id) localStorage.setItem("smol:keyId", id);
+    else localStorage.removeItem("smol:keyId");
+  }
 }
 
 /**
@@ -40,6 +52,11 @@ export function setKeyId(id: string | null) {
 export function setUserAuth(contractId: string | null, keyId: string | null) {
   userState.contractId = contractId;
   userState.keyId = keyId;
+
+  if (typeof localStorage !== "undefined") {
+    if (contractId) localStorage.setItem("smol:contractId", contractId);
+    if (keyId) localStorage.setItem("smol:keyId", keyId);
+  }
 }
 
 /**
@@ -49,6 +66,13 @@ export function clearUserAuth() {
   userState.contractId = null;
   userState.keyId = null;
   userState.walletConnected = false;
+
+  if (typeof localStorage !== "undefined") {
+    // Soft Logout: We do NOT remove contractId/keyId so user can easily reconnect
+    // localStorage.removeItem("smol:contractId");
+    // localStorage.removeItem("smol:keyId");
+    localStorage.removeItem("smol:skip_intro"); // Optional: reset intro
+  }
 }
 
 /**
@@ -60,20 +84,13 @@ export async function ensureWalletConnected(): Promise<void> {
   if (userState.contractId && userState.keyId && !userState.walletConnected) {
 
 
-    try {
-      // Use current hostname as RP ID to avoid PSL issues with pages.dev (tldts returning 'pages.dev' which is invalid)
-      // or let browser default (usually ideal).
-      // Testing with undefined to let browser allow current origin.
-      await account.get().connectWallet({
-        rpId: undefined, // Let browser handle origin validation
-        keyId: userState.keyId,
-      });
-      userState.walletConnected = true;
+    const hostname = window.location.hostname;
+    const rpId = hostname === "localhost" ? "localhost" : (getDomain(hostname) ?? undefined);
 
-    } catch (error) {
-      console.error('[userState] Failed to connect wallet:', error);
-      throw error;
-    }
+    await account.get().connectWallet({
+      rpId,
+    });
+    userState.walletConnected = true;
   }
 }
 
