@@ -86,20 +86,7 @@ export async function buildSwapTransactionForCAddress(
     let amountOutMin = rawTrade.amountOutMin;
 
     if (!amountIn || !amountOutMin) {
-        console.warn("rawTrade amounts missing, deriving from quote strategy");
-
-        // Strategy depends on tradeType (EXACT_IN vs EXACT_OUT)
-        if (quote.tradeType === "EXACT_OUT") {
-            // EXACT_OUT: We want to receive exactly amountOut. 
-            // otherAmountThreshold is the MAX input we are willing to spend.
-            if (!amountIn) amountIn = String(quote.otherAmountThreshold);
-            if (!amountOutMin) amountOutMin = String(quote.amountOut);
-        } else {
-            // EXACT_IN (Default): We are spending exactly amountIn.
-            // otherAmountThreshold is the MIN output we expect to receive.
-            if (!amountIn) amountIn = quote.amountIn;
-            if (!amountOutMin) amountOutMin = String(quote.otherAmountThreshold);
-        }
+        throw new Error("rawTrade missing amountIn or amountOutMin - API/Quote error");
     }
 
     // Deadline: 1 hour from now
