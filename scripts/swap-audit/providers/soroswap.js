@@ -70,7 +70,7 @@ function buildDistributionArg(distribution) {
 export class SoroswapProvider {
     constructor(config) {
         this.network = config.network;
-        this.apiKey = process.env.SOROSWAP_API_KEY || 'sk_4841707489b6c8a0ec4614bfa917be0b6518b0fd8b1f0cb08c0abe84de095b8f';
+        this.apiKey = process.env.SOROSWAP_API_KEY || config.soroswap?.apiKey || 'sk_4841707489b6c8a0ec4614bfa917be0b6518b0fd8b1f0cb08c0abe84de095b8f';
         this.xlmAsset = config.aquarius.xlmAsset;
         this.kaleAsset = config.aquarius.kaleTokenContractId;
 

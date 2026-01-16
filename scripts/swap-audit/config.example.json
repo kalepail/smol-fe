@@ -17,27 +17,30 @@
         },
         "ohloss": {
             "enabled": false,
-            "notes": "TODO: wire once docs/interfaces are confirmed"
+            "notes": "Ohloss = Soroswap provider with factory spec alignment"
         }
     },
     "ozRelayer": {
-        "baseUrl": "https://api.openzeppelin.com",
-        "relayerId": "YOUR_RELAYER_ID",
+        "baseUrl": "https://api.defender.openzeppelin.com",
+        "relayerId": "ENV:OZ_RELAYER_ID",
         "apiKey": "ENV:OZ_RELAYER_API_KEY",
         "feeToken": "native"
     },
+    "soroswap": {
+        "apiKey": "sk_4841707489b6c8a0ec4614bfa917be0b6518b0fd8b1f0cb08c0abe84de095b8f"
+    },
     "xbull": {
         "baseUrl": "https://swap.apis.xbull.app",
-        "enabled": false
+        "enabled": true
     },
     "turnstile": {
-        "enabled": false,
-        "siteKey": "ENV:TURNSTILE_SITE_KEY",
+        "enabled": true,
+        "siteKey": "0x4AAAAAABBPiK_8QHc6n8E4",
         "secretKey": "ENV:TURNSTILE_SECRET_KEY"
     },
     "limits": {
-        "maxSlippageBps": 100,
-        "maxFeeStroops": 500000,
-        "maxOps": 5
+        "maxSlippageBps": 500,
+        "maxFeeStroops": 10000000,
+        "maxOps": 10
     }
 }
