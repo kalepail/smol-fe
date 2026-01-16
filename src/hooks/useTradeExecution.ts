@@ -158,11 +158,11 @@ export function useTradeExecution() {
     const networkPassphrase = import.meta.env.PUBLIC_NETWORK_PASSPHRASE || Networks.PUBLIC;
 
     const tx = new TransactionBuilder(sourceAccount, {
-      fee: BASE_FEE,
+      fee: '10000000', // 1 XLM (Standard Relayer Fee per Ohloss spec)
       networkPassphrase,
     })
       .addOperation(op)
-      .setTimeout(TimeoutInfinite)
+      .setTimeout(300) // 5 Minutes (per Ohloss spec)
       .build();
 
     // 4. Sign with Passkey (adds Auth entries)
