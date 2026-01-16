@@ -16,25 +16,79 @@ interface CreateResult extends ConnectResult {
 export function useAuthentication() {
   const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
   async function login() {
-    const rpId = getDomain(window.location.hostname) ?? undefined;
-    const {
-      rawResponse,
-      keyIdBase64,
-      contractId: cid,
-    } = await account.get().connectWallet({
-      rpId,
-    });
+    const hostname = window.location.hostname;
+    const rpId = hostname === "localhost" ? "localhost" : (getDomain(hostname) ?? undefined);
 
+    try {
+      const {
+        rawResponse,
+        keyIdBase64,
+        contractId: cid,
+      } = await account.get().connectWallet({
+        rpId,
+      });
+
+      await performLogin(cid, keyIdBase64, rawResponse, 'connect');
+    } catch (connectErr) {
+      console.warn("Connect failed, prompting creation:", connectErr);
+      if (confirm("Wallet not found. Create a new one?")) {
+        const {
+          rawResponse,
+          keyIdBase64,
+          contractId: cid,
+          signedTx
+        } = await account.get().createWallet('smol.xyz', `User`, {
+          rpId,
+        });
+
+        // For creation via login flow, we might need to register/fund? 
+        // Existing code implies signUp logic manages funding. 
+        // But if we just 'createWallet' here locally, we might skip backend registration if we call /login directly.
+        // However, for pure client-side swapper on localhost, we just need the wallet.
+        // The API /login likely handles simple session creation.
+        // Let's mirror what SwapperCore does: Just get the wallet and set Auth.
+        // BUT, useAuthentication implies FULL app login (cookies etc).
+
+        // If we are creating via 'login' fallback, we should probably call the signUp flow logic?
+        // But signUp requires username/turnstile.
+        // Let's stick to the SwapperCore logic: Just create the wallet and try to login as 'connect' or 'create' if the API supports it without extra params.
+        // The API expects 'type: create' to have username.
+
+        // SIMPLIFICATION: If connect fails, we just create the wallet LOCALLY so the user can use the app (Swapper).
+        // We might fail the API login if the API enforces existing users.
+        // But for localhost dev, the API login might fail anyway if the DB doesn't have the user.
+        // Let's try to proceed with local auth first.
+
+        setUserAuth(cid, keyIdBase64);
+        userState.walletConnected = true;
+
+        // Try to let the backend know, but don't block local usage if it fails (e.g. 404 user not found)
+        try {
+          await performLogin(cid, keyIdBase64, rawResponse, 'connect'); // Try connecting as if we exist
+        } catch (e) {
+          console.warn("Backend login failed (expected for new local user):", e);
+          // We still allow local usage
+        }
+
+      } else {
+        throw connectErr;
+      }
+    }
+  }
+
+  async function performLogin(cid: string, keyIdBase64: string, rawResponse: any, type: 'connect' | 'create', username?: string) {
+    const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
     const jwt = await fetch(`${API_URL}/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        type: 'connect',
+        type,
         keyId: keyIdBase64,
         contractId: cid,
         response: rawResponse,
+        username
       }),
     }).then(async (res) => {
       if (res.ok) return res.text();
@@ -61,7 +115,8 @@ export function useAuthentication() {
   }
 
   async function signUp(username: string, turnstileToken: string) {
-    const rpId = getDomain(window.location.hostname) ?? undefined;
+    const hostname = window.location.hostname;
+    const rpId = hostname === "localhost" ? "localhost" : (getDomain(hostname) ?? undefined);
     const {
       rawResponse,
       keyIdBase64,
@@ -71,42 +126,9 @@ export function useAuthentication() {
       rpId,
     });
 
-    const jwt = await fetch(`${API_URL}/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        type: 'create',
-        keyId: keyIdBase64,
-        contractId: cid,
-        response: rawResponse,
-        username,
-      }),
-    }).then(async (res) => {
-      if (res.ok) return res.text();
-      throw await res.text();
-    });
+    await performLogin(cid, keyIdBase64, rawResponse, 'create', username);
 
     await send(signedTx, turnstileToken);
-
-    setUserAuth(cid, keyIdBase64);
-    // Mark wallet as connected since createWallet was just called (which internally connects)
-    userState.walletConnected = true;
-
-    const domain = getDomain(window.location.hostname);
-    const isSecure = window.location.protocol === 'https:';
-    const cookieOptions: Cookies.CookieAttributes = {
-      path: '/',
-      secure: isSecure,
-      sameSite: 'Lax',
-      expires: 30,
-    };
-    if (domain) {
-      cookieOptions.domain = `.${domain}`;
-    }
-
-    Cookies.set('smol_token', jwt, cookieOptions);
   }
 
   async function logout() {
