@@ -1,6 +1,6 @@
 import { Asset } from '@stellar/stellar-sdk/minimal';
 import { Client as SmolClient } from 'smol-sdk';
-import { getDomain } from 'tldts';
+import { getSafeRpId } from '../utils/domains';
 import type { Smol } from '../types/domain';
 import type { MixtapeSmolData } from '../services/api/mixtapes';
 import { getLatestSequence } from '../utils/base';
@@ -159,7 +159,7 @@ export function useMixtapeMinting() {
 
     const sequence = await getLatestSequence();
     at = await account.get().sign(at, {
-      rpId: getDomain(window.location.hostname) ?? undefined,
+      rpId: getSafeRpId(window.location.hostname),
       keyId: userKeyId,
       expiration: sequence + 60,
     });

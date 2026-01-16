@@ -1,5 +1,5 @@
 import type { Client as CometClient } from 'comet-sdk';
-import { getDomain } from 'tldts';
+import { getSafeRpId } from '../utils/domains';
 import { getLatestSequence } from '../utils/base';
 import { account, send } from '../utils/passkey-kit';
 
@@ -33,7 +33,7 @@ export function useTradeExecution() {
 
     const sequence = await getLatestSequence();
     await account.get().sign(tx, {
-      rpId: getDomain(window.location.hostname) ?? undefined,
+      rpId: getSafeRpId(window.location.hostname),
       keyId: userKeyId,
       expiration: sequence + 60,
     });

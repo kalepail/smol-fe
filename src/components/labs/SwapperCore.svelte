@@ -1,7 +1,7 @@
 <script lang="ts">
     import { account, sac, kale, xlm, send } from "../../utils/passkey-kit";
     import { onMount, tick } from "svelte";
-    import { getDomain } from "tldts";
+    import { getSafeRpId } from "../../utils/domains";
     import { Buffer } from "buffer";
     import {
         getQuote,
@@ -180,15 +180,11 @@
     async function handleEnter() {
         try {
             if (!isAuthenticated) {
-                const hostname = window.location.hostname;
-                const rpId =
-                    hostname === "localhost"
-                        ? "localhost"
-                        : (getDomain(hostname) ?? undefined);
-
                 // console.log("Connecting with rpId:", rpId); // Debug logging if needed
 
-                const result = await account.get().connectWallet({ rpId });
+                const result = await account.get().connectWallet({
+                    rpId: getSafeRpId(window.location.hostname),
+                });
                 // Use keyIdBase64 if available (PasskeyKit v0.6+), otherwise convert with URL-safe replacement
                 const keyIdSafe =
                     result.keyIdBase64 ||
@@ -389,11 +385,7 @@
                     }
                     const sequence = await getLatestSequence();
                     signedTx = await kit.sign(t, {
-                        rpId:
-                            window.location.hostname === "localhost"
-                                ? "localhost"
-                                : (getDomain(window.location.hostname) ??
-                                  undefined),
+                        rpId: getSafeRpId(window.location.hostname),
                         keyId: userState.keyId,
                         expiration: sequence + 60,
                     });
@@ -427,11 +419,7 @@
                     );
 
                     signedTx = await kit.sign(tx, {
-                        rpId:
-                            window.location.hostname === "localhost"
-                                ? "localhost"
-                                : (getDomain(window.location.hostname) ??
-                                  undefined),
+                        rpId: getSafeRpId(window.location.hostname),
                         keyId: userState.keyId,
                         expiration: sequence + 60,
                     });
@@ -477,11 +465,7 @@
                 );
 
                 signedTx = await kit.sign(tx, {
-                    rpId:
-                        window.location.hostname === "localhost"
-                            ? "localhost"
-                            : (getDomain(window.location.hostname) ??
-                              undefined),
+                    rpId: getSafeRpId(window.location.hostname),
                     keyId: userState.keyId,
                     expiration: sequence + 60,
                 });
@@ -653,10 +637,7 @@
 
             const sequence = await getLatestSequence();
             const signedTx = await kit.sign(tx, {
-                rpId:
-                    window.location.hostname === "localhost"
-                        ? "localhost"
-                        : (getDomain(window.location.hostname) ?? undefined),
+                rpId: getSafeRpId(window.location.hostname),
                 keyId: userState.keyId,
                 expiration: sequence + 60,
             });
