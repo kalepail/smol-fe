@@ -191,6 +191,12 @@
       );
 
       try {
+        // Resume audio context if it's suspended (important for Bluetooth reconnection)
+        if (audioState.audioContext && audioState.audioContext.state === "suspended") {
+          console.log("[Audio] Resuming suspended audio context...");
+          await audioState.audioContext.resume();
+        }
+
         await audioState.audioElement.play();
         console.log("[Audio] Auto-resume successful");
         audioState.wasInterrupted = false;
@@ -241,10 +247,34 @@
       setTimeout(attemptResume, 100);
     };
 
+    // Handle audio context state changes (Bluetooth connection, system audio changes)
+    const handleAudioContextStateChange = () => {
+      if (!audioState.audioContext) return;
+
+      console.log(`[Audio] Audio context state changed to: ${audioState.audioContext.state}`);
+
+      // If context becomes suspended while we're supposed to be playing, mark as interrupted
+      if (audioState.audioContext.state === "suspended" && audioState.playingId && audioState.currentSong) {
+        console.log("[Audio] Audio context suspended during playback - marking as interrupted");
+        audioState.wasInterrupted = true;
+      }
+
+      // If context resumes from suspended, attempt to resume playback
+      if (audioState.audioContext.state === "running" && audioState.wasInterrupted) {
+        console.log("[Audio] Audio context resumed - attempting to resume playback");
+        setTimeout(attemptResume, 100);
+      }
+    };
+
     // Register all event listeners
     if (audioState.audioElement) {
       audioState.audioElement.addEventListener("pause", handleAudioPause);
       audioState.audioElement.addEventListener("play", handleAudioPlay);
+    }
+
+    // Monitor audio context state changes for Bluetooth and device changes
+    if (audioState.audioContext) {
+      audioState.audioContext.addEventListener("statechange", handleAudioContextStateChange);
     }
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -265,6 +295,10 @@
       if (audioState.audioElement) {
         audioState.audioElement.removeEventListener("pause", handleAudioPause);
         audioState.audioElement.removeEventListener("play", handleAudioPlay);
+      }
+
+      if (audioState.audioContext) {
+        audioState.audioContext.removeEventListener("statechange", handleAudioContextStateChange);
       }
 
       document.removeEventListener("visibilitychange", handleVisibilityChange);
