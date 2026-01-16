@@ -76,7 +76,7 @@ export async function send<T>(txn: AssembledTransaction<T> | Tx | string, turnst
     }
 
     // Kale Farm API endpoint (sponsored transactions with Turnstile verification)
-    const relayerUrl = "https://api.kalefarm.xyz";
+    const relayerUrl = import.meta.env.PUBLIC_RELAYER_URL || "https://api.kalefarm.xyz";
 
     // Submit XDR to Kale Farm API with Turnstile token
     const response = await fetch(`${relayerUrl}/`, {
