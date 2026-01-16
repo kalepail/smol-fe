@@ -89,6 +89,7 @@ export async function ensureWalletConnected(): Promise<void> {
     try {
       await account.get().connectWallet({
         rpId: getSafeRpId(hostname),
+        keyId: userState.keyId, // Pass saved keyId for targeted reconnection
       });
       userState.walletConnected = true;
     } catch (error) {
