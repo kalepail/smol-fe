@@ -21,6 +21,9 @@ Follow these conventions when developing for Smol FE.
 - **Large Data**: Use client-side fetching (`onMount`) for heavy JSON snapshots.
   - Pattern: `let data = [];` -> `onMount(async () => { data = await fetch(...); });`
   - Avoid `Astro.props` for large datasets to prevent build-time OOMs.
+- **Price/Quotes**: NEVER use simple spot price or order book mid-price.
+  - **Rule**: Always fetch a Quote for the *exact amount* to account for realistic market depth and slippage.
+  - **Tools**: Use Soroswap or xBull Aggregators (which route via multiple pools). Avoid raw Horizon/StellarExpert price feeds for execution.
 
 ## 3. Component Structure 🧩
 - **Svelte 5**: Use runes (`$state`, `$derived`, `$effect`) for reactivity.
