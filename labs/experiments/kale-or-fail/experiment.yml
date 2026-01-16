@@ -1,8 +1,8 @@
 id: lab_kale_or_fail
 title: "Kale or Fail"
 owner: "Smol Labs"
-status_color: YELLOW
-readiness_score: 75
+status_color: ORANGE
+readiness_score: 60
 risk_level: LOW
 blast_radius: LABS_ONLY
 env: LOCALNET

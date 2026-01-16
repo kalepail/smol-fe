@@ -33,3 +33,26 @@ export async function getLatestSequence(): Promise<number> {
 export function truncate(str: string, length: number = 5) {
     return `${str.slice(0, length)}...${str.slice(-length)}`
 }
+
+/**
+ * Poll for a transaction until found or max attempts reached
+ * @param hash Transaction hash to poll for
+ * @param attempts Max attempts (default 45 = ~90s)
+ * @param interval ms between attempts (default 2000ms)
+ */
+export async function pollTransaction(hash: string, attempts: number = 45, interval: number = 2000): Promise<string> {
+    const server = getRpcServer();
+    for (let i = 0; i < attempts; i++) {
+        try {
+            const tx = await server.getTransaction(hash);
+            if (tx.status === "SUCCESS") {
+                return tx.status;
+            }
+        } catch (e: any) {
+            // NOT_FOUND is expected while pending
+            // Continued polling
+        }
+        await new Promise(resolve => setTimeout(resolve, interval));
+    }
+    throw new Error(`Transaction ${hash} verification timed out after ${attempts} attempts`);
+}

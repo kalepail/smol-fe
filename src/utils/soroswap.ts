@@ -97,6 +97,7 @@ export async function getQuote(request: QuoteRequest, network: 'mainnet' | 'test
     });
 
     const data = await response.json();
+    console.log("[SoroswapAPI] Quote Response:", JSON.stringify(data, null, 2));
 
     if (!response.ok) {
         throw new Error(data.message || `Quote failed: ${response.status}`);

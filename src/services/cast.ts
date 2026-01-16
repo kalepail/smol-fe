@@ -36,6 +36,11 @@ class CastService {
         if (this.initialized) return;
 
         try {
+            if (typeof cast === "undefined" || !cast.framework) {
+                console.warn("[Cast] SDK loaded but cast.framework not available yet");
+                return;
+            }
+
             // Initialize Cast Context (CAF approach)
             cast.framework.CastContext.getInstance().setOptions({
                 receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,

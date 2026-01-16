@@ -1231,12 +1231,12 @@
                                 role="button"
                                 tabindex="0"
                                 id="song-card-{song.Id}"
-                                class="flex flex-col gap-2 group text-left w-full relative min-w-0 transition-opacity duration-300 {currentSong &&
+                                class="flex flex-col gap-2 group text-left w-full relative min-w-0 transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:scale-105 {currentSong &&
                                 song.Id !== currentSong.Id &&
                                 isPlaying()
                                     ? 'opacity-40 hover:opacity-100'
                                     : 'opacity-100'}"
-                                style="will-change: transform, opacity;"
+                                style="will-change: transform, opacity"
                                 onclick={() => handleSelect(index)}
                                 onkeydown={() => {}}
                             >
@@ -1298,10 +1298,149 @@
                                             </div>
                                         {/if}
 
-                                        <!-- Game Controller Overlay (Active Song) -->
+                                        <!-- Unified Controls Overlay (Active & Passive) -->
+                                        <!-- Top Left: Artist Profile -->
+
+                                        <div
+                                            role="button"
+                                            class="absolute top-2 left-2 z-30 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#089981]/50 text-[#089981] hover:bg-[#089981]/20 transition-all shadow-[0_0_10px_rgba(8,153,129,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(8,153,129,0.5)] cursor-pointer {currentSong &&
+                                            song.Id === currentSong.Id
+                                                ? 'opacity-100 pointer-events-auto'
+                                                : 'opacity-0 group-hover:opacity-100'}"
+                                            onclick={(e) => {
+                                                e.stopPropagation();
+                                                navigate(
+                                                    `/artist/${song.Address}`,
+                                                );
+                                            }}
+                                            onkeydown={(e) => {
+                                                if (e.key === "Enter") {
+                                                    e.stopPropagation();
+                                                    navigate(
+                                                        `/artist/${song.Address}`,
+                                                    );
+                                                }
+                                            }}
+                                            title="View Artist Profile"
+                                            tabindex="0"
+                                        >
+                                            <svg
+                                                class="w-4 h-4"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                                                />
+                                            </svg>
+                                        </div>
+
+                                        <!-- Top Right: Send to Radio -->
+                                        <div
+                                            role="button"
+                                            class="absolute top-2 right-2 z-30 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#f7931a]/50 text-[#f7931a] hover:bg-[#f7931a]/20 transition-all shadow-[0_0_10px_rgba(247,147,26,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(247,147,26,0.5)] cursor-pointer {currentSong &&
+                                            song.Id === currentSong.Id
+                                                ? 'opacity-100 pointer-events-auto'
+                                                : 'opacity-0 group-hover:opacity-100'}"
+                                            onclick={(e) => {
+                                                e.stopPropagation();
+                                                navigate(buildRadioUrl(song));
+                                            }}
+                                            onkeydown={(e) => {
+                                                if (e.key === "Enter") {
+                                                    e.stopPropagation();
+                                                    navigate(
+                                                        buildRadioUrl(song),
+                                                    );
+                                                }
+                                            }}
+                                            title="Start Radio"
+                                            tabindex="0"
+                                        >
+                                            <svg
+                                                class="w-4 h-4 ml-0.5"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    stroke-linecap="round"
+                                                    stroke-linejoin="round"
+                                                    stroke-width="2"
+                                                    d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"
+                                                />
+                                            </svg>
+                                        </div>
+
+                                        <!-- Bottom Left: Like Button -->
+                                        <div
+                                            class="absolute bottom-2 left-2 z-30 {currentSong &&
+                                            song.Id === currentSong.Id
+                                                ? 'opacity-100 pointer-events-auto'
+                                                : 'opacity-0 group-hover:opacity-100'} transition-opacity duration-300"
+                                            onclick={(e) => e.stopPropagation()}
+                                            role="button"
+                                            tabindex="0"
+                                            onkeydown={() => {}}
+                                        >
+                                            <LikeButton
+                                                smolId={song.Id}
+                                                liked={song.Liked || false}
+                                                classNames="p-1.5 rounded-full bg-black/40 backdrop-blur-md border border-[#FF424C]/50 text-[#FF424C] hover:bg-[#FF424C]/20 transition-all active:scale-95 shadow-[0_0_10px_rgba(255,66,76,0.3)] hover:shadow-[0_0_15px_rgba(255,66,76,0.5)]"
+                                                iconSize="size-4"
+                                                on:likeChanged={(e) => {
+                                                    handleToggleLike(
+                                                        index,
+                                                        e.detail.liked,
+                                                    );
+                                                }}
+                                            />
+                                        </div>
+
+                                        <!-- Bottom Right: Song Detail -->
+                                        <div
+                                            role="button"
+                                            class="absolute bottom-2 right-2 z-30 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 transition-all shadow-[0_0_10px_rgba(216,54,255,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(216,54,255,0.5)] cursor-pointer {currentSong &&
+                                            song.Id === currentSong.Id
+                                                ? 'opacity-100 pointer-events-auto'
+                                                : 'opacity-0 group-hover:opacity-100'}"
+                                            onclick={(e) => {
+                                                e.stopPropagation();
+                                                navigate(
+                                                    `/${song.Id}?from=artist`,
+                                                );
+                                            }}
+                                            onkeydown={(e) => {
+                                                if (e.key === "Enter") {
+                                                    e.stopPropagation();
+                                                    navigate(
+                                                        `/${song.Id}?from=artist`,
+                                                    );
+                                                }
+                                            }}
+                                            title="View Song Details"
+                                            tabindex="0"
+                                        >
+                                            <svg
+                                                class="w-4 h-4"
+                                                fill="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
+                                                />
+                                            </svg>
+                                        </div>
+
+                                        <!-- Central Play/Pause Trigger (Clicking image toggles play) -->
+                                        <!-- Note: Svelte 5 onclick on map item container handles toggle, we rely on propagation stop on buttons above -->
                                         {#if currentSong && song.Id === currentSong.Id}
                                             <div
-                                                class="absolute inset-0 z-30 bg-transparent cursor-pointer opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300"
+                                                class="absolute inset-0 z-0 bg-transparent cursor-pointer"
                                                 role="button"
                                                 tabindex="0"
                                                 onclick={(e) => {
@@ -1314,305 +1453,7 @@
                                                         togglePlayPause();
                                                     }
                                                 }}
-                                            >
-                                                <div
-                                                    class="w-full h-full relative pointer-events-none"
-                                                >
-                                                    <!-- Share Button (Bottom Center) -->
-                                                    <button
-                                                        class="absolute bottom-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/10 border-2 border-[#d836ff] text-[#d836ff] hover:bg-[#d836ff] hover:text-white transition-all active:scale-95 pointer-events-auto {preferences.renderMode ===
-                                                        'thinking'
-                                                            ? 'shadow-[0_0_15px_rgba(216,54,255,0.3)]'
-                                                            : ''}"
-                                                        onclick={(e) => {
-                                                            e.stopPropagation();
-                                                            const url = `${window.location.origin}/${song.Id}`;
-                                                            navigator.clipboard.writeText(
-                                                                url,
-                                                            );
-                                                            alert(
-                                                                "Link copied to clipboard!",
-                                                            );
-                                                        }}
-                                                        title="Share"
-                                                    >
-                                                        <svg
-                                                            class="w-3.5 h-3.5"
-                                                            fill="none"
-                                                            viewBox="0 0 24 24"
-                                                            stroke="currentColor"
-                                                            stroke-width="2"
-                                                        >
-                                                            <path
-                                                                stroke-linecap="round"
-                                                                stroke-linejoin="round"
-                                                                d="M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z"
-                                                            />
-                                                        </svg>
-                                                    </button>
-
-                                                    <!-- Top Left: Artist -->
-                                                    <div
-                                                        role="button"
-                                                        class="absolute top-2 left-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-green-500 text-green-500 hover:bg-green-500 hover:text-white transition-all active:scale-95 pointer-events-auto {preferences.renderMode ===
-                                                        'thinking'
-                                                            ? 'shadow-[0_0_15px_rgba(34,197,94,0.3)]'
-                                                            : ''}"
-                                                        onclick={(e) => {
-                                                            e.stopPropagation();
-                                                            navigate(
-                                                                `/artist/${song.Address}`,
-                                                            );
-                                                        }}
-                                                        onkeydown={() => {}}
-                                                        title="View Artist"
-                                                    >
-                                                        <svg
-                                                            class="w-4 h-4"
-                                                            fill="none"
-                                                            viewBox="0 0 24 24"
-                                                            stroke="currentColor"
-                                                            stroke-width="2"
-                                                        >
-                                                            <path
-                                                                stroke-linecap="round"
-                                                                stroke-linejoin="round"
-                                                                d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
-                                                            />
-                                                        </svg>
-                                                    </div>
-
-                                                    <!-- Top Right: Radio -->
-                                                    <div
-                                                        role="button"
-                                                        class="absolute top-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white transition-all active:scale-95 pointer-events-auto {preferences.renderMode ===
-                                                        'thinking'
-                                                            ? 'shadow-[0_0_15px_rgba(249,115,22,0.3)]'
-                                                            : ''}"
-                                                        onclick={(e) => {
-                                                            e.stopPropagation();
-                                                            navigate(
-                                                                buildRadioUrl(
-                                                                    song,
-                                                                ),
-                                                            );
-                                                        }}
-                                                        onkeydown={() => {}}
-                                                        title="Start Radio"
-                                                    >
-                                                        <svg
-                                                            class="w-4 h-4"
-                                                            fill="none"
-                                                            viewBox="0 0 24 24"
-                                                            stroke="currentColor"
-                                                            stroke-width="2"
-                                                        >
-                                                            <path
-                                                                stroke-linecap="round"
-                                                                stroke-linejoin="round"
-                                                                d="M9.348 14.651a3.75 3.75 0 010-5.303m5.304 0a3.75 3.75 0 010 5.303m-7.425 2.122a6.75 6.75 0 010-9.546m9.546 0a6.75 6.75 0 010 9.546M5.106 18.894c-3.808-3.808-3.808-9.98 0-13.789m13.788 0c3.808 3.808 3.808 9.981 0 13.789M12 12h.008v.008H12V12z"
-                                                            />
-                                                        </svg>
-                                                    </div>
-
-                                                    <!-- Bottom Left: Like -->
-                                                    <div
-                                                        class="absolute bottom-2 left-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition-all active:scale-95 pointer-events-auto {preferences.renderMode ===
-                                                        'thinking'
-                                                            ? 'shadow-[0_0_15px_rgba(239,68,68,0.3)]'
-                                                            : ''}"
-                                                        role="button"
-                                                        tabindex="0"
-                                                        onclick={(e) =>
-                                                            e.stopPropagation()}
-                                                        onkeydown={() => {}}
-                                                    >
-                                                        <LikeButton
-                                                            smolId={song.Id}
-                                                            liked={song.Liked ||
-                                                                false}
-                                                            classNames="w-full h-full flex items-center justify-center"
-                                                            iconSize="size-4"
-                                                            on:likeChanged={(
-                                                                e,
-                                                            ) => {
-                                                                handleToggleLike(
-                                                                    index,
-                                                                    e.detail
-                                                                        .liked,
-                                                                );
-                                                            }}
-                                                        />
-                                                    </div>
-
-                                                    <!-- Bottom Right: Song Detail -->
-                                                    <div
-                                                        role="button"
-                                                        class="absolute bottom-2 right-2 w-8 h-8 flex items-center justify-center rounded-full bg-slate-900/20 border-2 border-[#d836ff] text-[#d836ff] hover:bg-[#d836ff] hover:text-white transition-all active:scale-95 pointer-events-auto {preferences.renderMode ===
-                                                        'thinking'
-                                                            ? 'shadow-[0_0_15px_rgba(216,54,255,0.3)]'
-                                                            : ''}"
-                                                        onclick={(e) => {
-                                                            e.stopPropagation();
-                                                            navigate(
-                                                                `/${song.Id}?from=artist`,
-                                                            );
-                                                        }}
-                                                        onkeydown={() => {}}
-                                                        title="View Song"
-                                                    >
-                                                        <svg
-                                                            class="w-4 h-4"
-                                                            fill="none"
-                                                            viewBox="0 0 24 24"
-                                                            stroke="currentColor"
-                                                            stroke-width="2"
-                                                        >
-                                                            <path
-                                                                stroke-linecap="round"
-                                                                stroke-linejoin="round"
-                                                                d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163z"
-                                                            />
-                                                        </svg>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        {/if}
-
-                                        <!-- Passive Hover Controls (For non-active songs) -->
-                                        {#if !currentSong || song.Id !== currentSong.Id}
-                                            <!-- Top Left: Artist Profile -->
-                                            <div
-                                                role="button"
-                                                class="absolute top-2 left-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 border border-green-500/50 text-green-400 hover:bg-green-500/20 transition-all active:scale-95 cursor-pointer opacity-0 group-hover:opacity-100 duration-300 {preferences.renderMode ===
-                                                'thinking'
-                                                    ? 'backdrop-blur-md shadow-[0_0_10px_rgba(34,197,94,0.3)] hover:shadow-[0_0_15px_rgba(34,197,94,0.5)]'
-                                                    : ''}"
-                                                onclick={(e) => {
-                                                    e.stopPropagation();
-                                                    navigate(
-                                                        `/artist/${song.Address}`,
-                                                    );
-                                                }}
-                                                onkeydown={(e) => {
-                                                    if (e.key === "Enter") {
-                                                        e.stopPropagation();
-                                                        navigate(
-                                                            `/artist/${song.Address}`,
-                                                        );
-                                                    }
-                                                }}
-                                                title="View Artist Profile"
-                                            >
-                                                <svg
-                                                    class="w-4 h-4"
-                                                    fill="none"
-                                                    viewBox="0 0 24 24"
-                                                    stroke="currentColor"
-                                                    stroke-width="1.5"
-                                                >
-                                                    <path
-                                                        stroke-linecap="round"
-                                                        stroke-linejoin="round"
-                                                        d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z"
-                                                    />
-                                                </svg>
-                                            </div>
-
-                                            <!-- Top Right: Send to Radio -->
-                                            <div
-                                                role="button"
-                                                class="absolute top-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 border border-orange-500/50 text-orange-400 hover:bg-orange-500/20 transition-all active:scale-95 cursor-pointer opacity-0 group-hover:opacity-100 duration-300 {preferences.renderMode ===
-                                                'thinking'
-                                                    ? 'backdrop-blur-md shadow-[0_0_10px_rgba(249,115,22,0.3)] hover:shadow-[0_0_15px_rgba(249,115,22,0.5)]'
-                                                    : ''}"
-                                                onclick={(e) => {
-                                                    e.stopPropagation();
-                                                    navigate(
-                                                        buildRadioUrl(song),
-                                                    );
-                                                }}
-                                                onkeydown={(e) => {
-                                                    if (e.key === "Enter") {
-                                                        e.stopPropagation();
-                                                        navigate(
-                                                            buildRadioUrl(song),
-                                                        );
-                                                    }
-                                                }}
-                                                title="Start Artist Radio"
-                                            >
-                                                <svg
-                                                    class="w-4 h-4"
-                                                    fill="none"
-                                                    viewBox="0 0 24 24"
-                                                    stroke="currentColor"
-                                                    stroke-width="1.5"
-                                                >
-                                                    <path
-                                                        stroke-linecap="round"
-                                                        stroke-linejoin="round"
-                                                        d="M9.348 14.652a3.75 3.75 0 0 1 0-5.304m5.304 0a3.75 3.75 0 0 1 0 5.304m-7.425 2.121a6.75 6.75 0 0 1 0-9.546m9.546 0a6.75 6.75 0 0 1 0 9.546M5.106 18.894c-3.808-3.807-3.808-9.98 0-13.788m13.788 0c3.808 3.807 3.808 9.98 0 13.788M12 10.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"
-                                                    />
-                                                </svg>
-                                            </div>
-
-                                            <!-- Bottom Left: Like Button -->
-                                            <div
-                                                class="absolute bottom-2 left-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                                                onclick={(e) =>
-                                                    e.stopPropagation()}
-                                            >
-                                                <LikeButton
-                                                    smolId={song.Id}
-                                                    liked={song.Liked || false}
-                                                    classNames="p-1.5 rounded-full bg-black/40 border border-[#FF424C]/50 text-[#FF424C] hover:bg-[#FF424C]/20 transition-all active:scale-95 {preferences.renderMode ===
-                                                    'thinking'
-                                                        ? 'backdrop-blur-md shadow-[0_0_10px_rgba(255,66,76,0.3)] hover:shadow-[0_0_15px_rgba(255,66,76,0.5)]'
-                                                        : ''}"
-                                                    iconSize="size-4"
-                                                    on:likeChanged={(e) => {
-                                                        handleToggleLike(
-                                                            index,
-                                                            e.detail.liked,
-                                                        );
-                                                    }}
-                                                />
-                                            </div>
-
-                                            <!-- Bottom Right: Song Detail -->
-                                            <div
-                                                role="button"
-                                                class="absolute bottom-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 transition-all active:scale-95 cursor-pointer opacity-0 group-hover:opacity-100 duration-300 {preferences.renderMode ===
-                                                'thinking'
-                                                    ? 'backdrop-blur-md shadow-[0_0_10px_rgba(216,54,255,0.3)] hover:shadow-[0_0_15px_rgba(216,54,255,0.5)]'
-                                                    : ''}"
-                                                onclick={(e) => {
-                                                    e.stopPropagation();
-                                                    navigate(
-                                                        `/${song.Id}?from=artist`,
-                                                    );
-                                                }}
-                                                onkeydown={(e) => {
-                                                    if (e.key === "Enter") {
-                                                        e.stopPropagation();
-                                                        navigate(
-                                                            `/${song.Id}?from=artist`,
-                                                        );
-                                                    }
-                                                }}
-                                                title="View Song Details"
-                                            >
-                                                <svg
-                                                    class="w-4 h-4"
-                                                    fill="currentColor"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <path
-                                                        d="M21 3v12.5a3.5 3.5 0 1 1-2-3.163V5.44L9 7.557v9.943a3.5 3.5 0 1 1-2-3.163V5l14-2z"
-                                                    />
-                                                </svg>
-                                            </div>
+                                            ></div>
                                         {/if}
                                     </div>
                                 </div>

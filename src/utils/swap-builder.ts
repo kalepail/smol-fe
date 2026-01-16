@@ -62,6 +62,12 @@ export async function buildSwapTransactionForCAddress(
     quote: QuoteResponse,
     fromAddress: string
 ): Promise<string> {
+    console.log("[SwapBuilder] Starting buildSwapTransactionForCAddress", {
+        quoteAmountIn: quote.amountIn,
+        quoteAmountOut: quote.amountOut,
+        fromAddress
+    });
+
     const rawTrade = quote.rawTrade as {
         amountIn: string;
         amountOutMin: string;
@@ -69,7 +75,25 @@ export async function buildSwapTransactionForCAddress(
     };
 
     if (!rawTrade || !rawTrade.distribution) {
+        console.error("[SwapBuilder] Invalid rawTrade - missing distribution", JSON.stringify(quote, null, 2));
         throw new Error("Quote does not contain valid rawTrade distribution");
+    }
+
+    console.log("[SwapBuilder] RawTrade:", JSON.stringify(rawTrade, null, 2));
+
+    // Fallbacks for amountIn and amountOutMin if missing in rawTrade
+    let amountIn = rawTrade.amountIn;
+    let amountOutMin = rawTrade.amountOutMin;
+
+    if (!amountIn) {
+        console.warn("rawTrade.amountIn missing, falling back to quote.amountIn");
+        amountIn = quote.amountIn;
+    }
+
+    if (!amountOutMin) {
+        console.warn("rawTrade.amountOutMin missing, falling back to quote.otherAmountThreshold");
+        // otherAmountThreshold is likely a number in stroops, convert to string
+        amountOutMin = String(quote.otherAmountThreshold);
     }
 
     // Deadline: 1 hour from now
@@ -97,12 +121,21 @@ export async function buildSwapTransactionForCAddress(
     const invokeArgs = [
         nativeToScVal(new Address(tokenIn)),                         // token_in
         nativeToScVal(new Address(tokenOut)),                        // token_out
-        nativeToScVal(BigInt(rawTrade.amountIn), { type: "i128" }),  // amount_in
-        nativeToScVal(BigInt(rawTrade.amountOutMin), { type: "i128" }), // amount_out_min
+        nativeToScVal(BigInt(amountIn), { type: "i128" }),  // amount_in
+        nativeToScVal(BigInt(amountOutMin), { type: "i128" }), // amount_out_min
         distributionArg,                                              // distribution
         nativeToScVal(new Address(fromAddress)),                      // to (C-address)
         nativeToScVal(deadline, { type: "u64" }),                    // deadline
     ];
+
+    console.log("[SwapBuilder] Contract Invocation Args:", {
+        tokenIn,
+        tokenOut,
+        amountIn,
+        amountOutMin,
+        to: fromAddress,
+        deadline
+    });
 
     const invokeOp = contract.call("swap_exact_tokens_for_tokens", ...invokeArgs);
 

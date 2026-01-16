@@ -24,7 +24,7 @@
     import KaleEmoji from "../ui/KaleEmoji.svelte";
     import { Turnstile } from "svelte-turnstile";
     import { getLatestSequence } from "../../utils/base";
-    import { Transaction, Networks } from "@stellar/stellar-sdk/minimal";
+    import { Transaction, Networks } from "@stellar/stellar-sdk";
 
     // --- TYPES ---
     type AppState = "intro" | "transition" | "main";
@@ -295,9 +295,18 @@
             // Use direct aggregator invocation for C addresses (smart wallets)
             // Fall back to Soroswap API for G addresses
             let xdr: string;
+            console.log(
+                "[SwapperCore] Executing swap for:",
+                userState.contractId,
+            );
+
             if (isCAddress(userState.contractId)) {
                 // C address: Build via direct aggregator contract invocation
                 statusMessage = "Building C-address swap...";
+                console.log(
+                    "[SwapperCore] Building C-address swap with quote:",
+                    quote,
+                );
                 xdr = await buildSwapTransactionForCAddress(
                     quote,
                     userState.contractId,
