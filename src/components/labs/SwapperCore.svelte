@@ -327,8 +327,32 @@
                 xdr,
                 import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
             );
+
+            // Ensure PasskeyKit wallet is connected (required for sign to work)
+            const kit = account.get();
+            if (!kit.wallet) {
+                console.log(
+                    "[SwapperCore] Wallet not connected, attempting reconnect...",
+                );
+                try {
+                    await kit.connectWallet({
+                        keyId: userState.keyId,
+                        getContractId: async () =>
+                            userState.contractId ?? undefined,
+                    });
+                } catch (connErr) {
+                    console.error(
+                        "[SwapperCore] Wallet reconnect failed:",
+                        connErr,
+                    );
+                    throw new Error(
+                        "Wallet session expired. Please refresh and try again.",
+                    );
+                }
+            }
+
             const sequence = await getLatestSequence();
-            const signedTx = await account.get().sign(tx, {
+            const signedTx = await kit.sign(tx, {
                 rpId: getDomain(window.location.hostname) ?? undefined,
                 keyId: userState.keyId,
                 expiration: sequence + 60,
