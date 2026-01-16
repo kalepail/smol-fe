@@ -68,9 +68,10 @@ export function clearUserAuth() {
   userState.walletConnected = false;
 
   if (typeof localStorage !== "undefined") {
-    localStorage.removeItem("smol:contractId");
-    localStorage.removeItem("smol:keyId");
-    localStorage.removeItem("smol:skip_intro"); // Optional: reset intro
+    // Soft Logout: We do NOT remove contractId/keyId so user can easily reconnect
+    // localStorage.removeItem("smol:contractId");
+    // localStorage.removeItem("smol:keyId");
+    localStorage.removeItem("smol:skip_intro");
   }
 }
 

@@ -19,6 +19,9 @@ export function useAuthentication() {
     const hostname = window.location.hostname;
     const rpId = hostname === "localhost" ? "localhost" : (getDomain(hostname) ?? undefined);
 
+    // Retrieve saved keyId to enable targeted authentication (avoiding discovery issues)
+    const savedKeyId = userState.keyId || (typeof localStorage !== "undefined" ? localStorage.getItem("smol:keyId") : null);
+
     try {
       const {
         rawResponse,
@@ -26,6 +29,7 @@ export function useAuthentication() {
         contractId: cid,
       } = await account.get().connectWallet({
         rpId,
+        keyId: savedKeyId || undefined
       });
 
       await performLogin(cid, keyIdBase64, rawResponse, 'connect');
@@ -157,13 +161,15 @@ export function useAuthentication() {
     Cookies.remove('smol_token', cookieOptions);
 
     Object.keys(localStorage).forEach((key) => {
-      if (key.includes('smol:')) {
+      // Preserve keyId and contractId for "Soft Logout" (Wallet Remembered)
+      if (key.includes('smol:') && key !== 'smol:contractId' && key !== 'smol:keyId') {
         localStorage.removeItem(key);
       }
     });
 
     Object.keys(sessionStorage).forEach((key) => {
-      if (key.includes('smol:')) {
+      // Same for session storage just in case
+      if (key.includes('smol:') && key !== 'smol:contractId' && key !== 'smol:keyId') {
         sessionStorage.removeItem(key);
       }
     });
