@@ -23,25 +23,25 @@ export function useAuthentication() {
     const savedKeyId = userState.keyId || (typeof localStorage !== "undefined" ? localStorage.getItem("smol:keyId") : null);
 
     try {
-      const {
-        rawResponse,
-        keyIdBase64,
-        contractId: cid,
-      } = await account.get().connectWallet({
+      const result = await account.get().connectWallet({
         rpId,
         keyId: savedKeyId || undefined
       });
+
+      const {
+        rawResponse,
+        contractId: cid,
+      } = result;
+
+      // Ensure we get a string keyId (passkey-kit v0.6+ vs older)
+      const keyIdBase64 = result.keyIdBase64 ||
+        (typeof result.keyId === 'string' ? result.keyId : Buffer.from(result.keyId).toString('base64').replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""));
 
       await performLogin(cid, keyIdBase64, rawResponse, 'connect');
     } catch (connectErr) {
       console.warn("Connect failed, prompting creation:", connectErr);
       if (confirm("Wallet not found. Create a new one?")) {
-        const {
-          rawResponse,
-          keyIdBase64,
-          contractId: cid,
-          signedTx
-        } = await account.get().createWallet('smol.xyz', `User`, {
+        const result = await account.get().createWallet('smol.xyz', `User`, {
           rpId,
           authenticatorSelection: {
             residentKey: "required",
@@ -49,6 +49,15 @@ export function useAuthentication() {
             userVerification: "required"
           }
         });
+
+        const {
+          rawResponse,
+          contractId: cid,
+          signedTx
+        } = result;
+
+        const keyIdBase64 = result.keyIdBase64 ||
+          (typeof result.keyId === 'string' ? result.keyId : Buffer.from(result.keyId).toString('base64').replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""));
 
         // For creation via login flow, we might need to register/fund? 
         // Existing code implies signUp logic manages funding. 
@@ -126,12 +135,7 @@ export function useAuthentication() {
   async function signUp(username: string, turnstileToken: string) {
     const hostname = window.location.hostname;
     const rpId = hostname === "localhost" ? "localhost" : (getDomain(hostname) ?? undefined);
-    const {
-      rawResponse,
-      keyIdBase64,
-      contractId: cid,
-      signedTx,
-    } = await account.get().createWallet('smol.xyz', `SMOL — ${username}`, {
+    const result = await account.get().createWallet('smol.xyz', `SMOL — ${username}`, {
       rpId,
       authenticatorSelection: {
         residentKey: "required",
@@ -139,6 +143,15 @@ export function useAuthentication() {
         userVerification: "required"
       }
     });
+
+    const {
+      rawResponse,
+      contractId: cid,
+      signedTx,
+    } = result;
+
+    const keyIdBase64 = result.keyIdBase64 ||
+      (typeof result.keyId === 'string' ? result.keyId : Buffer.from(result.keyId).toString('base64').replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""));
 
     await performLogin(cid, keyIdBase64, rawResponse, 'create', username);
 

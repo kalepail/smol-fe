@@ -237,7 +237,47 @@
                 }
             } else {
                 // Already authenticated (localStorage), but ensure wallet instance is connected
-                await ensureWalletConnected();
+                try {
+                    await ensureWalletConnected();
+                } catch (reconnectErr) {
+                    console.warn(
+                        "Re-connect failed (stale key?), prompting creation:",
+                        reconnectErr,
+                    );
+                    if (confirm("Saved wallet not found. Create a new one?")) {
+                        const hostname = window.location.hostname;
+                        const rpId =
+                            hostname === "localhost"
+                                ? "localhost"
+                                : (getDomain(hostname) ?? undefined);
+
+                        const result = await account
+                            .get()
+                            .createWallet("Smol Swapper", "User", {
+                                rpId,
+                                authenticatorSelection: {
+                                    residentKey: "required",
+                                    requireResidentKey: true,
+                                    userVerification: "required",
+                                },
+                            });
+                        // update auth with new key
+                        // createWallet returns keyIdBase64 explicitly
+                        const keyIdSafe =
+                            result.keyIdBase64 ||
+                            (typeof result.keyId === "string"
+                                ? result.keyId
+                                : Buffer.from(result.keyId)
+                                      .toString("base64")
+                                      .replace(/\+/g, "-")
+                                      .replace(/\//g, "_")
+                                      .replace(/=+$/, ""));
+
+                        setUserAuth(result.contractId, keyIdSafe);
+                    } else {
+                        throw reconnectErr;
+                    }
+                }
             }
             appState = "transition";
             setTimeout(() => {
