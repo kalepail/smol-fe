@@ -10,7 +10,9 @@
     "astro": "astro",
     "test": "node --test tests/*.test.js",
     "check": "svelte-check --tsconfig ./tsconfig.json",
-    "check:watch": "svelte-check --tsconfig ./tsconfig.json --watch"
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "check:watch": "svelte-check --tsconfig ./tsconfig.json --watch",
+    "audit:swaps": "node scripts/swap-audit/audit.js"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.6.1",

@@ -1,0 +1,43 @@
+{
+    "network": "mainnet",
+    "rpcUrl": "https://rpc.ankr.com/stellar_soroban",
+    "horizonUrl": "https://horizon.stellar.org",
+    "aquarius": {
+        "routerContractId": "TODO_FIND_ROUTER_IF_NEEDED",
+        "poolContractId": "CDFNPMDIWKCTVCDP2K75RI5J4FIKLTSZBWBNLS4BQVT6AS67MRD5GV2V",
+        "xlmAsset": "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA",
+        "kaleTokenContractId": "CB23WRDQWGSP6YPMY4UV5C4OW5CBTXKYN3XEATG7KJEZCXMJBYEHOUOV"
+    },
+    "smartAccount": {
+        "cAddress": "C_TODO_YOUR_SMART_WALLET_ADDRESS",
+        "provider": "passkeyKit",
+        "passkeyKit": {
+            "rpId": "noot.smol.xyz",
+            "origin": "https://noot.smol.xyz"
+        },
+        "ohloss": {
+            "enabled": false,
+            "notes": "TODO: wire once docs/interfaces are confirmed"
+        }
+    },
+    "ozRelayer": {
+        "baseUrl": "https://api.openzeppelin.com",
+        "relayerId": "YOUR_RELAYER_ID",
+        "apiKey": "ENV:OZ_RELAYER_API_KEY",
+        "feeToken": "native"
+    },
+    "xbull": {
+        "baseUrl": "https://swap.apis.xbull.app",
+        "enabled": false
+    },
+    "turnstile": {
+        "enabled": false,
+        "siteKey": "ENV:TURNSTILE_SITE_KEY",
+        "secretKey": "ENV:TURNSTILE_SECRET_KEY"
+    },
+    "limits": {
+        "maxSlippageBps": 100,
+        "maxFeeStroops": 500000,
+        "maxOps": 5
+    }
+}

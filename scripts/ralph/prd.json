@@ -1,102 +1,84 @@
-[
-    {
-        "id": "P0-1",
-        "title": "Create Repository Map",
-        "priority": 10,
-        "description": "Create docs/REPO_MAP.md with high-level architecture overview.",
-        "acceptanceCriteria": [
-            "File exists at docs/REPO_MAP.md",
-            "Features 'Auth' section",
-            "Features 'Audio' section",
-            "Features 'Stellar' section"
-        ],
-        "filesToTouch": [
-            "docs/REPO_MAP.md"
-        ],
-        "qualityChecks": "ls docs/REPO_MAP.md",
-        "passes": true
+{
+    "branchName": "ralph/swapper-audit-harness",
+    "projectName": "Smol Swapper Audit Harness",
+    "quality": {
+        "typecheck": "pnpm run typecheck",
+        "test": "pnpm test"
     },
-    {
-        "id": "P0-2",
-        "title": "Create Root AGENTS.md",
-        "priority": 20,
-        "description": "Create AGENTS.md with setup, security, and debugging context.",
-        "acceptanceCriteria": [
-            "File exists at AGENTS.md",
-            "Lists useful npm scripts",
-            "Lists security constraints",
-            "Links to REPO_MAP.md"
-        ],
-        "filesToTouch": [
-            "AGENTS.md"
-        ],
-        "qualityChecks": "ls AGENTS.md",
-        "passes": true
-    },
-    {
-        "id": "P0-3",
-        "title": "Create State Machine Diagram",
-        "priority": 30,
-        "description": "Create docs/STATE_MACHINE.md showing core user flows.",
-        "acceptanceCriteria": [
-            "File exists at docs/STATE_MACHINE.md",
-            "Diagram includes Auth -> Tipping flow",
-            "Diagram includes Audio playback state"
-        ],
-        "filesToTouch": [
-            "docs/STATE_MACHINE.md"
-        ],
-        "qualityChecks": "ls docs/STATE_MACHINE.md",
-        "passes": true
-    },
-    {
-        "id": "P0-4",
-        "title": "Create Base Agent Rules",
-        "priority": 40,
-        "description": "Create .agent/rules/00_core.md and .agent/rules/90_security.md",
-        "acceptanceCriteria": [
-            "Rules enforcing no churn",
-            "Rules enforcing security (no tokens)"
-        ],
-        "filesToTouch": [
-            ".agent/rules/00_core.md",
-            ".agent/rules/90_security.md"
-        ],
-        "qualityChecks": "ls .agent/rules/*.md",
-        "passes": true
-    },
-    {
-        "id": "P0-5",
-        "title": "Create Agent Onboarding Skill",
-        "priority": 50,
-        "description": "Create .agent/skills/agent-onboarding/SKILL.md",
-        "acceptanceCriteria": [
-            "Skill documents how to read AGENTS.md",
-            "Skill documents how to update PRD"
-        ],
-        "filesToTouch": [
-            ".agent/skills/agent-onboarding/SKILL.md"
-        ],
-        "qualityChecks": "ls .agent/skills/agent-onboarding/SKILL.md",
-        "passes": true
-    },
-    {
-        "id": "P1-1",
-        "title": "Migrate Passkey Kit & Relayer",
-        "priority": 10,
-        "description": "Update `passkey-kit` to 0.12.0, replace Launchtube with OZ Relayer Channels, and verify tx flow.",
-        "acceptanceCriteria": [
-            "Dependency `passkey-kit` is updated to `^0.12.0`",
-            "Launchtube config/code is fully removed",
-            "OZ Relayer client is configured correctly",
-            "Transaction submission works end-to-end (Simulated or Testnet)"
-        ],
-        "filesToTouch": [
-            "package.json",
-            "src/utils/passkey-kit.ts",
-            "src/components/Account.svelte"
-        ],
-        "qualityChecks": "pnpm check && npm run build",
-        "passes": true
-    }
-]
+    "stories": [
+        {
+            "id": "SWAP-001",
+            "title": "Create swap-audit harness skeleton + artifact pack writer",
+            "priority": 1,
+            "passes": true,
+            "acceptanceCriteria": [
+                "Adds scripts/swap-audit folder with config + artifact writer",
+                "pnpm audit:swaps exists and prints planned steps"
+            ]
+        },
+        {
+            "id": "SWAP-002",
+            "title": "Implement Aquarius direct swap build + simulate (XLM->KALE, KALE->XLM)",
+            "priority": 2,
+            "passes": true,
+            "acceptanceCriteria": [
+                "Builds an unsigned base tx XDR for both directions",
+                "Runs Soroban simulate and saves tx.simulate.json",
+                "Asserts only Aquarius contract IDs are invoked"
+            ]
+        },
+        {
+            "id": "SWAP-003",
+            "title": "Wire OZ Relayer sponsored quote/build + submit + evidence pack",
+            "priority": 3,
+            "passes": false,
+            "acceptanceCriteria": [
+                "Calls sponsored/quote then sponsored/build",
+                "Signs the sponsored tx (via smart account provider stub)",
+                "Submits and writes tx.submit.json + verify.json"
+            ]
+        },
+        {
+            "id": "SWAP-004",
+            "title": "Add C-address enforcement + allowlist policy assertions",
+            "priority": 4,
+            "passes": false,
+            "acceptanceCriteria": [
+                "Refuses G-address sources",
+                "Fails on non-XLM/KALE assets",
+                "Fails on any unexpected invocation"
+            ]
+        },
+        {
+            "id": "SWAP-005",
+            "title": "Add xBull Swap API probe mode + report auth model requirements",
+            "priority": 5,
+            "passes": false,
+            "acceptanceCriteria": [
+                "Hits /swaps/quote and records response",
+                "If tx build exists, records unsigned/signed requirements",
+                "Outputs a clear conclusion: 'supports C-auth' or 'does not'"
+            ]
+        },
+        {
+            "id": "SWAP-006",
+            "title": "Turnstile gate verification checks (only if enabled)",
+            "priority": 6,
+            "passes": false,
+            "acceptanceCriteria": [
+                "Harness can require a turnstile token before API calls",
+                "Rejects missing/invalid verification"
+            ]
+        },
+        {
+            "id": "SWAP-007",
+            "title": "Integrate Ohloss provider adapter (requires local docs) + policy hooks",
+            "priority": 7,
+            "passes": false,
+            "acceptanceCriteria": [
+                "Ohloss adapter compiles and can be toggled via config",
+                "Policy hooks enforce Aquarius-only swap calls"
+            ]
+        }
+    ]
+}
