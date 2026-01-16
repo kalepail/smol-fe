@@ -68,8 +68,9 @@ export function clearUserAuth() {
   userState.walletConnected = false;
 
   if (typeof localStorage !== "undefined") {
-    localStorage.removeItem("smol:contractId");
-    localStorage.removeItem("smol:keyId");
+    // Soft Logout: We do NOT remove contractId/keyId so user can easily reconnect
+    // localStorage.removeItem("smol:contractId");
+    // localStorage.removeItem("smol:keyId");
     localStorage.removeItem("smol:skip_intro"); // Optional: reset intro
   }
 }
@@ -94,7 +95,12 @@ export async function ensureWalletConnected(): Promise<void> {
       userState.walletConnected = true;
 
     } catch (error) {
-      console.error('[userState] Failed to connect wallet:', error);
+      console.error('[userState] Failed to connect wallet (stale?):', error);
+      // AUTO-BURN: If the saved key fails to connect, wipe it so the user isn't stuck.
+      // This solves the loop where Soft Logout keeps a bad key.
+      clearUserAuth();
+      // We do NOT throw here if we want to fail gracefully, but the caller might expect it.
+      // Since we cleared auth, the UI will revert to "Login".
       throw error;
     }
   }

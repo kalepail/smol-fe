@@ -174,13 +174,16 @@ export function useAuthentication() {
     Cookies.remove('smol_token', cookieOptions);
 
     Object.keys(localStorage).forEach((key) => {
-      if (key.includes('smol:')) {
+      // Preserve keyId and contractId for "Soft Logout" (Wallet Remembered)
+      // This allows 'Targeted Authentication' which is required for localhost stability.
+      // If the key is invalid, ensureWalletConnected will auto-burn it (see stores/user.svelte.ts).
+      if (key.includes('smol:') && key !== 'smol:contractId' && key !== 'smol:keyId') {
         localStorage.removeItem(key);
       }
     });
 
     Object.keys(sessionStorage).forEach((key) => {
-      if (key.includes('smol:')) {
+      if (key.includes('smol:') && key !== 'smol:contractId' && key !== 'smol:keyId') {
         sessionStorage.removeItem(key);
       }
     });
