@@ -23,10 +23,10 @@ import type { QuoteResponse, RawTradeDistribution } from "./soroswap";
 
 /** 
  * Soroswap Aggregator Contract (Mainnet)
- * Uses the same contract as kalepail/ohloss which has confirmed compatible function signature
+ * Uses environment variable for consistency across the codebase
  * @see https://github.com/kalepail/ohloss/blob/main/ohloss-frontend/src/lib/swapService.ts
  */
-export const AGGREGATOR_CONTRACT = "CAYP3UWLJM7ZPTUKL6R6BFGTRWLZ46LRKOXTERI2K6BIJAWGYY62TXTO";
+export const AGGREGATOR_CONTRACT = import.meta.env.PUBLIC_AGGREGATOR_CONTRACT_ID || "CAG5LRYQ5JVEUI5TEID72EYOVX44TTUJT5BQR2J6J77FH65PCCFAJDDH";
 
 /** Protocol ID mapping (matches aggregator contract enum) */
 const PROTOCOL_MAP: Record<string, number> = {

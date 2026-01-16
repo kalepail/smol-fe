@@ -6,7 +6,10 @@
 
 This repository uses:
 - **passkey-kit v0.12.x** for WebAuthn-based smart wallet creation and transaction signing
-- **OpenZeppelin Relayer Channels** for fee-sponsored transaction submission to Stellar mainnet
+- **Kale Farm API** for fee-sponsored transaction submission to Stellar mainnet (Turnstile-protected)
+
+> [!NOTE]
+> As of 2026-01, the relayer was migrated from OpenZeppelin Channels to Kale Farm API (`api.kalefarm.xyz`) for Turnstile-based Sybil resistance.
 
 ---
 
@@ -165,13 +168,14 @@ PUBLIC_NETWORK_PASSPHRASE="Public Global Stellar Network ; September 2015"
 # Smart Wallet
 PUBLIC_WALLET_WASM_HASH=ecd990f0b45ca6817149b6175f79b32efb442f35731985a084131e8265c4cd90
 
-# OpenZeppelin Relayer
-PUBLIC_CHANNELS_BASE_URL=https://channels.openzeppelin.com
-PUBLIC_CHANNELS_API_KEY=<your-oz-api-key>
-
 # Token Contracts (Mainnet)
 PUBLIC_KALE_SAC_ID=CB23WRDQWGSP6YPMY4UV5C4OW5CBTXKYN3XEATG7KJEZCXMJBYEHOUOV
 PUBLIC_XLM_SAC_ID=CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA
+PUBLIC_AGGREGATOR_CONTRACT_ID=CAG5LRYQ5JVEUI5TEID72EYOVX44TTUJT5BQR2J6J77FH65PCCFAJDDH
+
+# API Keys (set in Cloudflare Dashboard, NOT in source)
+# PUBLIC_SOROSWAP_API_KEY=<set in CF Dashboard>
+# PUBLIC_CHANNELS_API_KEY=<set in CF Dashboard>
 
 # Backend
 PUBLIC_API_URL=https://api.smol.xyz
@@ -181,15 +185,15 @@ PUBLIC_API_URL=https://api.smol.xyz
 
 ## Relayer Request/Response
 
-### Request Shape
+### Request Shape (Kale Farm API)
 
 ```http
 POST / HTTP/1.1
-Host: channels.openzeppelin.com
-Content-Type: application/x-www-form-urlencoded
-Authorization: Bearer <PUBLIC_CHANNELS_API_KEY>
+Host: api.kalefarm.xyz
+Content-Type: application/json
+X-Turnstile-Response: <turnstile-token>
 
-xdr=<base64-encoded-transaction-XDR>
+{"xdr": "<base64-encoded-transaction-XDR>"}
 ```
 
 ### Response Shape (Success)
@@ -208,11 +212,11 @@ HTTP/1.1 400 Bad Request
 <error message text>
 ```
 
-### Code Reference
+### Code Reference (Current Implementation)
 
 ```typescript
-// src/utils/passkey-kit.ts:32-66
-export async function send<T>(txn: AssembledTransaction<T> | Tx | string) {
+// src/utils/passkey-kit.ts
+export async function send<T>(txn: AssembledTransaction<T> | Tx | string, turnstileToken: string) {
     let xdr: string;
     if (txn instanceof AssembledTransaction) {
         xdr = txn.built!.toXDR();
@@ -222,16 +226,15 @@ export async function send<T>(txn: AssembledTransaction<T> | Tx | string) {
         xdr = txn;
     }
 
-    const relayerUrl = import.meta.env.PUBLIC_CHANNELS_BASE_URL || "https://channels.openzeppelin.com";
-    const apiKey = import.meta.env.PUBLIC_CHANNELS_API_KEY;
+    const relayerUrl = "https://api.kalefarm.xyz";
 
     const response = await fetch(`${relayerUrl}/`, {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            'X-Turnstile-Response': turnstileToken,
         },
-        body: new URLSearchParams({ xdr }),
+        body: JSON.stringify({ xdr }),
     });
 
     if (!response.ok) {
@@ -331,5 +334,5 @@ export const account = new PasskeyKit({
 
 ---
 
-*Last updated: 2026-01-14*
-*TX hash proof: Not executed in this doc (canary only)*
+*Last updated: 2026-01-16*
+*Ralph Hardening Audit: H-003 documentation sync applied*

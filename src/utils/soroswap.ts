@@ -201,8 +201,9 @@ export function toStroops(amount: number | string, decimals: number = 7): number
 
 /**
  * Soroswap Aggregator Contract (Mainnet)
+ * Uses environment variable for consistency
  */
-export const AGGREGATOR_CONTRACT = 'CAG5LRYQ5JVEUI5TEID72EYOVX44TTUJT5BQR2J6J77FH65PCCFAJDDH';
+export const AGGREGATOR_CONTRACT = import.meta.env.PUBLIC_AGGREGATOR_CONTRACT_ID || 'CAG5LRYQ5JVEUI5TEID72EYOVX44TTUJT5BQR2J6J77FH65PCCFAJDDH';
 
 /**
  * RawTrade distribution from quote
