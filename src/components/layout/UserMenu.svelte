@@ -31,41 +31,50 @@
 
   let creating = $state(false);
 
-  // Initialize user state from server props
-  userState.contractId = initialContractId;
-  userState.keyId = initialKeyId;
+  // Initialize user state from server props ONLY if provided (SSR auth)
+  // Otherwise preserve localStorage state (Client-side Passkey auth)
+  if (initialContractId) {
+    userState.contractId = initialContractId;
+    userState.keyId = initialKeyId;
+  }
 
   // Track last processed auth state to prevent duplicate operations
-  let lastProcessedContractId = $state<string | null>(null);
-  let lastProcessedKeyId = $state<string | null>(null);
+  let lastProcessedContractId = $state<string | null>(initialContractId);
+  let lastProcessedKeyId = $state<string | null>(initialKeyId);
 
   // React to prop changes during navigation
   $effect(() => {
-    // Only process if props actually changed
+    // Only process if props actually changed and are non-null (server auth update)
+    // Or if we need to reconcile specific server states.
+    // For now, prioritize local state if server state is null (Passkey specific)
+
     if (
-      initialContractId !== lastProcessedContractId ||
-      initialKeyId !== lastProcessedKeyId
+      initialContractId &&
+      (initialContractId !== lastProcessedContractId ||
+        initialKeyId !== lastProcessedKeyId)
     ) {
       lastProcessedContractId = initialContractId;
       lastProcessedKeyId = initialKeyId;
 
-      // Update userState
+      // Update userState from server source
       userState.contractId = initialContractId;
       userState.keyId = initialKeyId;
 
-      if (initialContractId && initialKeyId) {
-        // User authenticated - connect wallet and fetch balance
-        ensureWalletConnected().catch((error) => {
-          console.error("[UserMenu] Failed to connect wallet:", error);
-        });
+      // User authenticated via server - connect wallet and fetch balance
+      ensureWalletConnected().catch((error) => {
+        console.error("[UserMenu] Failed to connect wallet:", error);
+      });
 
-        updateContractBalance(initialContractId).catch((error) => {
-          console.error("[UserMenu] Failed to fetch balance:", error);
-        });
-      } else {
-        // User logged out - reset balance
-        resetBalance();
-      }
+      updateContractBalance(initialContractId).catch((error) => {
+        console.error("[UserMenu] Failed to fetch balance:", error);
+      });
+    } else if (!initialContractId && userState.contractId) {
+      // If server is null but local is set, ensure we are connected (Passkey flow)
+      ensureWalletConnected().catch((error) => {
+        console.error("[UserMenu] Failed to connect wallet (local):", error);
+      });
+
+      // We do NOT reset balance here to avoid clearing local session
     }
   });
 
