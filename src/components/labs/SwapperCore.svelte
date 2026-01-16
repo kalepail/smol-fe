@@ -378,6 +378,7 @@
                             "[SwapperCore] Wallet not connected, attempting reconnect...",
                         );
                         await kit.connectWallet({
+                            rpId: getSafeRpId(window.location.hostname),
                             keyId: userState.keyId,
                             getContractId: async () =>
                                 userState.contractId ?? undefined,
@@ -405,6 +406,7 @@
                             "[SwapperCore] Wallet not connected, attempting reconnect...",
                         );
                         await kit.connectWallet({
+                            rpId: getSafeRpId(window.location.hostname),
                             keyId: userState.keyId,
                             getContractId: async () =>
                                 userState.contractId ?? undefined,
@@ -451,6 +453,7 @@
                         "[SwapperCore] Wallet not connected, attempting reconnect...",
                     );
                     await kit.connectWallet({
+                        rpId: getSafeRpId(window.location.hostname),
                         keyId: userState.keyId,
                         getContractId: async () =>
                             userState.contractId ?? undefined,
@@ -629,6 +632,7 @@
                     "[SwapperCore] Send: Wallet not connected, attempting reconnect...",
                 );
                 await kit.connectWallet({
+                    rpId: getSafeRpId(window.location.hostname),
                     keyId: userState.keyId,
                     getContractId: async () =>
                         userState.contractId ?? undefined,
