@@ -1,6 +1,4 @@
 
-import axios from "axios";
-
 const BASE_URL = "/api/xbull";
 
 export interface XBullQuoteParams {
@@ -38,39 +36,41 @@ export interface XBullAcceptQuoteResponse {
 }
 
 export async function getXBullQuote(params: XBullQuoteParams): Promise<XBullQuoteResponse> {
-    try {
-        const query = new URLSearchParams({
-            fromAsset: params.fromAsset,
-            toAsset: params.toAsset,
-            fromAmount: params.fromAmount,
-            maxSteps: params.maxSteps || "3",
-            gasless: String(params.gasless || false),
-        });
+    const query = new URLSearchParams({
+        fromAsset: params.fromAsset,
+        toAsset: params.toAsset,
+        fromAmount: params.fromAmount,
+        maxSteps: params.maxSteps || "3",
+        gasless: String(params.gasless || false),
+    });
 
-        if (params.sender) {
-            query.append("sender", params.sender);
-        }
-
-        const response = await axios.get(`${BASE_URL}/quote?${query.toString()}`);
-        return response.data;
-    } catch (error: any) {
-        if (axios.isAxiosError(error) && error.response) {
-            console.error("xBull Quote Error:", error.response.data);
-            throw new Error(error.response.data.message || "Failed to fetch xBull quote");
-        }
-        throw error;
+    if (params.sender) {
+        query.append("sender", params.sender);
     }
+
+    const response = await fetch(`${BASE_URL}/quote?${query.toString()}`);
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        console.error("xBull Quote Error:", errorData);
+        throw new Error(errorData.message || "Failed to fetch xBull quote");
+    }
+
+    return response.json();
 }
 
 export async function buildXBullTransaction(params: XBullAcceptQuoteParams): Promise<XBullAcceptQuoteResponse> {
-    try {
-        const response = await axios.post(`${BASE_URL}/accept-quote`, params);
-        return response.data;
-    } catch (error: any) {
-        if (axios.isAxiosError(error) && error.response) {
-            console.error("xBull Build TX Error:", error.response.data);
-            throw new Error(error.response.data.message || "Failed to build xBull transaction");
-        }
-        throw error;
+    const response = await fetch(`${BASE_URL}/accept-quote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        console.error("xBull Build TX Error:", errorData);
+        throw new Error(errorData.message || "Failed to build xBull transaction");
     }
+
+    return response.json();
 }
