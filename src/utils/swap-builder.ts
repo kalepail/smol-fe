@@ -62,7 +62,12 @@ interface ExtendedDistribution extends RawTradeDistribution {
 
 /**
  * Build a swap transaction for C address using direct aggregator invocation
- * 
+ *
+ * This implementation follows Tyler's ohloss pattern:
+ * - Uses quote.amountIn (top-level) for the input amount
+ * - Uses rawTrade.amountOutMin (nested) for minimum output with slippage
+ * - Uses rawTrade.distribution for routing information
+ *
  * @param quote - Quote response from Soroswap API /quote
  * @param fromAddress - User's C address (smart wallet contract ID)
  * @returns Unsigned XDR string ready for PasskeyKit signing
@@ -77,10 +82,12 @@ export async function buildSwapTransactionForCAddress(
         fromAddress
     });
 
+    // Extract rawTrade from quote response
+    // Note: rawTrade.amountIn exists but is NOT used - we use quote.amountIn (top-level) instead
     const rawTrade = quote.rawTrade as {
-        amountIn: string;
-        amountOutMin: string;
-        distribution: ExtendedDistribution[];
+        amountIn: string;          // Present in API response but not used
+        amountOutMin: string;      // Used for minimum output amount
+        distribution: ExtendedDistribution[];  // Used for routing
     };
 
     if (!rawTrade || !rawTrade.distribution) {
@@ -90,12 +97,15 @@ export async function buildSwapTransactionForCAddress(
 
     console.log("[SwapBuilder] RawTrade:", safeStringify(rawTrade, 2));
 
-    // Validate amountIn and amountOutMin are present and valid
-    let amountIn = rawTrade.amountIn;
+    // CRITICAL: Use top-level quote.amountIn (not rawTrade.amountIn)
+    // This matches Tyler's ohloss implementation pattern:
+    // - quote.amountIn: The actual input amount for the swap (top-level from API)
+    // - rawTrade.amountOutMin: The minimum output amount with slippage (nested in rawTrade)
+    let amountIn = quote.amountIn;
     let amountOutMin = rawTrade.amountOutMin;
 
     if (!amountIn || !amountOutMin) {
-        throw new Error("rawTrade missing amountIn or amountOutMin - API/Quote error");
+        throw new Error("Missing amountIn (quote) or amountOutMin (rawTrade) - API/Quote error");
     }
 
     // Validate that amounts are valid numeric strings before BigInt conversion
