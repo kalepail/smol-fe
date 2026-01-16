@@ -1,7 +1,7 @@
 import { Client as SmolClient } from 'smol-sdk';
 import { getDomain } from 'tldts';
 import type { Smol } from '../types/domain';
-import { getLatestSequence } from '../utils/base';
+import { getLatestSequence, pollTransaction } from '../utils/base';
 import { account, send } from '../utils/passkey-kit';
 import { RPC_URL } from '../utils/rpc';
 
@@ -44,13 +44,33 @@ export function useMixtapePurchase() {
 
     // Log the XDR for inspection
     const xdrString = tx.built?.toXDR();
+    const txHash = tx.built?.hash().toString('hex');
+
     if (tx.built) {
-      console.log("Purchase Tx Hash:", tx.built.hash().toString('hex'));
+      console.log("Purchase Tx Hash:", txHash);
     }
 
+    try {
+      // Submit transaction via passkey server
+      await send(tx, turnstileToken);
 
-    // Submit transaction via passkey server
-    await send(tx, turnstileToken);
+      // Even on success, poll to ensure ledger state is ready for next batch
+      if (txHash) {
+        console.log(`[Batch] Verifying ${txHash}...`);
+        await pollTransaction(txHash);
+      }
+    } catch (e: any) {
+      console.warn("Relayer submission error/timeout, attempting recovery via polling...", e);
+      // Timeout Recovery: If relayer timed out (30s), it might still be processing.
+      // We poll the network directly to see if it landed.
+      if (txHash) {
+        console.log(`[Batch] Recovery polling for ${txHash}...`);
+        await pollTransaction(txHash);
+        console.log(`[Batch] Recovery successful: ${txHash}`);
+      } else {
+        throw e; // Can't recover without hash
+      }
+    }
   }
 
   async function purchaseTracksInBatches(

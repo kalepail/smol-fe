@@ -61,10 +61,7 @@ interface ExtendedDistribution extends RawTradeDistribution {
 export async function buildSwapTransactionForCAddress(
     quote: QuoteResponse,
     fromAddress: string
-export async function buildSwapTransactionForCAddress(
-        quote: QuoteResponse,
-        fromAddress: string
-    ): Promise<string> {
+): Promise<string> {
     console.log("[SwapBuilder] Starting buildSwapTransactionForCAddress", {
         quoteAmountIn: quote.amountIn,
         quoteAmountOut: quote.amountOut,
