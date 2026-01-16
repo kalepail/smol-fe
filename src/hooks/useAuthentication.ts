@@ -174,15 +174,13 @@ export function useAuthentication() {
     Cookies.remove('smol_token', cookieOptions);
 
     Object.keys(localStorage).forEach((key) => {
-      // Preserve keyId and contractId for "Soft Logout" (Wallet Remembered)
-      if (key.includes('smol:') && key !== 'smol:contractId' && key !== 'smol:keyId') {
+      if (key.includes('smol:')) {
         localStorage.removeItem(key);
       }
     });
 
     Object.keys(sessionStorage).forEach((key) => {
-      // Same for session storage just in case
-      if (key.includes('smol:') && key !== 'smol:contractId' && key !== 'smol:keyId') {
+      if (key.includes('smol:')) {
         sessionStorage.removeItem(key);
       }
     });
