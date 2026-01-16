@@ -10,9 +10,9 @@ interface ImportMetaEnv {
   readonly PUBLIC_RPC_URL: string;
   readonly PUBLIC_SMOL_CONTRACT_ID: string;
   readonly PUBLIC_WALLET_WASM_HASH: string;
-  // OpenZeppelin Channels (preferred relayer)
-  readonly PUBLIC_CHANNELS_BASE_URL?: string;  // defaults to https://channels.openzeppelin.com
-  readonly PUBLIC_CHANNELS_API_KEY?: string;
+  // OpenZeppelin Channels (not currently implemented - using KaleFarm relayer instead)
+  // readonly PUBLIC_CHANNELS_BASE_URL?: string;  // defaults to https://channels.openzeppelin.com
+  // readonly PUBLIC_CHANNELS_API_KEY?: string;
   readonly PUBLIC_TURNSTILE_SITE_KEY: string;
 }
 
