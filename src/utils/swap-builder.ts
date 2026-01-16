@@ -21,7 +21,16 @@ import {
 import { Server, Api, assembleTransaction } from "@stellar/stellar-sdk/minimal/rpc";
 import type { QuoteResponse, RawTradeDistribution } from "./soroswap";
 
-/** 
+/**
+ * Safe JSON stringification that handles BigInt values
+ */
+function safeStringify(obj: unknown, space?: number): string {
+    return JSON.stringify(obj, (key, value) =>
+        typeof value === 'bigint' ? value.toString() : value
+    , space);
+}
+
+/**
  * Soroswap Aggregator Contract (Mainnet)
  * Uses environment variable for consistency across the codebase
  * @see https://github.com/kalepail/ohloss/blob/main/ohloss-frontend/src/lib/swapService.ts
@@ -75,19 +84,35 @@ export async function buildSwapTransactionForCAddress(
     };
 
     if (!rawTrade || !rawTrade.distribution) {
-        console.error("[SwapBuilder] Invalid rawTrade - missing distribution", JSON.stringify(quote, null, 2));
+        console.error("[SwapBuilder] Invalid rawTrade - missing distribution", safeStringify(quote, 2));
         throw new Error("Quote does not contain valid rawTrade distribution");
     }
 
-    console.log("[SwapBuilder] RawTrade:", JSON.stringify(rawTrade, null, 2));
+    console.log("[SwapBuilder] RawTrade:", safeStringify(rawTrade, 2));
 
-    // Fallbacks for amountIn and amountOutMin if missing in rawTrade
+    // Validate amountIn and amountOutMin are present and valid
     let amountIn = rawTrade.amountIn;
     let amountOutMin = rawTrade.amountOutMin;
 
     if (!amountIn || !amountOutMin) {
         throw new Error("rawTrade missing amountIn or amountOutMin - API/Quote error");
     }
+
+    // Validate that amounts are valid numeric strings before BigInt conversion
+    const validateAmount = (value: string, fieldName: string): void => {
+        const trimmed = String(value).trim();
+        if (!trimmed || !/^\d+$/.test(trimmed)) {
+            throw new Error(`Invalid ${fieldName}: "${value}" - must be a positive integer string`);
+        }
+        try {
+            BigInt(trimmed);
+        } catch (error) {
+            throw new Error(`Cannot convert ${fieldName} to BigInt: "${value}" - ${error}`);
+        }
+    };
+
+    validateAmount(amountIn, 'amountIn');
+    validateAmount(amountOutMin, 'amountOutMin');
 
     // Deadline: 1 hour from now
     const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
@@ -193,6 +218,18 @@ function buildDistributionArg(distribution: ExtendedDistribution[]): xdr.ScVal {
  * IMPORTANT: Fields must be in alphabetical order for Soroban!
  */
 function buildDexDistributionScVal(dist: ExtendedDistribution): xdr.ScVal {
+    // Validate distribution structure
+    if (!dist.path || !Array.isArray(dist.path) || dist.path.length === 0) {
+        throw new Error("Distribution path must be a non-empty array");
+    }
+
+    // Validate all addresses in path are valid Stellar addresses
+    for (const addr of dist.path) {
+        if (typeof addr !== 'string' || !addr.match(/^[GC][A-Z2-7]{55}$/)) {
+            throw new Error(`Invalid Stellar address in path: "${addr}"`);
+        }
+    }
+
     const protocolId = typeof dist.protocol_id === "string"
         ? PROTOCOL_MAP[dist.protocol_id.toLowerCase()] ?? 0
         : dist.protocol_id;

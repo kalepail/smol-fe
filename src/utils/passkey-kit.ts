@@ -57,9 +57,12 @@ export const kale = { get: getKale };
 export const xlm = { get: getXlm };
 
 /**
- * Send a transaction via OZ Relayer Channels (Raw XDR)
- * 
- * Aligns with upstream architecture but uses Turnstile for Sybil resistance.
+ * Send a transaction via Kale Farm Relayer (Raw XDR)
+ *
+ * Uses Turnstile for Sybil resistance and sponsored transaction fees.
+ *
+ * Note: OpenZeppelin Channels integration is not currently implemented.
+ * The relayer endpoint is hardcoded to KaleFarm API for now.
  */
 export async function send<T>(txn: AssembledTransaction<T> | Tx | string, turnstileToken: string) {
     // Extract XDR from transaction
@@ -72,7 +75,7 @@ export async function send<T>(txn: AssembledTransaction<T> | Tx | string, turnst
         xdr = txn;
     }
 
-    // Use the new Kale Farm API endpoint
+    // Kale Farm API endpoint (sponsored transactions with Turnstile verification)
     const relayerUrl = "https://api.kalefarm.xyz";
 
     // Submit XDR to Kale Farm API with Turnstile token

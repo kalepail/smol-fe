@@ -1,11 +1,20 @@
 /**
  * Soroswap API Client
- * 
+ *
  * Handles communication with the Soroswap DEX Aggregator API
  * for token swaps across multiple protocols (soroswap, phoenix, aqua, sdex).
  */
 
 const SOROSWAP_API_BASE = 'https://api.soroswap.finance';
+
+/**
+ * Safe JSON stringification that handles BigInt values
+ */
+function safeStringify(obj: unknown, space?: number): string {
+    return JSON.stringify(obj, (key, value) =>
+        typeof value === 'bigint' ? value.toString() : value
+    , space);
+}
 
 export interface QuoteRequest {
     assetIn: string;
@@ -22,8 +31,8 @@ export interface QuoteResponse {
     assetIn: string;
     assetOut: string;
     amountIn: string;
-    amountOut: number;
-    otherAmountThreshold: number;
+    amountOut: string;  // Changed from number to string for consistency and to avoid precision loss
+    otherAmountThreshold: string;  // Changed from number to string for consistency
     priceImpactPct: string;
     tradeType: string;
     platform: 'router' | 'aggregator' | 'sdex';
@@ -97,7 +106,7 @@ export async function getQuote(request: QuoteRequest, network: 'mainnet' | 'test
     });
 
     const data = await response.json();
-    console.log("[SoroswapAPI] Quote Response:", JSON.stringify(data, null, 2));
+    console.log("[SoroswapAPI] Quote Response:", safeStringify(data, 2));
 
     if (!response.ok) {
         throw new Error(data.message || `Quote failed: ${response.status}`);
@@ -134,7 +143,7 @@ export async function buildTransaction(
     if (!response.ok) {
         // Check for multi-step flow (428 = needs user signature first)
         if (response.status === 428) {
-            throw new Error(`Multi-step signing required: ${JSON.stringify(data)}`);
+            throw new Error(`Multi-step signing required: ${safeStringify(data)}`);
         }
         throw new Error(data.message || `Build failed: ${response.status}`);
     }
@@ -182,17 +191,49 @@ export const TOKENS = {
 
 /**
  * Format stroops to human-readable token amount (7 decimals)
+ * Uses BigInt arithmetic to avoid precision loss for large amounts
  */
-export function formatAmount(stroops: number | string, decimals: number = 7): string {
-    const value = Number(stroops) / Math.pow(10, decimals);
-    return value.toFixed(decimals);
+export function formatAmount(stroops: number | string | bigint, decimals: number = 7): string {
+    try {
+        // Convert to BigInt if not already
+        const stroopsBigInt = typeof stroops === 'bigint' ? stroops : BigInt(stroops);
+
+        // Calculate integer and fractional parts
+        const divisor = BigInt(10 ** decimals);
+        const integerPart = stroopsBigInt / divisor;
+        const fractionalPart = stroopsBigInt % divisor;
+
+        // Format fractional part with leading zeros
+        const fractionalStr = fractionalPart.toString().padStart(decimals, '0');
+
+        return `${integerPart}.${fractionalStr}`;
+    } catch (error) {
+        console.error('[formatAmount] Error formatting amount:', stroops, error);
+        return '0';
+    }
 }
 
 /**
  * Convert human amount to stroops
+ * Returns a string to avoid precision loss for large amounts
  */
-export function toStroops(amount: number | string, decimals: number = 7): number {
-    return Math.floor(Number(amount) * Math.pow(10, decimals));
+export function toStroops(amount: number | string, decimals: number = 7): string {
+    try {
+        // Convert to string and handle decimal points
+        const amountStr = String(amount);
+        const [integerPart, fractionalPart = ''] = amountStr.split('.');
+
+        // Pad or trim fractional part to match decimals
+        const paddedFractional = fractionalPart.padEnd(decimals, '0').slice(0, decimals);
+
+        // Combine and convert to BigInt
+        const stroops = BigInt(integerPart + paddedFractional);
+
+        return stroops.toString();
+    } catch (error) {
+        console.error('[toStroops] Error converting amount:', amount, error);
+        return '0';
+    }
 }
 
 // ============================================
