@@ -90,7 +90,7 @@ export async function ensureWalletConnected(): Promise<void> {
 
       await account.get().connectWallet({
         rpId,
-        keyId: userState.keyId,
+        // keyId: userState.keyId, // REMOVED: Rely on browser discovery (Standard Flow)
       });
       userState.walletConnected = true;
 

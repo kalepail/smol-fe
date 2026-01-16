@@ -19,13 +19,13 @@ export function useAuthentication() {
     const hostname = window.location.hostname;
     const rpId = hostname === "localhost" ? "localhost" : (getDomain(hostname) ?? undefined);
 
-    // Retrieve saved keyId to enable targeted authentication (avoiding discovery issues)
-    const savedKeyId = userState.keyId || (typeof localStorage !== "undefined" ? localStorage.getItem("smol:keyId") : null);
+    // Standard Passkey Flow: Let the browser discover keys.
+    // const savedKeyId = ... (Removed)
 
     try {
       const result = await account.get().connectWallet({
         rpId,
-        keyId: savedKeyId || undefined
+        // keyId: savedKeyId || undefined // REMOVED: standard flow
       });
 
       const {
