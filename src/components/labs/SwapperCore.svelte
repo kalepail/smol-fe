@@ -23,7 +23,7 @@
     } from "../../stores/balance.svelte";
     import KaleEmoji from "../ui/KaleEmoji.svelte";
     import { Turnstile } from "svelte-turnstile";
-    import { getLatestSequence } from "../../utils/base";
+    import { getLatestSequence, pollTransaction } from "../../utils/base";
     import { Transaction, Networks } from "@stellar/stellar-sdk/minimal";
 
     // --- TYPES ---
@@ -358,8 +358,16 @@
                 expiration: sequence + 60,
             });
 
-            // 3. Submit transaction
+            // 3. Submit transaction with timeout recovery
             swapState = "submitting";
+
+            // Calculate txHash BEFORE submission for recovery polling
+            const builtTx = signedTx.built;
+            const calculatedHash = builtTx?.hash().toString("hex");
+            console.log(
+                "[SwapperCore] Calculated txHash before submit:",
+                calculatedHash,
+            );
 
             let result;
             if (useFallback) {
@@ -367,12 +375,46 @@
                 statusMessage = "Submitting via Soroswap...";
                 result = await sendTransaction(signedTx.toXDR(), false);
             } else {
-                // Primary: Tyler's relayer (sponsored fees)
+                // Primary: Tyler's relayer (sponsored fees) with timeout recovery
                 statusMessage = "Submitting swap...";
-                result = await send(signedTx, turnstileToken);
+                try {
+                    result = await send(signedTx, turnstileToken);
+
+                    // Even on success, verify ledger state
+                    if (calculatedHash) {
+                        console.log(
+                            "[SwapperCore] Verifying tx on network:",
+                            calculatedHash,
+                        );
+                        await pollTransaction(calculatedHash);
+                    }
+                } catch (submitErr) {
+                    console.warn(
+                        "[SwapperCore] Relayer timeout/error, attempting recovery...",
+                        submitErr,
+                    );
+
+                    // Timeout Recovery: If relayer timed out (30s), it might still be processing.
+                    // Poll the network directly to see if it landed.
+                    if (calculatedHash) {
+                        statusMessage = "Verifying transaction...";
+                        console.log(
+                            "[SwapperCore] Recovery polling for:",
+                            calculatedHash,
+                        );
+                        await pollTransaction(calculatedHash);
+                        console.log(
+                            "[SwapperCore] Recovery successful:",
+                            calculatedHash,
+                        );
+                        result = { hash: calculatedHash };
+                    } else {
+                        throw submitErr; // Can't recover without hash
+                    }
+                }
             }
 
-            txHash = result?.hash || "submitted";
+            txHash = result?.hash || calculatedHash || "submitted";
             swapState = "confirmed";
             statusMessage = useFallback
                 ? "Swap complete! (paid fee)"

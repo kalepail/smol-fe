@@ -36,3 +36,43 @@
 - **Branch**: `main` (assumed)
 - **Check Status**: GREEN (0 Errors).
 - **Type Safety**: Improved (Domain Alignment).
+
+---
+
+## Session: Swapper Ohloss Alignment (2026-01-15)
+
+### Ralph Loop: Swapper C-Address Swap Failures
+
+**Success Criteria:**
+- [ ] C-address swaps (XLM<->KALE) complete without simulation errors
+- [ ] No "expected a 'Transaction'" type errors
+- [ ] No "undefined wallet" crashes
+
+### Fixes Deployed
+
+| Commit | Issue | Fix |
+|--------|-------|-----|
+| `882634e` | `HostError #608` on EXACT_OUT swaps | Fixed `amountIn`/`amountOutMin` mapping based on `quote.tradeType` |
+| `e803978` | `expected a 'Transaction', got: [object Object]` | Changed `@stellar/stellar-sdk` → `@stellar/stellar-sdk/minimal` |
+| `29c05fc` | Potential `wallet undefined` crash | Added defensive reconnection guard before signing |
+
+### DeepWiki Research Findings
+
+**Verified against Tyler's repos (passkey-kit, ohloss):**
+- passkey-kit imports from `@stellar/stellar-sdk/minimal` (line 2 of `kit.ts`)
+- passkey-kit's `sign()` method internally calls `signAuthEntries()` → `signAuthEntry()`
+- We do NOT need to manually replicate ohloss's XDR reconstruction — passkey-kit handles it
+
+### Remaining Considerations
+
+| Aspect | Current | Tyler's Pattern | Priority |
+|--------|---------|-----------------|----------|
+| TX Source | `NULL_ACCOUNT` | `deployerPublicKey` | LOW (relayer rewraps) |
+| Sequence | `"0"` | From network | LOW (relayer rewraps) |
+
+**Recommendation**: Monitor. If swaps fail with sequence errors, migrate to Tyler's pattern.
+
+### Validators
+- [x] `npm run check` passes
+- [ ] Live swap test on noot.smol.xyz (pending Cloudflare rebuild)
+
