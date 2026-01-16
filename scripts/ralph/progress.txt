@@ -27,4 +27,18 @@ Thread: N/A (Direct Execution)
 		- xBull: ✅ 10 XLM -> 2642 KALE (26 events)
 	•	Documented Aquarius research in `blockchain-transactions/aquarius-research.md`.
 
+[2026-01-16 00:47] - SWAP-003 through SWAP-007 (COMPLETE)
+Thread: N/A (Autonomous Execution)
+	•	SWAP-003: Created `providers/oz-relayer.js` with full sponsored tx flow
+	•	SWAP-004: Implemented C-address enforcement in `audit.js` (isContractAddress + assertions)
+	•	SWAP-005: xBull auth model verified - SUPPORTS C-AUTH (report in artifacts)
+	•	SWAP-006: Turnstile token support added to OZ provider headers
+	•	SWAP-007: Ohloss = Soroswap provider (factory spec aligned via existing implementation)
+	
+All stories: PASSED ✅
+
+---
+<promise>COMPLETE</promise>
+
+
 
