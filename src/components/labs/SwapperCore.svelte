@@ -211,7 +211,14 @@
                     if (confirm("Wallet not found. Create a new one?")) {
                         const result = await account
                             .get()
-                            .createWallet("Smol Swapper", "User", { rpId });
+                            .createWallet("Smol Swapper", "User", {
+                                rpId,
+                                authenticatorSelection: {
+                                    residentKey: "required",
+                                    requireResidentKey: true,
+                                    userVerification: "required",
+                                },
+                            });
                         // createWallet returns keyIdBase64 explicitly
                         const keyIdSafe =
                             result.keyIdBase64 ||

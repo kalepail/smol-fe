@@ -39,6 +39,11 @@ export function useAuthentication() {
           signedTx
         } = await account.get().createWallet('smol.xyz', `User`, {
           rpId,
+          authenticatorSelection: {
+            residentKey: "required",
+            requireResidentKey: true,
+            userVerification: "required"
+          }
         });
 
         // For creation via login flow, we might need to register/fund? 
@@ -124,6 +129,11 @@ export function useAuthentication() {
       signedTx,
     } = await account.get().createWallet('smol.xyz', `SMOL — ${username}`, {
       rpId,
+      authenticatorSelection: {
+        residentKey: "required",
+        requireResidentKey: true,
+        userVerification: "required"
+      }
     });
 
     await performLogin(cid, keyIdBase64, rawResponse, 'create', username);
