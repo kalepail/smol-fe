@@ -272,7 +272,7 @@
                         assetOut,
                         amount: stroops,
                         tradeType,
-                        slippageBps: 50, // 0.5%
+                        slippageBps: 500, // 5% (matches Tyler's ohloss implementation)
                     });
                 } else {
                     // xBull API
