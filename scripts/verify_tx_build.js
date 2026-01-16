@@ -16,7 +16,7 @@ import {
 
 
 // --- CONSTANTS MATCHING SOURCE ---
-const AGGREGATOR_CONTRACT = "CAYP3UWLJM7ZPTUKL6R6BFGTRWLZ46LRKOXTERI2K6BIJAWGYY62TXTO";
+const AGGREGATOR_CONTRACT = "CAG5LRYQ5JVEUI5TEID72EYOVX44TTUJT5BQR2J6J77FH65PCCFAJDDH"; // Updated to match production
 const RPC_URL = "https://rpc.ankr.com/stellar_soroban";
 const NULL_ACCOUNT = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF";
 
@@ -112,7 +112,7 @@ async function verify() {
     console.log("   Building Transaction XDR...");
 
     const rawTrade = quote.rawTrade;
-    const amountIn = BigInt(rawTrade.amountIn); // Strict Trust (Factory Spec)
+    const amountIn = BigInt(quote.amountIn); // FIXED: Use quote.amountIn (not rawTrade.amountIn)
     const amountOutMin = BigInt(rawTrade.amountOutMin); // Strict Trust
     const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
     const fromAddress = TOKENS.XLM; // Use XLM Contract as a valid C-Address placeholder
