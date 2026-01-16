@@ -76,3 +76,34 @@
 - [x] `npm run check` passes
 - [ ] Live swap test on noot.smol.xyz (pending Cloudflare rebuild)
 
+---
+
+### Ralph Loop Iteration 4: Timeout Recovery (2026-01-15 21:12)
+
+**Change:** Added timeout recovery polling to SwapperCore, matching useMixtapePurchase pattern.
+
+**Implementation:**
+1. Calculate `txHash` from `signedTx.built.hash()` BEFORE calling `send()`
+2. Wrap relayer `send()` in try/catch
+3. On catch (timeout/error), call `pollTransaction(calculatedHash)` to verify if TX landed
+4. If poll succeeds, treat as success; if poll fails, propagate original error
+
+**Commit:** `748e0d8`
+
+**Validators:**
+- [x] `npm run check` — 0 errors ✅
+- [ ] Live test — pending Cloudflare rebuild
+
+**Expected Console Logs:**
+```
+[SwapperCore] Calculated txHash before submit: abc123...
+[SwapperCore] Verifying tx on network: abc123...
+```
+
+On timeout:
+```
+[SwapperCore] Relayer timeout/error, attempting recovery...
+[SwapperCore] Recovery polling for: abc123...
+[SwapperCore] Recovery successful: abc123
+```
+
