@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { account, sac, send } from "../../utils/passkey-kit";
+    import { account, sac, kale, xlm, send } from "../../utils/passkey-kit";
     import { onMount, tick } from "svelte";
     import { getDomain } from "tldts";
     import { Buffer } from "buffer";
@@ -446,9 +446,148 @@
     }
 
     async function executeSend() {
-        // TODO: Implement send functionality
-        statusMessage = "Send not implemented yet";
-        swapState = "failed";
+        if (!userState.contractId || !userState.keyId) {
+            statusMessage = "Connect wallet first";
+            return;
+        }
+
+        const recipient = sendTo.trim();
+        if (!recipient) {
+            statusMessage = "Enter a recipient address";
+            return;
+        }
+
+        if (recipient === userState.contractId) {
+            statusMessage = "Cannot send to yourself";
+            return;
+        }
+
+        const amountNum = parseFloat(sendAmount);
+        if (isNaN(amountNum) || amountNum <= 0) {
+            statusMessage = "Enter a valid amount";
+            return;
+        }
+
+        // Convert to stroops (7 decimals)
+        const amountInStroops = BigInt(Math.floor(amountNum * 10_000_000));
+
+        // Check balance
+        const currentBalance = sendToken === "KALE" ? kaleBalance : xlmBalance;
+        if (
+            typeof currentBalance === "bigint" &&
+            amountInStroops > currentBalance
+        ) {
+            statusMessage = "Insufficient balance";
+            return;
+        }
+
+        // Require Turnstile or fallback
+        const useFallback = turnstileFailed && !turnstileToken;
+        if (!turnstileToken && !useFallback) {
+            statusMessage = "Complete verification first";
+            return;
+        }
+
+        swapState = "awaiting_passkey";
+        statusMessage = `Sending ${sendToken}...`;
+
+        try {
+            // Build transfer transaction
+            let tx;
+            if (sendToken === "KALE") {
+                tx = await kale.get().transfer({
+                    from: userState.contractId,
+                    to: recipient,
+                    amount: amountInStroops,
+                });
+            } else {
+                // XLM transfer via SAC
+                tx = await xlm.get().transfer({
+                    from: userState.contractId,
+                    to: recipient,
+                    amount: amountInStroops,
+                });
+            }
+
+            // Sign with passkey
+            const kit = account.get();
+            if (!kit.wallet) {
+                console.log(
+                    "[SwapperCore] Send: Wallet not connected, attempting reconnect...",
+                );
+                await kit.connectWallet({
+                    keyId: userState.keyId,
+                    getContractId: async () =>
+                        userState.contractId ?? undefined,
+                });
+            }
+
+            const sequence = await getLatestSequence();
+            const signedTx = await kit.sign(tx, {
+                rpId: getDomain(window.location.hostname) ?? undefined,
+                keyId: userState.keyId,
+                expiration: sequence + 60,
+            });
+
+            // Submit with timeout recovery
+            swapState = "submitting";
+            statusMessage = "Submitting transfer...";
+
+            const calculatedHash = signedTx.built?.hash().toString("hex");
+            console.log("[SwapperCore] Send txHash:", calculatedHash);
+
+            try {
+                await send(signedTx, turnstileToken);
+
+                if (calculatedHash) {
+                    console.log(
+                        "[SwapperCore] Send: Verifying tx:",
+                        calculatedHash,
+                    );
+                    await pollTransaction(calculatedHash);
+                }
+            } catch (submitErr) {
+                console.warn(
+                    "[SwapperCore] Send: Relayer error, attempting recovery...",
+                    submitErr,
+                );
+                if (calculatedHash) {
+                    statusMessage = "Verifying transfer...";
+                    await pollTransaction(calculatedHash);
+                    console.log(
+                        "[SwapperCore] Send: Recovery successful:",
+                        calculatedHash,
+                    );
+                } else {
+                    throw submitErr;
+                }
+            }
+
+            txHash = calculatedHash || "submitted";
+            swapState = "confirmed";
+            statusMessage = `Sent ${amountNum} ${sendToken}!`;
+
+            // Reset
+            sendTo = "";
+            sendAmount = "";
+            turnstileToken = "";
+
+            refreshBalances();
+        } catch (e) {
+            console.error("Send error:", e);
+            const message = e instanceof Error ? e.message : "Send failed";
+
+            if (
+                message.toLowerCase().includes("abort") ||
+                message.toLowerCase().includes("cancel") ||
+                message.toLowerCase().includes("not allowed")
+            ) {
+                statusMessage = "Send cancelled";
+            } else {
+                statusMessage = message;
+            }
+            swapState = "failed";
+        }
     }
 </script>
 
