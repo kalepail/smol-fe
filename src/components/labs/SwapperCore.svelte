@@ -188,96 +188,22 @@
 
                 // console.log("Connecting with rpId:", rpId); // Debug logging if needed
 
-                try {
-                    const result = await account.get().connectWallet({ rpId });
-                    // Use keyIdBase64 if available (PasskeyKit v0.6+), otherwise convert with URL-safe replacement
-                    const keyIdSafe =
-                        result.keyIdBase64 ||
-                        (typeof result.keyId === "string"
-                            ? result.keyId
-                            : Buffer.from(result.keyId)
-                                  .toString("base64")
-                                  .replace(/\+/g, "-")
-                                  .replace(/\//g, "_")
-                                  .replace(/=+$/, ""));
+                const result = await account.get().connectWallet({ rpId });
+                // Use keyIdBase64 if available (PasskeyKit v0.6+), otherwise convert with URL-safe replacement
+                const keyIdSafe =
+                    result.keyIdBase64 ||
+                    (typeof result.keyId === "string"
+                        ? result.keyId
+                        : Buffer.from(result.keyId)
+                              .toString("base64")
+                              .replace(/\+/g, "-")
+                              .replace(/\//g, "_")
+                              .replace(/=+$/, ""));
 
-                    setUserAuth(result.contractId, keyIdSafe);
-                } catch (connectErr) {
-                    console.warn(
-                        "Connect failed, prompting creation:",
-                        connectErr,
-                    );
-                    // On localhost or real fail, offer creation
-                    if (confirm("Wallet not found. Create a new one?")) {
-                        const result = await account
-                            .get()
-                            .createWallet("Smol Swapper", "User", {
-                                rpId,
-                                authenticatorSelection: {
-                                    residentKey: "required",
-                                    requireResidentKey: true,
-                                    userVerification: "required",
-                                },
-                            });
-                        // createWallet returns keyIdBase64 explicitly
-                        const keyIdSafe =
-                            result.keyIdBase64 ||
-                            (typeof result.keyId === "string"
-                                ? result.keyId
-                                : Buffer.from(result.keyId)
-                                      .toString("base64")
-                                      .replace(/\+/g, "-")
-                                      .replace(/\//g, "_")
-                                      .replace(/=+$/, ""));
-
-                        setUserAuth(result.contractId, keyIdSafe);
-                    } else {
-                        throw connectErr;
-                    }
-                }
+                setUserAuth(result.contractId, keyIdSafe);
             } else {
                 // Already authenticated (localStorage), but ensure wallet instance is connected
-                try {
-                    await ensureWalletConnected();
-                } catch (reconnectErr) {
-                    console.warn(
-                        "Re-connect failed (stale key?), prompting creation:",
-                        reconnectErr,
-                    );
-                    if (confirm("Saved wallet not found. Create a new one?")) {
-                        const hostname = window.location.hostname;
-                        const rpId =
-                            hostname === "localhost"
-                                ? "localhost"
-                                : (getDomain(hostname) ?? undefined);
-
-                        const result = await account
-                            .get()
-                            .createWallet("Smol Swapper", "User", {
-                                rpId,
-                                authenticatorSelection: {
-                                    residentKey: "required",
-                                    requireResidentKey: true,
-                                    userVerification: "required",
-                                },
-                            });
-                        // update auth with new key
-                        // createWallet returns keyIdBase64 explicitly
-                        const keyIdSafe =
-                            result.keyIdBase64 ||
-                            (typeof result.keyId === "string"
-                                ? result.keyId
-                                : Buffer.from(result.keyId)
-                                      .toString("base64")
-                                      .replace(/\+/g, "-")
-                                      .replace(/\//g, "_")
-                                      .replace(/=+$/, ""));
-
-                        setUserAuth(result.contractId, keyIdSafe);
-                    } else {
-                        throw reconnectErr;
-                    }
-                }
+                await ensureWalletConnected();
             }
             appState = "transition";
             setTimeout(() => {
@@ -289,19 +215,6 @@
             console.error(e);
             const msg = e instanceof Error ? e.message : String(e); // Keep concise
             alert(`Entry failed: ${msg}`);
-
-            // If ensureWalletConnected failed, it might be due to bad localStorage state
-            if (isAuthenticated()) {
-                if (
-                    confirm(
-                        "Session seems invalid (maybe from previous loop). Clear wallet and start over?",
-                    )
-                ) {
-                    localStorage.removeItem("smol:contractId");
-                    localStorage.removeItem("smol:keyId");
-                    window.location.reload();
-                }
-            }
         }
     }
 

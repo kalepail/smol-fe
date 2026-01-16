@@ -84,25 +84,13 @@ export async function ensureWalletConnected(): Promise<void> {
   if (userState.contractId && userState.keyId && !userState.walletConnected) {
 
 
-    try {
-      const hostname = window.location.hostname;
-      const rpId = hostname === "localhost" ? "localhost" : (getDomain(hostname) ?? undefined);
+    const hostname = window.location.hostname;
+    const rpId = hostname === "localhost" ? "localhost" : (getDomain(hostname) ?? undefined);
 
-      await account.get().connectWallet({
-        rpId,
-        // keyId: userState.keyId, // REMOVED: Rely on browser discovery (Standard Flow)
-      });
-      userState.walletConnected = true;
-
-    } catch (error) {
-      console.error('[userState] Failed to connect wallet (stale?):', error);
-      // AUTO-BURN: If the saved key fails to connect, wipe it so the user isn't stuck.
-      // This solves the loop where Soft Logout keeps a bad key.
-      clearUserAuth();
-      // We do NOT throw here if we want to fail gracefully, but the caller might expect it.
-      // Since we cleared auth, the UI will revert to "Login".
-      throw error;
-    }
+    await account.get().connectWallet({
+      rpId,
+    });
+    userState.walletConnected = true;
   }
 }
 

@@ -39,58 +39,8 @@ export function useAuthentication() {
 
       await performLogin(cid, keyIdBase64, rawResponse, 'connect');
     } catch (connectErr) {
-      console.warn("Connect failed, prompting creation:", connectErr);
-      if (confirm("Wallet not found. Create a new one?")) {
-        const result = await account.get().createWallet('smol.xyz', `User`, {
-          rpId,
-          authenticatorSelection: {
-            residentKey: "required",
-            requireResidentKey: true,
-            userVerification: "required"
-          }
-        });
-
-        const {
-          rawResponse,
-          contractId: cid,
-          signedTx
-        } = result;
-
-        const keyIdBase64 = result.keyIdBase64 ||
-          (typeof result.keyId === 'string' ? result.keyId : Buffer.from(result.keyId).toString('base64').replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""));
-
-        // For creation via login flow, we might need to register/fund? 
-        // Existing code implies signUp logic manages funding. 
-        // But if we just 'createWallet' here locally, we might skip backend registration if we call /login directly.
-        // However, for pure client-side swapper on localhost, we just need the wallet.
-        // The API /login likely handles simple session creation.
-        // Let's mirror what SwapperCore does: Just get the wallet and set Auth.
-        // BUT, useAuthentication implies FULL app login (cookies etc).
-
-        // If we are creating via 'login' fallback, we should probably call the signUp flow logic?
-        // But signUp requires username/turnstile.
-        // Let's stick to the SwapperCore logic: Just create the wallet and try to login as 'connect' or 'create' if the API supports it without extra params.
-        // The API expects 'type: create' to have username.
-
-        // SIMPLIFICATION: If connect fails, we just create the wallet LOCALLY so the user can use the app (Swapper).
-        // We might fail the API login if the API enforces existing users.
-        // But for localhost dev, the API login might fail anyway if the DB doesn't have the user.
-        // Let's try to proceed with local auth first.
-
-        setUserAuth(cid, keyIdBase64);
-        userState.walletConnected = true;
-
-        // Try to let the backend know, but don't block local usage if it fails (e.g. 404 user not found)
-        try {
-          await performLogin(cid, keyIdBase64, rawResponse, 'connect'); // Try connecting as if we exist
-        } catch (e) {
-          console.warn("Backend login failed (expected for new local user):", e);
-          // We still allow local usage
-        }
-
-      } else {
-        throw connectErr;
-      }
+      console.error("Connect failed:", connectErr);
+      throw connectErr;
     }
   }
 
