@@ -1,7 +1,7 @@
 
 import axios from "axios";
 
-const BASE_URL = "https://swap.apis.xbull.app";
+const BASE_URL = "/api/xbull";
 
 export interface XBullQuoteParams {
     fromAsset: string;
@@ -51,7 +51,7 @@ export async function getXBullQuote(params: XBullQuoteParams): Promise<XBullQuot
             query.append("sender", params.sender);
         }
 
-        const response = await axios.get(`${BASE_URL}/swaps/quote?${query.toString()}`);
+        const response = await axios.get(`${BASE_URL}/quote?${query.toString()}`);
         return response.data;
     } catch (error: any) {
         if (axios.isAxiosError(error) && error.response) {
@@ -64,7 +64,7 @@ export async function getXBullQuote(params: XBullQuoteParams): Promise<XBullQuot
 
 export async function buildXBullTransaction(params: XBullAcceptQuoteParams): Promise<XBullAcceptQuoteResponse> {
     try {
-        const response = await axios.post(`${BASE_URL}/swaps/accept-quote`, params);
+        const response = await axios.post(`${BASE_URL}/accept-quote`, params);
         return response.data;
     } catch (error: any) {
         if (axios.isAxiosError(error) && error.response) {

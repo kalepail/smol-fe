@@ -176,7 +176,14 @@
     async function handleEnter() {
         try {
             if (!isAuthenticated) {
-                const rpId = getDomain(window.location.hostname) ?? undefined;
+                const hostname = window.location.hostname;
+                const rpId =
+                    hostname === "localhost"
+                        ? "localhost"
+                        : (getDomain(hostname) ?? undefined);
+
+                // console.log("Connecting with rpId:", rpId); // Debug logging if needed
+
                 const result = await account.get().connectWallet({ rpId });
                 setUserAuth(
                     result.contractId,
@@ -193,7 +200,8 @@
             }, 1000);
         } catch (e) {
             console.error(e);
-            alert("Entry failed.");
+            const msg = e instanceof Error ? e.message : String(e);
+            alert(`Entry failed: ${msg}`);
         }
     }
 
@@ -368,7 +376,11 @@
                     }
                     const sequence = await getLatestSequence();
                     signedTx = await kit.sign(t, {
-                        rpId: getDomain(window.location.hostname) ?? undefined,
+                        rpId:
+                            window.location.hostname === "localhost"
+                                ? "localhost"
+                                : (getDomain(window.location.hostname) ??
+                                  undefined),
                         keyId: userState.keyId,
                         expiration: sequence + 60,
                     });
@@ -402,7 +414,11 @@
                     );
 
                     signedTx = await kit.sign(tx, {
-                        rpId: getDomain(window.location.hostname) ?? undefined,
+                        rpId:
+                            window.location.hostname === "localhost"
+                                ? "localhost"
+                                : (getDomain(window.location.hostname) ??
+                                  undefined),
                         keyId: userState.keyId,
                         expiration: sequence + 60,
                     });
@@ -448,7 +464,11 @@
                 );
 
                 signedTx = await kit.sign(tx, {
-                    rpId: getDomain(window.location.hostname) ?? undefined,
+                    rpId:
+                        window.location.hostname === "localhost"
+                            ? "localhost"
+                            : (getDomain(window.location.hostname) ??
+                              undefined),
                     keyId: userState.keyId,
                     expiration: sequence + 60,
                 });
@@ -620,7 +640,10 @@
 
             const sequence = await getLatestSequence();
             const signedTx = await kit.sign(tx, {
-                rpId: getDomain(window.location.hostname) ?? undefined,
+                rpId:
+                    window.location.hostname === "localhost"
+                        ? "localhost"
+                        : (getDomain(window.location.hostname) ?? undefined),
                 keyId: userState.keyId,
                 expiration: sequence + 60,
             });
