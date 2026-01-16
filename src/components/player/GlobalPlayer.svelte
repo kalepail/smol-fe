@@ -1188,6 +1188,13 @@
                     </button>
                     {#if showSortDropdown}
                         <div
+                            class="fixed inset-0 z-[90]"
+                            onclick={() => (showSortDropdown = false)}
+                            role="button"
+                            tabindex="-1"
+                            onkeydown={() => {}}
+                        ></div>
+                        <div
                             class="absolute right-0 top-11 z-[100] bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl p-1 min-w-[140px] animate-in fade-in zoom-in-95 duration-200"
                         >
                             <button
