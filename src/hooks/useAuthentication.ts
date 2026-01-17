@@ -1,5 +1,6 @@
 import Cookies from 'js-cookie';
 import { getDomain } from 'tldts';
+import { getSafeRpId } from '../utils/domains';
 import { account, send } from '../utils/passkey-kit';
 import { setUserAuth, clearUserAuth, userState } from '../stores/user.svelte';
 
@@ -17,14 +18,13 @@ export function useAuthentication() {
   const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
   async function login() {
     const hostname = window.location.hostname;
-    const rpId = hostname === "localhost" ? "localhost" : (getDomain(hostname) ?? undefined);
 
     // Standard Passkey Flow: Let the browser discover keys.
     // const savedKeyId = ... (Removed)
 
     try {
       const result = await account.get().connectWallet({
-        rpId,
+        rpId: getSafeRpId(hostname),
         // keyId: savedKeyId || undefined // REMOVED: standard flow
       });
 
@@ -84,9 +84,9 @@ export function useAuthentication() {
 
   async function signUp(username: string, turnstileToken: string) {
     const hostname = window.location.hostname;
-    const rpId = hostname === "localhost" ? "localhost" : (getDomain(hostname) ?? undefined);
+
     const result = await account.get().createWallet('smol.xyz', `SMOL — ${username}`, {
-      rpId,
+      rpId: getSafeRpId(hostname),
       authenticatorSelection: {
         residentKey: "required",
         requireResidentKey: true,

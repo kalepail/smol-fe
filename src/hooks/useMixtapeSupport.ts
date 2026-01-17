@@ -1,4 +1,4 @@
-import { getDomain } from 'tldts';
+import { getSafeRpId } from '../utils/domains';
 import { account, kale, send, sac } from '../utils/passkey-kit';
 import { getLatestSequence, truncate } from '../utils/base';
 import { userState } from '../stores/user.svelte';
@@ -181,7 +181,7 @@ export async function sendSupportPayment(
             onProgress?.(`Awaiting signature for ${truncate(address, 4)}...`);
             const sequence = await getLatestSequence();
             tx = await account.get().sign(tx, {
-                rpId: getDomain(window.location.hostname) ?? undefined,
+                rpId: getSafeRpId(window.location.hostname),
                 keyId: userState.keyId,
                 expiration: sequence + 60,
             });

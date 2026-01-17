@@ -16,7 +16,7 @@ function getAccount(): PasskeyKit {
             rpcUrl: RPC_URL,
             networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
             walletWasmHash: import.meta.env.PUBLIC_WALLET_WASM_HASH,
-            timeoutInSeconds: 30,
+            timeoutInSeconds: 60, // Increased from 30s to handle complex transactions
         });
     }
     return _account;
@@ -60,11 +60,26 @@ export const xlm = { get: getXlm };
  * Send a transaction via Kale Farm Relayer (Raw XDR)
  *
  * Uses Turnstile for Sybil resistance and sponsored transaction fees.
+ * Includes retry logic, timeout protection, and telemetry.
  *
  * Note: OpenZeppelin Channels integration is not currently implemented.
  * The relayer endpoint is hardcoded to KaleFarm API for now.
  */
-export async function send<T>(txn: AssembledTransaction<T> | Tx | string, turnstileToken: string) {
+export async function send<T>(
+    txn: AssembledTransaction<T> | Tx | string,
+    turnstileToken: string,
+    options: {
+        maxRetries?: number;
+        timeoutMs?: number;
+        retryDelayMs?: number;
+    } = {}
+) {
+    const {
+        maxRetries = 3,
+        timeoutMs = 60000, // 60s default fetch timeout
+        retryDelayMs = 2000, // Base delay for exponential backoff
+    } = options;
+
     // Extract XDR from transaction
     let xdr: string;
     if (txn instanceof AssembledTransaction) {
@@ -76,22 +91,99 @@ export async function send<T>(txn: AssembledTransaction<T> | Tx | string, turnst
     }
 
     // Kale Farm API endpoint (sponsored transactions with Turnstile verification)
-    const relayerUrl = "https://api.kalefarm.xyz";
+    const relayerUrl = import.meta.env.PUBLIC_RELAYER_URL || "https://api.kalefarm.xyz";
 
-    // Submit XDR to Kale Farm API with Turnstile token
-    const response = await fetch(`${relayerUrl}/`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Turnstile-Response': turnstileToken,
-        },
-        body: JSON.stringify({ xdr }),
-    });
+    let lastError: Error | null = null;
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Relayer submission failed: ${response.status} ${response.statusText} - ${errorText}`);
+    // Retry loop with exponential backoff
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        const isRetry = attempt > 0;
+
+        if (isRetry) {
+            const delay = retryDelayMs * Math.pow(2, attempt - 1);
+            console.log(`[Relayer] Retry attempt ${attempt}/${maxRetries} after ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+
+        // Create AbortController for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+        try {
+            const startTime = Date.now();
+
+            // Submit XDR to Kale Farm API with Turnstile token
+            const response = await fetch(`${relayerUrl}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Turnstile-Response': turnstileToken,
+                },
+                body: JSON.stringify({ xdr }),
+                signal: controller.signal,
+            });
+
+            clearTimeout(timeoutId);
+            const responseTime = Date.now() - startTime;
+
+            // Log telemetry
+            console.log(`[Relayer] Response in ${responseTime}ms (attempt ${attempt + 1}/${maxRetries + 1})`);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+
+                // Distinguish between different error types
+                if (response.status >= 500 && attempt < maxRetries) {
+                    // Server error - retry
+                    lastError = new Error(`Relayer server error (${response.status}): ${errorText}`);
+                    console.warn(`[Relayer] Server error, will retry: ${lastError.message}`);
+                    continue;
+                } else if (response.status === 429 && attempt < maxRetries) {
+                    // Rate limit - retry with longer backoff
+                    lastError = new Error(`Relayer rate limit exceeded (${response.status})`);
+                    console.warn(`[Relayer] Rate limited, will retry: ${lastError.message}`);
+                    await new Promise(resolve => setTimeout(resolve, retryDelayMs * 2));
+                    continue;
+                } else {
+                    // Client error or final retry - don't retry
+                    throw new Error(`Relayer submission failed (${response.status} ${response.statusText}): ${errorText}`);
+                }
+            }
+
+            // Success - log and return
+            if (isRetry) {
+                console.log(`[Relayer] Success after ${attempt} retries`);
+            }
+
+            return response.json();
+
+        } catch (error: any) {
+            clearTimeout(timeoutId);
+
+            // Distinguish between timeout and network errors
+            if (error.name === 'AbortError') {
+                lastError = new Error(`Relayer request timeout after ${timeoutMs}ms (attempt ${attempt + 1}/${maxRetries + 1})`);
+                console.error(`[Relayer] Timeout: ${lastError.message}`);
+
+                if (attempt < maxRetries) {
+                    console.log(`[Relayer] Will retry after timeout...`);
+                    continue;
+                }
+            } else if (error.message?.includes('fetch')) {
+                lastError = new Error(`Relayer network error: ${error.message}`);
+                console.error(`[Relayer] Network error: ${lastError.message}`);
+
+                if (attempt < maxRetries) {
+                    console.log(`[Relayer] Will retry after network error...`);
+                    continue;
+                }
+            } else {
+                // Non-retryable error (e.g., validation error)
+                throw error;
+            }
+        }
     }
 
-    return response.json();
+    // All retries exhausted
+    throw lastError || new Error(`Relayer submission failed after ${maxRetries + 1} attempts`);
 }

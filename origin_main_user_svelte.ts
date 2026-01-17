@@ -3,7 +3,7 @@
  */
 
 import { account } from '../utils/passkey-kit';
-import { getSafeRpId } from '../utils/domains';
+import { getDomain } from 'tldts';
 
 // Initialize from localStorage if available (client-side only)
 const storedContractId = typeof localStorage !== "undefined" ? localStorage.getItem("smol:contractId") : null;
@@ -85,18 +85,12 @@ export async function ensureWalletConnected(): Promise<void> {
 
 
     const hostname = window.location.hostname;
+    const rpId = hostname === "localhost" ? "localhost" : (getDomain(hostname) ?? undefined);
 
-    try {
-      await account.get().connectWallet({
-        rpId: getSafeRpId(hostname),
-        keyId: userState.keyId, // Pass saved keyId for targeted reconnection
-      });
-      userState.walletConnected = true;
-    } catch (error) {
-      console.error('[userState] Failed to connect wallet (stale?):', error);
-      // AUTO-BURN: If the saved key fails to connect, wipe it so the user isn't stuck.
-      clearUserAuth();
-    }
+    await account.get().connectWallet({
+      rpId,
+    });
+    userState.walletConnected = true;
   }
 }
 

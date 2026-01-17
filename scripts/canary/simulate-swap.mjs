@@ -18,7 +18,7 @@ import { Server, Api, assembleTransaction } from "@stellar/stellar-sdk/minimal/r
 // Constants
 const RPC_URL = process.env.PUBLIC_RPC_URL || "https://rpc.ankr.com/stellar_soroban";
 const SOROSWAP_API = "https://api.soroswap.finance";
-const AGGREGATOR_CONTRACT = "CAYP3UWLJM7ZPTUKL6R6BFGTRWLZ46LRKOXTERI2K6BIJAWGYY62TXTO";
+const AGGREGATOR_CONTRACT = "CAG5LRYQ5JVEUI5TEID72EYOVX44TTUJT5BQR2J6J77FH65PCCFAJDDH"; // Updated to match production
 const NULL_ACCOUNT = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF";
 
 // Token addresses
@@ -129,7 +129,7 @@ async function buildAndSimulate(quote) {
         "swap_exact_tokens_for_tokens",
         nativeToScVal(new Address(tokenIn)),
         nativeToScVal(new Address(tokenOut)),
-        nativeToScVal(BigInt(rawTrade.amountIn), { type: "i128" }),
+        nativeToScVal(BigInt(quote.amountIn), { type: "i128" }), // FIXED: Use quote.amountIn (not rawTrade.amountIn)
         nativeToScVal(BigInt(rawTrade.amountOutMin), { type: "i128" }),
         distributionArg,
         nativeToScVal(new Address(TEST_C_ADDRESS)),

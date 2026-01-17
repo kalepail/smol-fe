@@ -3,6 +3,9 @@
  *
  * Handles communication with the Soroswap DEX Aggregator API
  * for token swaps across multiple protocols (soroswap, phoenix, aqua, sdex).
+ * 
+ * ADAPTED FOR SMOL-FE:
+ * Uses local /api/swap/quote proxy to hide API keys (Ohloss pattern).
  */
 
 const SOROSWAP_API_BASE = 'https://api.soroswap.finance';
@@ -13,7 +16,7 @@ const SOROSWAP_API_BASE = 'https://api.soroswap.finance';
 function safeStringify(obj: unknown, space?: number): string {
     return JSON.stringify(obj, (key, value) =>
         typeof value === 'bigint' ? value.toString() : value
-    , space);
+        , space);
 }
 
 export interface QuoteRequest {
@@ -66,42 +69,25 @@ export interface SendResponse {
     status: string;
 }
 
-function getApiKey(): string {
-    const key = import.meta.env.PUBLIC_SOROSWAP_API_KEY;
-    if (!key) {
-        throw new Error('Soroswap API key not configured (PUBLIC_SOROSWAP_API_KEY)');
-    }
-    return key;
-}
-
-function getHeaders(): HeadersInit {
-    return {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${getApiKey()}`
-    };
-}
-
 /**
  * Get a quote for a token swap
+ * PROXIED: Calls /api/swap/quote to avoid exposing API Key
  */
 export async function getQuote(request: QuoteRequest, network: 'mainnet' | 'testnet' = 'mainnet'): Promise<QuoteResponse> {
-    const url = `${SOROSWAP_API_BASE}/quote?network=${network}`;
+    const url = '/api/swap/quote';
 
     const body = {
-        assetIn: request.assetIn,
-        assetOut: request.assetOut,
-        amount: request.amount,
-        tradeType: request.tradeType,
-        // Default protocols (Factory Spec: Exact match to ohloss/api-worker)
-        protocols: request.protocols ?? ['soroswap', 'aqua', 'phoenix'],
-        parts: request.parts ?? 10,
-        slippageBps: request.slippageBps ?? 500, // 5% default (matches ohloss reference)
-        maxHops: request.maxHops ?? 3
+        tokenIn: request.assetIn,
+        tokenOut: request.assetOut,
+        amountIn: request.amount, // API expects this name
+        slippageBps: request.slippageBps ?? 500,
     };
 
     const response = await fetch(url, {
         method: 'POST',
-        headers: getHeaders(),
+        headers: {
+            'Content-Type': 'application/json'
+        },
         body: JSON.stringify(body)
     });
 
@@ -109,7 +95,7 @@ export async function getQuote(request: QuoteRequest, network: 'mainnet' | 'test
     console.log("[SoroswapAPI] Quote Response:", safeStringify(data, 2));
 
     if (!response.ok) {
-        throw new Error(data.message || `Quote failed: ${response.status}`);
+        throw new Error(data.error || `Quote failed: ${response.status}`);
     }
 
     return data as QuoteResponse;
@@ -117,6 +103,8 @@ export async function getQuote(request: QuoteRequest, network: 'mainnet' | 'test
 
 /**
  * Build an unsigned transaction XDR from a quote
+ * WARNING: This relies on public keys or client-side keys if used directly. 
+ * Use swap-builder.ts (Ohloss logic) for C-address swaps instead.
  */
 export async function buildTransaction(
     quote: QuoteResponse,
@@ -132,16 +120,19 @@ export async function buildTransaction(
         to
     };
 
+    const key = import.meta.env.PUBLIC_SOROSWAP_API_KEY;
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (key) headers['Authorization'] = `Bearer ${key}`;
+
     const response = await fetch(url, {
         method: 'POST',
-        headers: getHeaders(),
+        headers,
         body: JSON.stringify(body)
     });
 
     const data = await response.json();
 
     if (!response.ok) {
-        // Check for multi-step flow (428 = needs user signature first)
         if (response.status === 428) {
             throw new Error(`Multi-step signing required: ${safeStringify(data)}`);
         }
@@ -166,9 +157,13 @@ export async function sendTransaction(
         launchtube: useLaunchtube
     };
 
+    const key = import.meta.env.PUBLIC_SOROSWAP_API_KEY;
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (key) headers['Authorization'] = `Bearer ${key}`;
+
     const response = await fetch(url, {
         method: 'POST',
-        headers: getHeaders(),
+        headers,
         body: JSON.stringify(body)
     });
 
@@ -182,10 +177,11 @@ export async function sendTransaction(
 }
 
 /**
- * Token contract IDs for convenience
+ * Token contract IDs
  */
 export const TOKENS = {
     XLM: import.meta.env.PUBLIC_XLM_SAC_ID || 'CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA',
+    // Verified KALE ID from Ohloss/DeFi research
     KALE: import.meta.env.PUBLIC_KALE_SAC_ID || 'CB23WRDQWGSP6YPMY4UV5C4OW5CBTXKYN3XEATG7KJEZCXMJBYEHOUOV'
 };
 
@@ -242,7 +238,6 @@ export function toStroops(amount: number | string, decimals: number = 7): string
 
 /**
  * Soroswap Aggregator Contract (Mainnet)
- * Uses environment variable for consistency
  */
 export const AGGREGATOR_CONTRACT = import.meta.env.PUBLIC_AGGREGATOR_CONTRACT_ID || 'CAG5LRYQ5JVEUI5TEID72EYOVX44TTUJT5BQR2J6J77FH65PCCFAJDDH';
 
@@ -271,12 +266,4 @@ export function parseRawTrade(quote: QuoteResponse): RawTrade {
         throw new Error('Quote does not contain valid rawTrade distribution');
     }
     return raw;
-}
-
-/**
- * Get deadline (current ledger + buffer)
- */
-export function getDeadline(bufferLedgers: number = 300): bigint {
-    // Use a timestamp-based deadline (Unix seconds + buffer)
-    return BigInt(Math.floor(Date.now() / 1000) + bufferLedgers);
 }
