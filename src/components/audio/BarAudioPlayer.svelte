@@ -131,6 +131,7 @@
   onMount(() => {
     let resumeAttempts = 0;
     const maxResumeAttempts = 3;
+    let resumeCheckInterval: number | null = null;
 
     if (!("mediaSession" in navigator)) return;
 
@@ -150,12 +151,35 @@
       playNextSong();
     });
 
+    // Start polling for resume when interrupted
+    const startResumePolling = () => {
+      if (resumeCheckInterval) return; // Already polling
+
+      console.log("[Audio] Starting resume polling for CarPlay/iOS");
+      resumeCheckInterval = window.setInterval(() => {
+        if (audioState.wasInterrupted && document.visibilityState === "visible") {
+          console.log("[Audio] Polling check - attempting resume");
+          attemptResume();
+        }
+      }, 2000); // Check every 2 seconds
+    };
+
+    // Stop polling when no longer needed
+    const stopResumePolling = () => {
+      if (resumeCheckInterval) {
+        console.log("[Audio] Stopping resume polling");
+        clearInterval(resumeCheckInterval);
+        resumeCheckInterval = null;
+      }
+    };
+
     // Track audio interruptions via pause event
     const handleAudioPause = () => {
       // If audio paused but playingId is still set, it's an interruption
       if (audioState.playingId && audioState.currentSong) {
         console.log("[Audio] Interruption detected - audio paused unexpectedly");
         audioState.wasInterrupted = true;
+        startResumePolling(); // Start polling for iOS/CarPlay
       }
     };
 
@@ -165,6 +189,15 @@
         console.log("[Audio] Playback resumed successfully after interruption");
         audioState.wasInterrupted = false;
         resumeAttempts = 0;
+        stopResumePolling(); // Stop polling when playing
+      }
+    };
+
+    // Handle when audio becomes playable - good time to resume on CarPlay reconnect
+    const handleCanPlay = () => {
+      if (audioState.wasInterrupted && audioState.playingId && audioState.currentSong) {
+        console.log("[Audio] Audio can play and was interrupted - attempting resume");
+        setTimeout(attemptResume, 100);
       }
     };
 
@@ -221,30 +254,40 @@
       }
     };
 
-    // iOS-specific: Handle visibility changes (phone calls, switching apps)
+    // iOS-specific: Handle visibility changes (phone calls, switching apps, CarPlay reconnection)
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
+        console.log("[Audio] Page became visible - checking for resume");
         // Small delay to let the system settle
         setTimeout(attemptResume, 100);
+        // For CarPlay, try again after a longer delay
+        setTimeout(attemptResume, 500);
       }
     };
 
     // iOS-specific: Handle window focus (returning from notifications, Siri, etc.)
     const handleFocus = () => {
+      console.log("[Audio] Window gained focus - checking for resume");
       setTimeout(attemptResume, 100);
+      // For CarPlay, try again after a longer delay
+      setTimeout(attemptResume, 500);
     };
 
-    // iOS-specific: Handle audio session interruptions
+    // iOS-specific: Handle audio session interruptions (CarPlay disconnect)
     const handleBeginInactive = () => {
-      console.log("[Audio] iOS audio session becoming inactive");
+      console.log("[Audio] iOS audio session becoming inactive (CarPlay disconnect?)");
       if (audioState.playingId && audioState.currentSong) {
         audioState.wasInterrupted = true;
+        startResumePolling(); // Start polling for reconnection
       }
     };
 
     const handleEndInactive = () => {
-      console.log("[Audio] iOS audio session ending inactive state");
+      console.log("[Audio] iOS audio session ending inactive state (CarPlay reconnect?)");
+      // Try multiple times with different delays for CarPlay
       setTimeout(attemptResume, 100);
+      setTimeout(attemptResume, 500);
+      setTimeout(attemptResume, 1000);
     };
 
     // Handle audio context state changes (Bluetooth connection, system audio changes)
@@ -270,9 +313,12 @@
     if (audioState.audioElement) {
       audioState.audioElement.addEventListener("pause", handleAudioPause);
       audioState.audioElement.addEventListener("play", handleAudioPlay);
+      // iOS/CarPlay: Try to resume when audio becomes playable after reconnection
+      audioState.audioElement.addEventListener("canplay", handleCanPlay);
+      audioState.audioElement.addEventListener("canplaythrough", handleCanPlay);
     }
 
-    // Monitor audio context state changes for Bluetooth and device changes
+    // Monitor audio context state changes for Bluetooth and device changes (non-iOS)
     if (audioState.audioContext) {
       audioState.audioContext.addEventListener("statechange", handleAudioContextStateChange);
     }
@@ -286,6 +332,8 @@
 
     // Clean up on unmount
     return () => {
+      stopResumePolling(); // Stop polling interval
+
       if ("mediaSession" in navigator) {
         navigator.mediaSession.setActionHandler("play", null);
         navigator.mediaSession.setActionHandler("pause", null);
@@ -295,6 +343,8 @@
       if (audioState.audioElement) {
         audioState.audioElement.removeEventListener("pause", handleAudioPause);
         audioState.audioElement.removeEventListener("play", handleAudioPlay);
+        audioState.audioElement.removeEventListener("canplay", handleCanPlay);
+        audioState.audioElement.removeEventListener("canplaythrough", handleCanPlay);
       }
 
       if (audioState.audioContext) {
