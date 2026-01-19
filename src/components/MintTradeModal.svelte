@@ -347,7 +347,6 @@
 
     try {
       const expectedOut = await executionHook.executeSwap({
-        cometClient,
         tokenIn,
         tokenOut,
         amount,

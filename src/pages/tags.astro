@@ -2,9 +2,27 @@
 import Layout from "../layouts/Layout.astro";
 import TagExplorer from "../components/tags/TagExplorer.svelte";
 // LIVE DATA: TagExplorer now fetches smols on mount
+
+const schema = [{
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "@id": "https://noot.smol.xyz/tags#collection",
+    "name": "Music Genres",
+    "description": "Browse AI-generated music by genre tags. Discover songs across all genres.",
+    "url": "https://noot.smol.xyz/tags",
+    "mainEntity": {
+        "@type": "ItemList",
+        "name": "Genre Tags",
+        "description": "Available music genres: Jazz, Hip Hop, Electronic, Rock, Classical, Pop, Ambient, Lo-fi, Indie, and more"
+    }
+}];
 ---
 
-<Layout title="Tags Explorer">
+<Layout
+  title="Browse AI Music by Genre | Smol Tags Explorer"
+  description="Explore AI-generated music by genre tags. Discover Jazz, Hip Hop, Electronic, Rock, Classical, Pop, and more AI songs. Filter and play music by your favorite genres on Smol."
+  {schema}
+>
   <div class="h-[calc(100vh-52px)] overflow-hidden">
     <TagExplorer client:only="svelte" />
   </div>

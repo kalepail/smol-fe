@@ -4,7 +4,7 @@
     import { getLatestSequence } from "../../utils/base";
     import { account, kale, send } from "../../utils/passkey-kit";
     import { userState } from "../../stores/user.svelte";
-    import { getDomain } from "tldts";
+    import { getSafeRpId } from "../../utils/domains";
     import { fade, fly, scale } from "svelte/transition";
     import { spring } from "svelte/motion";
     import type { Smol } from "../../types/domain";
@@ -192,7 +192,7 @@
                 // 2. Sign
                 const sequence = await getLatestSequence();
                 tx = await account.get().sign(tx, {
-                    rpId: getDomain(window.location.hostname) ?? undefined,
+                    rpId: getSafeRpId(window.location.hostname),
                     keyId: userState.keyId,
                     expiration: sequence + 60,
                 });

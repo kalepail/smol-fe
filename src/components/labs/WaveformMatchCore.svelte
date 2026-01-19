@@ -2,6 +2,7 @@
     import LabsPlayer from "./LabsPlayer.svelte";
     import { onMount } from "svelte";
     import { getSnapshotAsync } from "../../services/api/snapshot";
+    import confetti from "canvas-confetti";
 
     interface Props {
         smols?: any[];
@@ -95,6 +96,15 @@
         if (smol.Id === currentSmol.Id) {
             score += potentialPoints;
             lastResult = "correct";
+
+            // Confetti on correct match!
+            const confettiAmount = Math.min(Math.floor(potentialPoints / 10), 100);
+            confetti({
+                particleCount: confettiAmount,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#9ae600', '#f91880', '#FDDA24', '#fff']
+            });
         } else {
             lastResult = "incorrect";
         }

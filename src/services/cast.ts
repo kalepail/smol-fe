@@ -149,8 +149,10 @@ class CastService {
                 return;
             }
 
-            // Build audio URL
-            const audioUrl = song.audio || `https://api.smol.xyz/song/${song.music_id || song.Id}.mp3`;
+            // Build audio URL (Use internal proxy to bypass CORS/Strict Origin policies on Cast)
+            // We route through /api/audio/[id] which adds Access-Control-Allow-Origin: *
+            const songId = song.music_id || song.Id;
+            const audioUrl = `${window.location.origin}/api/audio/${songId}`;
 
             const mediaInfo = new chrome.cast.media.MediaInfo(audioUrl, "audio/mp3");
 

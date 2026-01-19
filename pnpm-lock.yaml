@@ -30,7 +30,7 @@ importers:
         specifier: ^1.9.4
         version: 1.9.4
       comet-sdk:
-        specifier: link:ext\comet-sdk
+        specifier: link:ext/comet-sdk
         version: link:ext/comet-sdk
       cookie:
         specifier: ^1.0.2
@@ -42,7 +42,7 @@ importers:
         specifier: ^0.12.0
         version: 0.12.0
       smol-sdk:
-        specifier: link:ext\smol-sdk
+        specifier: link:ext/smol-sdk
         version: link:ext/smol-sdk
       soroswap-router-sdk:
         specifier: 1.2.4

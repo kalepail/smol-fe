@@ -5,7 +5,7 @@ import {
   mergeTagStats,
   normalizeTagKey,
   sortTagStats,
-} from "../src/utils/tagStats.js";
+} from "../src/utils/tagStats.ts";
 
 test("buildTagStats dedupes tags by normalized key", () => {
   const smols = [

@@ -2,6 +2,7 @@
 import Layout from "../../layouts/Layout.astro";
 import ExperimentCard from "../../components/labs/ExperimentCard.svelte";
 import AsteroidsBackground from "../../components/labs/AsteroidsBackground.svelte";
+import KonamiEasterEgg from "../../components/labs/KonamiEasterEgg.svelte";
 
 // Experiment Registry
 // Experiment Registry (LabTech Source of Truth)
@@ -10,12 +11,18 @@ import registry from "../../../labs/registry.json";
 const EXPERIMENTS = registry;
 ---
 
-<Layout title="Smol Labs">
+<Layout
+  title="Smol Labs | Experimental AI Music Features"
+  description="Explore experimental AI music features including Smol Hero rhythm game, music quizzes, song roulette, waveform visualizations, and blockchain integrations. Beta playground for new music tech."
+>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
   </style>
   <div class="min-h-screen bg-black text-[#9ae600] font-pixel p-4 md:p-8 pt-24 relative overflow-hidden">
-    
+
+    <!-- Konami Code Easter Egg -->
+    <KonamiEasterEgg client:only="svelte" />
+
     <!-- Background Effect -->
     <div class="absolute inset-0 opacity-20 pointer-events-none">
         <div class="absolute inset-0 bg-[linear-gradient(rgba(18,18,18,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 bg-[length:100%_2px,3px_100%]"></div>
@@ -96,10 +103,10 @@ const EXPERIMENTS = registry;
       <div class="flex justify-between items-center border-t border-white/5 pt-8 mt-12 mb-8">
         <div class="flex items-center gap-2 text-[8px] md:text-[10px] text-[#555] font-pixel uppercase tracking-widest">
             <span class="w-1.5 h-1.5 bg-[#9ae600] rounded-full animate-ping"></span>
-            System Online // Read-Only Mode
+            System Online // All Experiments Use Smol Songs 🎵
         </div>
-        <p class="text-[8px] text-[#333] font-pixel">
-            v0.1.0-alpha
+        <p class="text-[8px] text-[#333] font-pixel hover:text-[#555] transition-colors cursor-help" title="Try the Konami Code!">
+            v0.1.0-alpha // ↑↑↓↓←→←→BA
         </p>
       </div>
 

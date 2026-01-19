@@ -31,9 +31,27 @@ const flavorTexts = [
 ];
 
 const randomFlavor = flavorTexts[Math.floor(Math.random() * flavorTexts.length)];
+
+const schema = [{
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "@id": "https://noot.smol.xyz/artists#collection",
+    "name": "AI Music Artists",
+    "description": "Discover creators from around the world. Browse artist profiles and discographies.",
+    "url": "https://noot.smol.xyz/artists",
+    "mainEntity": {
+        "@type": "ItemList",
+        "name": "Artists",
+        "description": "Collection of AI music creators on Smol"
+    }
+}];
 ---
 
-<Layout title="Smol – Artists">
+<Layout
+  title="AI Music Artists | Creator Community | Smol"
+  description="Discover AI music artists from around the world. Browse creator profiles, listen to their discographies, explore minted NFT music, and find your favorite AI song creators on Smol."
+  {schema}
+>
 	<main class="min-h-screen text-white p-6 pt-24 max-w-7xl mx-auto" transition:animate="none">
         <div class="flex flex-col items-center text-center mb-12">
             <div>

@@ -4,7 +4,11 @@ import RadioBuilder from "../components/radio/RadioBuilder.svelte";
 // LIVE DATA: RadioBuilder now fetches smols on mount, no more snapshot needed!
 ---
 
-<Layout title="Radio Station" hideBottomBar={true}>
+<Layout
+  title="AI Music Radio | Smart Multi-Genre Stations | Smol"
+  description="AI-powered radio with smart multi-tag fusion, adaptive vibe control, and fresh track generation. Combine genres like Jazz + Hip Hop for unique listening experiences. Discover new AI music every spin."
+  hideBottomBar={true}
+>
   <div class="h-[calc(100dvh-80px)] overflow-hidden flex flex-col pb-[env(safe-area-inset-bottom)]">
     <RadioBuilder client:only="svelte" />
   </div>

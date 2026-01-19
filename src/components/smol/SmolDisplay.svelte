@@ -3,7 +3,7 @@
   import Loader from "../ui/Loader.svelte";
   import LikeButton from "../ui/LikeButton.svelte";
   import TokenBalancePill from "../ui/TokenBalancePill.svelte";
-  import { API_URL } from "../../utils/apiUrl";
+  import { API_URL, getSongUrl } from "../../utils/apiUrl";
 
   interface Props {
     id: string | null;
@@ -213,9 +213,7 @@
                   class="mr-2"
                   bind:this={audioElements[index]}
                   onplay={() => onPlayAudio(index)}
-                  src={song.status < 4
-                    ? song.audio
-                    : `${API_URL}/song/${song.music_id}.mp3`}
+                  src={song.status < 4 ? song.audio : getSongUrl(song.music_id)}
                   onerror={(e) => {
                     if (song.audio)
                       (e.currentTarget as HTMLAudioElement).src = song.audio;

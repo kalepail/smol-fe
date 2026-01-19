@@ -4,7 +4,7 @@
     import { getLatestSequence } from "../../utils/base";
     import { account, kale, send } from "../../utils/passkey-kit";
     import { userState } from "../../stores/user.svelte";
-    import { getDomain } from "tldts";
+    import { getSafeRpId } from "../../utils/domains";
     import { fade, slide } from "svelte/transition";
     import type { Smol } from "../../types/domain";
     import Loader from "../ui/Loader.svelte";

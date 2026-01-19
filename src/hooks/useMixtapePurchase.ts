@@ -1,5 +1,5 @@
 import { Client as SmolClient } from 'smol-sdk';
-import { getDomain } from 'tldts';
+import { getSafeRpId } from '../utils/domains';
 import type { Smol } from '../types/domain';
 import { getLatestSequence, pollTransaction } from '../utils/base';
 import { account, send } from '../utils/passkey-kit';
@@ -37,7 +37,7 @@ export function useMixtapePurchase() {
 
     const sequence = await getLatestSequence();
     await account.get().sign(tx, {
-      rpId: getDomain(window.location.hostname) ?? undefined,
+      rpId: getSafeRpId(window.location.hostname),
       keyId: userKeyId,
       expiration: sequence + 60,
     });

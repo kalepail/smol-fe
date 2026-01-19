@@ -186,11 +186,39 @@ async function hydrateDetails(smolList, minterMap, previousState) {
                 smol.Plays = detail.d1.Plays || 0;
                 smol.Views = detail.d1.Views || 0;
             }
+
+            // REWRITE URLS TO API.SMOL.XYZ (Standardization)
+            if (smol.song_url && smol.song_url.includes('cdn2.aisonggenerator.io')) {
+                smol.song_url = smol.song_url.replace('cdn2.aisonggenerator.io', 'api.smol.xyz/song').replace('.mp3', '') + '.mp3';
+            }
+            if (smol.songs && Array.isArray(smol.songs)) {
+                smol.songs.forEach(s => {
+                    if (s.audio && s.audio.includes('cdn2.aisonggenerator.io')) {
+                        s.audio = s.audio.replace('cdn2.aisonggenerator.io', 'api.smol.xyz/song').replace('.mp3', '') + '.mp3';
+                    }
+                });
+            }
         } catch (e) {
             // FALLBACK: Use previous snapshot data if available for this specific failure
             const cached = previousState.get(smol.Id);
             if (cached) {
                 smol.Tags = cached.Tags || smol.Tags;
+                if (cached.song_url && cached.song_url.includes('cdn2.aisonggenerator.io')) {
+                    smol.song_url = cached.song_url.replace('cdn2.aisonggenerator.io', 'api.smol.xyz/song').replace('.mp3', '') + '.mp3';
+                }
+
+                // Fix nested song lists too
+                if (cached.songs && Array.isArray(cached.songs)) {
+                    cached.songs.forEach(s => {
+                        if (s.audio && s.audio.includes('cdn2.aisonggenerator.io')) {
+                            s.audio = s.audio.replace('cdn2.aisonggenerator.io', 'api.smol.xyz/song').replace('.mp3', '') + '.mp3';
+                        }
+                    });
+                    // Also update the song list in the smol object if it exists there
+                    if (smol.songs) {
+                        smol.songs = cached.songs;
+                    }
+                }
                 smol.Address = cached.Address || smol.Address;
                 smol.Creator = cached.Creator || smol.Creator;
                 smol.Plays = cached.Plays || smol.Plays;

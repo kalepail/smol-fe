@@ -1,0 +1,447 @@
+---
+import Layout from "../layouts/Layout.astro";
+
+const schema = [
+  {
+    "@context": "https://schema.org",
+    "@type": "AboutPage",
+    "@id": "https://noot.smol.xyz/about#aboutpage",
+    "name": "About Smol",
+    "description": "Learn about Smol, the AI music generation platform built on Stellar blockchain. Create songs from text, mint NFTs, and collect music onchain.",
+    "url": "https://noot.smol.xyz/about",
+    "mainEntity": {
+      "@type": "Organization",
+      "@id": "https://noot.smol.xyz#org"
+    }
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "@id": "https://noot.smol.xyz/about#faq",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "What is Smol?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Smol is an AI music generation platform that lets you create full songs from text prompts and mint them as NFTs on Stellar blockchain. Generate original music with lyrics, melodies, and vocals in any genre, then own, trade, and collect songs onchain."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How does song generation work?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Enter a text prompt (up to 2,280 characters for songs with lyrics, 380 for instrumentals). AI generates 2 versions of your song in about 6 minutes. Choose your favorite version and publish it publicly or keep it private."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How much does it cost?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Song generation is free (requires account). NFT minting requires minimal Stellar network fees (typically <$0.01). Trading song tokens has transparent AMM fees. No subscription required."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Do I need crypto knowledge to use Smol?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "No. Smol uses PasskeyKit for passwordless authentication via biometrics (Face ID, Touch ID, or security keys). No seed phrases, no wallet setup. The blockchain complexity is abstracted away."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I sell my music?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Mint your songs as NFTs on Stellar blockchain, then trade tokens on the built-in automated market maker (AMM). Set your own prices and earn from trades."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What genres are supported?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "All genres. The AI adapts to your prompt. Popular tags include Jazz, Hip Hop, Electronic, Rock, Classical, Pop, Ambient, Lo-fi, Indie, Country, R&B, and experimental genres."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I create music without lyrics (instrumentals)?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Toggle instrumental mode when creating a song to generate music without vocals or lyrics."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How is Smol different from Suno or Udio?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Smol uniquely combines AI music generation with blockchain ownership. Unlike Suno and Udio, Smol lets you mint songs as NFTs, trade tokens on a built-in AMM, and truly own your music onchain. Plus PasskeyKit authentication means no seed phrases or complex wallet setup."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is my music private?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "You choose. Songs can be public (visible to everyone) or private (only you can see/play them)."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How long are the generated songs?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Songs are typically 2-3 minutes long with full structure (intro, verses, chorus, outro)."
+        }
+      }
+    ]
+  }
+];
+---
+
+<Layout
+  title="About Smol | AI Music Generator on Stellar Blockchain"
+  description="Learn how Smol works. Create AI music from text, mint NFTs on Stellar, trade tokens, and build your collection. Free song generation, passwordless auth, full ownership."
+  schema={schema}
+>
+  <main class="min-h-screen text-white px-4 py-16 md:py-24 max-w-4xl mx-auto">
+
+    <!-- Header -->
+    <div class="text-center mb-16">
+      <h1 class="text-4xl md:text-6xl font-bold mb-4 tracking-tight">
+        About <span class="text-[#9ae600]">Smol</span>
+      </h1>
+      <p class="text-xl text-slate-300 max-w-2xl mx-auto">
+        AI music generation meets blockchain ownership
+      </p>
+    </div>
+
+    <!-- What is Smol -->
+    <section class="mb-16">
+      <h2 class="text-3xl font-bold mb-6 text-[#9ae600]">What is Smol?</h2>
+      <div class="prose prose-invert prose-lg max-w-none">
+        <p class="text-slate-200 leading-relaxed mb-4">
+          <strong>Smol is an AI music generation platform</strong> that lets you create full songs from text prompts and mint them as NFTs on Stellar blockchain.
+        </p>
+        <p class="text-slate-200 leading-relaxed mb-4">
+          Generate original music with lyrics, melodies, and vocals in any genre. Get 2 versions per prompt, choose your favorite, and publish instantly. Optionally mint your songs as NFTs, trade tokens on the built-in AMM, and collect music from other creators.
+        </p>
+        <p class="text-slate-200 leading-relaxed">
+          Smol combines cutting-edge AI music generation with true onchain ownership — no seed phrases required thanks to PasskeyKit's biometric authentication.
+        </p>
+      </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="mb-16">
+      <h2 class="text-3xl font-bold mb-6 text-[#9ae600]">How It Works</h2>
+      <ol class="space-y-6">
+        <li class="flex gap-4">
+          <span class="flex-shrink-0 w-8 h-8 rounded-full bg-[#9ae600] text-black font-bold flex items-center justify-center">1</span>
+          <div>
+            <h3 class="text-xl font-semibold mb-2">Create an Account</h3>
+            <p class="text-slate-300">Sign in with PasskeyKit using biometrics (Face ID, Touch ID, or security key). No passwords, no seed phrases.</p>
+          </div>
+        </li>
+        <li class="flex gap-4">
+          <span class="flex-shrink-0 w-8 h-8 rounded-full bg-[#9ae600] text-black font-bold flex items-center justify-center">2</span>
+          <div>
+            <h3 class="text-xl font-semibold mb-2">Write a Prompt</h3>
+            <p class="text-slate-300">Describe the song you want in text (up to 2,280 characters for songs with lyrics, 380 for instrumentals). Specify genre, mood, tempo, lyrics, or let AI improvise.</p>
+          </div>
+        </li>
+        <li class="flex gap-4">
+          <span class="flex-shrink-0 w-8 h-8 rounded-full bg-[#9ae600] text-black font-bold flex items-center justify-center">3</span>
+          <div>
+            <h3 class="text-xl font-semibold mb-2">AI Generates 2 Versions</h3>
+            <p class="text-slate-300">Wait ~6 minutes while AI creates 2 complete songs with lyrics, melodies, and vocals. Track progress in real-time.</p>
+          </div>
+        </li>
+        <li class="flex gap-4">
+          <span class="flex-shrink-0 w-8 h-8 rounded-full bg-[#9ae600] text-black font-bold flex items-center justify-center">4</span>
+          <div>
+            <h3 class="text-xl font-semibold mb-2">Choose & Publish</h3>
+            <p class="text-slate-300">Listen to both versions, select your favorite, and publish it (public or private).</p>
+          </div>
+        </li>
+        <li class="flex gap-4">
+          <span class="flex-shrink-0 w-8 h-8 rounded-full bg-[#9ae600] text-black font-bold flex items-center justify-center">5</span>
+          <div>
+            <h3 class="text-xl font-semibold mb-2">Mint as NFT (Optional)</h3>
+            <p class="text-slate-300">Convert your song into a Stellar NFT with built-in AMM. Trade tokens, earn from transactions, and prove ownership onchain.</p>
+          </div>
+        </li>
+        <li class="flex gap-4">
+          <span class="flex-shrink-0 w-8 h-8 rounded-full bg-[#9ae600] text-black font-bold flex items-center justify-center">6</span>
+          <div>
+            <h3 class="text-xl font-semibold mb-2">Collect & Share</h3>
+            <p class="text-slate-300">Build your music collection, create mixtapes, discover other artists, and share your favorite songs.</p>
+          </div>
+        </li>
+      </ol>
+    </section>
+
+    <!-- Key Features -->
+    <section class="mb-16">
+      <h2 class="text-3xl font-bold mb-6 text-[#9ae600]">Key Features</h2>
+      <div class="grid md:grid-cols-2 gap-6">
+        <div class="border border-slate-700 rounded-lg p-6 bg-slate-900/50">
+          <h3 class="text-xl font-semibold mb-3 text-[#9ae600]">🎵 AI Music Generation</h3>
+          <ul class="text-slate-300 space-y-2 text-sm">
+            <li>• Full songs from text prompts</li>
+            <li>• Lyrics, melodies, and vocals</li>
+            <li>• Any genre or style</li>
+            <li>• Dual-track generation (2 versions)</li>
+            <li>• Instrumental mode available</li>
+            <li>• ~6 minute generation time</li>
+          </ul>
+        </div>
+
+        <div class="border border-slate-700 rounded-lg p-6 bg-slate-900/50">
+          <h3 class="text-xl font-semibold mb-3 text-[#9ae600]">⛓️ Blockchain Ownership</h3>
+          <ul class="text-slate-300 space-y-2 text-sm">
+            <li>• Mint songs as NFTs on Stellar</li>
+            <li>• Built-in AMM for token trading</li>
+            <li>• True onchain ownership</li>
+            <li>• Transparent pricing & fees</li>
+            <li>• Soroban smart contracts</li>
+            <li>• No gas wars, low fees</li>
+          </ul>
+        </div>
+
+        <div class="border border-slate-700 rounded-lg p-6 bg-slate-900/50">
+          <h3 class="text-xl font-semibold mb-3 text-[#9ae600]">🔐 Passwordless Auth</h3>
+          <ul class="text-slate-300 space-y-2 text-sm">
+            <li>• PasskeyKit (WebAuthn)</li>
+            <li>• Biometric sign-in (Face ID, Touch ID)</li>
+            <li>• No seed phrases to manage</li>
+            <li>• Security key support</li>
+            <li>• Smart contract wallets</li>
+            <li>• Zero friction onboarding</li>
+          </ul>
+        </div>
+
+        <div class="border border-slate-700 rounded-lg p-6 bg-slate-900/50">
+          <h3 class="text-xl font-semibold mb-3 text-[#9ae600]">📀 Mixtapes & Discovery</h3>
+          <ul class="text-slate-300 space-y-2 text-sm">
+            <li>• Create custom playlists</li>
+            <li>• Drag-and-drop builder</li>
+            <li>• Browse by genre tags</li>
+            <li>• AI Radio with multi-tag fusion</li>
+            <li>• Artist profiles & discographies</li>
+            <li>• Like system & leaderboards</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Why Choose Smol -->
+    <section class="mb-16">
+      <h2 class="text-3xl font-bold mb-6 text-[#9ae600]">Why Choose Smol?</h2>
+      <div class="space-y-4">
+        <div class="border-l-4 border-[#9ae600] pl-6 py-2">
+          <h3 class="text-lg font-semibold mb-2">True Ownership</h3>
+          <p class="text-slate-300">Unlike Suno and Udio, Smol lets you mint songs as NFTs and trade them onchain. Your music, your asset.</p>
+        </div>
+        <div class="border-l-4 border-[#9ae600] pl-6 py-2">
+          <h3 class="text-lg font-semibold mb-2">No Crypto Complexity</h3>
+          <p class="text-slate-300">PasskeyKit makes blockchain invisible. Sign in with Face ID, no seed phrases, no wallet setup.</p>
+        </div>
+        <div class="border-l-4 border-[#9ae600] pl-6 py-2">
+          <h3 class="text-lg font-semibold mb-2">Free to Create</h3>
+          <p class="text-slate-300">Song generation is free. Only pay network fees if you choose to mint NFTs.</p>
+        </div>
+        <div class="border-l-4 border-[#9ae600] pl-6 py-2">
+          <h3 class="text-lg font-semibold mb-2">Open Source</h3>
+          <p class="text-slate-300">Smart contracts and SDKs are open source. Build on Smol, integrate with your apps.</p>
+        </div>
+        <div class="border-l-4 border-[#9ae600] pl-6 py-2">
+          <h3 class="text-lg font-semibold mb-2">Community-Driven</h3>
+          <p class="text-slate-300">Discover music from creators worldwide. Share mixtapes, support artists, build culture.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="mb-16">
+      <h2 class="text-3xl font-bold mb-8 text-[#9ae600]">Frequently Asked Questions</h2>
+      <div class="space-y-6">
+
+        <details class="border border-slate-700 rounded-lg p-6 bg-slate-900/50">
+          <summary class="text-lg font-semibold cursor-pointer text-white hover:text-[#9ae600] transition-colors">
+            What is Smol?
+          </summary>
+          <p class="mt-4 text-slate-300 leading-relaxed">
+            Smol is an AI music generation platform that lets you create full songs from text prompts and mint them as NFTs on Stellar blockchain. Generate original music with lyrics, melodies, and vocals in any genre, then own, trade, and collect songs onchain.
+          </p>
+        </details>
+
+        <details class="border border-slate-700 rounded-lg p-6 bg-slate-900/50">
+          <summary class="text-lg font-semibold cursor-pointer text-white hover:text-[#9ae600] transition-colors">
+            How does song generation work?
+          </summary>
+          <p class="mt-4 text-slate-300 leading-relaxed">
+            Enter a text prompt (up to 2,280 characters for songs with lyrics, 380 for instrumentals). AI generates 2 versions of your song in about 6 minutes. Choose your favorite version and publish it publicly or keep it private.
+          </p>
+        </details>
+
+        <details class="border border-slate-700 rounded-lg p-6 bg-slate-900/50">
+          <summary class="text-lg font-semibold cursor-pointer text-white hover:text-[#9ae600] transition-colors">
+            How much does it cost?
+          </summary>
+          <p class="mt-4 text-slate-300 leading-relaxed">
+            Song generation is <strong>free</strong> (requires account). NFT minting requires minimal Stellar network fees (typically less than $0.01). Trading song tokens has transparent AMM fees. No subscription required.
+          </p>
+        </details>
+
+        <details class="border border-slate-700 rounded-lg p-6 bg-slate-900/50">
+          <summary class="text-lg font-semibold cursor-pointer text-white hover:text-[#9ae600] transition-colors">
+            Do I need crypto knowledge to use Smol?
+          </summary>
+          <p class="mt-4 text-slate-300 leading-relaxed">
+            <strong>No.</strong> Smol uses PasskeyKit for passwordless authentication via biometrics (Face ID, Touch ID, or security keys). No seed phrases, no wallet setup. The blockchain complexity is abstracted away.
+          </p>
+        </details>
+
+        <details class="border border-slate-700 rounded-lg p-6 bg-slate-900/50">
+          <summary class="text-lg font-semibold cursor-pointer text-white hover:text-[#9ae600] transition-colors">
+            Can I sell my music?
+          </summary>
+          <p class="mt-4 text-slate-300 leading-relaxed">
+            <strong>Yes.</strong> Mint your songs as NFTs on Stellar blockchain, then trade tokens on the built-in automated market maker (AMM). Set your own prices and earn from trades.
+          </p>
+        </details>
+
+        <details class="border border-slate-700 rounded-lg p-6 bg-slate-900/50">
+          <summary class="text-lg font-semibold cursor-pointer text-white hover:text-[#9ae600] transition-colors">
+            What genres are supported?
+          </summary>
+          <p class="mt-4 text-slate-300 leading-relaxed">
+            <strong>All genres.</strong> The AI adapts to your prompt. Popular tags include Jazz, Hip Hop, Electronic, Rock, Classical, Pop, Ambient, Lo-fi, Indie, Country, R&B, and experimental genres.
+          </p>
+        </details>
+
+        <details class="border border-slate-700 rounded-lg p-6 bg-slate-900/50">
+          <summary class="text-lg font-semibold cursor-pointer text-white hover:text-[#9ae600] transition-colors">
+            Can I create music without lyrics (instrumentals)?
+          </summary>
+          <p class="mt-4 text-slate-300 leading-relaxed">
+            <strong>Yes.</strong> Toggle instrumental mode when creating a song to generate music without vocals or lyrics.
+          </p>
+        </details>
+
+        <details class="border border-slate-700 rounded-lg p-6 bg-slate-900/50">
+          <summary class="text-lg font-semibold cursor-pointer text-white hover:text-[#9ae600] transition-colors">
+            How is Smol different from Suno or Udio?
+          </summary>
+          <p class="mt-4 text-slate-300 leading-relaxed">
+            Smol uniquely combines AI music generation with blockchain ownership. Unlike Suno and Udio, Smol lets you <strong>mint songs as NFTs</strong>, <strong>trade tokens on a built-in AMM</strong>, and <strong>truly own your music onchain</strong>. Plus PasskeyKit authentication means no seed phrases or complex wallet setup.
+          </p>
+        </details>
+
+        <details class="border border-slate-700 rounded-lg p-6 bg-slate-900/50">
+          <summary class="text-lg font-semibold cursor-pointer text-white hover:text-[#9ae600] transition-colors">
+            Is my music private?
+          </summary>
+          <p class="mt-4 text-slate-300 leading-relaxed">
+            <strong>You choose.</strong> Songs can be public (visible to everyone) or private (only you can see/play them).
+          </p>
+        </details>
+
+        <details class="border border-slate-700 rounded-lg p-6 bg-slate-900/50">
+          <summary class="text-lg font-semibold cursor-pointer text-white hover:text-[#9ae600] transition-colors">
+            How long are the generated songs?
+          </summary>
+          <p class="mt-4 text-slate-300 leading-relaxed">
+            Songs are typically <strong>2-3 minutes long</strong> with full structure (intro, verses, chorus, outro).
+          </p>
+        </details>
+
+      </div>
+    </section>
+
+    <!-- Tech Stack -->
+    <section class="mb-16">
+      <h2 class="text-3xl font-bold mb-6 text-[#9ae600]">Technology</h2>
+      <div class="grid md:grid-cols-3 gap-4 text-sm">
+        <div class="border border-slate-700 rounded-lg p-4 bg-slate-900/50">
+          <h3 class="font-semibold mb-2 text-[#9ae600]">Frontend</h3>
+          <ul class="text-slate-300 space-y-1">
+            <li>• Astro 5 (SSR)</li>
+            <li>• Svelte 5</li>
+            <li>• Tailwind CSS 4</li>
+            <li>• Cloudflare Pages</li>
+          </ul>
+        </div>
+        <div class="border border-slate-700 rounded-lg p-4 bg-slate-900/50">
+          <h3 class="font-semibold mb-2 text-[#9ae600]">Blockchain</h3>
+          <ul class="text-slate-300 space-y-1">
+            <li>• Stellar (Mainnet)</li>
+            <li>• Soroban Contracts</li>
+            <li>• PasskeyKit (Auth)</li>
+            <li>• Native NFTs</li>
+          </ul>
+        </div>
+        <div class="border border-slate-700 rounded-lg p-4 bg-slate-900/50">
+          <h3 class="font-semibold mb-2 text-[#9ae600]">AI</h3>
+          <ul class="text-slate-300 space-y-1">
+            <li>• Text-to-music AI</li>
+            <li>• Lyric generation</li>
+            <li>• Vocal synthesis</li>
+            <li>• Multi-genre models</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Credits -->
+    <section class="mb-16">
+      <h2 class="text-3xl font-bold mb-6 text-[#9ae600]">Credits</h2>
+      <div class="space-y-4 text-slate-300">
+        <p>
+          <strong>noot.smol.xyz Design:</strong> <span class="text-[#9ae600]">noot.xlm</span> (<a href="https://x.com/tactical_noot" class="text-[#9ae600] hover:underline" target="_blank" rel="noopener">@tactical_noot</a>)
+        </p>
+        <p class="text-sm text-slate-400">
+          All features, UI/UX design, and enhancements on noot.smol.xyz beyond the base smol.xyz platform. This includes the enhanced player interface, AI Radio, Labs experiments, artist profiles, and overall platform experience.
+        </p>
+        <p class="mt-4">
+          <strong>Development:</strong> <span class="text-[#9ae600]">Tyler Van Der Hoeven</span> (<a href="https://x.com/kalepail" class="text-[#9ae600] hover:underline" target="_blank" rel="noopener">@kalepail</a>)
+        </p>
+      </div>
+    </section>
+
+    <!-- Support -->
+    <section class="mb-16">
+      <h2 class="text-3xl font-bold mb-6 text-[#9ae600]">Support & Community</h2>
+      <div class="space-y-4 text-slate-300">
+        <p>
+          <strong>GitHub:</strong> <a href="https://github.com/Kalepail" class="text-[#9ae600] hover:underline" target="_blank" rel="noopener">github.com/Kalepail</a>
+        </p>
+        <p>
+          <strong>Twitter:</strong> <a href="https://twitter.com/smolxyz" class="text-[#9ae600] hover:underline" target="_blank" rel="noopener">@smolxyz</a>
+        </p>
+        <p class="text-sm text-slate-400">
+          For issues, feature requests, or contributions, visit our GitHub repositories.
+        </p>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="text-center border-t border-slate-700 pt-12">
+      <h2 class="text-2xl font-bold mb-4">Ready to create?</h2>
+      <p class="text-slate-300 mb-6">Start generating AI music in seconds.</p>
+      <a
+        href="/create"
+        class="inline-block bg-[#9ae600] text-black font-bold px-8 py-3 rounded-lg hover:bg-[#8bd500] transition-colors"
+      >
+        Create Your First Song
+      </a>
+    </section>
+
+  </main>
+</Layout>

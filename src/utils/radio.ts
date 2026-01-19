@@ -4,16 +4,18 @@ import type { Smol } from '../types/domain';
  * Build radio URL from a Smol object.
  * Prefers tags when available, falls back to play by ID.
  */
-export function buildRadioUrl(smol: Smol | { Id: string; Tags?: string[] }): string {
+export function buildRadioUrl(smol: Smol | { Id: string; Tags?: string[]; lyrics?: { style?: string[] } }): string {
     if (!smol?.Id) return '/radio';
 
-    // Prefer tags (up to 5 to keep URL reasonable)
-    if (smol.Tags && smol.Tags.length > 0) {
-        const tags = smol.Tags.slice(0, 5);
-        const params = tags.map(t => `tag=${encodeURIComponent(t)}`).join('&');
-        return `/radio?${params}`;
-    }
+    const tags: string[] = [];
+    if (smol.Tags) tags.push(...smol.Tags);
+    if ('lyrics' in smol && smol.lyrics?.style) tags.push(...smol.lyrics.style);
 
-    // Fallback to play by ID
-    return `/radio?play=${encodeURIComponent(smol.Id)}`;
+    const uniqueTags = [...new Set(tags.map(t => t.trim()).filter(t => t.length > 0))].slice(0, 5);
+    const params = new URLSearchParams();
+
+    params.set('play', smol.Id);
+    uniqueTags.forEach(t => params.append('tag', t));
+
+    return `/radio?${params.toString()}`;
 }

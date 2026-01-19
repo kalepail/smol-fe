@@ -2,8 +2,7 @@
  * User authentication state using Svelte 5 runes
  */
 
-import { account } from '../utils/passkey-kit';
-import { getDomain } from 'tldts';
+import { getSafeRpId } from '../utils/domains';
 
 // Initialize from localStorage if available (client-side only)
 const storedContractId = typeof localStorage !== "undefined" ? localStorage.getItem("smol:contractId") : null;
@@ -78,19 +77,28 @@ export function clearUserAuth() {
 /**
  * Ensure the passkey account wallet is connected
  * This should be called once during app initialization when user is authenticated
+ *
+ * PERFORMANCE: Uses dynamic import to lazy-load passkey-kit only when needed
  */
 export async function ensureWalletConnected(): Promise<void> {
   // Only connect if we have auth credentials and haven't connected yet
   if (userState.contractId && userState.keyId && !userState.walletConnected) {
-
-
     const hostname = window.location.hostname;
-    const rpId = hostname === "localhost" ? "localhost" : (getDomain(hostname) ?? undefined);
 
-    await account.get().connectWallet({
-      rpId,
-    });
-    userState.walletConnected = true;
+    try {
+      // Lazy load passkey-kit module (reduces initial bundle size by ~2.5MB)
+      const { account } = await import('../utils/passkey-kit');
+
+      await account.get().connectWallet({
+        rpId: getSafeRpId(hostname),
+        keyId: userState.keyId, // Pass saved keyId for targeted reconnection
+      });
+      userState.walletConnected = true;
+    } catch (error) {
+      console.error('[userState] Failed to connect wallet (stale?):', error);
+      // AUTO-BURN: If the saved key fails to connect, wipe it so the user isn't stuck.
+      clearUserAuth();
+    }
   }
 }
 

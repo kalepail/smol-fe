@@ -14,9 +14,29 @@ const seed = seedParam ? Number.parseInt(seedParam, 10) : null;
 const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
 
 let title = `Artist ${address?.substring(0, 6) || 'Unknown'}...`;
-let description = "Check out this artist on smol.xyz";
+let description = "AI music artist on Smol. Browse discography, minted NFT songs, and collections.";
 let image_url: string | undefined;
 let song_url: string | undefined;
+let schema: any[] = [];
+
+// Add Person/MusicGroup schema for artist
+if (address) {
+    schema = [{
+        "@context": "https://schema.org",
+        "@type": "MusicGroup",
+        "@id": `https://noot.smol.xyz/artist/${address}#artist`,
+        "identifier": address,
+        "name": `Artist ${address.substring(0, 8)}...`,
+        "url": `https://noot.smol.xyz/artist/${address}`,
+        "description": "AI music creator on Smol platform. Create, mint, and collect AI-generated songs onchain.",
+        "genre": ["AI Music", "Electronic", "Experimental"],
+        "album": {
+            "@type": "MusicAlbum",
+            "name": "Discography",
+            "description": "Collection of AI-generated songs"
+        }
+    }];
+}
 
 if (playId) {
     try {
@@ -26,7 +46,7 @@ if (playId) {
             title = data.kv_do?.lyrics?.title || data.d1?.Title || title;
             description = data.kv_do?.payload?.prompt || description;
             image_url = `${API_URL}/image/${playId}.png`;
-            
+
             // Set song URL
 			if (data.d1?.Song_1) {
 				song_url = `${API_URL}/song/${data.d1.Song_1}.mp3`;
@@ -41,7 +61,7 @@ if (playId) {
 }
 ---
 
-<Layout {title} {description} {image_url} {song_url}>
+<Layout {title} {description} {image_url} {song_url} {schema}>
 	<main class="h-[calc(100vh-52px)] overflow-hidden text-white p-0 md:px-4 max-w-7xl mx-auto -mt-[2px] md:mt-0" transition:animate="none">
         <ArtistResults
             client:only="svelte"

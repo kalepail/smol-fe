@@ -17,5 +17,9 @@ export function getImageUrl(id: string, scale?: number): string {
  * Get the song URL for a smol
  */
 export function getSongUrl(songId: string): string {
+    const proxyUrl = import.meta.env.PUBLIC_AUDIO_PROXY_URL;
+    if (proxyUrl) {
+        return `${proxyUrl}/audio/${songId}`;
+    }
     return `${API_URL}/song/${songId}.mp3`;
 }

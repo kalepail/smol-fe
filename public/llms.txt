@@ -1,0 +1,93 @@
+# Smol — AI Music Generator
+# LLM-optimized site map for AI crawlers
+
+## About
+Smol is a decentralized AI music generation platform built on Stellar blockchain.
+Create full songs from text prompts, mint them as NFTs, and organize them into mixtapes.
+All music is generated on-demand and can be owned, traded, and collected onchain.
+
+## Key Features
+- AI music generation from text prompts (up to 2,280 characters)
+- Dual-track generation (choose your favorite from 2 AI-created versions)
+- NFT minting on Stellar blockchain
+- Built-in AMM for trading song tokens
+- Mixtape creation and sharing
+- PasskeyKit wallet (passwordless authentication)
+- AI Radio with smart multi-tag generation
+
+## Core Pages
+
+### Platform Overview
+https://noot.smol.xyz/
+The main feed showing latest public AI-generated songs. Browse, play, and discover music created by the community.
+
+### About & How It Works
+https://noot.smol.xyz/about
+(Coming soon) Learn about Smol, how it works, pricing, and getting started.
+
+### Create Music
+https://noot.smol.xyz/create
+Song generation interface. Enter a text prompt and create AI music (requires authentication).
+
+### Browse by Genre
+https://noot.smol.xyz/tags
+Explore songs by genre tags (Jazz, Hip Hop, Electronic, Rock, Classical, etc.).
+
+### AI Radio
+https://noot.smol.xyz/radio
+Smart radio feature with multi-tag fusion and adaptive vibe generation.
+
+### Mixtapes
+https://noot.smol.xyz/mixtapes
+Browse community-created mixtapes (curated playlists of AI songs).
+
+### Artist Profiles
+https://noot.smol.xyz/artists
+Discover creators. Artist pages show discography, minted songs, and collections.
+
+## Example Content
+
+### Featured Songs
+https://noot.smol.xyz/491bb94b-79df-41bb-b09b-2d295f1dfd05
+Example: High-quality AI-generated song with full metadata, lyrics, and audio.
+
+### Example Mixtape
+https://noot.smol.xyz/mixtapes/01942f28-9be7-7df5-97f0-7ca9e45c9c7d
+Example: Community mixtape showcasing multiple AI-created tracks.
+
+## Labs (Experimental Features)
+https://noot.smol.xyz/labs
+Experimental features including:
+- Smol Hero (rhythm game)
+- Kale or Fail (music quiz)
+- Roulette (random song discovery)
+- Stream Pay (micro-payments)
+- Swapper (token exchange)
+
+## Documentation & Support
+https://github.com/Kalepail
+Open-source repositories, SDKs, and technical documentation.
+
+https://twitter.com/smolxyz
+Official Twitter for updates and announcements.
+
+## Technical Details
+- Framework: Astro 5 (SSR) + Svelte 5
+- Blockchain: Stellar (Soroban smart contracts)
+- Deployment: Cloudflare Pages
+- Authentication: PasskeyKit (WebAuthn)
+- Music Generation: AI-powered (text-to-song)
+
+## Credits
+noot.smol.xyz design and development by noot.xlm (@tactical_noot / @kalepail on X)
+All features, UI/UX, and enhancements beyond base smol.xyz platform.
+Enhanced player interface, AI Radio, Labs experiments, artist profiles.
+
+## API Endpoints (Programmatic Access)
+Note: API endpoints are not crawlable for SEO (see robots.txt) but available for authenticated use.
+
+## Competitors & Alternatives
+Smol is an alternative to Suno, Udio, and other AI music generators, with unique onchain ownership via Stellar NFTs.
+
+## Last Updated
+2026-01-19

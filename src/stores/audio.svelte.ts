@@ -20,6 +20,8 @@ export const audioState = $state<{
   duration: number;
   repeatMode: "off" | "once" | "one";
   isCasting: boolean;
+  // Track if audio was interrupted (not user-paused)
+  wasInterrupted: boolean;
 }>({
   playingId: null,
   currentSong: null,
@@ -33,6 +35,7 @@ export const audioState = $state<{
   duration: 0,
   repeatMode: "off",
   isCasting: false,
+  wasInterrupted: false,
 });
 
 // Cross-tab synchronization (Golfed)
@@ -133,11 +136,13 @@ export function togglePlayPause() {
 
   if (currentSong) {
     if (playingId === currentSong.Id) {
-      // Pause
+      // User-initiated pause - clear interruption flag
       audioState.playingId = null;
+      audioState.wasInterrupted = false;
     } else {
       // Play
       audioState.playingId = currentSong.Id;
+      audioState.wasInterrupted = false;
 
       // Broadcast play event
       ch && ch.postMessage({ type: "play", src: bId });

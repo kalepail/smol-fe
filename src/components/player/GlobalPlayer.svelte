@@ -96,6 +96,27 @@
         return () => clearInterval(interval);
     });
 
+    // Click Outside Action
+    function clickOutside(node: HTMLElement, onEvent: () => void) {
+        const handleClick = (event: MouseEvent) => {
+            if (
+                node &&
+                !node.contains(event.target as Node) &&
+                !event.defaultPrevented
+            ) {
+                onEvent();
+            }
+        };
+
+        document.addEventListener("click", handleClick, true);
+
+        return {
+            destroy() {
+                document.removeEventListener("click", handleClick, true);
+            },
+        };
+    }
+
     // Auto-scroll to playing song when returning to grid view or changing song
     // FIX: Add tracker to prevent aggressive snapping on homepage
     let lastScrolledSongId = $state("");
@@ -194,8 +215,35 @@
 
     async function hydrateGlobalData() {
         if (isLoadingLive) return;
-        isLoadingLive = true;
 
+        // 1. Optimistic Load from LocalStorage or Snapshot
+        try {
+            const cached = localStorage.getItem("smol_global_data_v2");
+            if (cached) {
+                const { smols, timestamp } = JSON.parse(cached);
+                // Use cache if less than 5 minutes old for instant UI
+                if (Date.now() - timestamp < 5 * 60 * 1000) {
+                    liveDiscography = smols;
+                    updateTopTags(smols);
+                    isUrlStateLoaded = true;
+                }
+            } else {
+                // Fallback to snapshot for first-time or cold cache
+                import("../../services/api/snapshot").then(
+                    ({ getSnapshotAsync }) => {
+                        getSnapshotAsync().then((snap) => {
+                            if (liveDiscography.length === 0) {
+                                liveDiscography = snap;
+                                updateTopTags(snap);
+                                isUrlStateLoaded = true;
+                            }
+                        });
+                    },
+                );
+            }
+        } catch (e) {}
+
+        isLoadingLive = true;
         try {
             const smols = await safeFetchSmols();
             // Sort by Created_At desc (Newest first)
@@ -205,25 +253,18 @@
                     new Date(a.Created_At || 0).getTime(),
             );
 
-            // Limit to avoid OOM on massive lists, but keep enough for discovery
-            // Limit to avoid OOM on massive lists, but keep enough for discovery
             liveDiscography = smols;
-
-            // Tags
-            const tagCounts: Record<string, number> = {};
-            liveDiscography.forEach((smol) => {
-                if (smol.Tags && Array.isArray(smol.Tags)) {
-                    smol.Tags.forEach((tag) => {
-                        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
-                    });
-                }
-            });
-            liveTopTags = Object.entries(tagCounts)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 10)
-                .map((t) => t[0]);
-
+            updateTopTags(smols);
             isUrlStateLoaded = true; // Data ready
+
+            // Update Cache
+            localStorage.setItem(
+                "smol_global_data_v2",
+                JSON.stringify({
+                    smols: smols.slice(0, 2000), // Safety limit for storage
+                    timestamp: Date.now(),
+                }),
+            );
 
             // Auto-select first song if nothing playing
             if (!audioState.currentSong && liveDiscography.length > 0) {
@@ -234,6 +275,21 @@
         } finally {
             isLoadingLive = false;
         }
+    }
+
+    function updateTopTags(smols: Smol[]) {
+        const tagCounts: Record<string, number> = {};
+        smols.forEach((smol) => {
+            if (smol.Tags && Array.isArray(smol.Tags)) {
+                smol.Tags.forEach((tag) => {
+                    tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+                });
+            }
+        });
+        liveTopTags = Object.entries(tagCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
+            .map((t) => t[0]);
     }
 
     // Deterministic Hash for Seeded Shuffle
@@ -934,7 +990,10 @@
                 <!-- AI Settings Toggle -->
                 <div class="relative">
                     <button
-                        onclick={() => (showSettingsMenu = !showSettingsMenu)}
+                        onclick={(e) => {
+                            e.stopPropagation();
+                            showSettingsMenu = !showSettingsMenu;
+                        }}
                         class="w-9 h-9 flex items-center justify-center rounded-lg border border-white/5 transition-colors {showSettingsMenu
                             ? 'bg-white/10 text-white'
                             : 'text-white/40 hover:text-white hover:bg-white/5'}"
@@ -962,18 +1021,8 @@
                     </button>
 
                     {#if showSettingsMenu}
-                        <!-- Backdrop to close on click outside -->
                         <div
-                            class="fixed inset-0 z-[99]"
-                            onclick={() => (showSettingsMenu = false)}
-                            onkeydown={(e) =>
-                                e.key === "Escape" &&
-                                (showSettingsMenu = false)}
-                            role="button"
-                            tabindex="-1"
-                            aria-label="Close menu"
-                        ></div>
-                        <div
+                            use:clickOutside={() => (showSettingsMenu = false)}
                             class="absolute top-full right-0 mt-2 w-56 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/10 rounded-xl p-3 z-[100] shadow-2xl animate-in slide-in-from-top-2"
                         >
                             <div class="space-y-4">
@@ -1231,7 +1280,7 @@
                     style="contain: content;"
                 >
                     <div
-                        class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 md:gap-4 pb-20 max-w-full overflow-x-hidden"
+                        class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 md:gap-4 pb-20"
                     >
                         {#each visiblePlaylist as song, index (song.Id)}
                             <div
@@ -1310,7 +1359,7 @@
 
                                         <div
                                             role="button"
-                                            class="absolute top-2 left-2 z-30 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#089981]/50 text-[#089981] hover:bg-[#089981]/20 transition-all shadow-[0_0_10px_rgba(8,153,129,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(8,153,129,0.5)] cursor-pointer {currentSong &&
+                                            class="absolute top-2 left-2 z-30 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 border border-[#089981]/50 text-[#089981] hover:bg-[#089981]/20 transition-all shadow-[0_0_10px_rgba(8,153,129,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(8,153,129,0.5)] cursor-pointer {currentSong &&
                                             song.Id === currentSong.Id
                                                 ? 'opacity-100 pointer-events-auto'
                                                 : 'opacity-0 group-hover:opacity-100'}"
@@ -1349,7 +1398,7 @@
                                         <!-- Top Right: Send to Radio -->
                                         <div
                                             role="button"
-                                            class="absolute top-2 right-2 z-30 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#f7931a]/50 text-[#f7931a] hover:bg-[#f7931a]/20 transition-all shadow-[0_0_10px_rgba(247,147,26,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(247,147,26,0.5)] cursor-pointer {currentSong &&
+                                            class="absolute top-2 right-2 z-30 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 border border-[#f7931a]/50 text-[#f7931a] hover:bg-[#f7931a]/20 transition-all shadow-[0_0_10px_rgba(247,147,26,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(247,147,26,0.5)] cursor-pointer {currentSong &&
                                             song.Id === currentSong.Id
                                                 ? 'opacity-100 pointer-events-auto'
                                                 : 'opacity-0 group-hover:opacity-100'}"
@@ -1397,7 +1446,7 @@
                                             <LikeButton
                                                 smolId={song.Id}
                                                 liked={song.Liked || false}
-                                                classNames="p-1.5 rounded-full bg-black/40 backdrop-blur-md border border-[#FF424C]/50 text-[#FF424C] hover:bg-[#FF424C]/20 transition-all active:scale-95 shadow-[0_0_10px_rgba(255,66,76,0.3)] hover:shadow-[0_0_15px_rgba(255,66,76,0.5)]"
+                                                classNames="p-1.5 rounded-full bg-black/40 border border-[#FF424C]/50 text-[#FF424C] hover:bg-[#FF424C]/20 transition-all active:scale-95 shadow-[0_0_10px_rgba(255,66,76,0.3)] hover:shadow-[0_0_15px_rgba(255,66,76,0.5)]"
                                                 iconSize="size-4"
                                                 on:likeChanged={(e) => {
                                                     handleToggleLike(
@@ -1411,7 +1460,7 @@
                                         <!-- Bottom Right: Song Detail -->
                                         <div
                                             role="button"
-                                            class="absolute bottom-2 right-2 z-30 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 transition-all shadow-[0_0_10px_rgba(216,54,255,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(216,54,255,0.5)] cursor-pointer {currentSong &&
+                                            class="absolute bottom-2 right-2 z-30 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 transition-all shadow-[0_0_10px_rgba(216,54,255,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(216,54,255,0.5)] cursor-pointer {currentSong &&
                                             song.Id === currentSong.Id
                                                 ? 'opacity-100 pointer-events-auto'
                                                 : 'opacity-0 group-hover:opacity-100'}"

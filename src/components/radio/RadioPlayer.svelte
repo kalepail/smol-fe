@@ -145,7 +145,12 @@
   }
 
   function handleRegenerate() {
-    if (onRegenerate) onRegenerate();
+    if (currentSong) {
+      const url = buildRadioUrl(currentSong);
+      navigate(url);
+    } else if (onRegenerate) {
+      onRegenerate();
+    }
   }
 
   const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
@@ -929,7 +934,7 @@
                   class="tech-button w-9 h-9 flex items-center justify-center transition-all bg-black/40 backdrop-blur-md rounded-full border border-amber-500/50 text-amber-500 hover:bg-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.3)]"
                   onclick={(e) => {
                     e.stopPropagation();
-                    onRegenerate();
+                    handleRegenerate();
                   }}
                   title="Generate Station From Song"
                 >
@@ -1441,7 +1446,10 @@
           {#if onRegenerate && !replaceDetailWithRegenerate}
             <button
               class="tech-button w-10 h-10 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-md border border-[#F7931A] text-[#F7931A] bg-[#F7931A]/10 shadow-[0_0_20px_rgba(247,147,26,0.3)] hover:bg-[#F7931A]/20 hover:text-white"
-              onclick={handleRegenerate}
+              onclick={(e) => {
+                e.stopPropagation();
+                handleRegenerate();
+              }}
               title="Regenerate Station"
             >
               <span class="text-xl">↻</span>

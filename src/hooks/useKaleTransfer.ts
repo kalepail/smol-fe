@@ -1,4 +1,4 @@
-import { getDomain } from 'tldts';
+import { getSafeRpId } from '../utils/domains';
 import { kale, account, send } from '../utils/passkey-kit';
 import { getLatestSequence } from '../utils/base';
 import { updateContractBalance } from '../stores/balance.svelte';
@@ -51,7 +51,7 @@ export function useKaleTransfer() {
 
     const sequence = await getLatestSequence();
     tx = await account.get().sign(tx, {
-      rpId: getDomain(window.location.hostname) ?? undefined,
+      rpId: getSafeRpId(window.location.hostname),
       keyId: params.keyId,
       expiration: sequence + 60,
     });

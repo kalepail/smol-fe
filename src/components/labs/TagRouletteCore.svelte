@@ -3,6 +3,7 @@
     import LabsPlayer from "./LabsPlayer.svelte";
     import { getSnapshotTagStats } from "../../services/tags/unifiedTags";
     import { getSnapshotAsync } from "../../services/api/snapshot";
+    import confetti from "canvas-confetti";
 
     interface Props {
         tags: string[];
@@ -17,6 +18,19 @@
     let isLoading = $state(false);
     let result = $state<any | null>(null);
     let error = $state<string | null>(null);
+    let spinCount = $state(0);
+
+    // Fun loading messages
+    const loadingMessages = [
+        "Scanning Archives for",
+        "Decrypting Metadata for",
+        "Quantum Tunneling through",
+        "Infiltrating Database for",
+        "Hacking the Mainframe for",
+        "Summoning Tracks tagged",
+        "Vibing to the frequency of",
+        "Channeling the energy of"
+    ];
 
     // Client-side data fetching to bypass Astro compiler WASM crash on Node 22 Windows
     onMount(async () => {
@@ -58,6 +72,7 @@
         isSpinning = true;
         result = null;
         error = null;
+        spinCount++;
 
         // Artificial delay for "roulette" feel
         setTimeout(() => {
@@ -94,6 +109,14 @@
 
             result = randomSmol;
             isSpinning = false;
+
+            // Confetti on successful find!
+            confetti({
+                particleCount: 30,
+                spread: 50,
+                origin: { y: 0.7 },
+                colors: ['#9ae600', '#f91880', '#FDDA24']
+            });
         }, 1500);
     }
 
@@ -135,14 +158,24 @@
                 class="w-12 h-12 border-4 border-[#333] border-t-[#f91880] rounded-full animate-spin"
             ></div>
             <p class="text-xs font-mono text-[#f91880] animate-pulse">
-                Scanning Archives for #{selectedTag}...
+                {loadingMessages[Math.floor(Math.random() * loadingMessages.length)]} #{selectedTag}...
             </p>
+            <div class="flex gap-1">
+                {#each Array(3) as _, i}
+                    <div class="w-2 h-2 bg-[#f91880] rounded-full animate-bounce" style="animation-delay: {i * 0.2}s"></div>
+                {/each}
+            </div>
         </div>
     {:else if result}
         <!-- Result State -->
         <div
             class="flex flex-col gap-4 animate-in fade-in zoom-in duration-300"
         >
+            <div class="text-center mb-2">
+                <p class="text-[10px] text-[#9ae600] font-mono uppercase tracking-widest">
+                    ✓ Track Retrieved • Spin #{spinCount}
+                </p>
+            </div>
             <div
                 class="bg-[#222] p-4 rounded-lg flex gap-4 border border-[#9ae600]/30 shadow-[0_0_20px_rgba(154,230,0,0.1)]"
             >

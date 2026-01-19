@@ -7,7 +7,7 @@
         balanceState,
         updateContractBalance,
     } from "../stores/balance.svelte";
-    import { getDomain } from "tldts";
+    import { getSafeRpId } from "../utils/domains";
     import KaleEmoji from "./ui/KaleEmoji.svelte";
     import { Turnstile } from "svelte-turnstile";
 
@@ -119,7 +119,7 @@
 
             const sequence = await getLatestSequence();
             tx = await account.get().sign(tx, {
-                rpId: getDomain(window.location.hostname) ?? undefined,
+                rpId: getSafeRpId(window.location.hostname),
                 keyId: userState.keyId,
                 expiration: sequence + 60,
             });

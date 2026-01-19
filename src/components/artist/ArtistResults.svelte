@@ -1874,7 +1874,7 @@
                     onscroll={handleGridScroll}
                 >
                     <div
-                        class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 md:gap-4 pb-20 max-w-full overflow-x-hidden"
+                        class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2 md:gap-4 pb-20"
                     >
                         {#each visiblePlaylist as song, index (song.Id)}
                             <div
@@ -1948,7 +1948,7 @@
                                         <!-- Top Left: Artist Profile -->
                                         <a
                                             href={`/artist/${song.Address}?play=${song.Id}`}
-                                            class="absolute top-2 left-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#089981]/50 text-[#089981] hover:bg-[#089981]/20 transition-all shadow-[0_0_10px_rgba(8,153,129,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(8,153,129,0.5)] cursor-pointer {currentSong &&
+                                            class="absolute top-2 left-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 border border-[#089981]/50 text-[#089981] hover:bg-[#089981]/20 transition-all shadow-[0_0_10px_rgba(8,153,129,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(8,153,129,0.5)] cursor-pointer {currentSong &&
                                             song.Id === currentSong.Id
                                                 ? 'opacity-100'
                                                 : 'opacity-0 group-hover:opacity-100'}"
@@ -1973,7 +1973,7 @@
                                         <!-- Top Right: Send to Radio -->
                                         <a
                                             href={`/radio?play=${song.Id}`}
-                                            class="absolute top-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#f7931a]/50 text-[#f7931a] hover:bg-[#f7931a]/20 transition-all shadow-[0_0_10px_rgba(247,147,26,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(247,147,26,0.5)] cursor-pointer {currentSong &&
+                                            class="absolute top-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 border border-[#f7931a]/50 text-[#f7931a] hover:bg-[#f7931a]/20 transition-all shadow-[0_0_10px_rgba(247,147,26,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(247,147,26,0.5)] cursor-pointer {currentSong &&
                                             song.Id === currentSong.Id
                                                 ? 'opacity-100'
                                                 : 'opacity-0 group-hover:opacity-100'}"
@@ -2006,7 +2006,7 @@
                                             <LikeButton
                                                 smolId={song.Id}
                                                 liked={song.Liked}
-                                                classNames="p-1.5 rounded-full bg-black/40 backdrop-blur-md border border-[#FF424C]/50 text-[#FF424C] hover:bg-[#FF424C]/20 transition-all shadow-[0_0_10px_rgba(255,66,76,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(255,66,76,0.5)]"
+                                                classNames="p-1.5 rounded-full bg-black/40 border border-[#FF424C]/50 text-[#FF424C] hover:bg-[#FF424C]/20 transition-all shadow-[0_0_10px_rgba(255,66,76,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(255,66,76,0.5)]"
                                                 iconSize="size-4"
                                             />
                                         </div>
@@ -2014,7 +2014,7 @@
                                         <!-- Bottom Right: Song Detail -->
                                         <div
                                             role="button"
-                                            class="absolute bottom-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 transition-all shadow-[0_0_10px_rgba(216,54,255,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(216,54,255,0.5)] cursor-pointer {currentSong &&
+                                            class="absolute bottom-2 right-2 z-20 tech-button w-8 h-8 flex items-center justify-center rounded-full bg-black/40 border border-[#d836ff]/50 text-[#d836ff] hover:bg-[#d836ff]/20 transition-all shadow-[0_0_10px_rgba(216,54,255,0.3)] active:scale-95 hover:shadow-[0_0_15px_rgba(216,54,255,0.5)] cursor-pointer {currentSong &&
                                             song.Id === currentSong.Id
                                                 ? 'opacity-100'
                                                 : 'opacity-0 group-hover:opacity-100'}"
@@ -2044,93 +2044,6 @@
                                                 />
                                             </svg>
                                         </div>
-                                    </div>
-                                    <!-- Play/Pause/Nav Overlay (Desktop Grid) -->
-                                    <div
-                                        class="absolute inset-0 flex items-center justify-center gap-2 z-50 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none bg-black/20 backdrop-blur-[2px]"
-                                    >
-                                        <!-- Prev Button -->
-                                        <button
-                                            class="tech-button w-8 h-8 flex items-center justify-center text-white/60 hover:text-white active:scale-95 border border-white/5 hover:border-white/20 rounded-full bg-black/60 backdrop-blur-md pointer-events-auto shadow-lg"
-                                            onclick={(e) => {
-                                                e.stopPropagation();
-                                                handlePrev();
-                                            }}
-                                            title="Previous"
-                                        >
-                                            <svg
-                                                class="w-4 h-4"
-                                                fill="currentColor"
-                                                viewBox="0 0 24 24"
-                                            >
-                                                <path
-                                                    d="M6 6h2v12H6zm3.5 6l8.5 6V6z"
-                                                />
-                                            </svg>
-                                        </button>
-
-                                        <!-- Play/Pause Button -->
-                                        <button
-                                            class="tech-button w-10 h-10 flex items-center justify-center active:scale-95 transition-all rounded-full backdrop-blur-xl border border-[#089981] text-[#089981] bg-[#089981]/20 shadow-[0_0_20px_rgba(8,153,129,0.4)] hover:bg-[#089981]/40 hover:text-white pointer-events-auto"
-                                            onclick={(e) => {
-                                                e.stopPropagation();
-                                                if (
-                                                    currentSong &&
-                                                    currentSong.Id === song.Id
-                                                ) {
-                                                    togglePlayPause();
-                                                    currentIndex = index; // Ensure index tracks
-                                                } else {
-                                                    currentIndex = index;
-                                                    selectSong(song);
-                                                }
-                                            }}
-                                            title={currentSong &&
-                                            currentSong.Id === song.Id &&
-                                            isPlaying()
-                                                ? "Pause"
-                                                : "Play"}
-                                        >
-                                            {#if currentSong && currentSong.Id === song.Id && isPlaying()}
-                                                <svg
-                                                    class="w-5 h-5"
-                                                    fill="currentColor"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <path
-                                                        d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"
-                                                    />
-                                                </svg>
-                                            {:else}
-                                                <svg
-                                                    class="w-5 h-5 ml-0.5"
-                                                    fill="currentColor"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <path d="M8 5v14l11-7z" />
-                                                </svg>
-                                            {/if}
-                                        </button>
-
-                                        <!-- Next Button -->
-                                        <button
-                                            class="tech-button w-8 h-8 flex items-center justify-center text-white/60 hover:text-white active:scale-95 border border-white/5 hover:border-white/20 rounded-full bg-black/60 backdrop-blur-md pointer-events-auto shadow-lg"
-                                            onclick={(e) => {
-                                                e.stopPropagation();
-                                                handleNext();
-                                            }}
-                                            title="Next"
-                                        >
-                                            <svg
-                                                class="w-4 h-4"
-                                                fill="currentColor"
-                                                viewBox="0 0 24 24"
-                                            >
-                                                <path
-                                                    d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"
-                                                />
-                                            </svg>
-                                        </button>
                                     </div>
                                 </div>
                                 <span

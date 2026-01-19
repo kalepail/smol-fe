@@ -100,5 +100,22 @@
             "Music"
         ],
         "isLocked": false
+    },
+    {
+        "id": "lab_smol_hero",
+        "title": "Smol Hero",
+        "badge": "EXP-006",
+        "status_color": "ORANGE",
+        "readiness_score": 85,
+        "last_reviewed": "2026-01-18",
+        "blast_radius": "LABS_ONLY",
+        "path": "experiments/smol-hero/experiment.yml",
+        "href": "/labs/smol-hero",
+        "description": "Real-time rhythm game with beat detection. Hit notes in sync with actual audio frequencies.",
+        "tags": [
+            "Game",
+            "Audio"
+        ],
+        "isLocked": false
     }
 ]

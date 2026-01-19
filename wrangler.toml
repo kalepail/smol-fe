@@ -4,6 +4,7 @@ pages_build_output_dir = "dist"
 
 [vars]
 PUBLIC_API_URL = "https://api.smol.xyz"
+PUBLIC_AUDIO_PROXY_URL = "/api"
 PUBLIC_RPC_URL = "https://rpc.ankr.com/stellar_soroban"
 PUBLIC_NETWORK_PASSPHRASE = "Public Global Stellar Network ; September 2015"
 PUBLIC_WALLET_WASM_HASH = "ecd990f0b45ca6817149b6175f79b32efb442f35731985a084131e8265c4cd90"

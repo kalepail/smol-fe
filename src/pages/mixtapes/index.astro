@@ -1,9 +1,27 @@
 ---
 import Layout from "../../layouts/Layout.astro";
 import MixtapesIndex from "../../components/mixtape/MixtapesIndex.svelte";
+
+const schema = [{
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "@id": "https://noot.smol.xyz/mixtapes#collection",
+    "name": "AI Music Mixtapes",
+    "description": "Browse curated playlists of AI-generated music. Discover mixtapes created by the community.",
+    "url": "https://noot.smol.xyz/mixtapes",
+    "mainEntity": {
+        "@type": "ItemList",
+        "name": "Mixtapes",
+        "description": "Collection of AI music playlists"
+    }
+}];
 ---
 
-<Layout title="Smol – Mixtapes">
+<Layout
+  title="AI Music Mixtapes | Curated Playlists | Smol"
+  description="Browse and create mixtapes of AI-generated music. Discover curated playlists from the community, build your own collections, and share your favorite AI songs with others."
+  {schema}
+>
     <MixtapesIndex client:only="svelte" />
 </Layout>
 

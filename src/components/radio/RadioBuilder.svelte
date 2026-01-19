@@ -144,10 +144,13 @@
 
   // History for Deduplication (prevent "same 20 songs" on re-roll)
   let recentlyGeneratedIds = $state<Set<string>>(new Set());
+  let isInitialized = false;
 
-  // Handle URL params for "Send to Radio" feature from TagExplorer
-  onMount(async () => {
-    // 1. Load persisted state IMMEDIATELY (Before async calls)
+  async function initializeData() {
+    if (isInitialized) return;
+    isInitialized = true;
+
+    // 1. Load persisted state (if no URL tags present, or merge?)
     const saved = localStorage.getItem("smol_radio_state");
     if (saved) {
       try {
@@ -189,28 +192,14 @@
     }
 
     // 0. USE SNAPSHOT DIRECTLY (Backend-Independent)
-    // This ensures Radio works even if backend is down or not updated
-    let liveSmols: Smol[] = [];
     try {
       isLoadingSmols = true;
       smols = await getFullSnapshot();
-      // if (import.meta.env.DEV) {
-      //   console.log(
-      //     `[Radio] Loaded ${smols.length} smols from snapshot (backend-independent)`,
-      //   );
-      // }
-
-      liveSmols = await safeFetchSmols();
+      const liveSmols = await safeFetchSmols();
       if (liveSmols.length > 0) {
         smols = liveSmols;
-        // if (import.meta.env.DEV) {
-        //   console.log(
-        //     `[Radio] Hydrated ${smols.length} smols with live data + snapshot merge`,
-        //   );
-        // }
       }
     } catch (e) {
-      // console.error("[Radio] Failed to load snapshot:", e);
       smols = [];
     } finally {
       isLoadingSmols = false;
@@ -223,10 +212,29 @@
     } catch (error) {
       // console.error("Failed to harmonize tags:", error);
     }
+  }
+
+  // Handle URL params for "Send to Radio" feature from TagExplorer
+  async function handleUrlParams() {
+    const radioUrlParams = new URLSearchParams(window.location.search);
+    const playId = radioUrlParams.get("play");
+    const urlTags = radioUrlParams.getAll("tag");
+    const mixtapeId = radioUrlParams.get("mixtape");
+
+    if (urlTags.length > 0) {
+      selectedTags = urlTags.slice(0, MAX_TAGS);
+    } else if (playId) {
+      // If we have a playId but NO tags in the URL, we should likely clear old tags
+      // so they can be re-extracted from the new seed song below.
+      selectedTags = [];
+    }
+
+    // Ensure data is loaded before processing play/mixtape params
+    if (smols.length === 0) {
+      await initializeData();
+    }
 
     // Check for Mixtape param to seed radio
-    const urlParams = new URLSearchParams(window.location.search);
-    const mixtapeId = urlParams.get("mixtape");
     if (mixtapeId && !generatedPlaylist.length) {
       try {
         const detail = await getMixtapeDetail(mixtapeId);
@@ -267,46 +275,54 @@
       }
     }
 
-    // 2. Handle URL params (overrides persisted state if present)
-    const params = new URLSearchParams(window.location.search);
-    const playId = params.get("play");
-    const urlTags = params.getAll("tag");
-
+    // Handle "seed song" if it exists
     if (playId) {
-      // Find the song in our snapshot
+      // Find the song in our hydrated pool
       const seedSong = smols.find((s) => s.Id === playId);
 
       if (seedSong) {
-        // 1. Extract tags from the song to seed the station
-        const seedTags = getTags(seedSong).slice(0, 5); // Take top 5 tags
+        // If we didn't get tags from URL, extract from song
+        if (selectedTags.length === 0) {
+          selectedTags = getTags(seedSong).slice(0, 5);
+        }
 
-        if (seedTags.length > 0) {
-          selectedTags = seedTags;
-          // 2. Generate new station based on these tags
-          // We use setTimeout to allow selectedTags to update
-          setTimeout(() => {
-            generateStation(seedSong);
-
-            // Force player view
-            showBuilder = false;
-          }, 50);
-        } else {
-          // Fallback if no tags: Global Shuffle?
-          // Just show player
+        // Generate station seeded with this song
+        setTimeout(() => {
+          generateStation(seedSong);
           showBuilder = false;
+        }, 50);
+      } else {
+        // Fallback: If song not found but tags exist, generate anyway
+        if (selectedTags.length > 0) {
+          generateStation();
         }
       }
-
-      // Clean URL
-      window.history.replaceState({}, "", window.location.pathname);
-    }
-
-    if (urlTags.length > 0) {
-      selectedTags = urlTags.slice(0, MAX_TAGS);
+    } else if (urlTags.length > 0) {
+      // No specific song seed, but we have tags
       setTimeout(() => {
         generateStation();
-      }, 100);
+      }, 50);
     }
+
+    // Clean URL
+    if (playId || urlTags.length > 0 || mixtapeId) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }
+
+  onMount(() => {
+    // Initial load: fetch data and then process any params (async)
+    (async () => {
+      await initializeData();
+      await handleUrlParams();
+    })();
+
+    // Listen for Astro navigation (handles "Send to Radio" while already on Radio page)
+    document.addEventListener("astro:after-navigation", handleUrlParams);
+
+    return () => {
+      document.removeEventListener("astro:after-navigation", handleUrlParams);
+    };
   });
 
   // Persist state on change

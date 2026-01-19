@@ -22,7 +22,7 @@ interface Props {
 const {
 	title,
 	description = "Create and collect AI music onchain. The best AI music generator for making full songs from text prompts. Own your music.",
-	song_url = "https://cdn2.aisonggenerator.io/491bb94b-79df-41bb-b09b-2d295f1dfd05.mp3",
+	song_url = "https://api.smol.xyz/song/491bb94b-79df-41bb-b09b-2d295f1dfd05.mp3",
 	image_url,
 	hideBottomBar = false,
     schema = []
@@ -55,7 +55,7 @@ const siteSchema = [
     "logo": `${siteOrigin}/favicon.png`,
     "sameAs": [
         "https://twitter.com/smolxyz",
-        "https://github.com/smol-ai" 
+        "https://github.com/Kalepail"
     ]
   },
   {
@@ -160,6 +160,37 @@ const fullSchema = [...siteSchema, ...schema];
 	<body class="bg-transparent text-white min-h-screen relative">
 		<!-- Google Cast SDK -->
 		<script is:inline src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+
+		<!-- GEO: AI Referrer Tracking -->
+		<script is:inline>
+			(function() {
+				if (typeof document === 'undefined') return;
+				try {
+					const referrer = document.referrer.toLowerCase();
+					const aiReferrers = {
+						'chatgpt.com': 'ChatGPT',
+						'chat.openai.com': 'ChatGPT',
+						'perplexity.ai': 'Perplexity',
+						'claude.ai': 'Claude',
+						'gemini.google.com': 'Gemini',
+						'bard.google.com': 'Gemini',
+						'bing.com/chat': 'Bing Copilot',
+						'copilot.microsoft.com': 'Microsoft Copilot',
+						'you.com': 'You.com AI',
+					};
+					for (const [domain, name] of Object.entries(aiReferrers)) {
+						if (referrer.includes(domain)) {
+							const aiVisits = JSON.parse(localStorage.getItem('smol_ai_visits') || '[]');
+							aiVisits.push({ source: name, timestamp: new Date().toISOString(), page: location.pathname, referrer: document.referrer });
+							if (aiVisits.length > 100) aiVisits.shift();
+							localStorage.setItem('smol_ai_visits', JSON.stringify(aiVisits));
+							console.log('[GEO] AI Referrer:', name);
+							break;
+						}
+					}
+				} catch (e) {}
+			})();
+		</script>
 
 		<script is:inline>
 			// Nuclear option: destroy SmolResults loading cards immediately and on all events
