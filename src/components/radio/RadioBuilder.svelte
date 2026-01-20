@@ -944,7 +944,9 @@
 <div
   class="container mx-auto px-4 {isCompact
     ? 'pt-1 pb-2'
-    : 'py-1'} relative z-10 w-full flex-1 min-h-0 flex flex-col overflow-hidden"
+    : 'py-1'} {audioState.currentSong
+    ? 'pb-48'
+    : ''} relative z-10 w-full flex-1 min-h-0 flex flex-col overflow-hidden"
 >
   <!-- Eigengrau Void (Removed) -->
 
@@ -1097,6 +1099,26 @@
                   </button>
                 {/if}
               {/if}
+            </div>
+
+            <!-- MAIN IGNITE BUTTON -->
+            <div
+              class="flex justify-center mt-2 mb-2 md:mb-0 gap-6 items-center flex-shrink-0"
+            >
+              <button
+                class="tech-button bg-[#9ae600] text-slate-900 font-black py-3 px-10 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-[0.2em] text-base shadow-[0_0_15px_rgba(154,230,0,0.3)] hover:scale-105 active:scale-95 group relative overflow-hidden font-pixel"
+                onclick={() => {
+                  if (isDreamMode && moodInput.trim()) {
+                    suggestTagsFromMood();
+                  } else {
+                    generateStation();
+                  }
+                }}
+                disabled={isGenerating ||
+                  (isDreamMode && isFetchingMood && !moodInput.trim())}
+              >
+                {isGenerating || isFetchingMood ? "SYNTHESIZING..." : "IGNITE"}
+              </button>
             </div>
 
             <!-- TAG CLOUD (Collapsible) -->
@@ -1316,26 +1338,6 @@
                 {/if}
               </div>
             {/if}
-
-            <!-- MAIN IGNITE BUTTON -->
-            <div
-              class="flex justify-center mt-2 mb-2 md:mb-0 gap-6 items-center flex-shrink-0"
-            >
-              <button
-                class="tech-button bg-[#9ae600] text-slate-900 font-black py-3 px-10 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-[0.2em] text-base shadow-[0_0_15px_rgba(154,230,0,0.3)] hover:scale-105 active:scale-95 group relative overflow-hidden font-pixel"
-                onclick={() => {
-                  if (isDreamMode && moodInput.trim()) {
-                    suggestTagsFromMood();
-                  } else {
-                    generateStation();
-                  }
-                }}
-                disabled={isGenerating ||
-                  (isDreamMode && isFetchingMood && !moodInput.trim())}
-              >
-                {isGenerating || isFetchingMood ? "SYNTHESIZING..." : "IGNITE"}
-              </button>
-            </div>
           </div>
         </div>
       </div>

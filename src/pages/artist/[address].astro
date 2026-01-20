@@ -23,17 +23,22 @@ let schema: any[] = [];
 if (address) {
     schema = [{
         "@context": "https://schema.org",
-        "@type": "MusicGroup",
-        "@id": `https://noot.smol.xyz/artist/${address}#artist`,
-        "identifier": address,
-        "name": `Artist ${address.substring(0, 8)}...`,
+        "@type": "ProfilePage",
+        "@id": `https://noot.smol.xyz/artist/${address}#profile`,
         "url": `https://noot.smol.xyz/artist/${address}`,
-        "description": "AI music creator on Smol platform. Create, mint, and collect AI-generated songs onchain.",
-        "genre": ["AI Music", "Electronic", "Experimental"],
-        "album": {
-            "@type": "MusicAlbum",
-            "name": "Discography",
-            "description": "Collection of AI-generated songs"
+        "name": `Artist ${address.substring(0, 8)}...`,
+        "description": "AI music creator profile on Smol.",
+        "mainEntity": {
+            "@type": "Person",
+            "@id": `https://noot.smol.xyz/artist/${address}#person`,
+            "name": `Artist ${address.substring(0, 8)}`,
+            "description": "AI music composer and curator.",
+            "url": `https://noot.smol.xyz/artist/${address}`,
+            "interactionStatistic": [{
+                "@type": "InteractionCounter",
+                "interactionType": "https://schema.org/ListenAction",
+                "userInteractionCount": 0
+            }]
         }
     }];
 }

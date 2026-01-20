@@ -87,7 +87,8 @@
   });
 
   async function handleLogin() {
-    await authHook.login();
+    // Redirect to improved splash for clear Login vs Create choice
+    window.location.href = "/onboarding/passkey";
   }
 
   async function handleLogout() {

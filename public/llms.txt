@@ -47,6 +47,10 @@ Discover creators. Artist pages show discography, minted songs, and collections.
 
 ## Example Content
 
+### Recent Songs (Live Feed)
+https://noot.smol.xyz/rss.xml
+(Use the RSS feed for the most up-to-date song list and metadata)
+
 ### Featured Songs
 https://noot.smol.xyz/491bb94b-79df-41bb-b09b-2d295f1dfd05
 Example: High-quality AI-generated song with full metadata, lyrics, and audio.
@@ -85,9 +89,10 @@ Enhanced player interface, AI Radio, Labs experiments, artist profiles.
 
 ## API Endpoints (Programmatic Access)
 Note: API endpoints are not crawlable for SEO (see robots.txt) but available for authenticated use.
+Core Data Feed: https://noot.smol.xyz/rss.xml
 
 ## Competitors & Alternatives
 Smol is an alternative to Suno, Udio, and other AI music generators, with unique onchain ownership via Stellar NFTs.
 
 ## Last Updated
-2026-01-19
+2026-01-20

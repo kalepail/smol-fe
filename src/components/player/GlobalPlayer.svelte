@@ -257,14 +257,29 @@
             updateTopTags(smols);
             isUrlStateLoaded = true; // Data ready
 
-            // Update Cache
-            localStorage.setItem(
-                "smol_global_data_v2",
-                JSON.stringify({
-                    smols: smols.slice(0, 2000), // Safety limit for storage
-                    timestamp: Date.now(),
-                }),
-            );
+            // Update Cache (Safe Mode)
+            try {
+                // Strip heavy fields to save space (lyrics are huge)
+                const lightSmols = smols.slice(0, 500).map((s) => ({
+                    ...s,
+                    unique_lyrics: undefined,
+                    style: undefined, // stylistic description can be long
+                }));
+
+                localStorage.setItem(
+                    "smol_global_data_v2",
+                    JSON.stringify({
+                        smols: lightSmols,
+                        timestamp: Date.now(),
+                    }),
+                );
+            } catch (storageErr) {
+                console.warn(
+                    "[GlobalPlayer] Cache full, clearing to ensure auth works:",
+                    storageErr,
+                );
+                localStorage.removeItem("smol_global_data_v2");
+            }
 
             // Auto-select first song if nothing playing
             if (!audioState.currentSong && liveDiscography.length > 0) {
@@ -417,14 +432,21 @@
         }
     }
 
-    // Auto-Scroll to Active Song
+    // Auto-Scroll to Active Song and Update Next Song
     $effect(() => {
         if (displayPlaylist.length > 0 && currentSong) {
             const foundIndex = displayPlaylist.findIndex(
                 (s) => s.Id === currentSong.Id,
             );
-            if (foundIndex !== -1 && foundIndex !== currentIndex) {
-                currentIndex = foundIndex;
+            if (foundIndex !== -1) {
+                if (foundIndex !== currentIndex) {
+                    currentIndex = foundIndex;
+                }
+                // Pre-cache next song
+                const nextIndex = (foundIndex + 1) % displayPlaylist.length;
+                if (displayPlaylist[nextIndex]) {
+                    audioState.nextSong = displayPlaylist[nextIndex];
+                }
             }
         }
     });

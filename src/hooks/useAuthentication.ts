@@ -19,13 +19,9 @@ export function useAuthentication() {
   async function login() {
     const hostname = window.location.hostname;
 
-    // Standard Passkey Flow: Let the browser discover keys.
-    // const savedKeyId = ... (Removed)
-
     try {
       const result = await account.get().connectWallet({
         rpId: getSafeRpId(hostname),
-        // keyId: savedKeyId || undefined // REMOVED: standard flow
       });
 
       const {

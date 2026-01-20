@@ -11,7 +11,10 @@
     updateProgress,
     togglePlayPause,
     playNextSong,
+    saveState,
+    seek,
   } from "../../stores/audio.svelte";
+  import { onDestroy } from "svelte";
 
   const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
 
@@ -114,7 +117,7 @@
         album: "SMOL Radio",
         artwork: [
           {
-            src: `${API_URL}/image/${song.Id}.png?scale=8`,
+            src: `${API_URL}/image/${song.Id}.png?scale=16`,
             sizes: "512x512",
             type: "image/png",
           },
@@ -151,13 +154,51 @@
       playNextSong();
     });
 
+    navigator.mediaSession.setActionHandler("seekto", (details) => {
+      if (details.seekTime !== undefined && audioState.audioElement) {
+        audioState.audioElement.currentTime = details.seekTime;
+        updateProgress(details.seekTime, audioState.audioElement.duration);
+      }
+    });
+
+    navigator.mediaSession.setActionHandler("seekbackward", (details) => {
+      if (audioState.audioElement) {
+        const skipTime = details.seekOffset || 10;
+        audioState.audioElement.currentTime = Math.max(
+          audioState.audioElement.currentTime - skipTime,
+          0,
+        );
+        updateProgress(
+          audioState.audioElement.currentTime,
+          audioState.audioElement.duration,
+        );
+      }
+    });
+
+    navigator.mediaSession.setActionHandler("seekforward", (details) => {
+      if (audioState.audioElement) {
+        const skipTime = details.seekOffset || 10;
+        audioState.audioElement.currentTime = Math.min(
+          audioState.audioElement.currentTime + skipTime,
+          audioState.audioElement.duration,
+        );
+        updateProgress(
+          audioState.audioElement.currentTime,
+          audioState.audioElement.duration,
+        );
+      }
+    });
+
     // Start polling for resume when interrupted
     const startResumePolling = () => {
       if (resumeCheckInterval) return; // Already polling
 
       console.log("[Audio] Starting resume polling for CarPlay/iOS");
       resumeCheckInterval = window.setInterval(() => {
-        if (audioState.wasInterrupted && document.visibilityState === "visible") {
+        if (
+          audioState.wasInterrupted &&
+          document.visibilityState === "visible"
+        ) {
           console.log("[Audio] Polling check - attempting resume");
           attemptResume();
         }
@@ -177,7 +218,9 @@
     const handleAudioPause = () => {
       // If audio paused but playingId is still set, it's an interruption
       if (audioState.playingId && audioState.currentSong) {
-        console.log("[Audio] Interruption detected - audio paused unexpectedly");
+        console.log(
+          "[Audio] Interruption detected - audio paused unexpectedly",
+        );
         audioState.wasInterrupted = true;
         startResumePolling(); // Start polling for iOS/CarPlay
       }
@@ -195,8 +238,14 @@
 
     // Handle when audio becomes playable - good time to resume on CarPlay reconnect
     const handleCanPlay = () => {
-      if (audioState.wasInterrupted && audioState.playingId && audioState.currentSong) {
-        console.log("[Audio] Audio can play and was interrupted - attempting resume");
+      if (
+        audioState.wasInterrupted &&
+        audioState.playingId &&
+        audioState.currentSong
+      ) {
+        console.log(
+          "[Audio] Audio can play and was interrupted - attempting resume",
+        );
         setTimeout(attemptResume, 100);
       }
     };
@@ -225,7 +274,10 @@
 
       try {
         // Resume audio context if it's suspended (important for Bluetooth reconnection)
-        if (audioState.audioContext && audioState.audioContext.state === "suspended") {
+        if (
+          audioState.audioContext &&
+          audioState.audioContext.state === "suspended"
+        ) {
           console.log("[Audio] Resuming suspended audio context...");
           await audioState.audioContext.resume();
         }
@@ -275,7 +327,9 @@
 
     // iOS-specific: Handle audio session interruptions (CarPlay disconnect)
     const handleBeginInactive = () => {
-      console.log("[Audio] iOS audio session becoming inactive (CarPlay disconnect?)");
+      console.log(
+        "[Audio] iOS audio session becoming inactive (CarPlay disconnect?)",
+      );
       if (audioState.playingId && audioState.currentSong) {
         audioState.wasInterrupted = true;
         startResumePolling(); // Start polling for reconnection
@@ -283,7 +337,9 @@
     };
 
     const handleEndInactive = () => {
-      console.log("[Audio] iOS audio session ending inactive state (CarPlay reconnect?)");
+      console.log(
+        "[Audio] iOS audio session ending inactive state (CarPlay reconnect?)",
+      );
       // Try multiple times with different delays for CarPlay
       setTimeout(attemptResume, 100);
       setTimeout(attemptResume, 500);
@@ -294,17 +350,30 @@
     const handleAudioContextStateChange = () => {
       if (!audioState.audioContext) return;
 
-      console.log(`[Audio] Audio context state changed to: ${audioState.audioContext.state}`);
+      console.log(
+        `[Audio] Audio context state changed to: ${audioState.audioContext.state}`,
+      );
 
       // If context becomes suspended while we're supposed to be playing, mark as interrupted
-      if (audioState.audioContext.state === "suspended" && audioState.playingId && audioState.currentSong) {
-        console.log("[Audio] Audio context suspended during playback - marking as interrupted");
+      if (
+        audioState.audioContext.state === "suspended" &&
+        audioState.playingId &&
+        audioState.currentSong
+      ) {
+        console.log(
+          "[Audio] Audio context suspended during playback - marking as interrupted",
+        );
         audioState.wasInterrupted = true;
       }
 
       // If context resumes from suspended, attempt to resume playback
-      if (audioState.audioContext.state === "running" && audioState.wasInterrupted) {
-        console.log("[Audio] Audio context resumed - attempting to resume playback");
+      if (
+        audioState.audioContext.state === "running" &&
+        audioState.wasInterrupted
+      ) {
+        console.log(
+          "[Audio] Audio context resumed - attempting to resume playback",
+        );
         setTimeout(attemptResume, 100);
       }
     };
@@ -320,7 +389,10 @@
 
     // Monitor audio context state changes for Bluetooth and device changes (non-iOS)
     if (audioState.audioContext) {
-      audioState.audioContext.addEventListener("statechange", handleAudioContextStateChange);
+      audioState.audioContext.addEventListener(
+        "statechange",
+        handleAudioContextStateChange,
+      );
     }
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -338,17 +410,26 @@
         navigator.mediaSession.setActionHandler("play", null);
         navigator.mediaSession.setActionHandler("pause", null);
         navigator.mediaSession.setActionHandler("nexttrack", null);
+        navigator.mediaSession.setActionHandler("seekto", null);
+        navigator.mediaSession.setActionHandler("seekbackward", null);
+        navigator.mediaSession.setActionHandler("seekforward", null);
       }
 
       if (audioState.audioElement) {
         audioState.audioElement.removeEventListener("pause", handleAudioPause);
         audioState.audioElement.removeEventListener("play", handleAudioPlay);
         audioState.audioElement.removeEventListener("canplay", handleCanPlay);
-        audioState.audioElement.removeEventListener("canplaythrough", handleCanPlay);
+        audioState.audioElement.removeEventListener(
+          "canplaythrough",
+          handleCanPlay,
+        );
       }
 
       if (audioState.audioContext) {
-        audioState.audioContext.removeEventListener("statechange", handleAudioContextStateChange);
+        audioState.audioContext.removeEventListener(
+          "statechange",
+          handleAudioContextStateChange,
+        );
       }
 
       document.removeEventListener("visibilitychange", handleVisibilityChange);
@@ -474,6 +555,41 @@
       isTagsPage ||
       isCreatedPage,
   );
+
+  /**
+   * Effect: Persist audio state when it changes
+   * This ensures we can resume after reload/crash
+   */
+  $effect(() => {
+    // Access properties to trigger dependency tracking
+    const _p = audioState.playingId;
+    const _c = audioState.currentSong;
+    const _d = audioState.duration;
+    const _pr = audioState.progress;
+    // Debounce save slightly probably overkill but safe
+    saveState();
+  });
+
+  /**
+   * Effect: Pre-cache Next Song
+   * Fetches the next song details in the background
+   */
+  $effect(() => {
+    const nextSong = audioState.nextSong;
+    if (nextSong && nextSong.Id && nextSong.Song_1) {
+      // Use audio proxy if available
+      const audioProxyUrl = import.meta.env.PUBLIC_AUDIO_PROXY_URL;
+      const songUrl = audioProxyUrl
+        ? `${audioProxyUrl}/audio/${nextSong.Song_1}`
+        : `${API_URL}/song/${nextSong.Song_1}.mp3`;
+
+      // Use Fetch with low priority to populate browser cache
+      // @ts-ignore - priority is valid but TS might complain
+      fetch(songUrl, { priority: "low" }).catch((err) => {
+        console.warn("[Audio] Pre-cache failed:", err);
+      });
+    }
+  });
 </script>
 
 {#if audioState.currentSong && !shouldHidePlayer}
@@ -547,6 +663,18 @@
     }
   }}
   onloadeddata={() => {
+    if (audioState.audioElement) {
+      // If we restored progress from saved state, verify we need to seek
+      // Only seek if we're significantly off (e.g. > 1s) to avoid jitter
+      // But wait... audioState.progress is % (0-100), currentTime is seconds.
+      const targetTime =
+        (audioState.progress / 100) * audioState.audioElement.duration;
+      if (Math.abs(audioState.audioElement.currentTime - targetTime) > 1) {
+        console.log("[Audio] Restoring playback position:", targetTime);
+        audioState.audioElement.currentTime = targetTime;
+      }
+    }
+
     if (
       audioState.currentSong &&
       audioState.playingId === audioState.currentSong.Id &&
@@ -556,7 +684,18 @@
       if (playPromise !== undefined) {
         playPromise.catch((error) => {
           console.error("Error playing audio on load:", error);
-          audioState.playingId = null;
+          // Don't clear playingId if it's an auto-play restriction
+          // This preserves the "Intent to Play" so we can resume when the car connects
+          if (error.name === "NotAllowedError") {
+            console.log(
+              "[Audio] Auto-play blocked. Preserving state and entering interrupted mode.",
+            );
+            audioState.wasInterrupted = true;
+            // We can't access startResumePolling here easily because it's inside onMount closure
+            // But setting wasInterrupted is enough for the effect hooks to pick it up later
+          } else {
+            audioState.playingId = null;
+          }
         });
       }
     }

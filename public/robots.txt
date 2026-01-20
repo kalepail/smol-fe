@@ -22,4 +22,5 @@ Allow: /llms-full.txt
 Allow: /rss.xml
 
 Sitemap: https://noot.smol.xyz/sitemap-index.xml
+Sitemap: https://noot.smol.xyz/sitemap-songs.xml
 Allow: /

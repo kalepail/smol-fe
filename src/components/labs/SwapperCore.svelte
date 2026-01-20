@@ -558,6 +558,9 @@
                 statusMessage = message;
             }
             swapState = "failed";
+
+            // Clear used/stale token
+            turnstileToken = "";
         }
     }
 
@@ -704,6 +707,9 @@
                 statusMessage = message;
             }
             swapState = "failed";
+
+            // Clear used/stale token
+            turnstileToken = "";
         }
     }
 </script>

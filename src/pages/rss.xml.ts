@@ -1,15 +1,44 @@
 import type { APIRoute } from 'astro';
 
+import type { APIRoute } from 'astro';
+import { fetchSmols } from '../services/api/smols';
+
 export const GET: APIRoute = async ({ request }) => {
-  const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
   const SITE_URL = "https://noot.smol.xyz";
 
   try {
-    // Fetch latest public songs (limit to 50 for RSS best practices)
-    // This assumes there's an API endpoint that returns latest songs
-    // If not available, we'll use a static/sample feed
+    // Fetch latest 50 songs
+    // We use the shared service which handles fallback to snapshot if API fails
+    const smols = await fetchSmols({ limit: 50 });
 
-    const items: string[] = [];
+    // Sort by creation date descending just in case
+    // The API usually returns latest first, but good to be safe if snapshot fallback is used
+    const sorted = smols.sort((a, b) => {
+      const dateA = new Date(a.d1?.Created || a.Created_At || 0).getTime();
+      const dateB = new Date(b.d1?.Created || b.Created_At || 0).getTime();
+      return dateB - dateA;
+    }).slice(0, 50);
+
+    const items = sorted.map(smol => {
+      // Safe data extraction
+      const title = smol.kv_do?.lyrics?.title || smol.d1?.Title || `Song ${smol.Id.slice(0, 8)}`;
+      const prompt = smol.kv_do?.payload?.prompt || smol.kv_do?.description || "AI generated song";
+      // XML Escape the content? Simple replacements for now.
+      const cleanTitle = title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const cleanDesc = prompt.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+      // Date
+      const dateStr = smol.d1?.Created || smol.Created_At || new Date().toISOString();
+      const date = new Date(dateStr).toUTCString();
+
+      return `<item>
+      <title>${cleanTitle}</title>
+      <link>${SITE_URL}/${smol.Id}</link>
+      <description>${cleanDesc}</description>
+      <pubDate>${date}</pubDate>
+      <guid isPermaLink="true">${SITE_URL}/${smol.Id}</guid>
+    </item>`;
+    }).join('\n');
 
     // RSS header
     const rss = `<?xml version="1.0" encoding="UTF-8"?>
@@ -29,19 +58,7 @@ export const GET: APIRoute = async ({ request }) => {
       <title>Smol</title>
       <link>${SITE_URL}</link>
     </image>
-
-    <!-- RSS items would go here -->
-    <!-- Since we don't have a direct API endpoint for latest songs in this context, -->
-    <!-- this is a placeholder structure. In production, you'd fetch from API -->
-
-    <item>
-      <title>Latest AI Music on Smol</title>
-      <link>${SITE_URL}</link>
-      <description>Discover the latest AI-generated songs. Create your own music from text prompts, mint as NFTs, and collect music onchain.</description>
-      <pubDate>${new Date().toUTCString()}</pubDate>
-      <guid isPermaLink="true">${SITE_URL}</guid>
-    </item>
-
+    ${items}
   </channel>
 </rss>`;
 

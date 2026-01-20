@@ -26,6 +26,9 @@ export class OZRelayerProvider {
             'Authorization': `Bearer ${this.apiKey}`
         };
 
+        // X-Api-Key sometimes used as alternate
+        // headers['X-Api-Key'] = this.apiKey;
+
         // Add Turnstile token if provided
         if (turnstileToken) {
             headers['X-Turnstile-Token'] = turnstileToken;

@@ -11,13 +11,21 @@ import { getDomain, getPublicSuffix } from 'tldts';
  */
 export function getSafeRpId(hostname: string): string | undefined {
     // localhost fallback
-    if (hostname === 'localhost') return 'localhost';
+    if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) return 'localhost';
+
+    // FORCE SHARED ROOT for all smol.xyz subdomains (e.g. "noot.smol.xyz" -> "smol.xyz")
+    // This ensures that passkeys created on any subdomain can be used on any other subdomain (or root).
+    if (hostname.endsWith('smol.xyz')) {
+        return 'smol.xyz';
+    }
 
     const domain = getDomain(hostname);
     const suffix = getPublicSuffix(hostname);
 
-    // If domain logic fails or it matches the suffix (e.g. pages.dev), use Origin
-    if (!domain || !suffix || domain === suffix) {
+    // If domain logic fails or it matches the suffix (e.g. co.uk), use Origin
+    // Also block known shared suffixes like pages.dev where tldts might return the generic platform domain
+    const blockedDomains = ['pages.dev', 'vercel.app', 'netlify.app', 'herokuapp.com'];
+    if (!domain || !suffix || domain === suffix || blockedDomains.includes(domain) || blockedDomains.includes(suffix)) {
         return undefined;
     }
 

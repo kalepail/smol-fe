@@ -31,20 +31,39 @@ if (id) {
                 image_url = `${API_URL}/image/${data.Smols[0].Id}.png`;
             }
 
-            schema = [{
-                "@context": "https://schema.org",
-                "@type": "MusicPlaylist",
-                "name": data.Title,
-                "description": description,
-                "url": Astro.url.href,
-                "image": image_url,
-                "numTracks": data.Smols?.length || 0,
-                "track": data.Smols?.map((s: any) => ({
-                    "@type": "MusicRecording",
-                    "name": `Track`, 
-                    "url": `${import.meta.env.PUBLIC_URL || 'https://noot.smol.xyz'}/${s.Id}`
-                }))
-            }];
+            // Build Schema with Tracks
+    const tracks = data.Smols?.map((song: any) => ({
+        "@type": "MusicRecording",
+        "name": song.Title || `Track ${song.Id}`,
+        "url": `${import.meta.env.PUBLIC_URL || 'https://noot.smol.xyz'}/${song.Id}`,
+        "duration": "PT3M" // Estimate
+    })) || [];
+
+    schema = [{
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        "@id": `https://noot.smol.xyz/mixtapes/${id}#collection`,
+        "name": title,
+        "description": description,
+        "url": `https://noot.smol.xyz/mixtapes/${id}`,
+        "mainEntity": {
+            "@type": "ItemList",
+            "itemListElement": tracks.map((track: any, index: number) => ({
+                "@type": "ListItem",
+                "position": index + 1,
+                "item": track
+            }))
+        },
+        "hasPart": tracks
+    }, {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "Smol", "item": "https://noot.smol.xyz" },
+            { "@type": "ListItem", "position": 2, "name": "Mixtapes", "item": "https://noot.smol.xyz/mixtapes" },
+            { "@type": "ListItem", "position": 3, "name": title, "item": `https://noot.smol.xyz/mixtapes/${id}` }
+        ]
+    }];
         }
     } catch (error) {
         console.error('Failed to fetch mixtape meta data:', error);

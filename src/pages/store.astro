@@ -4,9 +4,57 @@ import { upgradesState } from '../stores/upgrades.svelte';
 import PremiumHeaderPreview from '../components/store/PremiumHeaderPreview.svelte';
 import UpgradeToggles from '../components/store/UpgradeToggles.svelte';
 import StorePolicyButton from '../components/store/StorePolicyButton.svelte';
+import { SMOL_IDENTITY, SITE_URL } from '../utils/seo-schema';
+
+const schema = [
+  {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "name": "Premium Profile Header",
+    "description": "Unlock the scrolling artist collage for your Smol profile.",
+    "image": `${SITE_URL}/images/store/header_preview.png`,
+    "sku": "PREMIUM_HEADER",
+    "brand": SMOL_IDENTITY,
+    "offers": {
+      "@type": "Offer",
+      "price": "100000",
+      "priceCurrency": "KALE",
+      "availability": "https://schema.org/InStock"
+    }
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "name": "Golden Kale Badge",
+    "description": "The ultimate early adopter badge for your profile.",
+    "image": "https://em-content.zobj.net/source/apple/354/leafy-green_1f96c.png",
+    "sku": "GOLDEN_KALE",
+    "brand": SMOL_IDENTITY,
+    "offers": {
+      "@type": "Offer",
+      "price": "69420.67",
+      "priceCurrency": "KALE",
+      "availability": "https://schema.org/InStock"
+    }
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "name": "Vibe Matrix",
+    "description": "Unlock the absolute pinnacle of vibe discovery with our advanced matrix algorithm.",
+    "sku": "VIBE_MATRIX",
+    "brand": SMOL_IDENTITY,
+    "offers": {
+      "@type": "Offer",
+      "price": "250000",
+      "priceCurrency": "KALE",
+      "availability": "https://schema.org/InStock"
+    }
+  }
+];
 ---
 
-<Layout title="Smol – Store">
+<Layout title="Smol – Store" schema={schema}>
 	<main class="min-h-screen text-white p-6 pt-24 pb-32 max-w-7xl mx-auto font-pixel selection:bg-[#4ade80] selection:text-black">
         <div class="flex flex-col items-center justify-center mb-16 gap-6 uppercase tracking-widest text-center">
             <div>

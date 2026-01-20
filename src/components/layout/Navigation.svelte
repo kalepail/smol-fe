@@ -304,7 +304,9 @@
       <button
         class="flex items-center justify-between w-full gap-3 hover:text-[#9ae600] transition-colors"
         onclick={() => {
-          handleLogin();
+          // Redirect to improved splash for clear Login vs Create choice
+          window.location.href = "/onboarding/passkey";
+          closeMenu();
         }}
       >
         <span class="text-[#9ae600]">

@@ -14,6 +14,7 @@ let image_url: string | null = id ? `${API_URL}/image/${id}.png` : null;
 let schema: any[] = [];
 let lyricsDisplay = "";
 let rawPrompt = "";
+let createdDate = "";
 
 if (id) {
     // PREVENT ROUTING CONFLICT: Explicitly reject known static routes that might fall through
@@ -53,7 +54,7 @@ if (id) {
              
             // Schema
             const tags = data.kv_do?.tags || [];
-            const created = data.d1?.Created || new Date().toISOString();
+            createdDate = data.d1?.Created || new Date().toISOString();
 
             schema = [{
                 "@context": "https://schema.org",
@@ -74,8 +75,38 @@ if (id) {
                 "isAccessibleForFree": true,
                 "producer": {
                      "@type": "Organization",
-                     "name": "Smol AI Music Generator"
+                     "@id": `${import.meta.env.PUBLIC_URL || 'https://noot.smol.xyz'}/#organization`
+                },
+                "potentialAction": {
+                    "@type": "ListenAction",
+                    "target": `${import.meta.env.PUBLIC_URL || 'https://noot.smol.xyz'}/${id}`,
+                    "expectsAcceptanceOf": {
+                        "@type": "Offer",
+                        "availability": "https://schema.org/OnlineOnly",
+                        "price": "0.00",
+                        "priceCurrency": "USD",
+                        "eligibleRegion": {
+                            "@type": "Place",
+                            "name": "Worldwide"
+                        }
+                    }
+                },
+                "offers": {
+                    "@type": "Offer",
+                    "price": "0.01",
+                    "priceCurrency": "XLM",
+                    "description": "Mint as NFT on Stellar"
                 }
+             },
+             {
+                "@type": "VideoObject",
+                "name": `${title} (AI Music Visualizer)`,
+                "description": "Real-time AI generated music visualizer for this track.",
+                "thumbnailUrl": image_url,
+                "uploadDate": data.d1?.Created || new Date().toISOString(),
+                "duration": "PT3M",
+                "embedUrl": Astro.url.href,
+                "playerType": "HTML5"
              },
              {
                 "@context": "https://schema.org",
@@ -103,7 +134,19 @@ if (id) {
         <!-- SSR Content for SEO -->
         <div class="sr-only">
             <h1>{title}</h1>
+            <h2>Description</h2>
             <p>{description}</p>
+            {lyricsDisplay && (
+                <section>
+                    <h3>Lyrics</h3>
+                    <p>{lyricsDisplay}</p>
+                </section>
+            )}
+            <section>
+                <h3>Details</h3>
+                <p>Prompt: {rawPrompt}</p>
+                <p>Created: {createdDate || "Unknown"}</p>
+            </section>
         </div>
 	</div>
 </Layout>

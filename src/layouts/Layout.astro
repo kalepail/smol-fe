@@ -44,38 +44,18 @@ if (token) {
 	_cid = sub;
 }
 
+import { SMOL_IDENTITY, SMOL_WEBSITE } from '../utils/seo-schema';
+
 // Global structured data
 const siteSchema = [
-  {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    "@id": `${siteOrigin}#org`,
-    "name": "Smol",
-    "url": siteOrigin,
-    "logo": `${siteOrigin}/favicon.png`,
-    "sameAs": [
-        "https://twitter.com/smolxyz",
-        "https://github.com/Kalepail"
-    ]
-  },
-  {
-    "@context": "https://schema.org",
-    "@type": "WebSite",
-    "@id": `${siteOrigin}#website`,
-    "url": siteOrigin,
-    "name": "Smol — AI Music Generator",
-    "potentialAction": {
-      "@type": "SearchAction",
-      "target": `${siteOrigin}/search?q={search_term_string}`,
-      "query-input": "required name=search_term_string"
-    }
-  },
+  SMOL_IDENTITY,
+  SMOL_WEBSITE,
   {
     "@context": "https://schema.org",
     "@type": "WebApplication",
-    "@id": `${siteOrigin}#app`,
+    "@id": "https://noot.smol.xyz/#app",
     "name": "Smol",
-    "url": siteOrigin,
+    "url": "https://noot.smol.xyz",
     "applicationCategory": "MultimediaApplication",
     "operatingSystem": "Web",
     "description": "Generate songs from text prompts and collect them onchain."
@@ -96,6 +76,10 @@ const fullSchema = [...siteSchema, ...schema];
         <link rel="apple-touch-icon" href={image_url ? image_url : `${siteOrigin}/favicon.png`} />
 		<link rel="icon" type="image/png" href={image_url ? image_url : `${siteOrigin}/favicon.png`} />
 		
+        {image_url && (
+            <link rel="preload" as="image" href={image_url} />
+        )}
+
         <meta name="generator" content={Astro.generator} />
 		<meta name="mobile-web-app-capable" content="yes">
 		<meta name="color-scheme" content="dark">
@@ -170,8 +154,11 @@ const fullSchema = [...siteSchema, ...schema];
 					const aiReferrers = {
 						'chatgpt.com': 'ChatGPT',
 						'chat.openai.com': 'ChatGPT',
+						'searchgpt.com': 'SearchGPT',
 						'perplexity.ai': 'Perplexity',
 						'claude.ai': 'Claude',
+						'deepseek.com': 'DeepSeek',
+						'chat.deepseek.com': 'DeepSeek',
 						'gemini.google.com': 'Gemini',
 						'bard.google.com': 'Gemini',
 						'bing.com/chat': 'Bing Copilot',

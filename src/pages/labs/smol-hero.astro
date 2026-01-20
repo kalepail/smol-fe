@@ -2,9 +2,33 @@
 import Layout from "../../layouts/Layout.astro";
 import BackLink from "../../components/labs/BackLink.astro";
 import SmolHeroCore from "../../components/labs/SmolHeroCore.svelte";
+import { SMOL_IDENTITY } from "../../utils/seo-schema";
+
+const schema = [{
+    "@context": "https://schema.org",
+    "@type": "VideoGame",
+    "name": "Smol Hero",
+    "description": "A rhythm game powered by AI music. Hit the notes to the beat of AI-generated songs.",
+    "genre": "Rhythm Game",
+    "applicationCategory": "Game",
+    "operatingSystem": "Web Browser",
+    "url": "https://noot.smol.xyz/labs/smol-hero",
+    "author": SMOL_IDENTITY,
+    "offers": {
+        "@type": "Offer",
+        "price": "0.00",
+        "priceCurrency": "USD",
+        "availability": "https://schema.org/InStock"
+    },
+    "screenshot": "https://noot.smol.xyz/images/labs/smol_hero_preview.png"
+}];
 ---
 
-<Layout title="Smol Hero - Rhythm Game">
+<Layout
+    title="Smol Hero | AI Rhythm Game"
+    description="Play Smol Hero, the onchain rhythm game powered by AI music. Test your skills against AI-generated beats."
+    schema={schema}
+>
   <div class="min-h-screen bg-black text-white font-pixel p-4 md:p-8 pt-24">
     <div class="max-w-7xl mx-auto">
       <BackLink href="/labs" />

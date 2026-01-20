@@ -19,6 +19,7 @@
     "@google/generative-ai": "^0.24.1",
     "@stellar/stellar-sdk": "^14.4.3",
     "@types/canvas-confetti": "^1.9.0",
+    "@types/three": "^0.182.0",
     "buffer": "^6.0.3",
     "canvas-confetti": "^1.9.4",
     "comet-sdk": "link:ext/comet-sdk",
@@ -29,6 +30,7 @@
     "soroswap-router-sdk": "1.2.4",
     "svelte-dnd-action": "^0.9.65",
     "svelte-turnstile": "^0.11.0",
+    "three": "^0.182.0",
     "tldts": "^7.0.16"
   },
   "devDependencies": {

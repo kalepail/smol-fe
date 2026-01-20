@@ -11,7 +11,35 @@ const Server = rpc.Server;
 
 // Load Config
 const CONFIG_PATH = './scripts/swap-audit/config.example.json';
-const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
+const rawConfig = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
+
+// Load .env manually
+if (fs.existsSync('.env')) {
+    const envConfig = fs.readFileSync('.env', 'utf-8');
+    envConfig.split('\n').forEach(line => {
+        const [key, ...values] = line.split('=');
+        if (key && values.length > 0) {
+            const val = values.join('=').trim().replace(/^["']|["']$/g, '');
+            process.env[key.trim()] = val;
+        }
+    });
+    console.log("   ✅ Loaded .env file");
+}
+
+// Helper to resolve config values
+function resolveConfig(obj) {
+    for (const key in obj) {
+        if (typeof obj[key] === 'string' && obj[key].startsWith('ENV:')) {
+            const envKey = obj[key].replace('ENV:', '');
+            obj[key] = process.env[envKey] || obj[key];
+        } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+            resolveConfig(obj[key]);
+        }
+    }
+    return obj;
+}
+
+const config = resolveConfig(rawConfig);
 
 // C-Address Enforcement (SWAP-004)
 function isContractAddress(address) {

@@ -11,6 +11,12 @@
 :root {
     color-scheme: dark only;
     background-color: #020617;
+    /* Matches theme-color meta tag */
+}
+
+/* iOS Specific: WebKit Tap Highlight Fix */
+* {
+    -webkit-tap-highlight-color: transparent;
 }
 
 @layer base {
