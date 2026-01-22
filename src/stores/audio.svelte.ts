@@ -8,8 +8,31 @@ import type { Smol } from '../types/domain';
 // Core reactive state
 const AUDIO_STORAGE_KEY = "smol_audio_v1";
 
+type AudioState = {
+  playingId: string | null;
+  currentSong: Smol | null;
+  audioElement: HTMLAudioElement | null;
+  progress: number;
+  songNextCallback: (() => void) | null;
+  songPrevCallback: (() => void) | null;
+  // Web Audio API fields
+  audioContext: AudioContext | null;
+  analyser: AnalyserNode | null;
+  sourceNode: MediaElementAudioSourceNode | null;
+  duration: number;
+  repeatMode: "off" | "once" | "one";
+  isCasting: boolean;
+  isCastAvailable: boolean;
+  isBuffering: boolean;
+  // Track if audio was interrupted (not user-paused)
+  wasInterrupted: boolean;
+  playIntentId: string | null;
+  // Next song for pre-caching
+  nextSong: Smol | null;
+};
+
 // Load from localStorage if available
-function loadState(): Partial<typeof audioState> {
+function loadState(): Partial<AudioState> {
   if (typeof window === "undefined") return {};
   try {
     const saved = localStorage.getItem(AUDIO_STORAGE_KEY);
@@ -30,28 +53,9 @@ function loadState(): Partial<typeof audioState> {
   }
 }
 
-const savedState = loadState();
+const savedState: Partial<AudioState> = loadState();
 
-export const audioState = $state<{
-  playingId: string | null;
-  currentSong: Smol | null;
-  audioElement: HTMLAudioElement | null;
-  progress: number;
-  songNextCallback: (() => void) | null;
-  songPrevCallback: (() => void) | null;
-  // Web Audio API fields
-  audioContext: AudioContext | null;
-  analyser: AnalyserNode | null;
-  sourceNode: MediaElementAudioSourceNode | null;
-  duration: number;
-  repeatMode: "off" | "once" | "one";
-  isCasting: boolean;
-  isCastAvailable: boolean;
-  // Track if audio was interrupted (not user-paused)
-  wasInterrupted: boolean;
-  // Next song for pre-caching
-  nextSong: Smol | null;
-}>({
+export const audioState = $state<AudioState>({
   playingId: savedState.playingId ?? null,
   currentSong: savedState.currentSong ?? null,
   audioElement: null,
@@ -65,7 +69,9 @@ export const audioState = $state<{
   repeatMode: savedState.repeatMode ?? "off",
   isCasting: false,
   isCastAvailable: false,
+  isBuffering: false,
   wasInterrupted: false,
+  playIntentId: null,
   nextSong: null,
 });
 
@@ -184,12 +190,16 @@ export function selectSong(songData: Smol | null) {
   if (songData) {
     audioState.currentSong = songData;
     audioState.playingId = songData.Id;
+    audioState.playIntentId = songData.Id;
+    audioState.isBuffering = true;
 
     // Broadcast play event
     ch && ch.postMessage({ type: "play", src: bId });
   } else {
     audioState.currentSong = null;
     audioState.playingId = null;
+    audioState.playIntentId = null;
+    audioState.isBuffering = false;
   }
 }
 
@@ -204,10 +214,14 @@ export function togglePlayPause() {
       // User-initiated pause - clear interruption flag
       audioState.playingId = null;
       audioState.wasInterrupted = false;
+      audioState.playIntentId = null;
+      audioState.isBuffering = false;
     } else {
       // Play
       audioState.playingId = currentSong.Id;
       audioState.wasInterrupted = false;
+      audioState.playIntentId = currentSong.Id;
+      audioState.isBuffering = true;
 
       // Broadcast play event
       ch && ch.postMessage({ type: "play", src: bId });
@@ -232,6 +246,8 @@ export function resetAudioState() {
   audioState.playingId = null;
   audioState.currentSong = null;
   audioState.progress = 0;
+  audioState.isBuffering = false;
+  audioState.playIntentId = null;
 }
 
 /**

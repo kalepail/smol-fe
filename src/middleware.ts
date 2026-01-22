@@ -24,10 +24,24 @@ export const onRequest: MiddlewareHandler = async (ctx, next) => {
 
     const host = url.hostname;
 
-    // 1) Prevent preview deployments from being indexed
-    if (host.endsWith(".pages.dev")) {
+    // 1) Prevent preview deployments from being indexed (EXCEPT embed routes or Social Bots)
+    const ua = ctx.request.headers.get("user-agent") || "";
+    const isSocialBot = /Twitterbot|facebookexternalhit|Discordbot/i.test(ua);
+
+    if (host.endsWith(".pages.dev") && !url.pathname.startsWith('/embed/') && !isSocialBot) {
         res.headers.set("X-Robots-Tag", "noindex");
         return res;
+    }
+
+    // 2) Allow embed routes to be loaded in iframes from any origin (required for Twitter/Discord player cards)
+    if (url.pathname.startsWith('/embed/')) {
+        // Remove any restrictive X-Frame-Options
+        res.headers.delete("X-Frame-Options");
+        // Allow framing from anywhere (required for Twitter mobile, Discord, etc.)
+        res.headers.set("Content-Security-Policy", "frame-ancestors *");
+        // Cross-origin isolation for media playback
+        res.headers.set("Cross-Origin-Embedder-Policy", "unsafe-none");
+        res.headers.set("Cross-Origin-Resource-Policy", "cross-origin");
     }
 
     // 2) Cache HTML at the edge for public indexable routes AND generic root IDs (songs)

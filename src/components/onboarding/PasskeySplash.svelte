@@ -13,6 +13,34 @@
     let error = $state<string | null>(null);
     let turnstileToken = $state("");
 
+    // Check for Direct Relayer Mode (Dev/Preview)
+    // Direct Relayer (OZ Channels) should ONLY be used on dev/preview environments to bypass Turnstile.
+    // Production (smol.xyz) must ALWAYS use KaleFarm Turnstile Proxy.
+    const isPagesDev =
+        typeof window !== "undefined" &&
+        window.location.hostname.includes("pages.dev");
+    const isLocalhost =
+        typeof window !== "undefined" &&
+        window.location.hostname.includes("localhost");
+    const hasApiKey = !!import.meta.env.PUBLIC_RELAYER_API_KEY;
+
+    const isDirectRelayer = (isPagesDev || isLocalhost) && hasApiKey;
+
+    console.log(
+        "[Debug] Relayer Config:",
+        JSON.stringify({
+            isDirectRelayer,
+            isPagesDev,
+            isLocalhost,
+            hasKey: hasApiKey,
+            mode: import.meta.env.MODE,
+            baseUrl: import.meta.env.BASE_URL,
+            availableKeys: Object.keys(import.meta.env).filter((k) =>
+                k.startsWith("PUBLIC_"),
+            ),
+        }),
+    );
+
     const authHook = useAuthentication();
 
     // One-liners
@@ -251,6 +279,31 @@
             class="mb-6 md:mb-8 text-center shrink-0"
             in:fade={{ duration: 800 }}
         >
+            <!-- DEBUG: Relayer Mode Indicator -->
+            <div
+                class="fixed top-0 right-0 p-2 text-[10px] bg-black/80 backdrop-blur border-b border-l border-lime-400/20 text-lime-400 font-mono z-[10000] text-right pointer-events-none"
+            >
+                <div>
+                    MODE: {isDirectRelayer
+                        ? "DIRECT (BYPASS)"
+                        : "PROXY (TURNSTILE)"}
+                </div>
+                <div>
+                    HOST: {typeof window !== "undefined"
+                        ? window.location.hostname
+                        : "SERVER"}
+                </div>
+                <div>KEY: {hasApiKey ? "PRESENT" : "MISSING"}</div>
+                <div>IS_DEV: {isPagesDev || isLocalhost ? "YES" : "NO"}</div>
+                <div>
+                    CFG_URL: {import.meta.env.PUBLIC_RELAYER_URL || "N/A"}
+                </div>
+                <div>
+                    TARGET: {isDirectRelayer
+                        ? "channels.openzeppelin.com"
+                        : "api.kalefarm.xyz"}
+                </div>
+            </div>
             <!-- Rotating One-Liner -->
             <!-- Shift right slightly to align center with the '.' in SMOL.XYZ -->
             <div
@@ -398,41 +451,44 @@
                     {/if}
 
                     <!-- Turnstile moved above buttons for better visibility -->
-                    <div
-                        class="flex justify-center my-2 scale-90 origin-center min-h-[65px]"
-                    >
-                        <Turnstile
-                            siteKey={import.meta.env.PUBLIC_TURNSTILE_SITE_KEY}
-                            on:callback={(e) => {
-                                turnstileToken = e.detail.token;
-                                error = null;
-                            }}
-                            on:expired={() => {
-                                turnstileToken = "";
-                            }}
-                            on:error={(e) => {
-                                console.error("Turnstile Error:", e);
-                                // Check for common "Domain Not Allowed" error (110200)
-                                // Note: e.detail may contain the code, or we infer from context
-                                if (
-                                    window.location.hostname.includes(
-                                        "pages.dev",
-                                    ) ||
-                                    window.location.hostname.includes(
-                                        "localhost",
-                                    )
-                                ) {
-                                    error =
-                                        "Turnstile Error: Domain not authorized. Add to Cloudflare whitelist.";
-                                } else {
-                                    error =
-                                        "Verification failed. Please refresh.";
-                                }
-                            }}
-                            theme="dark"
-                            appearance="interaction-only"
-                        />
-                    </div>
+                    {#if !isDirectRelayer}
+                        <div
+                            class="flex justify-center my-2 scale-90 origin-center min-h-[65px]"
+                        >
+                            <Turnstile
+                                siteKey={import.meta.env
+                                    .PUBLIC_TURNSTILE_SITE_KEY}
+                                on:callback={(e) => {
+                                    turnstileToken = e.detail.token;
+                                    error = null;
+                                }}
+                                on:expired={() => {
+                                    turnstileToken = "";
+                                }}
+                                on:error={(e) => {
+                                    console.error("Turnstile Error:", e);
+                                    // Check for common "Domain Not Allowed" error (110200)
+                                    // Note: e.detail may contain the code, or we infer from context
+                                    if (
+                                        window.location.hostname.includes(
+                                            "pages.dev",
+                                        ) ||
+                                        window.location.hostname.includes(
+                                            "localhost",
+                                        )
+                                    ) {
+                                        error =
+                                            "Turnstile Error: Domain not authorized. Add to Cloudflare whitelist.";
+                                    } else {
+                                        error =
+                                            "Verification failed. Please refresh.";
+                                    }
+                                }}
+                                theme="dark"
+                                appearance="interaction-only"
+                            />
+                        </div>
+                    {/if}
 
                     <div class="flex w-full gap-3 mt-2">
                         <button
@@ -447,7 +503,7 @@
                                     error = "Please enter a username.";
                                     return;
                                 }
-                                if (!turnstileToken) {
+                                if (!turnstileToken && !isDirectRelayer) {
                                     error =
                                         "Please complete the verification check above.";
                                     return;
@@ -455,8 +511,9 @@
                                 submitUsername();
                             }}
                             class="flex-[2] py-3 bg-lime-500 text-black font-pixel font-bold uppercase text-xs rounded-lg shadow-[0_4px_0_rgba(65,130,22,0.6)]
-                               hover:bg-lime-400 active:translate-y-1 active:shadow-none transition-all
-                               {!username.trim() || !turnstileToken
+                                hover:bg-lime-400 active:translate-y-1 active:shadow-none transition-all
+                                {!username.trim() ||
+                            (!turnstileToken && !isDirectRelayer)
                                 ? 'opacity-80 cursor-not-allowed'
                                 : ''}"
                         >

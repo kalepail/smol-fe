@@ -1,0 +1,416 @@
+---
+const { id } = Astro.params;
+
+const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
+const AUDIO_PROXY_URL = import.meta.env.PUBLIC_AUDIO_PROXY_URL;
+
+let title = "Song not found";
+let artist = "Smol";
+let image_url = `${API_URL}/meta.png`;
+let song_url = "";
+let found = false;
+
+// Fetch song data
+if (id) {
+    try {
+        const res = await fetch(`${API_URL}/${id}`, {
+            headers: {
+                "User-Agent": "SmolBot/1.0",
+                "Accept": "application/json"
+            }
+        });
+        
+        if (res.ok) {
+            const data = await res.json();
+            if (data) {
+                found = true;
+                title = data.kv_do?.lyrics?.title || data.d1?.Title || "Untitled";
+                artist = data.d1?.Creator || data.d1?.Address?.slice(0, 8) || "Smol Artist";
+                
+                // Construct Image URL
+                image_url = `${API_URL}/image/${id}.png?scale=16`;
+                
+                // Construct Song URL
+                // Check if we have a valid song ID
+                const songId = data.d1?.Song_1 || data.kv_do?.songs?.[0]?.music_id;
+                if (songId) {
+                    // Use proxy if available, otherwise direct
+                    song_url = AUDIO_PROXY_URL 
+                        ? `${AUDIO_PROXY_URL}/audio/${songId}`
+                        : `${API_URL}/song/${songId}.mp3`;
+                }
+            }
+        }
+    } catch (e) {
+        console.error("Embed fetch failed:", e);
+    }
+}
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title} - {artist}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #d836ff;
+            --bg: #020617;
+            --text: #ffffff;
+            --font-pixel: 'Press Start 2P', monospace;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: var(--font-pixel), monospace;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .background-art {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            filter: blur(20px) brightness(0.4);
+            z-index: 1;
+            transform: scale(1.1); /* Prevent blur edges */
+        }
+
+        .main-content {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.6) 100%);
+        }
+
+        .art-container {
+            width: 180px;
+            height: 180px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .art {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .info {
+            text-align: center;
+            padding: 0 20px;
+            margin-bottom: 32px;
+            max-width: 100%;
+        }
+
+        .title {
+            font-weight: 400;
+            font-size: 14px;
+            margin-bottom: 12px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        .artist {
+            font-size: 10px;
+            color: rgba(255,255,255,0.8);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            font-weight: 400;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+
+        .play-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: none;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 20px rgba(216, 54, 255, 0.4);
+            z-index: 20;
+        }
+
+        .play-btn:hover {
+            transform: scale(1.1);
+            background: #e056ff;
+            box-shadow: 0 0 30px rgba(216, 54, 255, 0.6);
+        }
+
+        .play-btn:active {
+            transform: scale(0.95);
+        }
+
+        .icon {
+            width: 40px;
+            height: 40px;
+            fill: currentColor;
+            margin-left: 4px; /* Optical center for play icon */
+        }
+        
+        .icon-pause {
+            margin-left: 0;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Button bar */
+        .button-bar {
+            display: flex;
+            gap: 12px;
+            z-index: 20;
+            margin-top: 24px;
+        }
+
+        .embed-btn {
+            font-family: var(--font-pixel), monospace;
+            font-size: 8px;
+            padding: 10px 16px;
+            border: 2px solid var(--primary);
+            background: rgba(216, 54, 255, 0.2);
+            color: #fff;
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        
+        .embed-btn:hover {
+            background: var(--primary);
+            box-shadow: 0 0 15px rgba(216, 54, 255, 0.5);
+        }
+
+        /* Full Click Area for usability */
+        .click-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
+</head>
+<body>
+    {found && song_url ? (
+        <>
+            <!-- Blurred Background -->
+            <div class="background-art" style={`background-image: url('${image_url}')`}></div>
+
+            <div class="main-content">
+                <!-- Central Art -->
+                <div class="art-container">
+                    <img src={image_url} alt="Cover Art" class="art" crossorigin="anonymous" />
+                </div>
+
+                <!-- Info -->
+                <div class="info">
+                    <div class="title">{title}</div>
+                    <div class="artist">{artist}</div>
+                </div>
+
+                <!-- Big Play Button -->
+                <button class="play-btn" id="toggle" aria-label="Play">
+                    <!-- Play Icon -->
+                    <svg class="icon" id="icon-play" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z"/>
+                    </svg>
+                    <!-- Pause Icon -->
+                    <svg class="icon icon-pause hidden" id="icon-pause" viewBox="0 0 24 24">
+                        <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                    </svg>
+                    <!-- Loading Spinner -->
+                    <div class="spinner hidden" id="loading"></div>
+                </button>
+                
+                <!-- Button bar -->
+                <div class="button-bar">
+                    <a href={`https://smol.xyz/${id}`} target="_blank" class="embed-btn">Listen</a>
+                    <a href="https://smol.xyz" target="_blank" class="embed-btn">smol.xyz</a>
+                </div>
+            </div>
+            
+            <!-- Click overlay to toggle play when clicking anywhere on background -->
+            <div class="click-overlay" id="overlay-click"></div>
+
+            <audio id="audio" src={song_url} preload="metadata" crossorigin="anonymous"></audio>
+
+            <script>
+                const audio = document.getElementById('audio');
+                const toggle = document.getElementById('toggle');
+                const overlay = document.getElementById('overlay-click');
+                const iconPlay = document.getElementById('icon-play');
+                const iconPause = document.getElementById('icon-pause');
+                const loading = document.getElementById('loading');
+                
+                let isPlaying = false;
+                let isLoading = false;
+
+                function updateState() {
+                    if (isLoading) {
+                        iconPlay.classList.add('hidden');
+                        iconPause.classList.add('hidden');
+                        loading.classList.remove('hidden');
+                    } else if (isPlaying) {
+                        iconPlay.classList.add('hidden');
+                        iconPause.classList.remove('hidden');
+                        loading.classList.add('hidden');
+                    } else {
+                        iconPlay.classList.remove('hidden');
+                        iconPause.classList.add('hidden');
+                        loading.classList.add('hidden');
+                    }
+                }
+
+                function togglePlay() {
+                    if (audio.paused) {
+                        const playPromise = audio.play();
+                        
+                        if (audio.readyState < 3) {
+                            isLoading = true;
+                            updateState();
+                        }
+
+                        if (playPromise !== undefined) {
+                            playPromise
+                                .then(() => {
+                                    // Started
+                                })
+                                .catch(error => {
+                                    console.error("Playback failed:", error);
+                                    isLoading = false;
+                                    isPlaying = false;
+                                    updateState();
+                                });
+                        }
+                    } else {
+                        audio.pause();
+                    }
+                }
+
+                if (toggle) {
+                    toggle.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        togglePlay();
+                    });
+                    // Mobile touch support
+                    toggle.addEventListener('touchend', (e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        togglePlay();
+                    });
+                }
+                
+                if (overlay) {
+                    overlay.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        togglePlay();
+                    });
+                    // Mobile touch support  
+                    overlay.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        togglePlay();
+                    });
+                }
+
+                if (audio) {
+                    audio.addEventListener('play', () => {
+                        isPlaying = true;
+                        isLoading = false;
+                        updateState();
+                    });
+
+                    audio.addEventListener('pause', () => {
+                        isPlaying = false;
+                        isLoading = false;
+                        updateState();
+                    });
+
+                    audio.addEventListener('waiting', () => {
+                        isLoading = true;
+                        updateState();
+                    });
+
+                    audio.addEventListener('playing', () => {
+                        isLoading = false;
+                        updateState();
+                    });
+                    
+                    audio.addEventListener('ended', () => {
+                        isPlaying = false;
+                        audio.currentTime = 0;
+                        updateState();
+                    });
+
+                    // Check for autoplay param
+                    const urlParams = new URLSearchParams(window.location.search);
+                    if (urlParams.get('autoplay') === '1' || urlParams.get('auto_play') === 'true') {
+                        // Attempt autoplay (might be blocked by browser policy without interaction)
+                        togglePlay();
+                    }
+                }
+            </script>
+        </>
+    ) : (
+        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; color:rgba(255,255,255,0.5);">
+            <p style="margin-bottom: 8px;">Song not found</p>
+            <a href="/" target="_blank" style="color: #d836ff; font-size: 12px; text-decoration: none;">Go to smol.xyz</a>
+        </div>
+    )}
+</body>
+</html>

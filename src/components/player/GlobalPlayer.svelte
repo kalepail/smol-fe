@@ -266,19 +266,23 @@
                     style: undefined, // stylistic description can be long
                 }));
 
-                localStorage.setItem(
-                    "smol_global_data_v2",
-                    JSON.stringify({
-                        smols: lightSmols,
-                        timestamp: Date.now(),
-                    }),
-                );
+                const dataToSave = JSON.stringify({
+                    smols: lightSmols,
+                    timestamp: Date.now(),
+                });
+
+                // Clear old data first to free up space
+                localStorage.removeItem("smol_global_data_v2");
+                localStorage.setItem("smol_global_data_v2", dataToSave);
             } catch (storageErr) {
                 console.warn(
-                    "[GlobalPlayer] Cache full, clearing to ensure auth works:",
+                    "[GlobalPlayer] Cache write failed (quota exceeded?), continuing without cache:",
                     storageErr,
                 );
-                localStorage.removeItem("smol_global_data_v2");
+                // Ensure no partial data is left
+                try {
+                    localStorage.removeItem("smol_global_data_v2");
+                } catch (e) {}
             }
 
             // Auto-select first song if nothing playing

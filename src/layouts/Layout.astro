@@ -17,6 +17,7 @@ interface Props {
 	image_url?: string | null;
 	hideBottomBar?: boolean;
     schema?: any[]; // page-specific JSON-LD blocks
+	twitter_player?: string | null;
 }
 
 const {
@@ -25,7 +26,8 @@ const {
 	song_url = "https://api.smol.xyz/song/491bb94b-79df-41bb-b09b-2d295f1dfd05.mp3",
 	image_url,
 	hideBottomBar = false,
-    schema = []
+    schema = [],
+	twitter_player = null
 } = Astro.props;
 
 const siteOrigin = "https://noot.smol.xyz";
@@ -94,9 +96,14 @@ const fullSchema = [...siteSchema, ...schema];
         <meta name="keywords" content="AI music generator, AI songs, create music with AI, onchain music, crypto music, text to song, AI mixtape, Suno AI alternative, Udio alternative, make AI music" />
 		<link rel="canonical" href={canonical}>
 
+		{/* oEmbed discovery for Discord/social platforms */}
+		{twitter_player && (
+			<link rel="alternate" type="application/json+oembed" href={`${Astro.url.origin}/api/oembed?url=${encodeURIComponent(canonical)}`} title={title} />
+		)}
+
 		<meta property="og:title" content={title} />
 		<meta property="og:description" content={description} />
-		<meta property="og:type" content="music.song" />
+		<meta property="og:type" content={twitter_player ? "video.other" : "music.song"} />
 		<meta property="og:url" content={canonical} />
 		<meta property="og:site_name" content="Smol" />
 		<meta property="og:image" content={image_url ? `${image_url}?scale=16` : `${siteOrigin}/meta.png`} />
@@ -112,9 +119,20 @@ const fullSchema = [...siteSchema, ...schema];
 		
 		{song_url && (
 			<>
-				<meta name="twitter:player" content={song_url} />
-				<meta name="twitter:player:width" content="500" />
-				<meta name="twitter:player:height" content="80" />
+				<meta name="twitter:player" content={twitter_player || song_url} />
+				<meta name="twitter:player:width" content="480" />
+				<meta name="twitter:player:height" content="480" />
+			</>
+		)}
+
+		{/* Discord Video Embed - tricks Discord into showing iframe player */}
+		{twitter_player && (
+			<>
+				<meta property="og:video" content={twitter_player} />
+				<meta property="og:video:secure_url" content={twitter_player} />
+				<meta property="og:video:type" content="text/html" />
+				<meta property="og:video:width" content="480" />
+				<meta property="og:video:height" content="480" />
 			</>
 		)}
 

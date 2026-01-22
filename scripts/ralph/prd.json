@@ -79,6 +79,27 @@
                 "Ohloss adapter compiles and can be toggled via config",
                 "Policy hooks enforce Aquarius-only swap calls"
             ]
+        },
+        {
+            "id": "P0-UX-001",
+            "title": "Core music UX audit report (playback, loading, navigation)",
+            "priority": 0,
+            "passes": true,
+            "acceptanceCriteria": [
+                "Audit covers playback, data loading, and navigation flows",
+                "Report includes state machine, findings, patch plan, and quick wins"
+            ]
+        },
+        {
+            "id": "P0-TX-001",
+            "title": "Fix Stellar SDK XDR parsing for Channels relayer payloads",
+            "priority": 0,
+            "passes": true,
+            "acceptanceCriteria": [
+                "Uses TransactionBuilder.fromXDR for modern Stellar SDK parsing",
+                "Falls back to legacy network passphrase string",
+                "Channels payload generation no longer throws P.fromXDR errors"
+            ]
         }
     ]
 }

@@ -9,12 +9,41 @@ export const balanceState = $state<{
   xlmBalance: bigint | null;
   loading: boolean;
   lastUpdated: Date | null;
+  transactionLock: boolean; // Prevents concurrent balance updates during transactions
 }>({
   balance: null,
   xlmBalance: null,
   loading: false,
   lastUpdated: null,
+  transactionLock: false,
 });
+
+/**
+ * Acquire transaction lock to prevent concurrent balance updates
+ * Returns true if lock was acquired, false if already locked
+ */
+export function acquireTransactionLock(): boolean {
+  if (balanceState.transactionLock) {
+    console.warn('[Balance] Transaction already in progress, lock not acquired');
+    return false;
+  }
+  balanceState.transactionLock = true;
+  return true;
+}
+
+/**
+ * Release transaction lock
+ */
+export function releaseTransactionLock(): void {
+  balanceState.transactionLock = false;
+}
+
+/**
+ * Check if a transaction is currently in progress
+ */
+export function isTransactionInProgress(): boolean {
+  return balanceState.transactionLock;
+}
 
 /**
  * Update KALE balance for a given address
@@ -24,6 +53,13 @@ export async function updateContractBalance(address: string | null): Promise<voi
     balanceState.balance = null;
     return;
   }
+
+  // Skip update if transaction is in progress (will be updated after transaction completes)
+  if (balanceState.transactionLock) {
+    console.log('[Balance] Skipping balance update - transaction in progress');
+    return;
+  }
+
   balanceState.loading = true;
   try {
     const { result } = await kale.get().balance({ id: address });
@@ -45,6 +81,13 @@ export async function updateXlmBalance(address: string | null): Promise<void> {
     balanceState.xlmBalance = null;
     return;
   }
+
+  // Skip update if transaction is in progress (will be updated after transaction completes)
+  if (balanceState.transactionLock) {
+    console.log('[Balance] Skipping XLM balance update - transaction in progress');
+    return;
+  }
+
   try {
     const { result } = await xlm.get().balance({ id: address });
     balanceState.xlmBalance = result;
@@ -59,12 +102,23 @@ export async function updateXlmBalance(address: string | null): Promise<void> {
  * Update all balances (KALE + XLM) for a given address
  */
 export async function updateAllBalances(address: string | null): Promise<void> {
+  // Skip update if transaction is in progress
+  if (balanceState.transactionLock) {
+    console.log('[Balance] Skipping all balances update - transaction in progress');
+    return;
+  }
+
   balanceState.loading = true;
-  await Promise.all([
-    updateContractBalance(address),
-    updateXlmBalance(address),
-  ]);
-  balanceState.loading = false;
+  try {
+    await Promise.all([
+      updateContractBalance(address),
+      updateXlmBalance(address),
+    ]);
+  } catch (error) {
+    console.error('[Balance] Failed to update all balances:', error);
+  } finally {
+    balanceState.loading = false;
+  }
 }
 
 /**
@@ -96,4 +150,5 @@ export function resetBalance(): void {
   balanceState.xlmBalance = null;
   balanceState.loading = false;
   balanceState.lastUpdated = null;
+  balanceState.transactionLock = false;
 }

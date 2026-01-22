@@ -1,0 +1,4 @@
+Error: OZ Quote Error: 403 - {"message":"Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'C6qZFmWyro6WU4G79wn1abHECTbkeSRjBfJcAb2Wkuw='."}
+    at OZRelayerProvider.getSponsoredQuote (file:///C:/Users/Jeff/Mixtape%20Auto/smol-fe/scripts/swap-audit/providers/oz-relayer.js:46:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (file:///C:/Users/Jeff/Mixtape%20Auto/smol-fe/scripts/swap-audit/audit.js:167:34)

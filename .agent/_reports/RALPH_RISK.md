@@ -1,16 +1,17 @@
-# Ralph Risk Assessment: P1-1 (Passkey Migration) (Simulated)
+# Ralph Risk Report: Channels XDR Parsing Fix (2026-01-16)
 
-## Secrets Scan
-- [x] No `.env` files committed.
-- [x] No hardcoded keys in `package.json` or `passkey-kit.ts`.
-- [x] `wrangler.toml` uses var placeholders (checked visually).
+## Change Summary
+- Updated relayer Channels payload parsing to use `TransactionBuilder.fromXDR` with a fallback to the legacy public network passphrase string.
 
-## Critical Config Changes
-- **Removed**: Launchtube references.
-- **Added**: `passkey-kit` v0.12.0 (relies on OZ Relayer).
-- **Risk**: If `PUBLIC_CHANNELS_BASE_URL` is unset, tx submission will fail.
-  - Mitigation: `passkey-kit.ts` defaults to `https://channels.openzeppelin.com`.
+## Risks & Mitigations
+- **Risk**: Incorrect parsing of fee-bump transactions could lead to missing operations.
+  - **Mitigation**: Use inner transaction operations when present; keep existing single-operation validation.
+- **Risk**: Incorrect network passphrase could still fail parsing for some wallets.
+  - **Mitigation**: Try `Networks.PUBLIC` first, then fall back to the legacy string.
+- **Risk**: User-facing error clarity.
+  - **Mitigation**: Provide explicit error text advising refresh or alternate wallet.
 
-## Rollback Plan
-- Revert `package.json` to `0.11.3`.
-- Revert `passkey-kit.ts`.
+## Checks Performed
+- `pnpm run build` (pass)
+- `pnpm test` (pass)
+- `pnpm run check` (fails due to pre-existing repo type errors)

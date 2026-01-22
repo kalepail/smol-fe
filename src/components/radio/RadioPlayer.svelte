@@ -145,11 +145,11 @@
   }
 
   function handleRegenerate() {
-    if (currentSong) {
+    if (onRegenerate) {
+      onRegenerate();
+    } else if (currentSong) {
       const url = buildRadioUrl(currentSong);
       navigate(url);
-    } else if (onRegenerate) {
-      onRegenerate();
     }
   }
 

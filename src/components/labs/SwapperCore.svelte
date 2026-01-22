@@ -35,6 +35,23 @@
         buildXBullTransaction,
     } from "../../utils/xbull-api";
 
+    // --- DEBUG LOGIC ---
+    const isPagesDev =
+        typeof window !== "undefined" &&
+        window.location.hostname.includes("pages.dev");
+    const isLocalhost =
+        typeof window !== "undefined" &&
+        window.location.hostname.includes("localhost");
+    const hasApiKey = !!import.meta.env.PUBLIC_RELAYER_API_KEY;
+    const isDirectRelayer = (isPagesDev || isLocalhost) && hasApiKey;
+
+    console.log("[Swapper Debug]", {
+        isDirectRelayer,
+        isPagesDev,
+        isLocalhost,
+        hasApiKey,
+    });
+
     // --- TYPES ---
     type AppState = "intro" | "transition" | "main";
     type Mode = "swap" | "send";
@@ -334,9 +351,10 @@
             return;
         }
 
-        // Require either Turnstile token OR fallback mode
+        // Require either Turnstile token OR fallback mode OR ensure Direct Relayer
         const useFallback = turnstileFailed && !turnstileToken;
-        if (!turnstileToken && !useFallback) {
+        // If Direct Relayer, we don't need a token
+        if (!turnstileToken && !useFallback && !isDirectRelayer) {
             statusMessage = "Complete verification first";
             return;
         }
@@ -600,9 +618,9 @@
             return;
         }
 
-        // Require Turnstile or fallback
+        // Require Turnstile or fallback or Direct Relayer
         const useFallback = turnstileFailed && !turnstileToken;
-        if (!turnstileToken && !useFallback) {
+        if (!turnstileToken && !useFallback && !isDirectRelayer) {
             statusMessage = "Complete verification first";
             return;
         }
@@ -753,6 +771,33 @@
                     class="bg-[#0f172a]/60 w-8 h-8 flex items-center justify-center rounded-lg border border-[#1e293b] text-[#64748b] hover:text-[#7dd3fc] hover:border-[#7dd3fc]/50 hover:bg-[#1e293b] transition-all text-xs backdrop-blur-sm"
                     >↻</button
                 >
+            </div>
+
+            <!-- DEBUG: Relayer Mode Indicator -->
+            <div
+                class="fixed bottom-0 right-0 p-2 text-[10px] bg-black/90 backdrop-blur border-t border-l border-lime-400/20 text-lime-400 font-mono z-[10000] text-right pointer-events-none opacity-80 hover:opacity-100 transition-opacity"
+            >
+                <div>SWAPPER RELAYER MODE</div>
+                <div>
+                    MODE: {isDirectRelayer
+                        ? "DIRECT (BYPASS)"
+                        : "PROXY (TURNSTILE)"}
+                </div>
+                <div>
+                    HOST: {typeof window !== "undefined"
+                        ? window.location.hostname
+                        : "SERVER"}
+                </div>
+                <div>KEY: {hasApiKey ? "PRESENT" : "MISSING"}</div>
+                <div>IS_DEV: {isPagesDev || isLocalhost ? "YES" : "NO"}</div>
+                <div>
+                    CFG_URL: {import.meta.env.PUBLIC_RELAYER_URL || "N/A"}
+                </div>
+                <div>
+                    TARGET: {isDirectRelayer
+                        ? "channels.openzeppelin.com"
+                        : "api.kalefarm.xyz"}
+                </div>
             </div>
 
             <!-- GLASS CARD (Moonlight) -->
@@ -953,7 +998,7 @@
                     {/if}
 
                     <!-- Turnstile Verification (for swap mode) -->
-                    {#if mode === "swap" && quote && !turnstileToken && !turnstileFailed}
+                    {#if mode === "swap" && quote && !turnstileToken && !turnstileFailed && !isDirectRelayer}
                         <div
                             class="flex justify-center -mb-2 scale-90 origin-center"
                         >
@@ -1003,7 +1048,8 @@
                             (mode === "swap" &&
                                 quote &&
                                 !turnstileToken &&
-                                !turnstileFailed)}
+                                !turnstileFailed &&
+                                !isDirectRelayer)}
                     >
                         {#if swapState === "submitting"}
                             {mode === "swap" ? "Swapping..." : "Sending..."}

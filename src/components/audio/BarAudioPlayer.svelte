@@ -76,20 +76,33 @@
     }
 
     if (currentSong && playingId === currentSong.Id) {
+      if (audioState.playIntentId && audioState.playIntentId !== currentSong.Id) {
+        return;
+      }
       // Prevent redundant play() calls that cause glitches on iOS
       if (!audio.paused) return;
       // Should be playing
+      audioState.playIntentId = currentSong.Id;
+      audioState.isBuffering = true;
       const playPromise = audio.play();
       if (playPromise !== undefined) {
-        playPromise.catch((error) => {
+        playPromise.catch((error: unknown) => {
           console.error("Error playing audio:", error);
-          // Reset playing state on error
-          audioState.playingId = null;
+          // Preserve intent on autoplay restrictions so we can resume later
+          if (error instanceof DOMException && error.name === "NotAllowedError") {
+            audioState.wasInterrupted = true;
+          } else {
+            // Reset playing state on hard errors
+            audioState.playingId = null;
+          }
+          audioState.playIntentId = null;
+          audioState.isBuffering = false;
         });
       }
     } else {
       // Should be paused
       audio.pause();
+      audioState.isBuffering = false;
     }
   });
 
@@ -608,6 +621,12 @@
           <h3 class="text-white font-medium leading-5">
             {audioState.currentSong.Title}
           </h3>
+          {#if audioState.isBuffering}
+            <div class="flex items-center gap-2 text-xs text-white/60">
+              <span class="inline-flex h-2 w-2 rounded-full bg-white/70 animate-pulse"></span>
+              Buffering…
+            </div>
+          {/if}
         </div>
       </div>
 
@@ -674,30 +693,25 @@
         audioState.audioElement.currentTime = targetTime;
       }
     }
-
-    if (
-      audioState.currentSong &&
-      audioState.playingId === audioState.currentSong.Id &&
-      audioState.audioElement
-    ) {
-      const playPromise = audioState.audioElement.play();
-      if (playPromise !== undefined) {
-        playPromise.catch((error) => {
-          console.error("Error playing audio on load:", error);
-          // Don't clear playingId if it's an auto-play restriction
-          // This preserves the "Intent to Play" so we can resume when the car connects
-          if (error.name === "NotAllowedError") {
-            console.log(
-              "[Audio] Auto-play blocked. Preserving state and entering interrupted mode.",
-            );
-            audioState.wasInterrupted = true;
-            // We can't access startResumePolling here easily because it's inside onMount closure
-            // But setting wasInterrupted is enough for the effect hooks to pick it up later
-          } else {
-            audioState.playingId = null;
-          }
-        });
-      }
-    }
+  }}
+  onwaiting={() => {
+    audioState.isBuffering = true;
+  }}
+  onstalled={() => {
+    audioState.isBuffering = true;
+  }}
+  onplaying={() => {
+    audioState.isBuffering = false;
+    audioState.playIntentId = null;
+  }}
+  oncanplay={() => {
+    audioState.isBuffering = false;
+  }}
+  onpause={() => {
+    audioState.isBuffering = false;
+  }}
+  onerror={() => {
+    audioState.isBuffering = false;
+    audioState.playIntentId = null;
   }}
 ></audio>

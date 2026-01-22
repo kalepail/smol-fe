@@ -42,3 +42,18 @@ All stories: PASSED ✅
 
 
 
+
+[2026-01-16 01:05] - P0-UX-001 (COMPLETE)
+Thread: Music UX audit
+	•	Added core product audit report with playback state machine, findings, patch plan, and quick wins.
+	•	Documented incremental fixes focused on buffering, retries, and playback gating.
+
+[2026-01-16 01:32] - P0-UX-001 (IMPLEMENTATION)
+Thread: Playback buffering + play gating
+	•	Added buffering state and play intent gating to reduce duplicate play calls.
+	•	Added lightweight buffering indicator in the global player.
+
+[2026-01-16 02:15] - P0-TX-001 (COMPLETE)
+Thread: Stellar SDK XDR parsing fix for Channels relayer
+	•	Switched Channels XDR parsing to TransactionBuilder.fromXDR with fallback passphrase handling.
+	•	Added clearer error handling when parsing fails to prepare payloads.

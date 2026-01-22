@@ -7,16 +7,34 @@ export const GET: APIRoute = async ({ params, request }) => {
         return new Response('Missing audio ID', { status: 400 });
     }
 
-    // Input Validation: Ensure ID is alphanumeric/dash only to prevent traversal/injection
-    const safeId = id.replace(/[^a-zA-Z0-9-]/g, '');
-    if (safeId !== id || safeId.length > 64) {
+    // Bot detection for social previews
+    // If a bot requests the audio directly, redirect to the song page to show the player card
+    const ua = request.headers.get('user-agent')?.toLowerCase() || '';
+    const isBot = /bot|facebook|twitter|discord|telegram|whatsapp|slack/i.test(ua);
+
+    // Clean ID: remove .mp3 extension if present, then sanitize
+    const rawId = id.endsWith('.mp3') ? id.slice(0, -4) : id;
+    const safeId = rawId.replace(/[^a-zA-Z0-9-]/g, '');
+
+    if (isBot) {
+        // Redirect bots to the main song page which has the meta tags
+        const siteUrl = import.meta.env.PUBLIC_URL || 'https://noot.smol.xyz';
+        return new Response(null, {
+            status: 302,
+            headers: {
+                'Location': `${siteUrl}/${safeId}`
+            }
+        });
+    }
+
+    if (safeId !== rawId || safeId.length > 64) {
         return new Response('Invalid ID format', { status: 400 });
     }
 
     // Construct upstream URL (defaulting to api.smol.xyz if env not set)
     // Note: We use the .mp3 extension as that's what the backend expects
     const baseUrl = import.meta.env.PUBLIC_API_URL || 'https://api.smol.xyz';
-    const upstreamUrl = `${baseUrl}/song/${id}.mp3`;
+    const upstreamUrl = `${baseUrl}/song/${safeId}.mp3`;
 
     try {
         // CRITICAL for Chromecast: Forward Range header if present

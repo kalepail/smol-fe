@@ -1,18 +1,28 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { fade, scale } from "svelte/transition";
-    import { account, kale, send } from "../../utils/passkey-kit";
-    import { getLatestSequence, truncate } from "../../utils/base";
-    import { userState } from "../../stores/user.svelte";
+    import { kale } from "../../utils/passkey-kit";
+    import { truncate } from "../../utils/base";
+    import { userState, ensureWalletConnected } from "../../stores/user.svelte";
     import { unlockUpgrade } from "../../stores/upgrades.svelte";
     import { Turnstile } from "svelte-turnstile";
     import {
         balanceState,
-        updateContractBalance,
+        isTransactionInProgress,
     } from "../../stores/balance.svelte";
-    import { getSafeRpId } from "../../utils/domains";
     import { StrKey } from "@stellar/stellar-sdk";
     import Loader from "../ui/Loader.svelte";
+    import { executeTransfer } from "../../utils/transaction-executor";
+    import {
+        parseAndValidateAmount,
+        validateAddress,
+        validateSufficientBalance,
+    } from "../../utils/transaction-validation";
+    import {
+        turnstileManager,
+        getValidTurnstileToken,
+    } from "../../utils/turnstile-manager";
+    import { wrapError, type SmolError } from "../../utils/errors";
 
     let {
         artistAddress,
@@ -31,6 +41,7 @@
     let kaleDecimals = $state(7);
     let decimalsFactor = $state(10n ** 7n);
     let turnstileToken = $state("");
+    let turnstileExpired = $state(false);
 
     // Lock address at mount time to prevent reactive changes mid-transaction
     let lockedArtistAddress = $state("");
@@ -51,6 +62,15 @@
             return;
         }
 
+        // Ensure wallet is connected before attempting any transactions
+        try {
+            await ensureWalletConnected();
+        } catch (err) {
+            console.error("Failed to connect wallet", err);
+            // The ensureWalletConnected function will auto-clear auth if connection fails
+            // so we don't need to do anything here
+        }
+
         try {
             const { result } = await kale.get().decimals();
             kaleDecimals = Number(result);
@@ -62,129 +82,129 @@
             decimalsFactor = 10n ** 7n;
         }
 
-        if (userState.contractId) {
-            await updateContractBalance(userState.contractId);
+        // Initialize balance state (but don't update if transaction in progress)
+        if (userState.contractId && !isTransactionInProgress()) {
+            try {
+                const { updateContractBalance } = await import("../../stores/balance.svelte");
+                await updateContractBalance(userState.contractId);
+            } catch (err) {
+                console.warn("Failed to load initial balance:", err);
+            }
         }
     });
 
-    function parseAmount(value: string | number): bigint | null {
-        const sanitized = String(value).trim().replace(/,/g, "");
-        if (!sanitized) return null;
+    // Turnstile token management
+    function handleTurnstileCallback(token: string) {
+        turnstileToken = token;
+        turnstileExpired = false;
+        turnstileManager.setToken(token);
+        console.log("[TipModal] Turnstile token received");
+    }
 
-        try {
-            // Handle decimals by splitting and padding
-            const [integerPart, fractionalPart = ""] = sanitized.split(".");
-            if (
-                !/^\d+$/.test(integerPart) ||
-                (fractionalPart && !/^\d+$/.test(fractionalPart))
-            ) {
-                return null;
-            }
-
-            const integerBig = BigInt(integerPart) * decimalsFactor;
-
-            // Pad or truncate fractional part to match decimals
-            let fractionBig = 0n;
-            if (fractionalPart) {
-                const paddedFraction = fractionalPart
-                    .padEnd(kaleDecimals, "0")
-                    .slice(0, kaleDecimals);
-                fractionBig = BigInt(paddedFraction);
-            }
-
-            const total = integerBig + fractionBig;
-            if (total <= 0n) return null;
-            return total;
-        } catch (err) {
-            return null;
-        }
+    function handleTurnstileExpired() {
+        turnstileToken = "";
+        turnstileExpired = true;
+        turnstileManager.clearToken();
+        console.warn("[TipModal] Turnstile token expired");
     }
 
     async function handleSend() {
         error = null;
         success = null;
 
+        // Check for authentication
         if (!userState.contractId || !userState.keyId) {
             error = "Please connect your wallet first.";
             return;
         }
 
-        if (!isValidArtistAddress) {
-            error = "Enter a valid recipient address.";
+        // Check if another transaction is in progress
+        if (isTransactionInProgress()) {
+            error = "Another transaction is in progress. Please wait.";
             return;
         }
 
-        const amountInUnits = parseAmount(amount);
-        if (!amountInUnits) {
-            error = "Enter a valid whole number amount.";
-            return;
-        }
-
-        const currentBalance = balanceState.balance;
-        if (
-            typeof currentBalance === "bigint" &&
-            amountInUnits > currentBalance
-        ) {
-            error = "Insufficient balance.";
-            return;
-        }
-
-        if (!turnstileToken) {
-            error = "Please complete the CAPTCHA.";
+        // Ensure wallet is connected before attempting to sign
+        try {
+            await ensureWalletConnected();
+        } catch (err) {
+            error = "Failed to connect wallet. Please try logging in again.";
             return;
         }
 
         submitting = true;
+
         try {
-            // Final guard: ensure locked address is still valid before transaction
-            if (
-                !lockedArtistAddress ||
-                (!StrKey.isValidEd25519PublicKey(lockedArtistAddress) &&
-                    !StrKey.isValidContract(lockedArtistAddress))
-            ) {
-                error = "Recipient address is invalid. Please try again.";
-                submitting = false;
+            // Validate recipient address
+            validateAddress(lockedArtistAddress, "Recipient address");
+
+            // Parse and validate amount
+            const amountInUnits = parseAndValidateAmount(amount, kaleDecimals);
+
+            // Validate sufficient balance
+            validateSufficientBalance(amountInUnits, balanceState.balance, "Amount");
+
+            // Validate turnstile token
+            const validToken = getValidTurnstileToken();
+            if (!validToken) {
+                if (turnstileExpired) {
+                    error = "CAPTCHA expired. Please complete it again.";
+                } else {
+                    error = "Please complete the CAPTCHA.";
+                }
                 return;
             }
 
-            let tx = await kale.get().transfer({
+            // Execute transfer using optimized transaction executor
+            const result = await executeTransfer({
                 from: userState.contractId,
                 to: lockedArtistAddress,
                 amount: amountInUnits,
+                turnstileToken: validToken,
+                kaleClient: kale.get(),
+                onSuccess: () => {
+                    // Secret Store Unlock Logic
+                    const amountNum = parseFloat(amount.replace(/,/g, ""));
+                    const adminAddress =
+                        "CBNORBI4DCE7LIC42FWMCIWQRULWAUGF2MH2Z7X2RNTFAYNXIACJ33IM";
+
+                    if (lockedArtistAddress === adminAddress) {
+                        if (amountNum === 100000) {
+                            unlockUpgrade("premiumHeader");
+                            success = `Sent ${amount} KALE! Premium Profile Header Unlocked! 🥬✨`;
+                        } else if (amountNum === 69420.67) {
+                            unlockUpgrade("goldenKale");
+                            success = `Sent ${amount} KALE! The Golden Kale Unlocked! 🪙🥬`;
+                        } else {
+                            success = `Sent ${amount} KALE to ${artistName}!`;
+                        }
+                    } else {
+                        success = `Sent ${amount} KALE to ${artistName}!`;
+                    }
+                },
+                onError: (txError: SmolError) => {
+                    error = txError.getUserFriendlyMessage();
+                },
             });
 
-            const sequence = await getLatestSequence();
-            tx = await account.get().sign(tx, {
-                rpId: getSafeRpId(window.location.hostname),
-                keyId: userState.keyId,
-                expiration: sequence + 60,
-            });
-
-            await send(tx, turnstileToken);
-            await updateContractBalance(userState.contractId);
-
-            // Secret Store Unlock Logic
-            const amountNum = parseFloat(amount.replace(/,/g, ""));
-            const adminAddress =
-                "CBNORBI4DCE7LIC42FWMCIWQRULWAUGF2MH2Z7X2RNTFAYNXIACJ33IM";
-
-            if (lockedArtistAddress === adminAddress) {
-                if (amountNum === 100000) {
-                    unlockUpgrade("premiumHeader");
-                    success = `Sent ${amount} KALE! Premium Profile Header Unlocked! 🥬✨`;
-                } else if (amountNum === 69420.67) {
-                    unlockUpgrade("goldenKale");
-                    success = `Sent ${amount} KALE! The Golden Kale Unlocked! 🪙🥬`;
-                } else {
-                    success = `Sent ${amount} KALE to ${artistName}!`;
-                }
-            } else {
-                success = `Sent ${amount} KALE to ${artistName}!`;
+            if (result.success) {
+                amount = "";
+                console.log("[TipModal] Transfer successful:", result.transactionHash);
+            } else if (result.error) {
+                // Error already set in onError callback
+                console.error("[TipModal] Transfer failed:", result.error);
             }
-            amount = "";
+
         } catch (err: any) {
-            console.error("Tip failed", err);
-            error = err.message || "Failed to send tip.";
+            console.error("[TipModal] Transfer error:", err);
+
+            // Use typed error if available
+            if (err.name === 'SmolError') {
+                error = err.getUserFriendlyMessage();
+            } else {
+                const wrappedError = wrapError(err, "Failed to send tip");
+                error = wrappedError.getUserFriendlyMessage();
+            }
         } finally {
             submitting = false;
         }
@@ -321,10 +341,10 @@
                     <Turnstile
                         siteKey={import.meta.env.PUBLIC_TURNSTILE_SITE_KEY}
                         on:callback={(e) => {
-                            turnstileToken = e.detail.token;
+                            handleTurnstileCallback(e.detail.token);
                         }}
                         on:expired={() => {
-                            turnstileToken = "";
+                            handleTurnstileExpired();
                         }}
                         theme="dark"
                     />
