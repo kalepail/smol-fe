@@ -2,18 +2,14 @@ import {
   Contract,
   TransactionBuilder,
   Networks,
-  BASE_FEE,
   xdr,
   Address,
   nativeToScVal,
-  TimeoutInfinite,
   Account
 } from '@stellar/stellar-sdk';
-import { getSafeRpId } from '../utils/domains';
-import { getLatestSequence } from '../utils/base';
-import { account, send, sac } from '../utils/passkey-kit';
 import type { QuoteResponse, RawTrade, RawTradeDistribution } from '../utils/soroswap';
 import { AGGREGATOR_CONTRACT } from '../utils/soroswap';
+import { signAndSend } from '../utils/transaction-helpers';
 
 // NULL_ACCOUNT for building unsigned transactions (relayer will rewrap)
 const NULL_ACCOUNT = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF";
@@ -127,19 +123,14 @@ export function useTradeExecution() {
     console.log('[executeSwap] Quote:', quote);
 
     // 2. Parse Trade info
-    // Accessing `rawTrade` which we know exists from our API response structure
     const rawTrade = quote.rawTrade as RawTrade;
     if (!rawTrade || !rawTrade.distribution) {
       throw new Error('Invalid quote: missing distribution');
     }
 
     // 3. Build Transaction Logic
-
-    // minAmountOut is typically a string in stroops (integer) in the rawTrade object
     const minAmountOut = BigInt(rawTrade.amountOutMin || '0');
-
     const distributionScVal = routePlanToDistributionScVal(rawTrade.distribution);
-
     const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600); // 1 hour
 
     const contract = new Contract(AGGREGATOR_CONTRACT);
@@ -155,8 +146,6 @@ export function useTradeExecution() {
 
     // Use NULL_ACCOUNT as source - the relayer will rewrap with its funded account
     const sourceAccount = new Account(NULL_ACCOUNT, "0");
-
-    // Network Passphrase
     const networkPassphrase = import.meta.env.PUBLIC_NETWORK_PASSPHRASE || Networks.PUBLIC;
 
     const tx = new TransactionBuilder(sourceAccount, {
@@ -167,16 +156,16 @@ export function useTradeExecution() {
       .setTimeout(300) // 5 Minutes (per Ohloss spec)
       .build();
 
-    // 4. Sign with Passkey (adds Auth entries)
-    // We use the same expiration/rpId logic as before
-    const signedTx = await account.get().sign(tx, {
-      rpId: getSafeRpId(window.location.hostname),
+    // 4. Sign and send with unified helper
+    const result = await signAndSend(tx, {
       keyId: userKeyId,
-      expiration: await getLatestSequence() + 60,
+      turnstileToken,
+      useLock: false, // Swaps don't modify KALE balance directly
     });
 
-    // 5. Send via Relayer
-    await send(signedTx, turnstileToken);
+    if (!result.success) {
+      throw new Error(result.error || 'Swap failed');
+    }
 
     return minAmountOut;
   }

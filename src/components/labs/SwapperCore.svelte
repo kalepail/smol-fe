@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { account, sac, kale, xlm, send } from "../../utils/passkey-kit";
+    import { account, sac, kale, xlm } from "../../utils/passkey-kit";
     import { onMount, tick } from "svelte";
     import { getSafeRpId } from "../../utils/domains";
     import { Buffer } from "buffer";
@@ -16,6 +16,7 @@
         buildSwapTransactionForCAddress,
         isCAddress,
     } from "../../utils/swap-builder";
+    import { getLatestSequence } from "../../utils/base";
     import {
         userState,
         setUserAuth,
@@ -25,9 +26,9 @@
         balanceState,
         updateAllBalances,
     } from "../../stores/balance.svelte";
+    import { signSendAndVerify } from "../../utils/transaction-helpers";
     import KaleEmoji from "../ui/KaleEmoji.svelte";
     import { Turnstile } from "svelte-turnstile";
-    import { getLatestSequence, pollTransaction } from "../../utils/base";
     import { Transaction, Networks } from "@stellar/stellar-sdk/minimal";
 
     import {
@@ -477,78 +478,42 @@
                             userState.contractId ?? undefined,
                     });
                 }
-                const sequence = await getLatestSequence();
-
-                // Wrap XDR in Transaction object for kit.sign (minimal SDK)
+                // Wrap XDR in Transaction object for signing (minimal SDK)
                 const tx = new Transaction(
                     transactionXDR,
                     import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
                 );
 
-                signedTx = await kit.sign(tx, {
-                    rpId: getSafeRpId(window.location.hostname),
-                    keyId: userState.keyId,
-                    expiration: sequence + 60,
-                });
+                signedTx = tx;
             }
 
-            // 3. Submit transaction with timeout recovery
+            // 3. Submit transaction with unified helper (includes timeout recovery)
             swapState = "submitting";
 
-            // Calculate txHash BEFORE submission for recovery polling
-            const builtTx = signedTx.built;
-            const calculatedHash = builtTx?.hash().toString("hex");
-            console.log(
-                "[SwapperCore] Calculated txHash before submit:",
-                calculatedHash,
-            );
-
             let result;
+            let txResult;
             if (useFallback) {
                 // Fallback: Direct to Soroswap (user pays XLM fee)
                 statusMessage = "Submitting via Soroswap...";
                 result = await sendTransaction(signedTx.toXDR(), false);
             } else {
-                // Primary: Tyler's relayer (sponsored fees) with timeout recovery
+                // Primary: Tyler's relayer (sponsored fees) with automatic timeout recovery
                 statusMessage = "Submitting swap...";
-                try {
-                    result = await send(signedTx, turnstileToken);
 
-                    // Even on success, verify ledger state
-                    if (calculatedHash) {
-                        console.log(
-                            "[SwapperCore] Verifying tx on network:",
-                            calculatedHash,
-                        );
-                        await pollTransaction(calculatedHash);
-                    }
-                } catch (submitErr) {
-                    console.warn(
-                        "[SwapperCore] Relayer timeout/error, attempting recovery...",
-                        submitErr,
-                    );
+                txResult = await signSendAndVerify(signedTx, {
+                    keyId: userState.keyId,
+                    turnstileToken,
+                    useLock: false, // Swaps don't modify KALE balance state directly
+                });
 
-                    // Timeout Recovery: If relayer timed out (30s), it might still be processing.
-                    // Poll the network directly to see if it landed.
-                    if (calculatedHash) {
-                        statusMessage = "Verifying transaction...";
-                        console.log(
-                            "[SwapperCore] Recovery polling for:",
-                            calculatedHash,
-                        );
-                        await pollTransaction(calculatedHash);
-                        console.log(
-                            "[SwapperCore] Recovery successful:",
-                            calculatedHash,
-                        );
-                        result = { hash: calculatedHash };
-                    } else {
-                        throw submitErr; // Can't recover without hash
-                    }
+                if (!txResult.success) {
+                    throw new Error(txResult.error || 'Swap submission failed');
                 }
+
+                result = txResult.result;
             }
 
-            txHash = result?.hash || calculatedHash || "submitted";
+            txHash = result?.hash || txResult?.transactionHash || "submitted";
             swapState = "confirmed";
             statusMessage = useFallback
                 ? "Swap complete! (paid fee)"
@@ -647,6 +612,7 @@
             }
 
             // Sign with passkey
+            // Ensure wallet is connected
             const kit = account.get();
             if (!kit.wallet) {
                 console.log(
@@ -660,46 +626,24 @@
                 });
             }
 
-            const sequence = await getLatestSequence();
-            const signedTx = await kit.sign(tx, {
-                rpId: getSafeRpId(window.location.hostname),
-                keyId: userState.keyId,
-                expiration: sequence + 60,
-            });
-
-            // Submit with timeout recovery
+            // Submit with unified helper (includes signing, submission, and timeout recovery)
             swapState = "submitting";
             statusMessage = "Submitting transfer...";
 
-            const calculatedHash = signedTx.built?.hash().toString("hex");
-            console.log("[SwapperCore] Send txHash:", calculatedHash);
+            const sendResult = await signSendAndVerify(tx, {
+                keyId: userState.keyId,
+                turnstileToken,
+                updateBalance: true, // Update balance after transfer
+                contractId: userState.contractId,
+                useLock: true, // Prevent concurrent transfers
+            });
 
-            try {
-                await send(signedTx, turnstileToken);
-
-                if (calculatedHash) {
-                    console.log(
-                        "[SwapperCore] Send: Verifying tx:",
-                        calculatedHash,
-                    );
-                    await pollTransaction(calculatedHash);
-                }
-            } catch (submitErr) {
-                console.warn(
-                    "[SwapperCore] Send: Relayer error, attempting recovery...",
-                    submitErr,
-                );
-                if (calculatedHash) {
-                    statusMessage = "Verifying transfer...";
-                    await pollTransaction(calculatedHash);
-                    console.log(
-                        "[SwapperCore] Send: Recovery successful:",
-                        calculatedHash,
-                    );
-                } else {
-                    throw submitErr;
-                }
+            if (!sendResult.success) {
+                throw new Error(sendResult.error || 'Transfer failed');
             }
+
+            const calculatedHash = sendResult.transactionHash;
+            console.log("[SwapperCore] Send txHash:", calculatedHash);
 
             txHash = calculatedHash || "submitted";
             swapState = "confirmed";

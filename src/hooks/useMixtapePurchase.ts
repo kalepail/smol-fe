@@ -1,9 +1,14 @@
 import { Client as SmolClient } from 'smol-sdk';
-import { getSafeRpId } from '../utils/domains';
 import type { Smol } from '../types/domain';
-import { getLatestSequence, pollTransaction } from '../utils/base';
-import { account, send } from '../utils/passkey-kit';
 import { RPC_URL } from '../utils/rpc';
+import {
+  signSendAndVerify,
+  type GetFreshTokenCallback,
+  type SignAndSendResult,
+} from '../utils/transaction-helpers';
+import { account } from '../utils/passkey-kit';
+
+type SignableTransaction = Parameters<ReturnType<typeof account.get>['sign']>[0];
 
 interface PurchaseBatchParams {
   tokensOut: string[];
@@ -15,7 +20,16 @@ interface PurchaseBatchParams {
 }
 
 export function useMixtapePurchase() {
-  async function purchaseBatch(params: PurchaseBatchParams): Promise<void> {
+  /**
+   * Purchase a batch of tokens with timeout recovery
+   *
+   * Uses unified signSendAndVerify helper which automatically:
+   * - Signs the transaction
+   * - Submits to relayer
+   * - Verifies on network
+   * - Recovers from timeouts by polling network directly
+   */
+  async function purchaseBatch(params: PurchaseBatchParams): Promise<SignAndSendResult> {
     const { tokensOut, cometAddresses, smolContractId, userContractId, userKeyId, turnstileToken } = params;
 
     const costPerToken = 33_0000000n; // 33 KALE per token
@@ -35,44 +49,20 @@ export function useMixtapePurchase() {
       fee_recipients: undefined,
     });
 
-    const sequence = await getLatestSequence();
-    await account.get().sign(tx, {
-      rpId: getSafeRpId(window.location.hostname),
+    // Sign, send, and verify with automatic timeout recovery
+    return await signSendAndVerify(tx, {
       keyId: userKeyId,
-      expiration: sequence + 60,
+      turnstileToken,
+      // Don't use lock - batches are sequential already
+      useLock: false,
     });
-
-    // Log the XDR for inspection
-    const xdrString = tx.built?.toXDR();
-    const txHash = tx.built?.hash().toString('hex');
-
-    if (tx.built) {
-      console.log("Purchase Tx Hash:", txHash);
-    }
-
-    try {
-      // Submit transaction via passkey server
-      await send(tx, turnstileToken);
-
-      // Even on success, poll to ensure ledger state is ready for next batch
-      if (txHash) {
-        console.log(`[Batch] Verifying ${txHash}...`);
-        await pollTransaction(txHash);
-      }
-    } catch (e: any) {
-      console.warn("Relayer submission error/timeout, attempting recovery via polling...", e);
-      // Timeout Recovery: If relayer timed out (30s), it might still be processing.
-      // We poll the network directly to see if it landed.
-      if (txHash) {
-        console.log(`[Batch] Recovery polling for ${txHash}...`);
-        await pollTransaction(txHash);
-        console.log(`[Batch] Recovery successful: ${txHash}`);
-      } else {
-        throw e; // Can't recover without hash
-      }
-    }
   }
 
+  /**
+   * Purchase tracks in batches of 3 with automatic Turnstile token refresh
+   *
+   * Uses processChunksWithRetry for consistent batch processing
+   */
   async function purchaseTracksInBatches(
     mixtapeTracks: Smol[],
     tokensOut: string[],
@@ -81,7 +71,7 @@ export function useMixtapePurchase() {
     userKeyId: string,
     turnstileToken: string,
     onBatchComplete: (trackIds: string[]) => void,
-    getFreshToken?: () => Promise<string>
+    getFreshToken?: GetFreshTokenCallback
   ): Promise<void> {
     const BATCH_SIZE = 3;
 
@@ -106,18 +96,18 @@ export function useMixtapePurchase() {
       }
     }
 
+    // Create chunks
     const chunks: Array<typeof tokenData> = [];
     for (let i = 0; i < tokenData.length; i += BATCH_SIZE) {
       chunks.push(tokenData.slice(i, i + BATCH_SIZE));
     }
-
 
     // Process each chunk sequentially
     for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
       const chunk = chunks[chunkIndex];
       let currentToken = turnstileToken;
 
-      // If this is a subsequent batch, we need a fresh token
+      // Get fresh token for subsequent batches
       if (chunkIndex > 0 && getFreshToken) {
         try {
           currentToken = await getFreshToken();
@@ -131,7 +121,7 @@ export function useMixtapePurchase() {
         const tokensOutChunk = chunk.map((d) => d.token);
         const cometAddressesChunk = chunk.map((d) => d.comet);
 
-        await purchaseBatch({
+        const result = await purchaseBatch({
           tokensOut: tokensOutChunk,
           cometAddresses: cometAddressesChunk,
           smolContractId,
@@ -140,14 +130,16 @@ export function useMixtapePurchase() {
           turnstileToken: currentToken,
         });
 
+        if (!result.success) {
+          throw new Error(result.error || 'Purchase batch failed');
+        }
+
         // Mark substeps as complete
         const trackIds = chunk.map((data) => data.trackId);
         onBatchComplete(trackIds);
+
       } catch (error) {
-        console.error(
-          `Error processing purchase batch ${chunkIndex + 1}:`,
-          error
-        );
+        console.error(`Error processing purchase batch ${chunkIndex + 1}:`, error);
         throw error;
       }
     }

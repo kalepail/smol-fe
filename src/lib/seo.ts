@@ -1,7 +1,7 @@
 const DROP_PARAMS = new Set([
     "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
     "gclid", "fbclid", "ref", "ref_src", "src",
-    "sort", "filter", "view", "session", "debug", "shuffle", "play"
+    "sort", "filter", "view", "session", "debug", "shuffle", "play", "from"
 ]);
 
 const KEEP_PARAMS_FOR_INDEX = new Set([

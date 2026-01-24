@@ -7,6 +7,9 @@ import GlobalVerification from '../components/GlobalVerification.svelte'
 import OnboardingGuard from '../components/onboarding/OnboardingGuard.svelte'
 import PasskeyReprompt from '../components/retention/PasskeyReprompt.svelte'
 import DynamicBackground from '../components/layout/DynamicBackground.svelte'
+import DebugPanel from '../components/dev/DebugPanel.svelte'
+import AppInitializer from '../components/AppInitializer.svelte'
+import Toast from '../components/ui/Toast.svelte'
 import '../styles/global.css'
 import { buildCanonical, robotsMetaForUrl, jsonLd } from '../lib/seo';
 
@@ -236,6 +239,9 @@ const fullSchema = [...siteSchema, ...schema];
 			hidden={Astro.url.pathname.startsWith('/kale')}
 		/>
 
+		<!-- App Initialization - validates environment and sets up global handlers -->
+		<AppInitializer client:load />
+
 		<Header _kid={_kid} _cid={_cid} client:load transition:persist="header" />
 		<GlobalVerification client:only="svelte" />
 		<OnboardingGuard client:only="svelte" isAuthenticatedServer={!!_cid} />
@@ -245,5 +251,11 @@ const fullSchema = [...siteSchema, ...schema];
 
 		<MixtapeBuilderOverlay client:load transition:persist="mixtape-builder" />
 		<slot />
+
+		<!-- Debug Panel (only shows in dev mode or with ?debug=true) -->
+		<DebugPanel client:only="svelte" />
+
+		<!-- Toast Notifications -->
+		<Toast client:load transition:persist="toast" />
 	</body>
 </html>

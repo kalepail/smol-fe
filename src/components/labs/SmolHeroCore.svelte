@@ -17,6 +17,7 @@
         position: number; // 0-100, position down the lane
         hit: boolean;
         accuracy: "perfect" | "great" | "ok" | "miss" | null;
+        duration?: number;
     }
 
     interface CachedOnset {
@@ -108,6 +109,12 @@
         laneCount: 3,
         calibrationOffset: 0,
     });
+    const difficultyOptions: GameSettings["difficulty"][] = [
+        "easy",
+        "medium",
+        "hard",
+        "expert",
+    ];
 
     let notes = $state<Note[]>([]);
     let stats = $state<Stats>({
@@ -186,53 +193,60 @@
             const source = audioContext.createMediaElementSource(audio);
 
             // Main gain node
-            gainNode = audioContext.createGain();
-            gainNode.gain.value = 1.0;
+            const gain = audioContext.createGain();
+            gain.gain.value = 1.0;
+            gainNode = gain;
 
             // Create frequency band filters
             // BASS: 20-200 Hz
-            bassFilter = audioContext.createBiquadFilter();
-            bassFilter.type = "lowpass";
-            bassFilter.frequency.value = 200;
-            bassFilter.Q.value = 0.7;
+            const bass = audioContext.createBiquadFilter();
+            bass.type = "lowpass";
+            bass.frequency.value = 200;
+            bass.Q.value = 0.7;
+            bassFilter = bass;
 
-            bassAnalyser = audioContext.createAnalyser();
-            bassAnalyser.fftSize = 512;
-            bassAnalyser.smoothingTimeConstant = 0.3;
+            const bassAnalyzer = audioContext.createAnalyser();
+            bassAnalyzer.fftSize = 512;
+            bassAnalyzer.smoothingTimeConstant = 0.3;
+            bassAnalyser = bassAnalyzer;
 
             // MID: 200-2000 Hz (bandpass)
-            midFilter = audioContext.createBiquadFilter();
-            midFilter.type = "bandpass";
-            midFilter.frequency.value = 1000;
-            midFilter.Q.value = 0.7;
+            const mid = audioContext.createBiquadFilter();
+            mid.type = "bandpass";
+            mid.frequency.value = 1000;
+            mid.Q.value = 0.7;
+            midFilter = mid;
 
-            midAnalyser = audioContext.createAnalyser();
-            midAnalyser.fftSize = 512;
-            midAnalyser.smoothingTimeConstant = 0.3;
+            const midAnalyzer = audioContext.createAnalyser();
+            midAnalyzer.fftSize = 512;
+            midAnalyzer.smoothingTimeConstant = 0.3;
+            midAnalyser = midAnalyzer;
 
             // TREBLE: 2000+ Hz
-            trebleFilter = audioContext.createBiquadFilter();
-            trebleFilter.type = "highpass";
-            trebleFilter.frequency.value = 2000;
-            trebleFilter.Q.value = 0.7;
+            const treble = audioContext.createBiquadFilter();
+            treble.type = "highpass";
+            treble.frequency.value = 2000;
+            treble.Q.value = 0.7;
+            trebleFilter = treble;
 
-            trebleAnalyser = audioContext.createAnalyser();
-            trebleAnalyser.fftSize = 512;
-            trebleAnalyser.smoothingTimeConstant = 0.3;
+            const trebleAnalyzer = audioContext.createAnalyser();
+            trebleAnalyzer.fftSize = 512;
+            trebleAnalyzer.smoothingTimeConstant = 0.3;
+            trebleAnalyser = trebleAnalyzer;
 
             // Connect audio graph
-            source.connect(bassFilter);
-            bassFilter.connect(bassAnalyser);
+            source.connect(bass);
+            bass.connect(bassAnalyzer);
 
-            source.connect(midFilter);
-            midFilter.connect(midAnalyser);
+            source.connect(mid);
+            mid.connect(midAnalyzer);
 
-            source.connect(trebleFilter);
-            trebleFilter.connect(trebleAnalyser);
+            source.connect(treble);
+            treble.connect(trebleAnalyzer);
 
             // Also connect to output
-            source.connect(gainNode);
-            gainNode.connect(audioContext.destination);
+            source.connect(gain);
+            gain.connect(audioContext.destination);
 
             console.log("[SmolHero] Audio analysis initialized");
         } catch (e) {
@@ -516,22 +530,20 @@
         ];
 
         // Add visual hit effect
-        if (accuracy !== "miss") {
-            hitEffects = [
-                ...hitEffects,
-                {
-                    id: Math.random().toString(),
-                    lane: note.lane,
-                    timestamp: Date.now(),
-                    color:
-                        accuracy === "perfect"
-                            ? "#9ae600"
-                            : accuracy === "great"
-                              ? "#FDDA24"
-                              : "#f91880",
-                },
-            ];
-        }
+        hitEffects = [
+            ...hitEffects,
+            {
+                id: Math.random().toString(),
+                lane: note.lane,
+                timestamp: Date.now(),
+                color:
+                    accuracy === "perfect"
+                        ? "#9ae600"
+                        : accuracy === "great"
+                          ? "#FDDA24"
+                          : "#f91880",
+            },
+        ];
 
         // Visual feedback
         if (accuracy === "perfect") {
@@ -1391,7 +1403,7 @@
                 {/if}
             </div>
         </div>
-    {:else if gameState === "playing"}
+    {:else if gameState === "playing" || gameState === "paused"}
         <!-- GAME SCREEN -->
         <div class="relative">
             <!-- HUD -->
@@ -1534,15 +1546,16 @@
                             <!-- Notes in this lane -->
                             {#each notes.filter((n) => n.lane === lane) as note (note.id)}
                                 <!-- Hold Note Tail -->
-                                {#if (note.duration || 0) > 0.2}
+                                {@const duration = note.duration ?? 0}
+                                {#if duration > 0.2}
                                     <div
                                         class="absolute left-1/2 -translate-x-1/2 w-2 opacity-40 rounded-b-full"
                                         style="
                                              top: {(note.position / 100) *
                                             laneHeight -
-                                            note.duration *
+                                            duration *
                                                 settings.noteSpeed}px;
-                                             height: {note.duration *
+                                             height: {duration *
                                             settings.noteSpeed}px;
                                         background: {LANE_COLORS[lane].hex};
                                          "
@@ -1618,7 +1631,7 @@
                             >Difficulty</span
                         >
                         <div class="grid grid-cols-2 gap-2">
-                            {#each ["easy", "medium", "hard", "expert"] as d}
+                            {#each difficultyOptions as d}
                                 <button
                                     onclick={() => switchDifficulty(d)}
                                     class="px-2 py-2 text-[10px] border rounded uppercase transition-colors {settings.difficulty ===

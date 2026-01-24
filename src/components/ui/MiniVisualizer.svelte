@@ -1,12 +1,13 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { audioState } from "../../stores/audio.svelte";
+    import { preferences } from "../../stores/preferences.svelte";
 
     // Oscillator State
     let lastDataArray: Float32Array | null = null;
     const SMOOTHING = 0.12; // Smoother movement
 
-    let canvas: HTMLCanvasElement;
+    let canvas = $state<HTMLCanvasElement>();
     let ctx: CanvasRenderingContext2D | null = null;
     let animationId: number;
 
@@ -68,7 +69,8 @@
     }
 
     $effect(() => {
-        if (canvas && audioState.analyser) {
+        // Only run visualizer in thinking mode (performance optimization)
+        if (canvas && audioState.analyser && preferences.renderMode === 'thinking') {
             draw();
         }
 
@@ -78,9 +80,11 @@
     });
 </script>
 
-<canvas
-    bind:this={canvas}
-    width="300"
-    height="150"
-    class="w-full h-full object-cover"
-></canvas>
+{#if preferences.renderMode === 'thinking'}
+    <canvas
+        bind:this={canvas}
+        width="300"
+        height="150"
+        class="w-full h-full object-cover"
+    ></canvas>
+{/if}

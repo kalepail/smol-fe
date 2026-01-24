@@ -57,3 +57,24 @@ Thread: Playback buffering + play gating
 Thread: Stellar SDK XDR parsing fix for Channels relayer
 	•	Switched Channels XDR parsing to TransactionBuilder.fromXDR with fallback passphrase handling.
 	•	Added clearer error handling when parsing fails to prepare payloads.
+
+[2026-01-23] - P0-AUDIT-001
+Thread: N/A (Audit pass)
+	•	Created AUDIT_NOTES.md with repo map, doc review, risk register, and PR plan.
+	•	Added Playwright E2E smoke tests + TESTING.md instructions.
+	•	Fixed MusicRecording schema datePublished binding and removed duplicate rss import.
+	•	Files changed: AUDIT_NOTES.md, TESTING.md, playwright.config.ts, tests/e2e/smol-e2e.spec.ts, package.json, pnpm-lock.yaml, src/pages/[id].astro, src/pages/rss.xml.ts, scripts/ralph/prd.json.
+	•	Learnings for future iterations:
+		- Centralize MediaSession handlers to avoid collisions.
+		- Use schema checks in E2E to validate SEO-critical data.
+	•	Patterns discovered:
+		- SSR schema is defined in [id].astro; client-only content lives in SmolResults.
+	•	Gotchas encountered:
+		- pnpm run check still fails due to pre-existing type errors.
+	•	Test note: Playwright run failed due to missing system library (libatk-1.0.so.0).
+
+[2026-01-23 06:36] - P0-TX-001 (VALIDATED)
+Thread: Svelte-check cleanup for passkey-kit + SmolHeroCore
+	•	Resolved type errors in passkey-kit XDR parsing and minting/purchase flows.
+	•	Aligned SmolHeroCore typing and pause/difficulty controls for clean checks.
+	•	Verified pnpm run check passes.

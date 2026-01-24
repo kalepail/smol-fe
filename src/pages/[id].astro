@@ -64,7 +64,7 @@ if (id) {
                 "name": title,
                 "url": `${import.meta.env.PUBLIC_URL || 'https://noot.smol.xyz'}/${id}`,
                 "description": description,
-                "datePublished": created,
+                "datePublished": createdDate,
                 "image": image_url ? { "@type": "ImageObject", "url": image_url } : undefined,
                 "audio": song_url ? {
                     "@type": "AudioObject",

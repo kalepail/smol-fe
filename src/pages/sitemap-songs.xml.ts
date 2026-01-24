@@ -9,7 +9,7 @@ export const GET: APIRoute = async ({ request }) => {
         const smols = await fetchSmols({ limit: 5000 });
 
         const items = smols.map(smol => {
-            const lastMod = smol.d1?.Created || smol.Created_At || new Date().toISOString();
+            const lastMod = smol.Created_At || new Date().toISOString();
             // Remove milliseconds for cleaner sitemap date
             const date = new Date(lastMod).toISOString().split('T')[0];
 

@@ -95,10 +95,22 @@
             "title": "Fix Stellar SDK XDR parsing for Channels relayer payloads",
             "priority": 0,
             "passes": true,
+            "lastValidated": "2026-01-23",
             "acceptanceCriteria": [
                 "Uses TransactionBuilder.fromXDR for modern Stellar SDK parsing",
                 "Falls back to legacy network passphrase string",
                 "Channels payload generation no longer throws P.fromXDR errors"
+            ]
+        },
+        {
+            "id": "P0-AUDIT-001",
+            "title": "Repo audit notes + minimal E2E smoke coverage",
+            "priority": 0,
+            "passes": true,
+            "acceptanceCriteria": [
+                "Audit notes capture repo map, doc review, and risk register",
+                "Playwright smoke tests cover navigation and schema validation",
+                "Testing guide includes E2E run instructions"
             ]
         }
     ]

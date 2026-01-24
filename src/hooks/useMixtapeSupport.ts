@@ -1,8 +1,8 @@
-import { getSafeRpId } from '../utils/domains';
-import { account, kale, send, sac } from '../utils/passkey-kit';
-import { getLatestSequence, truncate } from '../utils/base';
+import { kale } from '../utils/passkey-kit';
+import { truncate } from '../utils/base';
 import { userState } from '../stores/user.svelte';
 import type { Smol } from '../types/domain';
+import { signAndSend, isUserCancellation, type GetFreshTokenCallback } from '../utils/transaction-helpers';
 
 const KALE_DECIMALS = 7;
 const KALE_FACTOR = 10n ** BigInt(KALE_DECIMALS);
@@ -124,6 +124,8 @@ export function calculateSupportPayment(
 /**
  * Build and send support payment transaction
  * Multi-payment TX: one payment per recipient
+ *
+ * Uses unified transaction helpers for consistent error handling
  */
 export async function sendSupportPayment(
     curatorAddress: string,
@@ -162,6 +164,7 @@ export async function sendSupportPayment(
             const [address, amount] = recipients[i];
             let currentToken = turnstileToken;
 
+            // Get fresh token for subsequent payments
             if (i > 0 && getFreshToken) {
                 onProgress?.('Verifying...');
                 try {
@@ -172,24 +175,30 @@ export async function sendSupportPayment(
             }
 
             onProgress?.(`Transferring to ${truncate(address, 4)}...`);
-            let tx = await kale.get().transfer({
+
+            // Build transfer transaction
+            const tx = await kale.get().transfer({
                 from: userState.contractId,
                 to: address,
                 amount,
             });
 
-            onProgress?.(`Awaiting signature for ${truncate(address, 4)}...`);
-            const sequence = await getLatestSequence();
-            tx = await account.get().sign(tx, {
-                rpId: getSafeRpId(window.location.hostname),
+            onProgress?.(`Processing payment to ${truncate(address, 4)}...`);
+
+            // Use unified sign-and-send helper
+            const result = await signAndSend(tx, {
                 keyId: userState.keyId,
-                expiration: sequence + 60,
+                turnstileToken: currentToken,
+                useLock: false, // Already sequential
             });
 
-            onProgress?.(`Submitting transfer to ${truncate(address, 4)}...`);
+            if (!result.success) {
+                throw new Error(result.error || 'Transfer failed');
+            }
 
-            const result = await send(tx, currentToken);
-            if (result?.hash) lastTxHash = result.hash;
+            if (result.transactionHash) {
+                lastTxHash = result.transactionHash;
+            }
         }
 
         onProgress?.('Complete!');
@@ -201,17 +210,13 @@ export async function sendSupportPayment(
 
     } catch (error) {
         console.error('Support payment failed:', error);
-        const message = error instanceof Error ? error.message : String(error);
 
-        // Check for user cancellation
-        if (
-            message.toLowerCase().includes('abort') ||
-            message.toLowerCase().includes('cancel') ||
-            message.toLowerCase().includes('not allowed')
-        ) {
+        // Check for user cancellation using unified helper
+        if (isUserCancellation(error)) {
             return { success: false, error: 'Payment cancelled' };
         }
 
+        const message = error instanceof Error ? error.message : String(error);
         return { success: false, error: message };
     }
 }

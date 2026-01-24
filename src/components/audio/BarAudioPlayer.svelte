@@ -152,8 +152,14 @@
     if (!("mediaSession" in navigator)) return;
 
     navigator.mediaSession.setActionHandler("play", () => {
-      if (audioState.currentSong && !audioState.playingId) {
-        togglePlayPause();
+      // Resume if paused OR if interrupted by another audio source
+      if (audioState.currentSong && (!audioState.playingId || audioState.wasInterrupted)) {
+        console.log("[Audio] Media Session play action - resuming playback");
+        if (audioState.wasInterrupted) {
+          attemptResume();
+        } else {
+          togglePlayPause();
+        }
       }
     });
 
@@ -206,16 +212,15 @@
     const startResumePolling = () => {
       if (resumeCheckInterval) return; // Already polling
 
-      console.log("[Audio] Starting resume polling for CarPlay/iOS");
+      console.log("[Audio] Starting resume polling for interruption recovery");
       resumeCheckInterval = window.setInterval(() => {
-        if (
-          audioState.wasInterrupted &&
-          document.visibilityState === "visible"
-        ) {
+        // Try to resume regardless of visibility - important for multi-tab scenarios
+        // where another app/tab (like X) might have taken audio focus temporarily
+        if (audioState.wasInterrupted) {
           console.log("[Audio] Polling check - attempting resume");
           attemptResume();
         }
-      }, 2000); // Check every 2 seconds
+      }, 1000); // Check every second for faster recovery
     };
 
     // Stop polling when no longer needed
@@ -319,23 +324,28 @@
       }
     };
 
-    // iOS-specific: Handle visibility changes (phone calls, switching apps, CarPlay reconnection)
+    // Handle visibility changes and audio focus returns
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
+      if (document.visibilityState === "visible" && audioState.wasInterrupted) {
         console.log("[Audio] Page became visible - checking for resume");
-        // Small delay to let the system settle
-        setTimeout(attemptResume, 100);
-        // For CarPlay, try again after a longer delay
+        // Try multiple times with increasing delays to catch audio focus return
+        setTimeout(attemptResume, 50);
+        setTimeout(attemptResume, 200);
         setTimeout(attemptResume, 500);
+        setTimeout(attemptResume, 1000);
       }
     };
 
-    // iOS-specific: Handle window focus (returning from notifications, Siri, etc.)
+    // Handle window focus (returning from notifications, other tabs/apps releasing audio focus)
     const handleFocus = () => {
-      console.log("[Audio] Window gained focus - checking for resume");
-      setTimeout(attemptResume, 100);
-      // For CarPlay, try again after a longer delay
-      setTimeout(attemptResume, 500);
+      if (audioState.wasInterrupted) {
+        console.log("[Audio] Window gained focus - checking for resume");
+        // Try multiple times as audio focus may return gradually
+        setTimeout(attemptResume, 50);
+        setTimeout(attemptResume, 200);
+        setTimeout(attemptResume, 500);
+        setTimeout(attemptResume, 1000);
+      }
     };
 
     // iOS-specific: Handle audio session interruptions (CarPlay disconnect)

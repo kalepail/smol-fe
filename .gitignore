@@ -28,3 +28,6 @@ pnpm-debug.log*
 
 # Large data files (exceed Cloudflare 25 MiB limit)
 data/all-smols.json!.agent/
+
+test-results/
+playwright-report/

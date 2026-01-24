@@ -1,13 +1,19 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { account, kale, send } from "../utils/passkey-kit";
-    import { getLatestSequence, truncate } from "../utils/base";
+    import { kale } from "../utils/passkey-kit";
+    import { truncate } from "../utils/base";
     import { userState } from "../stores/user.svelte";
     import {
         balanceState,
         updateContractBalance,
     } from "../stores/balance.svelte";
-    import { getSafeRpId } from "../utils/domains";
+    import { signAndSend } from "../utils/transaction-helpers";
+    import {
+        validateAddress,
+        parseAndValidateAmount,
+        validateSufficientBalance,
+    } from "../utils/transaction-validation";
+    import { wrapError } from "../utils/errors";
     import KaleEmoji from "./ui/KaleEmoji.svelte";
     import { Turnstile } from "svelte-turnstile";
 
@@ -78,63 +84,65 @@
             return;
         }
 
-        const destination = to.trim();
-        if (!destination) {
-            error = "Enter a destination address.";
-            return;
-        }
-
-        if (destination === userState.contractId) {
-            error = "You already control this address.";
-            return;
-        }
-
-        const amountInUnits = parseAmount(amount);
-        if (!amountInUnits) {
-            error = "Enter a valid whole-number amount.";
-            return;
-        }
-
-        const currentBalance = balanceState.balance;
-        if (
-            typeof currentBalance === "bigint" &&
-            amountInUnits > currentBalance
-        ) {
-            error = "Amount exceeds available balance.";
-            return;
-        }
-
-        if (!turnstileToken) {
-            error = "Please complete the CAPTCHA.";
-            return;
-        }
-
         submitting = true;
+
         try {
-            let tx = await kale.get().transfer({
+            const destination = to.trim();
+
+            // Validate using unified validation utilities
+            validateAddress(destination, 'Destination');
+
+            // Check if sending to self
+            if (destination === userState.contractId) {
+                error = "You already control this address.";
+                submitting = false;
+                return;
+            }
+
+            // Parse and validate amount
+            const amountInUnits = parseAndValidateAmount(amount, kaleDecimals);
+
+            // Validate sufficient balance
+            validateSufficientBalance(amountInUnits, balanceState.balance, 'Transfer amount');
+
+            // Validate Turnstile token
+            if (!turnstileToken) {
+                error = "Please complete the CAPTCHA.";
+                submitting = false;
+                return;
+            }
+
+            // Build transfer transaction
+            const tx = await kale.get().transfer({
                 from: userState.contractId,
                 to: destination,
                 amount: amountInUnits,
             });
 
-            const sequence = await getLatestSequence();
-            tx = await account.get().sign(tx, {
-                rpId: getSafeRpId(window.location.hostname),
+            // Sign and send with unified helper
+            // Automatically: validates, signs, sends, updates balance, handles lock
+            const result = await signAndSend(tx, {
                 keyId: userState.keyId,
-                expiration: sequence + 60,
+                turnstileToken,
+                updateBalance: true,
+                contractId: userState.contractId,
+                useLock: true, // Prevent concurrent transfers
             });
 
-            await send(tx, turnstileToken);
-
-            await updateContractBalance(userState.contractId);
+            if (!result.success) {
+                error = result.error || "Transfer failed";
+                return;
+            }
 
             const displayAmount = formatKaleBalance(amountInUnits);
             success = `Sent ${displayAmount} KALE to ${truncate(destination, 4)}`;
             to = "";
             amount = "";
+
         } catch (err) {
             console.error("Failed to send KALE", err);
-            error = err instanceof Error ? err.message : "Transfer failed";
+            const wrappedError = wrapError(err, 'Transfer failed');
+            error = wrappedError.getUserFriendlyMessage();
         } finally {
             submitting = false;
         }

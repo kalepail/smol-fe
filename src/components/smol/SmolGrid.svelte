@@ -17,6 +17,7 @@
   import { useVisibilityTracking } from "../../hooks/useVisibilityTracking";
   import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
   import { useGridMediaSession } from "../../hooks/useGridMediaSession";
+  import { preferences } from "../../stores/preferences.svelte";
 
   interface Props {
     playlist?: string | null;
@@ -139,7 +140,9 @@
         // Fetch smols from API for other endpoints
         const baseUrl = endpoint ? `${API_URL}/${endpoint}` : API_URL;
         const url = new URL(baseUrl, window.location.origin);
-        url.searchParams.set("limit", "100");
+        // Use higher limit for /created endpoint to handle users with many songs
+        const fetchLimit = endpoint === "created" ? "1000" : "100";
+        url.searchParams.set("limit", fetchLimit);
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
@@ -162,6 +165,10 @@
           results = data.smols || [];
           cursor = data.pagination?.nextCursor || null;
           hasMore = data.pagination?.hasMore || false;
+
+          console.log(
+            `[SmolGrid] Initial fetch for ${endpoint || "home"}: ${results.length} items, hasMore: ${hasMore}, cursor: ${cursor ? "present" : "null"}`,
+          );
 
           if (!results || results.length === 0) {
             console.warn(
@@ -304,7 +311,10 @@
 
   // Speculative Image Preloading: Load images for the NEXT page of results
   // This ensures that when the user scrolls down, images are already cached
+  // DISABLED IN FAST MODE to save memory
   $effect(() => {
+    if (preferences.renderMode !== 'thinking') return;
+
     const nextLimit = displayLimit + 50;
     const nextBatch = filteredResults.slice(displayLimit, nextLimit);
 
@@ -395,7 +405,9 @@
         ? `${import.meta.env.PUBLIC_API_URL}/${endpoint}`
         : import.meta.env.PUBLIC_API_URL;
       const url = new URL(baseUrl, window.location.origin);
-      url.searchParams.set("limit", "100");
+      // Use higher limit for /created endpoint to handle users with many songs
+      const fetchLimit = endpoint === "created" ? "1000" : "100";
+      url.searchParams.set("limit", fetchLimit);
       url.searchParams.set("cursor", cursor);
 
       const response = await fetch(url, {
@@ -415,9 +427,17 @@
         results = [...results, ...smolsWithLikes];
         cursor = data.pagination?.nextCursor || null;
         hasMore = data.pagination?.hasMore || false;
+
+        console.log(
+          `[SmolGrid] Loaded ${newSmols.length} more items. Total: ${results.length}, hasMore: ${hasMore}`,
+        );
+      } else {
+        console.error(
+          `[SmolGrid] Load more failed with status ${response.status}`,
+        );
       }
     } catch (error) {
-      console.error("Failed to load more smols:", error);
+      console.error("[SmolGrid] Failed to load more smols:", error);
     } finally {
       loadingMore = false;
     }

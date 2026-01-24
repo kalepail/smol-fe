@@ -9,7 +9,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL || 'https://api.smol.xyz';
 /**
  * Fetch all smols with Hybrid Strategy (Live + GalacticSnapshot Merge)
  */
-export async function fetchSmols(options?: { limit?: number }): Promise<Smol[]> {
+export async function fetchSmols(options?: { limit?: number; signal?: AbortSignal }): Promise<Smol[]> {
   try {
     const url = new URL(`${API_URL}`);
     // Default to 5000 if no limit specified to ensure all songs load
@@ -18,7 +18,7 @@ export async function fetchSmols(options?: { limit?: number }): Promise<Smol[]> 
 
     // 1. Parallelize Live Fetch and Snapshot Load
     const [liveRes, snapshot] = await Promise.all([
-      fetch(url.toString()),
+      fetch(url.toString(), { signal: options?.signal }),
       getSnapshotAsync(),
     ]);
 
@@ -85,7 +85,7 @@ export async function fetchSmols(options?: { limit?: number }): Promise<Smol[]> 
         await Promise.all(
           chunk.map(async (song: any) => {
             try {
-              const res = await fetch(`${API_URL}/${song.Id}`);
+              const res = await fetch(`${API_URL}/${song.Id}`, { signal: options?.signal });
               if (!res.ok) return;
               const data = await res.json();
               const detail = data.d1 || data.kv_do;
@@ -126,7 +126,7 @@ export async function getFullSnapshot(): Promise<Smol[]> {
  * Safe fetch wrapper that guarantees a non-empty snapshot fallback.
  */
 export async function safeFetchSmols(
-  options?: { limit?: number },
+  options?: { limit?: number; signal?: AbortSignal },
 ): Promise<Smol[]> {
   const smols = await fetchSmols(options);
   if (!Array.isArray(smols) || smols.length === 0) {

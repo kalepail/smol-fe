@@ -63,6 +63,7 @@ function isValidHash(hash: string): boolean {
  * Validate a URL
  */
 function isValidUrl(url: string): boolean {
+    if (url.startsWith('/')) return true; // Allow relative URLs
     try {
         new URL(url);
         return true;

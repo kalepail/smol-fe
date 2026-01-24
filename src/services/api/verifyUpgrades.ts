@@ -1,9 +1,8 @@
 
-
-
-import { xdr, StrKey, scValToNative } from '@stellar/stellar-sdk';
-import { upgradesState, unlockUpgrade } from '../../stores/upgrades.svelte';
+import { StrKey } from '@stellar/stellar-sdk';
+import { unlockUpgrade } from '../../stores/upgrades.svelte';
 import { getVIPAccess } from '../../utils/vip';
+import { findTokenTransfers } from '../../utils/event-scanner';
 
 const ADMIN_ADDRESS = "CBNORBI4DCE7LIC42FWMCIWQRULWAUGF2MH2Z7X2RNTFAYNXIACJ33IM";
 const SMOL_MART_AMOUNTS = {
@@ -13,21 +12,30 @@ const SMOL_MART_AMOUNTS = {
     VIBE_MATRIX: 250000
 };
 
-// VIP addresses now managed in src/utils/vip.ts
-
 /**
  * Scan account history to see if they already paid for upgrades.
  * This effectively "Restores Purchases" from the blockchain.
  */
-export async function verifyPastPurchases(userAddress: string) {
+export async function verifyPastPurchases(userAddress: string): Promise<void> {
+    // Validate address is not empty or null
     if (!userAddress) return;
 
+    // Validate address is a properly formatted Stellar contract address
+    const trimmedAddress = userAddress.trim();
+    if (!trimmedAddress) {
+        console.warn('[SmolMart] Empty address provided to verifyPastPurchases');
+        return;
+    }
 
+    // Validate it's a valid contract address (starts with C and proper format)
+    if (!StrKey.isValidContract(trimmedAddress)) {
+        console.warn('[SmolMart] Invalid contract address format:', trimmedAddress);
+        return;
+    }
 
     // VIP check - instant unlock for whitelisted addresses (granular)
-    const vipAccess = getVIPAccess(userAddress);
+    const vipAccess = getVIPAccess(trimmedAddress);
     if (vipAccess) {
-
         if (vipAccess.premiumHeader) unlockUpgrade('premiumHeader');
         if (vipAccess.goldenKale) unlockUpgrade('goldenKale');
         if (vipAccess.showcaseReel) unlockUpgrade('showcaseReel');
@@ -36,95 +44,57 @@ export async function verifyPastPurchases(userAddress: string) {
     }
 
     try {
-        // Horizon Operations Endpoint
-        // We look for 'invoke_host_function' where the function is 'transfer'
-        // and the args match our store.
-        const limit = 200;
-        const url = `https://horizon.stellar.org/accounts/${userAddress}/operations?limit=${limit}&order=desc&include_failed=false`;
+        const kaleContractId = import.meta.env.PUBLIC_KALE_SAC_ID;
+        if (!kaleContractId) {
+            console.error('[SmolMart] Missing PUBLIC_KALE_SAC_ID');
+            return;
+        }
 
-        const res = await fetch(url);
-        if (!res.ok) return;
-        const data = await res.json();
-        const operations = data._embedded?.records || [];
+        // Use RPC Events to find transfers (works for both Smart Wallets and G-accounts)
+        const foundTransfers = await findTokenTransfers(
+            trimmedAddress,
+            ADMIN_ADDRESS,
+            kaleContractId,
+            {
+                limit: 100 // Check last 100 transfer events between these addresses
+            }
+        );
 
-        for (const op of operations) {
-            // We only care about Soroban invocations
-            if (op.type !== 'invoke_host_function') continue;
+        // Check if any transfer matches our target amounts
+        for (const transfer of foundTransfers) {
+            // Check for tolerance (e.g. 0.0000001 difference)
+            const amount = transfer.amount;
 
-            // In a real indexer we would have the decoded args. 
-            // In Horizon for Soroban, we might need to rely on the fact that 
-            // we triggered it via the specific contract.
-            // However, parsing raw XDR is heavy. 
+            if (isApproximateMatch(amount, SMOL_MART_AMOUNTS.PREMIUM_HEADER)) {
+                unlockUpgrade('premiumHeader');
+                console.log('[SmolMart] Unlocked Premium Header');
+            }
 
-            // SHORTCUT: For now, since verifying "transfer" args via XDR in browser 
-            // from Horizon `function` field is complex (it returns base64 XDR),
-            // we will try to parse it if available.
+            if (isApproximateMatch(amount, SMOL_MART_AMOUNTS.GOLDEN_KALE)) {
+                unlockUpgrade('goldenKale');
+                console.log('[SmolMart] Unlocked Golden Kale');
+            }
 
-            // Note: Horizon 'function' field in 'invoke_host_function' op contains the Host Function XDR.
-            if (op.function) {
-                try {
-                    const buffer = Buffer.from(op.function, 'base64');
-                    const hostFn = xdr.HostFunction.fromXDR(buffer);
+            if (isApproximateMatch(amount, SMOL_MART_AMOUNTS.SHOWCASE_REEL)) {
+                unlockUpgrade('showcaseReel');
+                // Bundle unlock
+                unlockUpgrade('premiumHeader');
+                unlockUpgrade('goldenKale');
+                unlockUpgrade('vibeMatrix');
+                console.log('[SmolMart] Unlocked Showcase Reel Bundle');
+            }
 
-                    // We expect InvokeContract(InvokeContractArgs)
-                    if (hostFn.switch() === xdr.HostFunctionType.hostFunctionTypeInvokeContract()) {
-                        const args = hostFn.invokeContract();
-                        const contractAddress = StrKey.encodeContract(args.contractAddress().contractId() as any);
-                        const functionName = args.functionName().toString();
-
-                        // Must be KALE contract
-                        // (We need to import the ID. For now hardcode or env?)
-                        // actually we can just check if it matches the known KALE ID if we had it.
-                        // Let's assume the user only calls transfer on KALE for these specific amounts.
-
-                        if (functionName === 'transfer') {
-                            const valArgs = args.args();
-                            // transfer(from, to, amount)
-                            // args[0] = from
-                            // args[1] = to
-                            // args[2] = amount
-
-                            if (valArgs.length === 3) {
-                                const toVal = valArgs[1];
-                                const amountVal = valArgs[2];
-
-                                const toAddress = scValToNative(toVal);
-                                const amountRaw = scValToNative(amountVal);
-
-                                // Convert amount (BigInt 7 decimals) to number
-                                const amountNum = Number(amountRaw) / 10000000;
-
-                                if (toAddress === ADMIN_ADDRESS) {
-                                    if (Math.abs(amountNum - SMOL_MART_AMOUNTS.PREMIUM_HEADER) < 0.1) {
-                                        // console.log('[SmolMart] Found Premium Header purchase!');
-                                        unlockUpgrade('premiumHeader');
-                                    }
-                                    if (Math.abs(amountNum - SMOL_MART_AMOUNTS.GOLDEN_KALE) < 0.1) {
-                                        // console.log('[SmolMart] Found Golden Kale purchase!');
-                                        unlockUpgrade('goldenKale');
-                                    }
-                                    if (Math.abs(amountNum - SMOL_MART_AMOUNTS.SHOWCASE_REEL) < 0.1) {
-                                        // console.log('[SmolMart] Found Showcase Reel purchase! (Ultimate Bundle)');
-                                        unlockUpgrade('showcaseReel');
-                                        unlockUpgrade('premiumHeader');
-                                        unlockUpgrade('goldenKale');
-                                        unlockUpgrade('vibeMatrix');
-                                    }
-                                    if (Math.abs(amountNum - SMOL_MART_AMOUNTS.VIBE_MATRIX) < 0.1) {
-                                        // console.log('[SmolMart] Found Vibe Matrix purchase!');
-                                        unlockUpgrade('vibeMatrix');
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } catch (e) {
-                    // ignore parse error
-                }
+            if (isApproximateMatch(amount, SMOL_MART_AMOUNTS.VIBE_MATRIX)) {
+                unlockUpgrade('vibeMatrix');
+                console.log('[SmolMart] Unlocked Vibe Matrix');
             }
         }
 
     } catch (err) {
         console.error('[SmolMart] Verification failed', err);
     }
+}
+
+function isApproximateMatch(val1: number, val2: number, tolerance = 0.1): boolean {
+    return Math.abs(val1 - val2) < tolerance;
 }

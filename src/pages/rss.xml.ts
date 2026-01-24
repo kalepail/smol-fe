@@ -1,6 +1,4 @@
 import type { APIRoute } from 'astro';
-
-import type { APIRoute } from 'astro';
 import { fetchSmols } from '../services/api/smols';
 
 export const GET: APIRoute = async ({ request }) => {
@@ -14,21 +12,21 @@ export const GET: APIRoute = async ({ request }) => {
     // Sort by creation date descending just in case
     // The API usually returns latest first, but good to be safe if snapshot fallback is used
     const sorted = smols.sort((a, b) => {
-      const dateA = new Date(a.d1?.Created || a.Created_At || 0).getTime();
-      const dateB = new Date(b.d1?.Created || b.Created_At || 0).getTime();
+      const dateA = new Date(a.Created_At || 0).getTime();
+      const dateB = new Date(b.Created_At || 0).getTime();
       return dateB - dateA;
     }).slice(0, 50);
 
     const items = sorted.map(smol => {
       // Safe data extraction
-      const title = smol.kv_do?.lyrics?.title || smol.d1?.Title || `Song ${smol.Id.slice(0, 8)}`;
+      const title = smol.kv_do?.lyrics?.title || smol.Title || `Song ${smol.Id.slice(0, 8)}`;
       const prompt = smol.kv_do?.payload?.prompt || smol.kv_do?.description || "AI generated song";
       // XML Escape the content? Simple replacements for now.
       const cleanTitle = title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const cleanDesc = prompt.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
       // Date
-      const dateStr = smol.d1?.Created || smol.Created_At || new Date().toISOString();
+      const dateStr = smol.Created_At || new Date().toISOString();
       const date = new Date(dateStr).toUTCString();
 
       return `<item>

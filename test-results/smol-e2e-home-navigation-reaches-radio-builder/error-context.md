@@ -1,0 +1,80 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic:
+      - generic:
+        - generic: ♬
+        - generic: ♫
+        - generic: ♪
+        - generic: ♯
+        - generic: ♫
+        - generic: ♭
+        - generic: ♭
+        - generic: ♩
+        - generic: ♬
+        - generic: ♫
+        - generic: ♩
+        - generic: ♪
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - heading "SMOL" [level=1] [ref=e7]:
+          - link "SMOL" [ref=e8] [cursor=pointer]:
+            - /url: /
+            - generic [ref=e9]: SMOL
+        - generic [ref=e10]:
+          - link "Artists" [ref=e11] [cursor=pointer]:
+            - /url: /artists
+          - link "Created" [ref=e12] [cursor=pointer]:
+            - /url: /created
+          - link "Radio" [ref=e13] [cursor=pointer]:
+            - /url: /radio
+          - link "Mixtapes" [ref=e14] [cursor=pointer]:
+            - /url: /mixtapes
+          - link "Store" [ref=e15] [cursor=pointer]:
+            - /url: /store
+          - link "+CREATE" [ref=e16] [cursor=pointer]:
+            - /url: /create
+      - button "+MENU" [ref=e18] [cursor=pointer]
+  - main [ref=e21]:
+    - generic [ref=e22]:
+      - generic:
+        - generic: "MODE: PROXY (TURNSTILE)"
+        - generic: "HOST: localhost"
+        - generic: "KEY: MISSING"
+        - generic: "IS_DEV: YES"
+        - generic: "CFG_URL: N/A"
+        - generic: "TARGET: api.kalefarm.xyz"
+      - paragraph [ref=e24]:
+        - text: save the ones you love.
+        - generic: _
+      - heading "SMOL.XYZ" [level=1] [ref=e25]
+    - generic [ref=e27]:
+      - generic [ref=e28]:
+        - button "Passkey Login" [ref=e29] [cursor=pointer]:
+          - generic [ref=e30]:
+            - img "Kale" [ref=e31]
+            - text: LOGIN WITH PASSKEY
+        - button "Create Account" [ref=e32] [cursor=pointer]:
+          - generic [ref=e33]: 📝 CREATE NEW ACCOUNT
+      - paragraph [ref=e35]: SECURED BY YOUR DEVICE.
+      - button "Enter as Guest" [ref=e36] [cursor=pointer]
+  - button "🐛" [ref=e39] [cursor=pointer]
+  - generic [ref=e42]:
+    - button "Menu" [ref=e43]:
+      - img [ref=e45]
+      - generic: Menu
+    - button "Inspect" [ref=e49]:
+      - img [ref=e51]
+      - generic: Inspect
+    - button "Audit" [ref=e53]:
+      - generic [ref=e54]:
+        - img [ref=e55]
+        - img [ref=e58]
+      - generic: Audit
+    - button "Settings" [ref=e61]:
+      - img [ref=e63]
+      - generic: Settings
+```

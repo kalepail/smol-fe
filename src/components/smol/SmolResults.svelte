@@ -360,13 +360,16 @@
     }
 
     function share() {
+        // Create clean URL without query parameters for better social media compatibility
+        const cleanUrl = `${window.location.origin}${window.location.pathname}`;
+
         navigator
             .share?.({
                 title: data?.d1?.Title,
-                url: window.location.href,
+                url: cleanUrl,
             })
             .catch(() => {
-                navigator.clipboard.writeText(window.location.href);
+                navigator.clipboard.writeText(cleanUrl);
                 alert("Link copied!");
             });
     }
@@ -900,6 +903,23 @@
                                         class="p-3 rounded-lg bg-white/5 border border-white/5"
                                     >
                                         <div
+                                            class="text-white/40 mb-1 uppercase tracking-widest text-[9px]"
+                                        >
+                                            Posted
+                                        </div>
+                                        <div
+                                            class="text-white/60 font-mono text-[10px]"
+                                        >
+                                            {new Date(
+                                                data.d1?.Created || "",
+                                            ).toLocaleDateString()}
+                                        </div>
+                                    </div>
+
+                                    <div
+                                        class="p-3 rounded-lg bg-white/5 border border-white/5"
+                                    >
+                                        <div
                                             class="text-white/40 mb-1 uppercase tracking-widest"
                                         >
                                             Creator Share
@@ -1157,6 +1177,24 @@
                                                             : ""}
                                                     </div>
                                                 </button>
+
+                                                <div
+                                                    class="p-3 rounded-lg bg-white/5 border border-white/5"
+                                                >
+                                                    <div
+                                                        class="text-white/40 mb-1 uppercase tracking-widest text-[9px]"
+                                                    >
+                                                        Posted
+                                                    </div>
+                                                    <div
+                                                        class="text-white/60 font-mono text-[10px]"
+                                                    >
+                                                        {new Date(
+                                                            data.d1?.Created ||
+                                                                "",
+                                                        ).toLocaleDateString()}
+                                                    </div>
+                                                </div>
 
                                                 <div
                                                     class="p-3 rounded-lg bg-white/5 border border-white/5"

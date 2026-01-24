@@ -21,7 +21,7 @@
 
     function getCurrentAudioUrl(): string {
         if (audioState.currentSong) {
-            const songId = audioState.currentSong.music_id || audioState.currentSong.Id;
+            const songId = audioState.currentSong.Id;
             return `${window.location.origin}/api/audio/${songId}`;
         }
         return "";
@@ -83,7 +83,7 @@
         </button>
 
         <div class="text-xs text-slate-400 pt-2 border-t border-slate-700">
-            <p>Current Song: {audioState.currentSong?.title || "None"}</p>
+            <p>Current Song: {audioState.currentSong?.Title || "None"}</p>
             <p>Casting: {audioState.isCasting ? "Yes" : "No"}</p>
         </div>
     </div>

@@ -60,6 +60,7 @@ export function setUserAuth(contractId: string | null, keyId: string | null) {
 
 /**
  * Clear authentication
+ * Now properly clears localStorage to prevent stale credentials from blocking re-login
  */
 export function clearUserAuth() {
   userState.contractId = null;
@@ -67,9 +68,9 @@ export function clearUserAuth() {
   userState.walletConnected = false;
 
   if (typeof localStorage !== "undefined") {
-    // Soft Logout: We do NOT remove contractId/keyId so user can easily reconnect
-    // localStorage.removeItem("smol:contractId");
-    // localStorage.removeItem("smol:keyId");
+    // Hard logout: Remove credentials to prevent stale passkey issues
+    localStorage.removeItem("smol:contractId");
+    localStorage.removeItem("smol:keyId");
     localStorage.removeItem("smol:skip_intro"); // Optional: reset intro
   }
 }

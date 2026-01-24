@@ -1,12 +1,15 @@
 import { Asset } from '@stellar/stellar-sdk/minimal';
 import { Client as SmolClient } from 'smol-sdk';
+import { account } from '../utils/passkey-kit';
 import { getSafeRpId } from '../utils/domains';
 import type { Smol } from '../types/domain';
 import type { MixtapeSmolData } from '../services/api/mixtapes';
 import { getLatestSequence } from '../utils/base';
-import { account } from '../utils/passkey-kit';
 import { RPC_URL } from '../utils/rpc';
 import { MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from '../utils/mint';
+import { isUserCancellation } from '../utils/transaction-helpers';
+
+type SignableTransaction = Parameters<ReturnType<typeof account.get>['sign']>[0];
 
 interface MintingState {
   mintIntervals: Map<string, NodeJS.Timeout>;
@@ -158,15 +161,16 @@ export function useMixtapeMinting() {
     });
 
     const sequence = await getLatestSequence();
-    at = await account.get().sign(at, {
+    const signable = at as unknown as SignableTransaction;
+    const signed = await account.get().sign(signable, {
       rpId: getSafeRpId(window.location.hostname),
       keyId: userKeyId,
       expiration: sequence + 60,
     });
 
-    const xdrString = at.built?.toXDR();
-    if (at.built) {
-      console.log("Mint Tx Hash:", at.built.hash().toString('hex'));
+    const xdrString = signed.built?.toXDR();
+    if (signed.built) {
+      console.log("Mint Tx Hash:", signed.built.hash().toString('hex'));
     }
 
     if (!xdrString) {
@@ -280,15 +284,7 @@ export function useMixtapeMinting() {
         console.error(`Error processing batch ${chunkIndex + 1}/${chunks.length}:`, error);
 
         // Check if user explicitly cancelled (don't retry cancellations)
-        const errorName = error instanceof Error ? error.name : '';
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        const isCancellation =
-          errorName === 'NotAllowedError' ||
-          errorMessage.toLowerCase().includes('abort') ||
-          errorMessage.toLowerCase().includes('cancel') ||
-          errorMessage.toLowerCase().includes('not allowed');
-
-        if (isCancellation) {
+        if (isUserCancellation(error)) {
           // User cancelled - report error but CONTINUE with remaining batches
           onBatchError(chunkIndex, error as Error);
           console.log(`User cancelled batch ${chunkIndex + 1}, continuing with remaining batches...`);

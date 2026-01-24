@@ -1,8 +1,9 @@
 import type { APIRoute } from 'astro';
 import { getVIPAccess } from '../../../../utils/vip';
+import { StrKey } from '@stellar/stellar-sdk';
+import { findTransfersToRecipient } from '../../../../utils/horizon';
 
 const ADMIN_ADDRESS = "CBNORBI4DCE7LIC42FWMCIWQRULWAUGF2MH2Z7X2RNTFAYNXIACJ33IM";
-const KALE_ISSUER = "GAKDNXUGEIRGESAXOPUHU7YNQNQN4RVD7ZS665HXBQJ4CEJJAXIUWE"; // Official KALE token issuer
 const SMOL_MART_AMOUNTS = {
     PREMIUM_HEADER: 100000,
     GOLDEN_KALE: 69420.67,
@@ -37,6 +38,21 @@ export const GET: APIRoute = async ({ params }) => {
         });
     }
 
+    // Validate address format
+    const trimmed = address.trim();
+    if (!trimmed || !StrKey.isValidContract(trimmed)) {
+        return new Response(JSON.stringify({
+            error: 'Invalid contract address format',
+            premiumHeader: false,
+            goldenKale: false,
+            showcaseReel: false,
+            vibeMatrix: false
+        }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+
     // Check cache first
     const cached = cache.get(address);
     if (cached && cached.expires > Date.now()) {
@@ -54,70 +70,39 @@ export const GET: APIRoute = async ({ params }) => {
         });
     }
 
-    // Query Horizon for operations
+    // Query Horizon for operations using unified utility
     try {
         const result = { premiumHeader: false, goldenKale: false, showcaseReel: false, vibeMatrix: false };
-        const limit = 200;
-        const url = `https://horizon.stellar.org/accounts/${address}/operations?limit=${limit}&order=desc&include_failed=false`;
 
-        const res = await fetch(url);
-        if (!res.ok) {
-            // Account might not exist or have no operations
-            cache.set(address, { data: result, expires: Date.now() + CACHE_TTL });
-            return new Response(JSON.stringify(result), {
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
+        // Scan for transfers to admin address with specific amounts
+        const purchaseAmounts = [
+            SMOL_MART_AMOUNTS.PREMIUM_HEADER,
+            SMOL_MART_AMOUNTS.GOLDEN_KALE,
+            SMOL_MART_AMOUNTS.SHOWCASE_REEL,
+            SMOL_MART_AMOUNTS.VIBE_MATRIX
+        ];
 
-        const data = await res.json();
-        const operations = data._embedded?.records || [];
-
-        // Look for invoke_host_function operations
-        for (const op of operations) {
-            if (op.type !== 'invoke_host_function') continue;
-
-            // Check if this is a transfer to admin with matching amounts
-            // Parse the parameters if available
-            if (op.parameters) {
-                try {
-                    const params = op.parameters;
-                    // Look for transfer function calls
-                    for (const param of params) {
-                        if (param.type === 'Sym' && param.value === 'transfer') {
-                            // Found a transfer, check other params for amount and recipient
-                            // This is a simplified check - full XDR parsing is complex
-                        }
-                    }
-                } catch (e) {
-                    // ignore parse errors
-                }
+        const foundTransfers = await findTransfersToRecipient(
+            address,
+            ADMIN_ADDRESS,
+            purchaseAmounts,
+            {
+                limit: 200,
+                maxPages: 1 // Scan last 200 operations
             }
+        );
 
-            // Alternative: Check asset_balance_changes for KALE transfers to admin
-            if (op.asset_balance_changes) {
-                for (const change of op.asset_balance_changes) {
-                    if (change.to === ADMIN_ADDRESS &&
-                        change.asset_code === 'KALE' &&
-                        change.asset_issuer === KALE_ISSUER) {
-                        const amount = parseFloat(change.amount);
-                        if (Math.abs(amount - SMOL_MART_AMOUNTS.PREMIUM_HEADER) < 0.1) {
-                            result.premiumHeader = true;
-                        }
-                        if (Math.abs(amount - SMOL_MART_AMOUNTS.GOLDEN_KALE) < 0.1) {
-                            result.goldenKale = true;
-                        }
-                        if (Math.abs(amount - SMOL_MART_AMOUNTS.SHOWCASE_REEL) < 0.1) {
-                            result.showcaseReel = true;
-                            result.premiumHeader = true; // Included in 1M bundle
-                            result.goldenKale = true;   // Included in 1M bundle
-                            result.vibeMatrix = true;     // Included in 1M bundle
-                        }
-                        if (Math.abs(amount - SMOL_MART_AMOUNTS.VIBE_MATRIX) < 0.1) {
-                            result.vibeMatrix = true;
-                        }
-                    }
-                }
-            }
+        // Map found transfers to badge ownership
+        result.premiumHeader = foundTransfers.get(SMOL_MART_AMOUNTS.PREMIUM_HEADER) || false;
+        result.goldenKale = foundTransfers.get(SMOL_MART_AMOUNTS.GOLDEN_KALE) || false;
+        result.vibeMatrix = foundTransfers.get(SMOL_MART_AMOUNTS.VIBE_MATRIX) || false;
+
+        // Showcase Reel is the ultimate bundle - if found, grant all badges
+        if (foundTransfers.get(SMOL_MART_AMOUNTS.SHOWCASE_REEL)) {
+            result.showcaseReel = true;
+            result.premiumHeader = true;
+            result.goldenKale = true;
+            result.vibeMatrix = true;
         }
 
         // Fetch user preferences to see if they've disabled any badges
