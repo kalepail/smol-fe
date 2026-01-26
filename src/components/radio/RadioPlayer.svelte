@@ -9,15 +9,15 @@
     registerSongNextCallback,
     seek,
     toggleRepeatMode,
-  } from "../../stores/audio.svelte";
+  } from "../../stores/audio.svelte.ts";
   import { navigate } from "astro:transitions/client";
 
   import LikeButton from "../ui/LikeButton.svelte";
   // import AudioManager from "../audio/AudioManager.svelte"; // Removed: Global BarAudioPlayer handles this
-  import { userState } from "../../stores/user.svelte";
+  import { userState } from "../../stores/user.svelte.ts";
   import { buildRadioUrl } from "../../utils/radio";
   import CastButton from "../ui/CastButton.svelte";
-  import { preferences } from "../../stores/preferences.svelte";
+  import { preferences } from "../../stores/preferences.svelte.ts";
 
   let {
     playlist = [],
@@ -165,7 +165,7 @@
     currentSong?.lyrics?.style?.slice(0, 3).join(", ") || "",
   );
 
-  import { initAudioContext } from "../../stores/audio.svelte";
+  import { initAudioContext } from "../../stores/audio.svelte.ts";
 
   let canvasRef = $state<HTMLCanvasElement | null>(null);
   let animationId: number | null = null;

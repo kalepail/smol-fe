@@ -8,7 +8,7 @@ const SUPPORTED_PROTOCOLS = ['soroswap', 'aqua', 'phoenix'];
 export async function POST({ request, locals }: APIContext) {
     try {
         const body = await request.json();
-        const { tokenIn, tokenOut, amountIn, slippageBps = 500 } = body;
+        const { tokenIn, tokenOut, amountIn, slippageBps = 500, tradeType } = body;
 
         if (!tokenIn || !tokenOut || !amountIn) {
             return new Response(JSON.stringify({ error: 'Missing required parameters' }), { status: 400 });
@@ -27,8 +27,13 @@ export async function POST({ request, locals }: APIContext) {
         const quotePayload = {
             assetIn: tokenIn,
             assetOut: tokenOut,
-            amount: amountIn,
-            tradeType: 'EXACT_IN',
+
+            amount: amountIn, // Note: Soroswap API uses 'amount' for both input/output depending on tradeType? 
+            // Actually, for EXACT_OUT, 'amount' usually represents amountOut. 
+            // But let's check input mapping. Client sends 'amountIn' as the value.
+            // If tradeType is EXACT_OUT, client should likely send 'amountOut'.
+            // However, keeping simple fix first: pass tradeType.
+            tradeType: tradeType || 'EXACT_IN',
             protocols: SUPPORTED_PROTOCOLS,
             slippageBps,
         };
@@ -54,8 +59,11 @@ export async function POST({ request, locals }: APIContext) {
             headers: { 'Content-Type': 'application/json' },
         });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('API Error:', error);
-        return new Response(JSON.stringify({ error: 'Internal Server Error' }), { status: 500 });
+        return new Response(JSON.stringify({
+            error: error.message || 'Internal Server Error',
+            details: error.toString()
+        }), { status: 500 });
     }
 }

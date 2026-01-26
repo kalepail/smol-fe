@@ -1,4 +1,4 @@
-import { preferences } from './preferences.svelte';
+import { preferences } from './preferences.svelte.ts';
 
 export const backgroundState = $state({
     enableAnimations: false

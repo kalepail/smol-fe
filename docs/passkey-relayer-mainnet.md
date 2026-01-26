@@ -152,6 +152,7 @@ stateDiagram-v2
 | `PUBLIC_RPC_URL` | Stellar RPC endpoint | `src/utils/rpc.ts:2` |
 | `PUBLIC_NETWORK_PASSPHRASE` | Network identifier | `src/utils/passkey-kit.ts:8` |
 | `PUBLIC_WALLET_WASM_HASH` | Smart wallet WASM hash | `src/utils/passkey-kit.ts:9` |
+| `PUBLIC_WEBAUTHN_VERIFIER_ADDRESS` | WebAuthn verifier contract address | `src/lib/wallet/smartAccount.ts:26` |
 | `PUBLIC_CHANNELS_BASE_URL` | OZ Relayer endpoint | `src/utils/passkey-kit.ts:43` |
 | `PUBLIC_CHANNELS_API_KEY` | OZ Relayer auth key | `src/utils/passkey-kit.ts:44` |
 | `PUBLIC_KALE_SAC_ID` | KALE token contract | `src/utils/passkey-kit.ts:19` |
@@ -167,6 +168,7 @@ PUBLIC_NETWORK_PASSPHRASE="Public Global Stellar Network ; September 2015"
 
 # Smart Wallet
 PUBLIC_WALLET_WASM_HASH=ecd990f0b45ca6817149b6175f79b32efb442f35731985a084131e8265c4cd90
+PUBLIC_WEBAUTHN_VERIFIER_ADDRESS=<C_ADDRESS>
 
 # Token Contracts (Mainnet)
 PUBLIC_KALE_SAC_ID=CB23WRDQWGSP6YPMY4UV5C4OW5CBTXKYN3XEATG7KJEZCXMJBYEHOUOV

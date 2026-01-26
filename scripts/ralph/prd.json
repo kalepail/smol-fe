@@ -112,6 +112,18 @@
                 "Playwright smoke tests cover navigation and schema validation",
                 "Testing guide includes E2E run instructions"
             ]
+        },
+        {
+            "id": "P0-AUTH-001",
+            "title": "Passkey login hotfix + SmartAccountKit migration",
+            "priority": 0,
+            "passes": true,
+            "lastValidated": "2026-01-24",
+            "acceptanceCriteria": [
+                "Passkey login uses SmartAccountKit with IndexedDB session storage",
+                "Debug mode logs /login request/response metadata",
+                "Frontend records auth errors with debugId when available"
+            ]
         }
     ]
 }

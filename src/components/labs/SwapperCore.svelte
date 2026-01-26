@@ -21,15 +21,18 @@
         userState,
         setUserAuth,
         ensureWalletConnected,
-    } from "../../stores/user.svelte";
+    } from "../../stores/user.svelte.ts";
     import {
         balanceState,
         updateAllBalances,
-    } from "../../stores/balance.svelte";
-    import { signSendAndVerify } from "../../utils/transaction-helpers";
+    } from "../../stores/balance.svelte.ts";
+    import {
+        signSendAndVerify,
+        isUserCancellation,
+    } from "../../utils/transaction-helpers";
     import KaleEmoji from "../ui/KaleEmoji.svelte";
     import { Turnstile } from "svelte-turnstile";
-    import { Transaction, Networks } from "@stellar/stellar-sdk/minimal";
+    import { Transaction, Networks } from "@stellar/stellar-sdk";
 
     import {
         getXBullQuote,
@@ -198,25 +201,10 @@
     async function handleEnter() {
         try {
             if (!isAuthenticated) {
-                // console.log("Connecting with rpId:", rpId); // Debug logging if needed
-
-                const result = await account.get().connectWallet({
-                    rpId: getSafeRpId(window.location.hostname),
-                });
-                // Use keyIdBase64 if available (PasskeyKit v0.6+), otherwise convert with URL-safe replacement
-                const keyIdSafe =
-                    result.keyIdBase64 ||
-                    (typeof result.keyId === "string"
-                        ? result.keyId
-                        : Buffer.from(result.keyId)
-                              .toString("base64")
-                              .replace(/\+/g, "-")
-                              .replace(/\//g, "_")
-                              .replace(/=+$/, ""));
-
-                setUserAuth(result.contractId, keyIdSafe);
+                const rpId = getSafeRpId(window.location.hostname);
+                const result = await account.get().connectWallet({ rpId });
+                setUserAuth(result.contractId, result.keyIdBase64);
             } else {
-                // Already authenticated (localStorage), but ensure wallet instance is connected
                 await ensureWalletConnected();
             }
             appState = "transition";
@@ -227,8 +215,9 @@
             }, 1000);
         } catch (e) {
             console.error(e);
-            const msg = e instanceof Error ? e.message : String(e); // Keep concise
-            alert(`Entry failed: ${msg}`);
+            alert(
+                `Entry failed: ${e instanceof Error ? e.message : String(e)}`,
+            );
         }
     }
 
@@ -282,9 +271,9 @@
                 let result;
                 if (provider === "soroswap") {
                     result = await getQuote({
-                        assetIn,
-                        assetOut,
-                        amount: Number(stroops),
+                        tokenIn: assetIn,
+                        tokenOut: assetOut,
+                        amountIn: Number(stroops),
                         tradeType,
                         slippageBps: 500, // 5% (matches Tyler's ohloss implementation)
                     });
@@ -352,9 +341,7 @@
             return;
         }
 
-        // Require either Turnstile token OR fallback mode OR ensure Direct Relayer
         const useFallback = turnstileFailed && !turnstileToken;
-        // If Direct Relayer, we don't need a token
         if (!turnstileToken && !useFallback && !isDirectRelayer) {
             statusMessage = "Complete verification first";
             return;
@@ -364,185 +351,71 @@
         statusMessage = "Building swap...";
 
         try {
-            // 1. Build Transaction
-            let signedTx;
-            let transactionXDR;
-
-            console.log(
-                "[SwapperCore] Executing swap for:",
-                userState.contractId,
-                "via:",
-                provider,
-            );
-
+            let tx;
             if (provider === "soroswap") {
                 if (isCAddress(userState.contractId)) {
-                    // C address: Build via direct aggregator contract invocation
-                    statusMessage = "Building C-address swap...";
-                    const t = await buildSwapTransactionForCAddress(
+                    tx = await buildSwapTransactionForCAddress(
                         quote,
                         userState.contractId,
                     );
-
-                    // Convert AssembledTransaction to XDR string for signing
-                    // Note: passkey-kit sign() can take AssembledTransaction directly,
-                    // but for consistency with xBull path (which returns XDR string), we use XDR path if possible,
-                    // OR we just pass 't' if it's an AssembledTx.
-                    // Let's pass 't' directly for C-Address path as before.
-
-                    // Sign with passkey
-                    const kit = account.get();
-                    if (!kit.wallet) {
-                        console.log(
-                            "[SwapperCore] Wallet not connected, attempting reconnect...",
-                        );
-                        await kit.connectWallet({
-                            rpId: getSafeRpId(window.location.hostname),
-                            keyId: userState.keyId,
-                            getContractId: async () =>
-                                userState.contractId ?? undefined,
-                        });
-                    }
-                    const sequence = await getLatestSequence();
-                    signedTx = await kit.sign(t, {
-                        rpId: getSafeRpId(window.location.hostname),
-                        keyId: userState.keyId,
-                        expiration: sequence + 60,
-                    });
                 } else {
-                    // G address: Use Soroswap API (may work for traditional accounts)
                     const result = await buildTransaction(
                         quote,
                         userState.contractId,
                         userState.contractId,
                     );
-                    transactionXDR = result.xdr;
-
-                    // Sign with passkey
-                    const kit = account.get();
-                    if (!kit.wallet) {
-                        console.log(
-                            "[SwapperCore] Wallet not connected, attempting reconnect...",
-                        );
-                        await kit.connectWallet({
-                            rpId: getSafeRpId(window.location.hostname),
-                            keyId: userState.keyId,
-                            getContractId: async () =>
-                                userState.contractId ?? undefined,
-                        });
-                    }
-                    const sequence = await getLatestSequence();
-
-                    // Wrap XDR in Transaction object for kit.sign (minimal SDK)
-                    const tx = new Transaction(
-                        transactionXDR,
+                    tx = new Transaction(
+                        result.xdr,
                         import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
                     );
-
-                    signedTx = await kit.sign(tx, {
-                        rpId: getSafeRpId(window.location.hostname),
-                        keyId: userState.keyId,
-                        expiration: sequence + 60,
-                    });
                 }
             } else {
-                // xBull Logic
-                statusMessage = "Building xBull swap...";
-                // Note: quote cast as 'any' to access xbullRoute.
-                const xbullQuote = quote as any;
-                if (!xbullQuote.xbullRoute) {
-                    throw new Error("Invalid xBull quote");
-                }
-
-                // Call xBull Accept Quote API to get XDR
                 const result = await buildXBullTransaction({
-                    fromAmount: xbullQuote.amountIn,
-                    minToGet: xbullQuote.amountOut, // Using amountOut as minToGet for now
-                    route: xbullQuote.xbullRoute,
+                    fromAmount: (quote as any).amountIn,
+                    minToGet: (quote as any).amountOut,
+                    route: (quote as any).xbullRoute,
                     sender: userState.contractId,
                     recipient: userState.contractId,
                     gasless: false,
                 });
-                transactionXDR = result.xdr;
-
-                // Sign with passkey
-                const kit = account.get();
-                if (!kit.wallet) {
-                    console.log(
-                        "[SwapperCore] Wallet not connected, attempting reconnect...",
-                    );
-                    await kit.connectWallet({
-                        rpId: getSafeRpId(window.location.hostname),
-                        keyId: userState.keyId,
-                        getContractId: async () =>
-                            userState.contractId ?? undefined,
-                    });
-                }
-                // Wrap XDR in Transaction object for signing (minimal SDK)
-                const tx = new Transaction(
-                    transactionXDR,
+                tx = new Transaction(
+                    result.xdr,
                     import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
                 );
-
-                signedTx = tx;
             }
 
-            // 3. Submit transaction with unified helper (includes timeout recovery)
             swapState = "submitting";
+            statusMessage = "Submitting swap...";
 
-            let result;
-            let txResult;
-            if (useFallback) {
-                // Fallback: Direct to Soroswap (user pays XLM fee)
-                statusMessage = "Submitting via Soroswap...";
-                result = await sendTransaction(signedTx.toXDR(), false);
-            } else {
-                // Primary: Tyler's relayer (sponsored fees) with automatic timeout recovery
-                statusMessage = "Submitting swap...";
+            const sendResult = await signSendAndVerify(tx, {
+                keyId: userState.keyId,
+                turnstileToken,
+                updateBalance: true,
+                contractId: userState.contractId,
+            });
 
-                txResult = await signSendAndVerify(signedTx, {
-                    keyId: userState.keyId,
-                    turnstileToken,
-                    useLock: false, // Swaps don't modify KALE balance state directly
-                });
-
-                if (!txResult.success) {
-                    throw new Error(txResult.error || 'Swap submission failed');
-                }
-
-                result = txResult.result;
+            if (!sendResult.success) {
+                throw new Error(sendResult.error || "Swap submission failed");
             }
 
-            txHash = result?.hash || txResult?.transactionHash || "submitted";
+            txHash = sendResult.transactionHash || "submitted";
             swapState = "confirmed";
-            statusMessage = useFallback
-                ? "Swap complete! (paid fee)"
-                : "Swap complete!";
+            statusMessage = "Swap complete!";
 
-            // Reset for next swap
+            // Reset
             swapAmount = "";
             swapOutputAmount = "";
             quote = null;
             turnstileToken = "";
-
             refreshBalances();
         } catch (e) {
             console.error("Swap error:", e);
-            const message = e instanceof Error ? e.message : "Swap failed";
-
-            // Check for user cancellation
-            if (
-                message.toLowerCase().includes("abort") ||
-                message.toLowerCase().includes("cancel") ||
-                message.toLowerCase().includes("not allowed")
-            ) {
-                statusMessage = "Swap cancelled";
-            } else {
-                statusMessage = message;
-            }
+            statusMessage = isUserCancellation(e)
+                ? "Swap cancelled"
+                : e instanceof Error
+                  ? e.message
+                  : "Swap failed";
             swapState = "failed";
-
-            // Clear used/stale token
             turnstileToken = "";
         }
     }
@@ -554,36 +427,13 @@
         }
 
         const recipient = sendTo.trim();
-        if (!recipient) {
-            statusMessage = "Enter a recipient address";
-            return;
-        }
-
-        if (recipient === userState.contractId) {
-            statusMessage = "Cannot send to yourself";
-            return;
-        }
-
         const amountNum = parseFloat(sendAmount);
-        if (isNaN(amountNum) || amountNum <= 0) {
-            statusMessage = "Enter a valid amount";
+        if (!recipient || isNaN(amountNum) || amountNum <= 0) {
+            statusMessage = "Invalid recipient or amount";
             return;
         }
 
-        // Convert to stroops (7 decimals)
         const amountInStroops = BigInt(Math.floor(amountNum * 10_000_000));
-
-        // Check balance
-        const currentBalance = sendToken === "KALE" ? kaleBalance : xlmBalance;
-        if (
-            typeof currentBalance === "bigint" &&
-            amountInStroops > currentBalance
-        ) {
-            statusMessage = "Insufficient balance";
-            return;
-        }
-
-        // Require Turnstile or fallback or Direct Relayer
         const useFallback = turnstileFailed && !turnstileToken;
         if (!turnstileToken && !useFallback && !isDirectRelayer) {
             statusMessage = "Complete verification first";
@@ -594,58 +444,29 @@
         statusMessage = `Sending ${sendToken}...`;
 
         try {
-            // Build transfer transaction
-            let tx;
-            if (sendToken === "KALE") {
-                tx = await kale.get().transfer({
+            const tx = await (sendToken === "KALE" ? kale : xlm)
+                .get()
+                .transfer({
                     from: userState.contractId,
                     to: recipient,
                     amount: amountInStroops,
                 });
-            } else {
-                // XLM transfer via SAC
-                tx = await xlm.get().transfer({
-                    from: userState.contractId,
-                    to: recipient,
-                    amount: amountInStroops,
-                });
-            }
 
-            // Sign with passkey
-            // Ensure wallet is connected
-            const kit = account.get();
-            if (!kit.wallet) {
-                console.log(
-                    "[SwapperCore] Send: Wallet not connected, attempting reconnect...",
-                );
-                await kit.connectWallet({
-                    rpId: getSafeRpId(window.location.hostname),
-                    keyId: userState.keyId,
-                    getContractId: async () =>
-                        userState.contractId ?? undefined,
-                });
-            }
-
-            // Submit with unified helper (includes signing, submission, and timeout recovery)
             swapState = "submitting";
             statusMessage = "Submitting transfer...";
 
             const sendResult = await signSendAndVerify(tx, {
                 keyId: userState.keyId,
                 turnstileToken,
-                updateBalance: true, // Update balance after transfer
+                updateBalance: true,
                 contractId: userState.contractId,
-                useLock: true, // Prevent concurrent transfers
             });
 
             if (!sendResult.success) {
-                throw new Error(sendResult.error || 'Transfer failed');
+                throw new Error(sendResult.error || "Transfer failed");
             }
 
-            const calculatedHash = sendResult.transactionHash;
-            console.log("[SwapperCore] Send txHash:", calculatedHash);
-
-            txHash = calculatedHash || "submitted";
+            txHash = sendResult.transactionHash || "submitted";
             swapState = "confirmed";
             statusMessage = `Sent ${amountNum} ${sendToken}!`;
 
@@ -653,24 +474,15 @@
             sendTo = "";
             sendAmount = "";
             turnstileToken = "";
-
             refreshBalances();
         } catch (e) {
             console.error("Send error:", e);
-            const message = e instanceof Error ? e.message : "Send failed";
-
-            if (
-                message.toLowerCase().includes("abort") ||
-                message.toLowerCase().includes("cancel") ||
-                message.toLowerCase().includes("not allowed")
-            ) {
-                statusMessage = "Send cancelled";
-            } else {
-                statusMessage = message;
-            }
+            statusMessage = isUserCancellation(e)
+                ? "Send cancelled"
+                : e instanceof Error
+                  ? e.message
+                  : "Send failed";
             swapState = "failed";
-
-            // Clear used/stale token
             turnstileToken = "";
         }
     }

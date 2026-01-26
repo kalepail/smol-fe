@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { audioState } from "../../stores/audio.svelte";
+    import { audioState } from "../../stores/audio.svelte.ts";
     import { castService } from "../../services/cast";
 
     interface Props {

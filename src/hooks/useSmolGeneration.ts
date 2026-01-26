@@ -1,4 +1,4 @@
-import { userState } from '../stores/user.svelte';
+import { userState } from '../stores/user.svelte.ts';
 
 export interface GenerationStatus {
   status?: 'queued' | 'running' | 'paused' | 'errored' | 'terminated' | 'complete' | 'waiting' | 'waitingForPause' | 'unknown';

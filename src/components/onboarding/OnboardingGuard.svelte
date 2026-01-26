@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { userState } from "../../stores/user.svelte";
+    import { userState } from "../../stores/user.svelte.ts";
 
     interface Props {
         isAuthenticatedServer: boolean;

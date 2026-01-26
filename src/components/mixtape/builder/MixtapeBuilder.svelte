@@ -14,7 +14,7 @@
     touchMixtapeDraft,
     setTracks,
     getSnapshotDraft,
-  } from "../../../stores/mixtape.svelte";
+  } from "../../../stores/mixtape.svelte.ts";
   import { useMixtapePublishing } from "../../../hooks/useMixtapePublishing";
   import { useMixtapeDragDrop } from "../../../hooks/useMixtapeDragDrop";
   import MixtapeTrackList from "./MixtapeTrackList.svelte";

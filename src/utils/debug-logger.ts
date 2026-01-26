@@ -11,6 +11,8 @@
  * - Easy log export for debugging
  */
 
+import { safeLocalStorageGet, safeLocalStorageSet } from "./storage";
+
 export enum LogLevel {
     ERROR = 0,
     WARN = 1,
@@ -28,6 +30,7 @@ export enum LogCategory {
     PASSKEY = 'PASSKEY',
     BALANCE = 'BALANCE',
     VALIDATION = 'VALIDATION',
+    RELAYER = 'RELAYER',
     GENERAL = 'GENERAL'
 }
 
@@ -50,15 +53,13 @@ class DebugLogger {
 
     constructor() {
         // Load verbosity from localStorage
-        if (typeof localStorage !== 'undefined') {
-            const savedLevel = localStorage.getItem('smol:debug:level');
-            if (savedLevel !== null) {
-                this.currentLevel = parseInt(savedLevel, 10);
-            }
-
-            // Load persisted logs
-            this.loadLogs();
+        const savedLevel = safeLocalStorageGet("smol:debug:level");
+        if (savedLevel !== null) {
+            this.currentLevel = parseInt(savedLevel, 10);
         }
+
+        // Load persisted logs
+        this.loadLogs();
     }
 
     /**
@@ -71,9 +72,7 @@ class DebugLogger {
      */
     setLevel(level: LogLevel): void {
         this.currentLevel = level;
-        if (typeof localStorage !== 'undefined') {
-            localStorage.setItem('smol:debug:level', level.toString());
-        }
+        safeLocalStorageSet("smol:debug:level", level.toString());
         this.info(LogCategory.GENERAL, `Log level set to: ${LogLevel[level]}`);
     }
 
@@ -136,6 +135,11 @@ class DebugLogger {
                 if (key.toLowerCase().includes('lyrics') && typeof value === 'string') {
                     sanitized[key] = value.length > 100
                         ? value.substring(0, 100) + `... (${value.length} chars truncated)`
+                        : value;
+                } else if (key.toLowerCase().includes('xdr') && typeof value === 'string') {
+                    // Allow full XDR strings up to 5000 chars for debugging
+                    sanitized[key] = value.length > 5000
+                        ? value.substring(0, 5000) + `... (${value.length} chars truncated)`
                         : value;
                 } else {
                     sanitized[key] = this.truncateData(value);
@@ -263,7 +267,9 @@ class DebugLogger {
      * Export logs as JSON for debugging
      */
     exportLogs(): string {
-        return JSON.stringify(this.logs, null, 2);
+        return JSON.stringify(this.logs, (key, value) =>
+            typeof value === 'bigint' ? value.toString() : value
+            , 2);
     }
 
     /**
@@ -274,7 +280,7 @@ class DebugLogger {
             const timestamp = new Date(log.timestamp).toISOString();
             const level = LogLevel[log.level].padEnd(5);
             const category = log.category.padEnd(10);
-            const data = log.data ? `\n  Data: ${JSON.stringify(log.data)}` : '';
+            const data = log.data ? `\n  Data: ${JSON.stringify(log.data, (k, v) => typeof v === 'bigint' ? v.toString() : v)}` : '';
             const stack = log.stack ? `\n  Stack: ${log.stack}` : '';
             return `[${timestamp}] [${level}] [${category}] ${log.message}${data}${stack}`;
         }).join('\n');
@@ -308,12 +314,10 @@ class DebugLogger {
      * Save logs to localStorage
      */
     private saveLogs(): void {
-        if (typeof localStorage === 'undefined') return;
-
         try {
             // Only save last 500 logs to localStorage (size limit)
             const logsToSave = this.logs.slice(-500);
-            localStorage.setItem(this.persistKey, JSON.stringify(logsToSave));
+            safeLocalStorageSet(this.persistKey, JSON.stringify(logsToSave, (k, v) => typeof v === 'bigint' ? v.toString() : v));
         } catch (e) {
             console.error('Failed to save logs to localStorage:', e);
         }
@@ -323,10 +327,8 @@ class DebugLogger {
      * Load logs from localStorage
      */
     private loadLogs(): void {
-        if (typeof localStorage === 'undefined') return;
-
         try {
-            const saved = localStorage.getItem(this.persistKey);
+            const saved = safeLocalStorageGet(this.persistKey);
             if (saved) {
                 this.logs = JSON.parse(saved);
             }

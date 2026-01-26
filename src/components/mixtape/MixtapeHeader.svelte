@@ -2,7 +2,7 @@
   import type { MixtapeDetail } from "../../services/api/mixtapes";
   import type { Smol } from "../../types/domain";
   import Loader from "../ui/Loader.svelte";
-  import { userState } from "../../stores/user.svelte";
+  import { userState } from "../../stores/user.svelte.ts";
 
   interface Props {
     mixtape: MixtapeDetail;

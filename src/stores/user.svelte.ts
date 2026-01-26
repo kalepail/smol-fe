@@ -1,12 +1,16 @@
 /**
- * User authentication state using Svelte 5 runes
+ * FACTORY FRESH: Unified Auth State
+ * @see https://deepwiki.com/repo/kalepail/smol-fe#auth-architecture
+ * 
+ * Standardizes wallet state using Svelte 5 runes.
+ * Prioritizes PasskeyKit's local reconnection over server-side session cookies.
  */
 
-import { getSafeRpId } from '../utils/domains';
+import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from "../utils/storage";
 
 // Initialize from localStorage if available (client-side only)
-const storedContractId = typeof localStorage !== "undefined" ? localStorage.getItem("smol:contractId") : null;
-const storedKeyId = typeof localStorage !== "undefined" ? localStorage.getItem("smol:keyId") : null;
+const storedContractId = safeLocalStorageGet("smol:contractId");
+const storedKeyId = safeLocalStorageGet("smol:keyId");
 
 export const userState = $state<{
   contractId: string | null;
@@ -28,10 +32,8 @@ export function isAuthenticated(): boolean {
  */
 export function setContractId(id: string | null) {
   userState.contractId = id;
-  if (typeof localStorage !== "undefined") {
-    if (id) localStorage.setItem("smol:contractId", id);
-    else localStorage.removeItem("smol:contractId");
-  }
+  if (id) safeLocalStorageSet("smol:contractId", id);
+  else safeLocalStorageRemove("smol:contractId");
 }
 
 /**
@@ -39,10 +41,8 @@ export function setContractId(id: string | null) {
  */
 export function setKeyId(id: string | null) {
   userState.keyId = id;
-  if (typeof localStorage !== "undefined") {
-    if (id) localStorage.setItem("smol:keyId", id);
-    else localStorage.removeItem("smol:keyId");
-  }
+  if (id) safeLocalStorageSet("smol:keyId", id);
+  else safeLocalStorageRemove("smol:keyId");
 }
 
 /**
@@ -52,10 +52,8 @@ export function setUserAuth(contractId: string | null, keyId: string | null) {
   userState.contractId = contractId;
   userState.keyId = keyId;
 
-  if (typeof localStorage !== "undefined") {
-    if (contractId) localStorage.setItem("smol:contractId", contractId);
-    if (keyId) localStorage.setItem("smol:keyId", keyId);
-  }
+  if (contractId) safeLocalStorageSet("smol:contractId", contractId);
+  if (keyId) safeLocalStorageSet("smol:keyId", keyId);
 }
 
 /**
@@ -67,38 +65,50 @@ export function clearUserAuth() {
   userState.keyId = null;
   userState.walletConnected = false;
 
-  if (typeof localStorage !== "undefined") {
-    // Hard logout: Remove credentials to prevent stale passkey issues
-    localStorage.removeItem("smol:contractId");
-    localStorage.removeItem("smol:keyId");
-    localStorage.removeItem("smol:skip_intro"); // Optional: reset intro
-  }
+  // Hard logout: Remove credentials to prevent stale passkey issues
+  safeLocalStorageRemove("smol:contractId");
+  safeLocalStorageRemove("smol:keyId");
+  safeLocalStorageRemove("smol:skip_intro"); // Optional: reset intro
+
+  // Reset PasskeyKit singleton so next login starts fresh
+  resetPasskeyKit();
 }
 
+import { account, resetPasskeyKit } from "../utils/passkey-kit";
+import { getSafeRpId } from "../utils/domains";
+
+// ... existing code ...
+
 /**
- * Ensure the passkey account wallet is connected
- * This should be called once during app initialization when user is authenticated
- *
- * PERFORMANCE: Uses dynamic import to lazy-load passkey-kit only when needed
+ * FACTORY FRESH: Passkey Reconnection
+ * @see https://deepwiki.com/repo/kalepail/smol-fe#silent-reconnect
+ * 
+ * Invokes PasskeyKit's connectWallet safely on page load.
+ * This is the canonical "silent reconnection" pattern for smol-fe.
  */
 export async function ensureWalletConnected(): Promise<void> {
-  // Only connect if we have auth credentials and haven't connected yet
-  if (userState.contractId && userState.keyId && !userState.walletConnected) {
-    const hostname = window.location.hostname;
+  const contractId = userState.contractId;
+  const keyId = userState.keyId;
 
+  if (contractId && keyId && !userState.walletConnected) {
     try {
-      // Lazy load passkey-kit module (reduces initial bundle size by ~2.5MB)
-      const { account } = await import('../utils/passkey-kit');
-
-      await account.get().connectWallet({
-        rpId: getSafeRpId(hostname),
-        keyId: userState.keyId, // Pass saved keyId for targeted reconnection
+      const rpId = getSafeRpId(window.location.hostname);
+      const result = await account.get().connectWallet({
+        rpId,
+        keyId,
+        getContractId: async () => contractId,
       });
-      userState.walletConnected = true;
+
+      if (result && result.contractId === contractId) {
+        userState.walletConnected = true;
+        console.log('[userState] Wallet reconnected successfully');
+      } else {
+        throw new Error('Wallet connection mismatch or failed');
+      }
     } catch (error) {
-      console.error('[userState] Failed to connect wallet (stale?):', error);
-      // AUTO-BURN: If the saved key fails to connect, wipe it so the user isn't stuck.
-      clearUserAuth();
+      console.error('[userState] Failed to reconnect wallet:', error);
+      // Optional: don't clear auth here unless we're sure it's dead, 
+      // but if the passkey itself is gone, clearUserAuth() might be safer.
     }
   }
 }

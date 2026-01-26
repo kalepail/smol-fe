@@ -6,18 +6,18 @@
     audioState,
     selectSong,
     registerSongNextCallback,
-  } from "../../stores/audio.svelte";
+  } from "../../stores/audio.svelte.ts";
   import {
     mixtapeDraftState,
     mixtapeModeState,
     addTrack,
-  } from "../../stores/mixtape.svelte";
-  import { userState } from "../../stores/user.svelte";
+  } from "../../stores/mixtape.svelte.ts";
+  import { userState } from "../../stores/user.svelte.ts";
   import { fetchLikedSmols, getFullSnapshot } from "../../services/api/smols";
   import { useVisibilityTracking } from "../../hooks/useVisibilityTracking";
   import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
   import { useGridMediaSession } from "../../hooks/useGridMediaSession";
-  import { preferences } from "../../stores/preferences.svelte";
+  import { preferences } from "../../stores/preferences.svelte.ts";
 
   interface Props {
     playlist?: string | null;

@@ -1,0 +1,149 @@
+
+> smol-fe@1.5.4 build C:\Users\Jeff\Mixtape Auto\smol-fe
+> node --max-old-space-size=4096 ./node_modules/astro/astro.js build
+
+21:00:43 [@astrojs/cloudflare] Enabling sessions with Cloudflare KV with the "SESSION" KV binding.
+21:00:43 [@astrojs/cloudflare] If you see the error "Invalid binding `SESSION`" in your build output, you need to add the binding to your wrangler config file.
+21:00:43 [WARN] [adapter] Cloudflare does not support sharp at runtime. However, you can configure `imageService: "compile"` to optimize images with sharp on prerendered pages during build time.
+21:00:43 [content] Syncing content
+21:00:43 [content] Synced content
+21:00:43 [types] Generated 149ms
+21:00:43 [build] output: "server"
+21:00:43 [build] mode: "server"
+21:00:43 [build] directory: C:\Users\Jeff\Mixtape Auto\smol-fe\dist\
+21:00:43 [build] adapter: @astrojs/cloudflare
+21:00:43 [build] Collecting build info...
+21:00:43 [build] Γ£ô Completed in 229ms.
+21:00:43 [build] Building server entrypoints...
+21:01:03 [WARN] [vite] [33mGenerated an empty chunk: "kale-or-fail.4a25530b".[39m
+21:01:04 [WARN] [vite] [33mnode_modules/.pnpm/vm-browserify@1.1.2/node_modules/vm-browserify/index.js (110:11): Use of eval in "node_modules/.pnpm/vm-browserify@1.1.2/node_modules/vm-browserify/index.js" is strongly discouraged as it poses security risks and may cause issues with minification.[39m
+21:01:04 [vite] [32mΓ£ô built in 20.57s[39m
+21:01:04 [build] Γ£ô Completed in 20.65s.
+
+ building client (vite) 
+21:01:04 [vite] transforming...
+21:01:29 [vite] [32mΓ£ô[39m 1204 modules transformed.
+21:01:30 [WARN] [vite] [33mnode_modules/.pnpm/vm-browserify@1.1.2/node_modules/vm-browserify/index.js (110:11): Use of eval in "node_modules/.pnpm/vm-browserify@1.1.2/node_modules/vm-browserify/index.js" is strongly discouraged as it poses security risks and may cause issues with minification.[39m
+21:01:30 [vite] rendering chunks...
+21:01:31 [vite] computing gzip size...
+21:01:31 [vite] [2mdist/[22m[35m_astro/passkey.mr-mEBIa.css                                           [39m[1m[2m    0.09 kB[22m[1m[22m[2m Γöé gzip:   0.08 kB[22m
+21:01:31 [vite] [2mdist/[22m[35m_astro/kale-or-fail.CKKrKtDf.css                                      [39m[1m[2m    0.25 kB[22m[1m[22m[2m Γöé gzip:   0.17 kB[22m
+21:01:31 [vite] [2mdist/[22m[35m_astro/artists.qaCPR-5q.css                                           [39m[1m[2m    0.50 kB[22m[1m[22m[2m Γöé gzip:   0.23 kB[22m
+21:01:31 [vite] [2mdist/[22m[35m_astro/_id_.eVscy1eT.css                                              [39m[1m[2m    0.94 kB[22m[1m[22m[2m Γöé gzip:   0.43 kB[22m
+21:01:31 [vite] [2mdist/[22m[35m_astro/swapper.CdWR9Vo_.css                                           [39m[1m[2m    3.06 kB[22m[1m[22m[2m Γöé gzip:   1.02 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/legacy.B9q8xORU.js                                             [39m[1m[2m    0.05 kB[22m[1m[22m[2m Γöé gzip:   0.07 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/stellar-sdk.min.Fz_-yfGd.js                                    [39m[1m[2m    0.07 kB[22m[1m[22m[2m Γöé gzip:   0.09 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/apiUrl.QaRmvUiV.js                                             [39m[1m[2m    0.09 kB[22m[1m[22m[2m Γöé gzip:   0.11 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/async.CDJmIy4X.js                                              [39m[1m[2m    0.12 kB[22m[1m[22m[2m Γöé gzip:   0.14 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/background.svelte.CBrxe-JE.js                                  [39m[1m[2m    0.24 kB[22m[1m[22m[2m Γöé gzip:   0.19 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/actions.B-lnj6pA.js                                            [39m[1m[2m    0.27 kB[22m[1m[22m[2m Γöé gzip:   0.21 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/style.AUnMDiwe.js                                              [39m[1m[2m    0.27 kB[22m[1m[22m[2m Γöé gzip:   0.22 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/this.D24m1qeS.js                                               [39m[1m[2m    0.32 kB[22m[1m[22m[2m Γöé gzip:   0.23 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/radio.CsxIFxpE.js                                              [39m[1m[2m    0.33 kB[22m[1m[22m[2m Γöé gzip:   0.25 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/vip.fc7XZz2U.js                                                [39m[1m[2m    0.33 kB[22m[1m[22m[2m Γöé gzip:   0.24 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/balance.DX_HOmMH.js                                            [39m[1m[2m    0.33 kB[22m[1m[22m[2m Γöé gzip:   0.26 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/loop.BGGTUj09.js                                               [39m[1m[2m    0.36 kB[22m[1m[22m[2m Γöé gzip:   0.25 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/key.BQqf9UFX.js                                                [39m[1m[2m    0.42 kB[22m[1m[22m[2m Γöé gzip:   0.31 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/class.CD0BXJ6N.js                                              [39m[1m[2m    0.42 kB[22m[1m[22m[2m Γöé gzip:   0.29 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/KaleEmoji.CwH5izRX.js                                          [39m[1m[2m    0.47 kB[22m[1m[22m[2m Γöé gzip:   0.36 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/snapshot.CK_s7UhW.js                                           [39m[1m[2m    0.49 kB[22m[1m[22m[2m Γöé gzip:   0.30 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/lifecycle.hwV9SJ--.js                                          [39m[1m[2m    0.53 kB[22m[1m[22m[2m Γöé gzip:   0.34 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/OnboardingGuard.CqQuaR2k.js                                    [39m[1m[2m    0.59 kB[22m[1m[22m[2m Γöé gzip:   0.37 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/toast.svelte.CoKTpkLz.js                                       [39m[1m[2m    0.63 kB[22m[1m[22m[2m Γöé gzip:   0.37 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/index-client.B1lEO3Ap.js                                       [39m[1m[2m    0.70 kB[22m[1m[22m[2m Γöé gzip:   0.43 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/base.DmbxVMeu.js                                               [39m[1m[2m    0.71 kB[22m[1m[22m[2m Γöé gzip:   0.47 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/transaction-helpers.B-mGaoTd.js                                [39m[1m[2m    0.72 kB[22m[1m[22m[2m Γöé gzip:   0.45 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/Loader.KCE61zyX.js                                             [39m[1m[2m    0.73 kB[22m[1m[22m[2m Γöé gzip:   0.48 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/TokenBalancePill.6slejFY7.js                                   [39m[1m[2m    0.76 kB[22m[1m[22m[2m Γöé gzip:   0.50 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/if.CcXi01OS.js                                                 [39m[1m[2m    0.78 kB[22m[1m[22m[2m Γöé gzip:   0.51 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/attributes.BRzKQYUk.js                                         [39m[1m[2m    0.83 kB[22m[1m[22m[2m Γöé gzip:   0.46 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/upgrades.svelte.C1eiiIZe.js                                    [39m[1m[2m    0.84 kB[22m[1m[22m[2m Γöé gzip:   0.40 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/useGridMediaSession.DZAlr17-.js                                [39m[1m[2m    0.96 kB[22m[1m[22m[2m Γöé gzip:   0.44 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/attributes.K5XMdaR8.js                                         [39m[1m[2m    1.07 kB[22m[1m[22m[2m Γöé gzip:   0.61 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/rpc.S3gJL1bX.js                                                [39m[1m[2m    1.09 kB[22m[1m[22m[2m Γöé gzip:   0.56 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/client.svelte.D-xtjgAh.js                                      [39m[1m[2m    1.23 kB[22m[1m[22m[2m Γöé gzip:   0.68 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/balance.svelte.BArdLXSb.js                                     [39m[1m[2m    1.29 kB[22m[1m[22m[2m Γöé gzip:   0.49 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/template.BhG71_XL.js                                           [39m[1m[2m    1.31 kB[22m[1m[22m[2m Γöé gzip:   0.66 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/KaleForestScene.C93tRetO.js                                    [39m[1m[2m    1.49 kB[22m[1m[22m[2m Γöé gzip:   0.74 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/MiniVisualizer.6O4ssRXU.js                                     [39m[1m[2m    1.49 kB[22m[1m[22m[2m Γöé gzip:   0.89 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/events.tqzrcOoz.js                                             [39m[1m[2m    1.62 kB[22m[1m[22m[2m Γöé gzip:   0.92 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/soroswap.Xne-n1aH.js                                           [39m[1m[2m    1.65 kB[22m[1m[22m[2m Γöé gzip:   0.98 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/input.BjGyaQyR.js                                              [39m[1m[2m    1.69 kB[22m[1m[22m[2m Γöé gzip:   0.87 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/Toast.BU2JxIz1.js                                              [39m[1m[2m    1.73 kB[22m[1m[22m[2m Γöé gzip:   0.96 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/MiniAudioPlayer.BabvIzM4.js                                    [39m[1m[2m    2.00 kB[22m[1m[22m[2m Γöé gzip:   1.07 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/props.BM1T4O5i.js                                              [39m[1m[2m    2.03 kB[22m[1m[22m[2m Γöé gzip:   1.08 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/KonamiEasterEgg.D7VHSrhP.js                                    [39m[1m[2m    2.05 kB[22m[1m[22m[2m Γöé gzip:   1.14 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/unifiedTags.bjXcHySy.js                                        [39m[1m[2m    2.27 kB[22m[1m[22m[2m Γöé gzip:   1.04 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/mixtapes.Dw2kpSul.js                                           [39m[1m[2m    2.30 kB[22m[1m[22m[2m Γöé gzip:   0.95 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/smols.BPsUVfgS.js                                              [39m[1m[2m    2.30 kB[22m[1m[22m[2m Γöé gzip:   1.00 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/PremiumHeaderPreview.DWZecfy-.js                               [39m[1m[2m    2.46 kB[22m[1m[22m[2m Γöé gzip:   1.23 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/LabsPlayer.DDyVQVX0.js                                         [39m[1m[2m    2.71 kB[22m[1m[22m[2m Γöé gzip:   1.42 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/LikeButton.Dpd4g2ow.js                                         [39m[1m[2m    2.77 kB[22m[1m[22m[2m Γöé gzip:   1.54 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/Turnstile.CazUW5JQ.js                                          [39m[1m[2m    3.00 kB[22m[1m[22m[2m Γöé gzip:   1.43 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/mint.DsIPKiBK.js                                               [39m[1m[2m    3.01 kB[22m[1m[22m[2m Γöé gzip:   1.48 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/ExperimentCard.DG61lYXx.js                                     [39m[1m[2m    3.05 kB[22m[1m[22m[2m Γöé gzip:   1.52 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/preferences.svelte.CkgPzGjL.js                                 [39m[1m[2m    3.08 kB[22m[1m[22m[2m Γöé gzip:   1.29 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/StorePolicyButton.CYyoP_V5.js                                  [39m[1m[2m    3.10 kB[22m[1m[22m[2m Γöé gzip:   1.54 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/state.svelte.5d3-JZE8.js                                       [39m[1m[2m    3.26 kB[22m[1m[22m[2m Γöé gzip:   1.18 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/index.Df5R3EbD.js                                              [39m[1m[2m    3.40 kB[22m[1m[22m[2m Γöé gzip:   1.68 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/useAuthentication.BwPFyUhA.js                                  [39m[1m[2m    3.41 kB[22m[1m[22m[2m Γöé gzip:   1.59 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/each.BsNSlmhY.js                                               [39m[1m[2m    3.76 kB[22m[1m[22m[2m Γöé gzip:   1.89 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/ClientRouter.astro_astro_type_script_index_0_lang.Dz5-Q1WM.js  [39m[1m[2m    3.81 kB[22m[1m[22m[2m Γöé gzip:   1.64 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/GlobalVerification.Dmee4H0B.js                                 [39m[1m[2m    3.87 kB[22m[1m[22m[2m Γöé gzip:   1.87 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/AppInitializer.-AexQU3q.js                                     [39m[1m[2m    3.94 kB[22m[1m[22m[2m Γöé gzip:   1.79 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/audio.svelte.CH2ZEtFn.js                                       [39m[1m[2m    4.25 kB[22m[1m[22m[2m Γöé gzip:   1.62 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/AsteroidsBackground.AxxjxK7Z.js                                [39m[1m[2m    4.27 kB[22m[1m[22m[2m Γöé gzip:   1.79 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/debug-logger.S860mv-4.js                                       [39m[1m[2m    4.55 kB[22m[1m[22m[2m Γöé gzip:   1.98 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/render.k6wBQ_YW.js                                             [39m[1m[2m    4.61 kB[22m[1m[22m[2m Γöé gzip:   2.10 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/UpgradeToggles.wnoEPZ2h.js                                     [39m[1m[2m    4.80 kB[22m[1m[22m[2m Γöé gzip:   1.64 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/PasskeyReprompt.BQsoFPH_.js                                    [39m[1m[2m    4.99 kB[22m[1m[22m[2m Γöé gzip:   2.37 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/WaveformMatchCore.ChQVXViM.js                                  [39m[1m[2m    5.60 kB[22m[1m[22m[2m Γöé gzip:   2.68 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/Leaderboard.DJGDklDR.js                                        [39m[1m[2m    5.86 kB[22m[1m[22m[2m Γöé gzip:   2.32 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/TagRouletteCore.BHoAMGsP.js                                    [39m[1m[2m    5.96 kB[22m[1m[22m[2m Γöé gzip:   2.86 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/DebugPanel.DcceTaFp.js                                         [39m[1m[2m    7.12 kB[22m[1m[22m[2m Γöé gzip:   2.91 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/BlindQuizCore.CyOW_wE8.js                                      [39m[1m[2m    7.50 kB[22m[1m[22m[2m Γöé gzip:   3.30 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/DynamicBackground.DMM-YAKt.js                                  [39m[1m[2m    8.01 kB[22m[1m[22m[2m Γöé gzip:   3.17 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/CastButton.DhUYLQma.js                                         [39m[1m[2m    8.43 kB[22m[1m[22m[2m Γöé gzip:   3.14 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/StreamPayCore.CoftAguU.js                                      [39m[1m[2m    8.89 kB[22m[1m[22m[2m Γöé gzip:   3.84 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/ArtistsIndex.AlxibloA.js                                       [39m[1m[2m    9.41 kB[22m[1m[22m[2m Γöé gzip:   3.48 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/TipArtistModal.DBfdz1aK.js                                     [39m[1m[2m    9.71 kB[22m[1m[22m[2m Γöé gzip:   4.32 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/KalePage.BD-OibAe.js                                           [39m[1m[2m    9.75 kB[22m[1m[22m[2m Γöé gzip:   2.75 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/KaleOrFailCore.D6kLTw9k.js                                     [39m[1m[2m   10.60 kB[22m[1m[22m[2m Γöé gzip:   4.77 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/confetti.module.ONDKWxYZ.js                                    [39m[1m[2m   10.66 kB[22m[1m[22m[2m Γöé gzip:   4.28 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/CreatedSmols.By5DGd0F.js                                       [39m[1m[2m   11.28 kB[22m[1m[22m[2m Γöé gzip:   4.25 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/router.C5v59Ra5.js                                             [39m[1m[2m   11.34 kB[22m[1m[22m[2m Γöé gzip:   3.95 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/BarAudioPlayer.DMs4WnpB.js                                     [39m[1m[2m   11.88 kB[22m[1m[22m[2m Γöé gzip:   4.15 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/useMixtapePlayback.BN49hu8I.js                                 [39m[1m[2m   12.19 kB[22m[1m[22m[2m Γöé gzip:   4.97 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/Home.NGEIvBoj.js                                               [39m[1m[2m   12.79 kB[22m[1m[22m[2m Γöé gzip:   5.27 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/Account.DlFRuxjd.js                                            [39m[1m[2m   13.17 kB[22m[1m[22m[2m Γöé gzip:   5.11 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/PasskeySplash.BZ6w4RbU.js                                      [39m[1m[2m   13.84 kB[22m[1m[22m[2m Γöé gzip:   5.66 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/Header.BPGbXww0.js                                             [39m[1m[2m   14.83 kB[22m[1m[22m[2m Γöé gzip:   5.33 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/MixtapesIndex.CR54R9Yi.js                                      [39m[1m[2m   17.34 kB[22m[1m[22m[2m Γöé gzip:   6.38 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/TagExplorer.CRyyn35Y.js                                        [39m[1m[2m   21.25 kB[22m[1m[22m[2m Γöé gzip:   7.39 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/runtime.Cyzi53_0.js                                            [39m[1m[2m   21.64 kB[22m[1m[22m[2m Γöé gzip:   8.67 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/MintTradeModal.DOz8qvNk.js                                     [39m[1m[2m   27.89 kB[22m[1m[22m[2m Γöé gzip:  10.08 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/SmolResults.Cz_RiOQV.js                                        [39m[1m[2m   28.06 kB[22m[1m[22m[2m Γöé gzip:   8.75 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/SmolHeroCore.DuPH58Xu.js                                       [39m[1m[2m   28.26 kB[22m[1m[22m[2m Γöé gzip:   9.90 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/Smol.kMM2Hpn0.js                                               [39m[1m[2m   33.87 kB[22m[1m[22m[2m Γöé gzip:  12.10 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/RadioBuilder.ChZjYpuW.js                                       [39m[1m[2m   35.97 kB[22m[1m[22m[2m Γöé gzip:  13.58 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/RadioPlayer.CHbCKGdk.js                                        [39m[1m[2m   39.86 kB[22m[1m[22m[2m Γöé gzip:  11.76 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/GlobalPlayer.CYaWK_nH.js                                       [39m[1m[2m   40.52 kB[22m[1m[22m[2m Γöé gzip:  12.81 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/MixtapeDetailView.jVd-Srao.js                                  [39m[1m[2m   41.66 kB[22m[1m[22m[2m Γöé gzip:  14.59 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/MixtapeBuilderOverlay.Cx7AWbQp.js                              [39m[1m[2m   45.42 kB[22m[1m[22m[2m Γöé gzip:  15.45 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/ArtistResults.BtAklQwJ.js                                      [39m[1m[2m   52.07 kB[22m[1m[22m[2m Γöé gzip:  16.34 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/SwapperCore.54gzZImZ.js                                        [39m[1m[2m   60.17 kB[22m[1m[22m[2m Γöé gzip:  18.72 kB[22m
+21:01:31 [vite] [2mdist/[22m[36m_astro/user.svelte.DV6PgW2M.js                                        [39m[1m[33m3,252.75 kB[39m[22m[2m Γöé gzip: 889.53 kB[22m
+21:01:31 [WARN] [vite] [33m
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+21:01:31 [vite] [32mΓ£ô built in 27.18s[39m
+
+ prerendering static routes 
+21:01:31 Γ£ô Completed in 50ms.
+
+21:01:31 [build] Rearranging server assets...
+21:01:31 [@astrojs/sitemap] `sitemap-index.xml` created at `dist`
+21:01:31 [build] Server built in 48.27s
+21:01:31 [build] Complete!

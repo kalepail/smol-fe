@@ -10,11 +10,11 @@
         formatKaleAmount,
         type SupportPaymentBreakdown,
     } from "../../hooks/useMixtapeSupport";
-    import { userState } from "../../stores/user.svelte";
+    import { userState } from "../../stores/user.svelte.ts";
     import {
         balanceState,
         updateContractBalance,
-    } from "../../stores/balance.svelte";
+    } from "../../stores/balance.svelte.ts";
 
     interface Props {
         curatorAddress: string;

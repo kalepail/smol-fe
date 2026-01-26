@@ -1,6 +1,6 @@
 
 import { StrKey } from '@stellar/stellar-sdk';
-import { unlockUpgrade } from '../../stores/upgrades.svelte';
+import { unlockUpgrade } from '../../stores/upgrades.svelte.ts';
 import { getVIPAccess } from '../../utils/vip';
 import { findTokenTransfers } from '../../utils/event-scanner';
 

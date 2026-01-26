@@ -3,7 +3,7 @@
     import { safeFetchSmols } from "../../services/api/smols";
     import { getLatestSequence } from "../../utils/base";
     import { account, kale, send } from "../../utils/passkey-kit";
-    import { userState } from "../../stores/user.svelte";
+    import { userState } from "../../stores/user.svelte.ts";
     import { getSafeRpId } from "../../utils/domains";
     import { fade, slide } from "svelte/transition";
     import type { Smol } from "../../types/domain";

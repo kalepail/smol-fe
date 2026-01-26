@@ -1,5 +1,5 @@
 import type { Smol } from '../types/domain';
-import { selectSong, togglePlayPause } from '../stores/audio.svelte';
+import { selectSong, togglePlayPause } from '../stores/audio.svelte.ts';
 
 interface PlaybackControls {
   mixtapeTracks: Smol[];

@@ -1,4 +1,12 @@
-import { Asset } from '@stellar/stellar-sdk/minimal';
+/**
+ * FACTORY FRESH: Mixtape Minting Hook
+ * @see https://deepwiki.com/repo/kalepail/smol-fe#minting
+ * 
+ * Handles batch minting of AI-generated tracks (Smols) onto Stellar/Soroban.
+ * Implements "coin_them" multi-minting with sequential chunking to manage 
+ * transaction size and resource limits.
+ */
+import { Asset } from '@stellar/stellar-sdk';
 import { Client as SmolClient } from 'smol-sdk';
 import { account } from '../utils/passkey-kit';
 import { getSafeRpId } from '../utils/domains';
@@ -252,8 +260,8 @@ export function useMixtapeMinting() {
 
     if (tracksWithData.length === 0) return;
 
-    // Process in chunks of 3
-    const CHUNK_SIZE = 3;
+    // FACTORY FRESH: Process in chunks of 5 (Stellar standard)
+    const CHUNK_SIZE = 5;
     const chunks: Array<Array<{ track: MixtapeSmolData; trackData: Smol }>> = [];
 
     for (let i = 0; i < tracksWithData.length; i += CHUNK_SIZE) {

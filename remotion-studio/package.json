@@ -1,0 +1,25 @@
+{
+    "name": "remotion-studio",
+    "version": "1.0.0",
+    "scripts": {
+        "start": "remotion preview src/index.ts",
+        "build": "remotion render src/index.ts",
+        "upgrade": "remotion upgrade",
+        "test": "eslint src --ext ts,tsx"
+    },
+    "dependencies": {
+        "react": "^18.0.0",
+        "react-dom": "^18.0.0",
+        "remotion": "latest",
+        "zod": "^3.22.4"
+    },
+    "devDependencies": {
+        "@remotion/cli": "latest",
+        "@remotion/eslint-config": "latest",
+        "@types/react": "^18.0.0",
+        "@types/web": "^0.0.136",
+        "eslint": "^8.0.0",
+        "prettier": "^3.0.0",
+        "typescript": "^5.0.0"
+    }
+}

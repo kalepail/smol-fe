@@ -1,8 +1,8 @@
 <script lang="ts">
     import type { Smol } from "../../types/domain";
-    import { audioState, selectSong } from "../../stores/audio.svelte";
+    import { audioState, selectSong } from "../../stores/audio.svelte.ts";
     import RadioPlayer from "./RadioPlayer.svelte";
-    import { isAuthenticated, userState } from "../../stores/user.svelte";
+    import { isAuthenticated, userState } from "../../stores/user.svelte.ts";
     import LikeButton from "../ui/LikeButton.svelte";
     import { useSmolMinting } from "../../hooks/useSmolMinting";
     import confetti from "canvas-confetti";

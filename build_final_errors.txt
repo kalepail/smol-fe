@@ -1,0 +1,477 @@
+18:35:46 [@astrojs/cloudflare] Enabling sessions with Cloudflare KV with the "SESSION" KV binding.
+18:35:46 [@astrojs/cloudflare] If you see the error "Invalid binding `SESSION`" in your build output, you need to add the binding to your wrangler config file.
+18:35:46 [WARN] [adapter] Cloudflare does not support sharp at runtime. However, you can configure `imageService: "compile"` to optimize images with sharp on prerendered pages during build time.
+18:35:47 [content] Syncing content
+18:35:47 [content] Synced content
+18:35:47 [types] Generated 125ms
+18:35:47 [check] Getting diagnostics for Astro files in C:\Users\Jeff\Mixtape Auto\smol-fe...
+[96mastro.config.mjs[0m:[93m7[0m:[93m1[0m - [93mwarning[0m[90m ts(6133): [0m'mkcert' is declared but its value is never read.
+
+[7m7[0m import mkcert from 'vite-plugin-mkcert';
+[7m [0m [93m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mdebug_url.mjs[0m:[93m1[0m:[93m1[0m - [93mwarning[0m[90m ts(6133): [0m'fs' is declared but its value is never read.
+
+[7m1[0m import fs from 'fs';
+[7m [0m [93m~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mfetch_detail.mjs[0m:[93m1[0m:[93m1[0m - [93mwarning[0m[90m ts(6133): [0m'fs' is declared but its value is never read.
+
+[7m1[0m import fs from 'fs';
+[7m [0m [93m~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mpublic/sw.js[0m:[93m31[0m:[93m42[0m - [93mwarning[0m[90m ts(80006): [0mThis may be converted to an async function.
+
+[7m31[0m             caches.open(CACHE_NAME).then((cache) => {
+[7m  [0m [93m                                         ~~~~~~~~~~~~[0m
+[96mpublic/sw.js[0m:[93m5[0m:[93m35[0m - [93mwarning[0m[90m ts(6133): [0m'event' is declared but its value is never read.
+
+[7m5[0m self.addEventListener("install", (event) => {
+[7m [0m [93m                                  ~~~~~[0m
+
+[96mscripts/audit-snapshot.js[0m:[93m35[0m:[93m56[0m - [93mwarning[0m[90m ts(6133): [0m'k' is declared but its value is never read.
+
+[7m35[0m         const dups = Object.entries(idCounts).filter(([k, v]) => v > 1).slice(0, 5);
+[7m  [0m [93m                                                       ~[0m
+
+[96mscripts/backfill-minted-by.mjs[0m:[93m29[0m:[93m15[0m - [93mwarning[0m[90m ts(6133): [0m'url' is declared but its value is never read.
+
+[7m29[0m         const url = `${HORIZON_URL}/transactions?limit=${limit}&order=desc`;
+[7m  [0m [93m              ~~~[0m
+[96mscripts/backfill-minted-by.mjs[0m:[93m26[0m:[93m38[0m - [93mwarning[0m[90m ts(6133): [0m'contractId' is declared but its value is never read.
+
+[7m26[0m async function getContractOperations(contractId, limit = 50) {
+[7m  [0m [93m                                     ~~~~~~~~~~[0m
+[96mscripts/backfill-minted-by.mjs[0m:[93m26[0m:[93m16[0m - [93mwarning[0m[90m ts(6133): [0m'getContractOperations' is declared but its value is never read.
+
+[7m26[0m async function getContractOperations(contractId, limit = 50) {
+[7m  [0m [93m               ~~~~~~~~~~~~~~~~~~~~~[0m
+[96mscripts/backfill-minted-by.mjs[0m:[93m20[0m:[93m7[0m - [93mwarning[0m[90m ts(6133): [0m'SMOL_CONTRACT' is declared but its value is never read.
+
+[7m20[0m const SMOL_CONTRACT = 'CBRNUVLGFM5OYWAGZVGU7CTMP2UJLKZCLFY2ANUCK5UGKND6BBAA5PLA';
+[7m  [0m [93m      ~~~~~~~~~~~~~[0m
+
+[96mscripts/count-api-by-artist.js[0m:[93m19[0m:[93m9[0m - [93mwarning[0m[90m ts(6133): [0m'totalScanned' is declared but its value is never read.
+
+[7m19[0m     let totalScanned = 0;
+[7m  [0m [93m        ~~~~~~~~~~~~[0m
+
+[96mscripts/debug-stellar-parsing.js[0m:[93m2[0m:[93m20[0m - [93mwarning[0m[90m ts(80001): [0mFile is a CommonJS module; it may be converted to an ES module.
+
+[7m2[0m const StellarSdk = require('@stellar/stellar-sdk');
+[7m [0m [93m                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mscripts/extract-minter-from-tx.mjs[0m:[93m10[0m:[93m7[0m - [93mwarning[0m[90m ts(6133): [0m'SMOL_CONTRACT' is declared but its value is never read.
+
+[7m10[0m const SMOL_CONTRACT = 'CBRNUVLGFM5OYWAGZVGU7CTMP2UJLKZCLFY2ANUCK5UGKND6BBAA5PLA';
+[7m  [0m [93m      ~~~~~~~~~~~~~[0m
+[96mscripts/extract-minter-from-tx.mjs[0m:[93m7[0m:[93m30[0m - [93mwarning[0m[90m ts(6133): [0m'Address' is declared but its value is never read.
+
+[7m7[0m import { xdr, scValToNative, Address } from '@stellar/stellar-sdk';
+[7m [0m [93m                             ~~~~~~~[0m
+
+[96mscripts/find-active-contract.js[0m:[93m2[0m:[93m15[0m - [93mwarning[0m[90m ts(6133): [0m'Horizon' is declared but its value is never read.
+
+[7m2[0m import { rpc, Horizon, scValToNative, xdr, nativeToScVal } from '@stellar/stellar-sdk';
+[7m [0m [93m              ~~~~~~~[0m
+[96mscripts/find-active-contract.js[0m:[93m2[0m:[93m10[0m - [93mwarning[0m[90m ts(6133): [0m'rpc' is declared but its value is never read.
+
+[7m2[0m import { rpc, Horizon, scValToNative, xdr, nativeToScVal } from '@stellar/stellar-sdk';
+[7m [0m [93m         ~~~[0m
+
+[96mscripts/find-mint-by-issuer.js[0m:[93m2[0m:[93m39[0m - [93mwarning[0m[90m ts(6133): [0m'xdr' is declared but its value is never read.
+
+[7m2[0m import { rpc, Horizon, scValToNative, xdr } from '@stellar/stellar-sdk';
+[7m [0m [93m                                      ~~~[0m
+[96mscripts/find-mint-by-issuer.js[0m:[93m2[0m:[93m24[0m - [93mwarning[0m[90m ts(6133): [0m'scValToNative' is declared but its value is never read.
+
+[7m2[0m import { rpc, Horizon, scValToNative, xdr } from '@stellar/stellar-sdk';
+[7m [0m [93m                       ~~~~~~~~~~~~~[0m
+[96mscripts/find-mint-by-issuer.js[0m:[93m2[0m:[93m10[0m - [93mwarning[0m[90m ts(6133): [0m'rpc' is declared but its value is never read.
+
+[7m2[0m import { rpc, Horizon, scValToNative, xdr } from '@stellar/stellar-sdk';
+[7m [0m [93m         ~~~[0m
+
+[96mscripts/find-minters-soroban.mjs[0m:[93m148[0m:[93m19[0m - [93mwarning[0m[90m ts(6133): [0m'ledgerKeys' is declared but its value is never read.
+
+[7m148[0m             const ledgerKeys = [{
+[7m   [0m [93m                  ~~~~~~~~~~[0m
+[96mscripts/find-minters-soroban.mjs[0m:[93m121[0m:[93m19[0m - [93mwarning[0m[90m ts(6133): [0m'value' is declared but its value is never read.
+
+[7m121[0m             const value = event.value;
+[7m   [0m [93m                  ~~~~~[0m
+[96mscripts/find-minters-soroban.mjs[0m:[93m120[0m:[93m19[0m - [93mwarning[0m[90m ts(6133): [0m'topics' is declared but its value is never read.
+
+[7m120[0m             const topics = event.topic || [];
+[7m   [0m [93m                  ~~~~~~[0m
+
+[96mscripts/generate-tag-graph.mjs[0m:[93m40[0m:[93m7[0m - [93mwarning[0m[90m ts(6133): [0m'OUTPUT_PATH' is declared but its value is never read.
+
+[7m40[0m const OUTPUT_PATH = 'src/data/tag_graph.json';
+[7m  [0m [93m      ~~~~~~~~~~~[0m
+[96mscripts/generate-tag-graph.mjs[0m:[93m2[0m:[93m1[0m - [93mwarning[0m[90m ts(6133): [0m'path' is declared but its value is never read.
+
+[7m2[0m import path from 'path';
+[7m [0m [93m~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mscripts/inspect-tx.js[0m:[93m2[0m:[93m10[0m - [93mwarning[0m[90m ts(6133): [0m'rpc' is declared but its value is never read.
+
+[7m2[0m import { rpc, Horizon, scValToNative, xdr } from '@stellar/stellar-sdk';
+[7m [0m [93m         ~~~[0m
+
+[96mscripts/temp-count-tags.mjs[0m:[93m18[0m:[93m15[0m - [93mwarning[0m[90m ts(6133): [0m'tag' is declared but its value is never read.
+
+[7m18[0m     .filter(([tag, count]) => count > 5)
+[7m  [0m [93m              ~~~[0m
+
+[96mscripts/test-oz-flow.mjs[0m:[93m10[0m:[93m58[0m - [93mwarning[0m[90m ts(6133): [0m'Asset' is declared but its value is never read.
+
+[7m10[0m import { xdr, Transaction, Networks, Operation, Keypair, Asset } from '@stellar/stellar-sdk';
+[7m  [0m [93m                                                         ~~~~~[0m
+[96mscripts/test-oz-flow.mjs[0m:[93m10[0m:[93m49[0m - [93mwarning[0m[90m ts(6133): [0m'Keypair' is declared but its value is never read.
+
+[7m10[0m import { xdr, Transaction, Networks, Operation, Keypair, Asset } from '@stellar/stellar-sdk';
+[7m  [0m [93m                                                ~~~~~~~[0m
+[96mscripts/test-oz-flow.mjs[0m:[93m10[0m:[93m38[0m - [93mwarning[0m[90m ts(6133): [0m'Operation' is declared but its value is never read.
+
+[7m10[0m import { xdr, Transaction, Networks, Operation, Keypair, Asset } from '@stellar/stellar-sdk';
+[7m  [0m [93m                                     ~~~~~~~~~[0m
+[96mscripts/test-oz-flow.mjs[0m:[93m10[0m:[93m28[0m - [93mwarning[0m[90m ts(6133): [0m'Networks' is declared but its value is never read.
+
+[7m10[0m import { xdr, Transaction, Networks, Operation, Keypair, Asset } from '@stellar/stellar-sdk';
+[7m  [0m [93m                           ~~~~~~~~[0m
+[96mscripts/test-oz-flow.mjs[0m:[93m10[0m:[93m15[0m - [93mwarning[0m[90m ts(6133): [0m'Transaction' is declared but its value is never read.
+
+[7m10[0m import { xdr, Transaction, Networks, Operation, Keypair, Asset } from '@stellar/stellar-sdk';
+[7m  [0m [93m              ~~~~~~~~~~~[0m
+
+[96mscripts/verify_tx_build.js[0m:[93m20[0m:[93m7[0m - [93mwarning[0m[90m ts(6133): [0m'RPC_URL' is declared but its value is never read.
+
+[7m20[0m const RPC_URL = "https://rpc.ankr.com/stellar_soroban";
+[7m  [0m [93m      ~~~~~~~[0m
+[96mscripts/verify_tx_build.js[0m:[93m13[0m:[93m5[0m - [93mwarning[0m[90m ts(6133): [0m'Keypair' is declared but its value is never read.
+
+[7m13[0m     Keypair
+[7m  [0m [93m    ~~~~~~~[0m
+
+[96mscripts/canary/balance-check.mjs[0m:[93m77[0m:[93m33[0m - [93mwarning[0m[90m ts(6133): [0m'Networks' is declared but its value is never read.
+
+[7m77[0m     const { TransactionBuilder, Networks } = await import('@stellar/stellar-sdk');
+[7m  [0m [93m                                ~~~~~~~~[0m
+[96mscripts/canary/balance-check.mjs[0m:[93m13[0m:[93m29[0m - [93mwarning[0m[90m ts(6133): [0m'nativeToScVal' is declared but its value is never read.
+
+[7m13[0m import { Contract, Address, nativeToScVal } from '@stellar/stellar-sdk';
+[7m  [0m [93m                            ~~~~~~~~~~~~~[0m
+
+[96mscripts/canary/debug-balance.mjs[0m:[93m37[0m:[93m41[0m - [93mwarning[0m[90m ts(6133): [0m'key' is declared but its value is never read.
+
+[7m37[0m     console.log(JSON.stringify(result, (key, value) =>
+[7m  [0m [93m                                        ~~~[0m
+
+[96mscripts/canary/simulate-swap.mjs[0m:[93m156[0m:[93m17[0m - [93mwarning[0m[90m ts(6133): [0m'tx' is declared but its value is never read.
+
+[7m156[0m         const { tx, simulated } = await buildAndSimulate(quote);
+[7m   [0m [93m                ~~[0m
+[96mscripts/canary/simulate-swap.mjs[0m:[93m16[0m:[93m23[0m - [93mwarning[0m[90m ts(6133): [0m'assembleTransaction' is declared but its value is never read.
+
+[7m16[0m import { Server, Api, assembleTransaction } from "@stellar/stellar-sdk/minimal/rpc";
+[7m  [0m [93m                      ~~~~~~~~~~~~~~~~~~~[0m
+[96mscripts/canary/simulate-swap.mjs[0m:[93m14[0m:[93m5[0m - [93mwarning[0m[90m ts(6133): [0m'StrKey' is declared but its value is never read.
+
+[7m14[0m     StrKey
+[7m  [0m [93m    ~~~~~~[0m
+
+[96mscripts/canary/soroswap-quote.mjs[0m:[93m84[0m:[93m64[0m - [93mwarning[0m[90m ts(6133): [0m'k' is declared but its value is never read.
+
+[7m84[0m             console.log('Raw retval:', JSON.stringify(retval, (k, v) => typeof v === 'bigint' ? v.toString() : v, 2).slice(0, 500));
+[7m  [0m [93m                                                               ~[0m
+[96mscripts/canary/soroswap-quote.mjs[0m:[93m26[0m:[93m7[0m - [93mwarning[0m[90m ts(6133): [0m'WALLET' is declared but its value is never read.
+
+[7m26[0m const WALLET = 'CBNORBI4DCE7LIC42FWMCIWQRULWAUGF2MH2Z7X2RNTFAYNXIACJ33IM';
+[7m  [0m [93m      ~~~~~~[0m
+
+[96mscripts/canary/test-account-2.mjs[0m:[93m17[0m:[93m11[0m - [93mwarning[0m[90m ts(6133): [0m'acc' is declared but its value is never read.
+
+[7m17[0m     const acc = new Account(C_ADDR, "0");
+[7m  [0m [93m          ~~~[0m
+[96mscripts/canary/test-account-2.mjs[0m:[93m9[0m:[93m11[0m - [93mwarning[0m[90m ts(6133): [0m'acc' is declared but its value is never read.
+
+[7m9[0m     const acc = new Account(VALID_G, "0");
+[7m [0m [93m          ~~~[0m
+
+[96mscripts/canary/test-account.mjs[0m:[93m14[0m:[93m11[0m - [93mwarning[0m[90m ts(6133): [0m'gAddress' is declared but its value is never read.
+
+[7m14[0m     const gAddress = "GB72IQ63F6Y3K5J6V7J5Y6K7J5Y6K7J5Y6K7J5Y6K7J5Y6K7J5Y6K7J5"; // Dummy valid G address
+[7m  [0m [93m          ~~~~~~~~[0m
+
+[96mscripts/ralph/spammer.mjs[0m:[93m3[0m:[93m1[0m - [93mwarning[0m[90m ts(6133): [0m'path' is declared but its value is never read.
+
+[7m3[0m import path from 'path';
+[7m [0m [93m~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96mscripts/swap-audit/audit.js[0m:[93m9[0m:[93m53[0m - [93mwarning[0m[90m ts(6133): [0m'StrKey' is declared but its value is never read.
+
+[7m9[0m const { rpc, Networks, TransactionBuilder, Account, StrKey } = StellarSdk.default || StellarSdk;
+[7m [0m [93m                                                    ~~~~~~[0m
+[96mscripts/swap-audit/audit.js[0m:[93m9[0m:[93m44[0m - [93mwarning[0m[90m ts(6133): [0m'Account' is declared but its value is never read.
+
+[7m9[0m const { rpc, Networks, TransactionBuilder, Account, StrKey } = StellarSdk.default || StellarSdk;
+[7m [0m [93m                                           ~~~~~~~[0m
+
+[96mscripts/swap-audit/providers/aquarius.js[0m:[93m67[0m:[93m68[0m - [93mwarning[0m[90m ts(6133): [0m'rpc' is declared but its value is never read.
+
+[7m67[0m     async buildSwapXdr({ direction, amountIn, minOut, fromAddress, rpc }) {
+[7m  [0m [93m                                                                   ~~~[0m
+[96mscripts/swap-audit/providers/aquarius.js[0m:[93m67[0m:[93m55[0m - [93mwarning[0m[90m ts(6133): [0m'fromAddress' is declared but its value is never read.
+
+[7m67[0m     async buildSwapXdr({ direction, amountIn, minOut, fromAddress, rpc }) {
+[7m  [0m [93m                                                      ~~~~~~~~~~~[0m
+[96mscripts/swap-audit/providers/aquarius.js[0m:[93m67[0m:[93m47[0m - [93mwarning[0m[90m ts(6133): [0m'minOut' is declared but its value is never read.
+
+[7m67[0m     async buildSwapXdr({ direction, amountIn, minOut, fromAddress, rpc }) {
+[7m  [0m [93m                                              ~~~~~~[0m
+[96mscripts/swap-audit/providers/aquarius.js[0m:[93m12[0m:[93m5[0m - [93mwarning[0m[90m ts(6133): [0m'StrKey' is declared but its value is never read.
+
+[7m12[0m     StrKey
+[7m  [0m [93m    ~~~~~~[0m
+[96mscripts/swap-audit/providers/aquarius.js[0m:[93m11[0m:[93m5[0m - [93mwarning[0m[90m ts(6133): [0m'Account' is declared but its value is never read.
+
+[7m11[0m     Account,
+[7m  [0m [93m    ~~~~~~~[0m
+[96mscripts/swap-audit/providers/aquarius.js[0m:[93m9[0m:[93m5[0m - [93mwarning[0m[90m ts(6133): [0m'Operation' is declared but its value is never read.
+
+[7m9[0m     Operation,
+[7m [0m [93m    ~~~~~~~~~[0m
+[96mscripts/swap-audit/providers/aquarius.js[0m:[93m7[0m:[93m5[0m - [93mwarning[0m[90m ts(6133): [0m'xdr' is declared but its value is never read.
+
+[7m7[0m     xdr,
+[7m [0m [93m    ~~~[0m
+[96mscripts/swap-audit/providers/aquarius.js[0m:[93m6[0m:[93m5[0m - [93mwarning[0m[90m ts(6133): [0m'nativeToScVal' is declared but its value is never read.
+
+[7m6[0m     nativeToScVal,
+[7m [0m [93m    ~~~~~~~~~~~~~[0m
+[96mscripts/swap-audit/providers/aquarius.js[0m:[93m5[0m:[93m5[0m - [93mwarning[0m[90m ts(6133): [0m'Address' is declared but its value is never read.
+
+[7m5[0m     Address,
+[7m [0m [93m    ~~~~~~~[0m
+[96mscripts/swap-audit/providers/aquarius.js[0m:[93m4[0m:[93m5[0m - [93mwarning[0m[90m ts(6133): [0m'Contract' is declared but its value is never read.
+
+[7m4[0m     Contract,
+[7m [0m [93m    ~~~~~~~~[0m
+
+[96msrc/hooks/useMixtapePurchase.ts[0m:[93m6[0m:[93m8[0m - [91merror[0m[90m ts(2305): [0mModule '"../utils/transaction-helpers"' has no exported member 'GetFreshTokenCallback'.
+
+[7m6[0m   type GetFreshTokenCallback,
+[7m [0m [91m       ~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/hooks/useMixtapePurchase.ts[0m:[93m11[0m:[93m6[0m - [93mwarning[0m[90m ts(6196): [0m'SignableTransaction' is declared but never used.
+
+[7m11[0m type SignableTransaction = Parameters<ReturnType<typeof account.get>['sign']>[0];
+[7m  [0m [93m     ~~~~~~~~~~~~~~~~~~~[0m
+
+[96msrc/hooks/useMixtapeSupport.ts[0m:[93m5[0m:[93m48[0m - [91merror[0m[90m ts(2305): [0mModule '"../utils/transaction-helpers"' has no exported member 'GetFreshTokenCallback'.
+
+[7m5[0m import { signAndSend, isUserCancellation, type GetFreshTokenCallback } from '../utils/transaction-helpers';
+[7m [0m [91m                                               ~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/hooks/useMixtapeSupport.ts[0m:[93m5[0m:[93m48[0m - [93mwarning[0m[90m ts(6133): [0m'GetFreshTokenCallback' is declared but its value is never read.
+
+[7m5[0m import { signAndSend, isUserCancellation, type GetFreshTokenCallback } from '../utils/transaction-helpers';
+[7m [0m [93m                                               ~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96msrc/hooks/useTradeSimulation.ts[0m:[93m21[0m:[93m5[0m - [93mwarning[0m[90m ts(6133): [0m'mode' is declared but its value is never read.
+
+[7m21[0m     mode: 'buy' | 'sell',
+[7m  [0m [93m    ~~~~[0m
+
+[96msrc/layouts/Layout.astro[0m:[93m143[0m:[93m21[0m - [93mwarning[0m[90m astro(4000): [0mThis script will be treated as if it has the `is:inline` directive because it contains an attribute. Therefore, features that require processing (e.g. using TypeScript or npm packages in the script) are unavailable.
+
+See docs for more details: https://docs.astro.build/en/guides/client-side-scripts/#script-processing.
+
+Add the `is:inline` directive explicitly to silence this hint.
+
+[7m143[0m             <script type="application/ld+json" set:html={jsonLd(block)} />
+[7m   [0m [93m                    ~~~~[0m
+
+[96msrc/pages/account.astro[0m:[93m3[0m:[93m8[0m - [91merror[0m[90m ts(2440): [0mImport declaration conflicts with local declaration of 'Account'.
+
+[7m3[0m import Account from "../components/Account.svelte";
+[7m [0m [91m       ~~~~~~~[0m
+
+[96msrc/pages/rss.xml.ts[0m:[93m4[0m:[93m37[0m - [93mwarning[0m[90m ts(6133): [0m'request' is declared but its value is never read.
+
+[7m4[0m export const GET: APIRoute = async ({ request }) => {
+[7m [0m [93m                                    ~~~~~~~~~~~[0m
+
+[96msrc/pages/sitemap-songs.xml.ts[0m:[93m4[0m:[93m37[0m - [93mwarning[0m[90m ts(6133): [0m'request' is declared but its value is never read.
+
+[7m4[0m export const GET: APIRoute = async ({ request }) => {
+[7m [0m [93m                                    ~~~~~~~~~~~[0m
+
+[96msrc/pages/store.astro[0m:[93m3[0m:[93m1[0m - [93mwarning[0m[90m ts(6133): [0m'upgradesState' is declared but its value is never read.
+
+[7m3[0m import { upgradesState } from '../stores/upgrades.svelte';
+[7m [0m [93m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96msrc/pages/api/ai/commentary.ts[0m:[93m21[0m:[93m11[0m - [93mwarning[0m[90m ts(6133): [0m'requestId' is declared but its value is never read.
+
+[7m21[0m     const requestId = crypto.randomUUID().split('-')[0];
+[7m  [0m [93m          ~~~~~~~~~[0m
+
+[96msrc/pages/embed/[id].astro[0m:[93m396[0m:[93m31[0m - [91merror[0m[90m ts(2339): [0mProperty 'currentTime' does not exist on type 'HTMLElement'.
+
+[7m396[0m                         audio.currentTime = 0;
+[7m   [0m [91m                              ~~~~~~~~~~~[0m
+[96msrc/pages/embed/[id].astro[0m:[93m341[0m:[93m31[0m - [91merror[0m[90m ts(2551): [0mProperty 'pause' does not exist on type 'HTMLElement'. Did you mean 'onpause'?
+
+[7m341[0m                         audio.pause();
+[7m   [0m [91m                              ~~~~~[0m
+[96msrc/pages/embed/[id].astro[0m:[93m341[0m:[93m25[0m - [91merror[0m[90m ts(18047): [0m'audio' is possibly 'null'.
+
+[7m341[0m                         audio.pause();
+[7m   [0m [91m                        ~~~~~[0m
+[96msrc/pages/embed/[id].astro[0m:[93m333[0m:[93m40[0m - [91merror[0m[90m ts(7006): [0mParameter 'error' implicitly has an 'any' type.
+
+[7m333[0m                                 .catch(error => {
+[7m   [0m [91m                                       ~~~~~[0m
+[96msrc/pages/embed/[id].astro[0m:[93m323[0m:[93m35[0m - [91merror[0m[90m ts(2339): [0mProperty 'readyState' does not exist on type 'HTMLElement'.
+
+[7m323[0m                         if (audio.readyState < 3) {
+[7m   [0m [91m                                  ~~~~~~~~~~[0m
+[96msrc/pages/embed/[id].astro[0m:[93m323[0m:[93m29[0m - [91merror[0m[90m ts(18047): [0m'audio' is possibly 'null'.
+
+[7m323[0m                         if (audio.readyState < 3) {
+[7m   [0m [91m                            ~~~~~[0m
+[96msrc/pages/embed/[id].astro[0m:[93m321[0m:[93m51[0m - [91merror[0m[90m ts(2339): [0mProperty 'play' does not exist on type 'HTMLElement'.
+
+[7m321[0m                         const playPromise = audio.play();
+[7m   [0m [91m                                                  ~~~~[0m
+[96msrc/pages/embed/[id].astro[0m:[93m321[0m:[93m45[0m - [91merror[0m[90m ts(18047): [0m'audio' is possibly 'null'.
+
+[7m321[0m                         const playPromise = audio.play();
+[7m   [0m [91m                                            ~~~~~[0m
+[96msrc/pages/embed/[id].astro[0m:[93m320[0m:[93m31[0m - [91merror[0m[90m ts(2339): [0mProperty 'paused' does not exist on type 'HTMLElement'.
+
+[7m320[0m                     if (audio.paused) {
+[7m   [0m [91m                              ~~~~~~[0m
+[96msrc/pages/embed/[id].astro[0m:[93m320[0m:[93m25[0m - [91merror[0m[90m ts(18047): [0m'audio' is possibly 'null'.
+
+[7m320[0m                     if (audio.paused) {
+[7m   [0m [91m                        ~~~~~[0m
+[96msrc/pages/embed/[id].astro[0m:[93m315[0m:[93m25[0m - [91merror[0m[90m ts(18047): [0m'loading' is possibly 'null'.
+
+[7m315[0m                         loading.classList.add('hidden');
+[7m   [0m [91m                        ~~~~~~~[0m
+[96msrc/pages/embed/[id].astro[0m:[93m314[0m:[93m25[0m - [91merror[0m[90m ts(18047): [0m'iconPause' is possibly 'null'.
+
+[7m314[0m                         iconPause.classList.add('hidden');
+[7m   [0m [91m                        ~~~~~~~~~[0m
+[96msrc/pages/embed/[id].astro[0m:[93m313[0m:[93m25[0m - [91merror[0m[90m ts(18047): [0m'iconPlay' is possibly 'null'.
+
+[7m313[0m                         iconPlay.classList.remove('hidden');
+[7m   [0m [91m                        ~~~~~~~~[0m
+[96msrc/pages/embed/[id].astro[0m:[93m311[0m:[93m25[0m - [91merror[0m[90m ts(18047): [0m'loading' is possibly 'null'.
+
+[7m311[0m                         loading.classList.add('hidden');
+[7m   [0m [91m                        ~~~~~~~[0m
+[96msrc/pages/embed/[id].astro[0m:[93m310[0m:[93m25[0m - [91merror[0m[90m ts(18047): [0m'iconPause' is possibly 'null'.
+
+[7m310[0m                         iconPause.classList.remove('hidden');
+[7m   [0m [91m                        ~~~~~~~~~[0m
+[96msrc/pages/embed/[id].astro[0m:[93m309[0m:[93m25[0m - [91merror[0m[90m ts(18047): [0m'iconPlay' is possibly 'null'.
+
+[7m309[0m                         iconPlay.classList.add('hidden');
+[7m   [0m [91m                        ~~~~~~~~[0m
+[96msrc/pages/embed/[id].astro[0m:[93m307[0m:[93m25[0m - [91merror[0m[90m ts(18047): [0m'loading' is possibly 'null'.
+
+[7m307[0m                         loading.classList.remove('hidden');
+[7m   [0m [91m                        ~~~~~~~[0m
+[96msrc/pages/embed/[id].astro[0m:[93m306[0m:[93m25[0m - [91merror[0m[90m ts(18047): [0m'iconPause' is possibly 'null'.
+
+[7m306[0m                         iconPause.classList.add('hidden');
+[7m   [0m [91m                        ~~~~~~~~~[0m
+[96msrc/pages/embed/[id].astro[0m:[93m305[0m:[93m25[0m - [91merror[0m[90m ts(18047): [0m'iconPlay' is possibly 'null'.
+
+[7m305[0m                         iconPlay.classList.add('hidden');
+[7m   [0m [91m                        ~~~~~~~~[0m
+
+[96msrc/pages/labs/smol-hero.astro[0m:[93m34[0m:[93m8[0m - [91merror[0m[90m ts(2322): [0mType '{ href: string; }' is not assignable to type 'IntrinsicAttributes & Props'.
+  Property 'label' is missing in type '{ href: string; }' but required in type 'Props'.
+
+[7m34[0m       <BackLink href="/labs" />
+[7m  [0m [91m       ~~~~~~~~[0m
+
+[96msrc/services/api/smols.ts[0m:[93m4[0m:[93m3[0m - [93mwarning[0m[90m ts(6133): [0m'mergeSmolsWithSnapshot' is declared but its value is never read.
+
+[7m4[0m   mergeSmolsWithSnapshot,
+[7m [0m [93m  ~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96msrc/stores/audio.svelte.ts[0m:[93m394[0m:[93m26[0m - [93mwarning[0m[90m ts(6133): [0m'e' is declared but its value is never read.
+
+[7m394[0m       ctx.resume().catch(e => { /* ignore */ });
+[7m   [0m [93m                         ~[0m
+[96msrc/stores/audio.svelte.ts[0m:[93m120[0m:[93m30[0m - [93mwarning[0m[90m ts(6385): [0m'platform' is deprecated.
+
+[7m120[0m   const isIPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+[7m   [0m [93m                             ~~~~~~~~[0m
+[96msrc/stores/audio.svelte.ts[0m:[93m118[0m:[93m54[0m - [93mwarning[0m[90m ts(6385): [0m'vendor' is deprecated.
+
+[7m118[0m   const userAgent = navigator.userAgent || navigator.vendor || (window as any).opera;
+[7m   [0m [93m                                                     ~~~~~~[0m
+
+[96msrc/utils/balance.ts[0m:[93m1[0m:[93m1[0m - [93mwarning[0m[90m ts(6133): [0m'sac' is declared but its value is never read.
+
+[7m1[0m import type { sac } from './passkey-kit';
+[7m [0m [93m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96msrc/utils/base.ts[0m:[93m55[0m:[93m9[0m - [93mwarning[0m[90m ts(6133): [0m'lastError' is declared but its value is never read.
+
+[7m55[0m     let lastError: any = null;
+[7m  [0m [93m        ~~~~~~~~~[0m
+
+[96msrc/utils/debug-logger.ts[0m:[93m175[0m:[93m67[0m - [93mwarning[0m[90m ts(6385): [0m'(from: number, length?: number | undefined): string' is deprecated.
+
+[7m175[0m         const timestamp = new Date(entry.timestamp).toISOString().substr(11, 12);
+[7m   [0m [93m                                                                  ~~~~~~[0m
+[96msrc/utils/debug-logger.ts[0m:[93m172[0m:[93m15[0m - [93mwarning[0m[90m ts(6133): [0m'levelName' is declared but its value is never read.
+
+[7m172[0m         const levelName = LogLevel[level];
+[7m   [0m [93m              ~~~~~~~~~[0m
+
+[96msrc/utils/env-validation.ts[0m:[93m50[0m:[93m10[0m - [93mwarning[0m[90m ts(6133): [0m'isValidPublicKey' is declared but its value is never read.
+
+[7m50[0m function isValidPublicKey(key: string): boolean {
+[7m  [0m [93m         ~~~~~~~~~~~~~~~~[0m
+
+[96msrc/utils/horizon.ts[0m:[93m13[0m:[93m8[0m - [93mwarning[0m[90m ts(6133): [0m'logger' is declared but its value is never read.
+
+[7m13[0m import logger, { LogCategory, createScopedLogger } from './debug-logger';
+[7m  [0m [93m       ~~~~~~[0m
+
+[96msrc/utils/passkey-kit.ts[0m:[93m4[0m:[93m10[0m - [91merror[0m[90m ts(2614): [0mModule '"*.svelte"' has no exported member 'getTurnstileToken'. Did you mean to use 'import getTurnstileToken from "*.svelte"' instead?
+
+[7m4[0m import { getTurnstileToken } from "../stores/turnstile.svelte";
+[7m [0m [91m         ~~~~~~~~~~~~~~~~~[0m
+
+[96msrc/utils/rpc.ts[0m:[93m41[0m:[93m16[0m - [93mwarning[0m[90m ts(6133): [0m'checkRpcHealth' is declared but its value is never read.
+
+[7m41[0m async function checkRpcHealth(url: string): Promise<boolean> {
+[7m  [0m [93m               ~~~~~~~~~~~~~~[0m
+
+[96msrc/utils/soroswap.ts[0m:[93m76[0m:[93m55[0m - [93mwarning[0m[90m ts(6133): [0m'network' is declared but its value is never read.
+
+[7m76[0m export async function getQuote(request: QuoteRequest, network: 'mainnet' | 'testnet' = 'mainnet'): Promise<QuoteResponse> {
+[7m  [0m [93m                                                      ~~~~~~~[0m
+[96msrc/utils/soroswap.ts[0m:[93m17[0m:[93m33[0m - [93mwarning[0m[90m ts(6133): [0m'key' is declared but its value is never read.
+
+[7m17[0m     return JSON.stringify(obj, (key, value) =>
+[7m  [0m [93m                                ~~~[0m
+
+[96msrc/utils/swap-builder.ts[0m:[93m28[0m:[93m33[0m - [93mwarning[0m[90m ts(6133): [0m'key' is declared but its value is never read.
+
+[7m28[0m     return JSON.stringify(obj, (key, value) =>
+[7m  [0m [93m                                ~~~[0m
+
+Result (198 files): 
+- 24 errors
+- 0 warnings
+- 79 hints
+

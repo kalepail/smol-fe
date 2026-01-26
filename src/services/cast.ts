@@ -5,8 +5,8 @@
  * Uses Cast Application Framework (CAF) for modern Cast integration.
  */
 
-import { audioState } from "../stores/audio.svelte";
-import { toastState } from "../stores/toast.svelte";
+import { audioState } from "../stores/audio.svelte.ts";
+import { toastState } from "../stores/toast.svelte.ts";
 
 declare const chrome: any;
 declare const cast: any;

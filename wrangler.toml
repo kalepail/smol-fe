@@ -20,4 +20,5 @@ PUBLIC_RELAYER_API_KEY = "453552cd-3dd9-44a1-b344-066906059363" # Set this for D
 # Note: OpenZeppelin Channels integration is enabled when PUBLIC_RELAYER_API_KEY is present
 # Otherwise defaults to KaleFarm API (https://api.kalefarm.xyz) with Turnstile verification
 # PUBLIC_CHANNELS_API_KEY set in CF Dashboard (unused)
+PUBLIC_SMOL_CONTRACT_ID = "CBRNUVLGFM5OYWAGZVGU7CTMP2UJLKZCLFY2ANUCK5UGKND6BBAA5PLA"
 

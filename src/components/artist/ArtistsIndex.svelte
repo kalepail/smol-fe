@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { userState } from "../../stores/user.svelte";
-    import { isUpgradeActive } from "../../stores/upgrades.svelte";
+    import { userState } from "../../stores/user.svelte.ts";
+    import { isUpgradeActive } from "../../stores/upgrades.svelte.ts";
     import { getVIPAccess } from "../../utils/vip";
     import { API_URL } from "../../utils/apiUrl";
     import type { Smol } from "../../types/domain";

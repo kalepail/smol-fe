@@ -1,13 +1,22 @@
+/**
+ * FACTORY FRESH: Unified Trade Execution
+ * @see https://deepwiki.com/repo/kalepail/smol-fe#trading
+ * @see https://github.com/kalepail/ohloss/blob/main/ohloss-frontend/src/lib/swapService.ts
+ * 
+ * Executes trades via the Soroswap Aggregator.
+ * Automatically handles quote fetching, transaction building, and Relayer submission.
+ */
 import {
   Contract,
-  TransactionBuilder,
   Networks,
-  xdr,
   Address,
   nativeToScVal,
-  Account
+  Account,
+  TransactionBuilder,
+  xdr
 } from '@stellar/stellar-sdk';
-import type { QuoteResponse, RawTrade, RawTradeDistribution } from '../utils/soroswap';
+import { Buffer } from "buffer";
+import type { QuoteResponse, RawTrade } from '../utils/soroswap';
 import { AGGREGATOR_CONTRACT } from '../utils/soroswap';
 import { signAndSend } from '../utils/transaction-helpers';
 
@@ -19,158 +28,86 @@ const PROTOCOL_IDS: Record<string, number> = {
   phoenix: 1,
   aqua: 2,
   comet: 3,
+  sdex: 4
 };
 
-interface SwapParams {
-  tokenIn: string;
-  tokenOut: string;
-  amount: bigint;
-  userContractId: string;
-  userKeyId: string;
-  turnstileToken: string;
-  slippageBps?: number;
+/**
+ * Build a DexDistribution ScVal map.
+ * CRITICAL: Fields must be in alphabetical order for Soroban!
+ * bytes, parts, path, protocol_id
+ */
+function buildDexDistribution(dist: any) {
+  const bytes = dist.pool_hashes || dist.poolHashes || [];
+  const hashVec = bytes.map((h: string) => {
+    const bytes = Buffer.from(h, 'hex');
+    if (bytes.length !== 32) throw new Error("Pool hash must be 32 bytes");
+    return xdr.ScVal.scvBytes(bytes);
+  });
+
+  const entries: xdr.ScMapEntry[] = [
+    new xdr.ScMapEntry({
+      key: xdr.ScVal.scvSymbol("bytes"),
+      val: xdr.ScVal.scvVec(hashVec)
+    }),
+    new xdr.ScMapEntry({
+      key: xdr.ScVal.scvSymbol("parts"),
+      val: nativeToScVal(dist.parts, { type: 'u32' })
+    }),
+    new xdr.ScMapEntry({
+      key: xdr.ScVal.scvSymbol("path"),
+      val: nativeToScVal(dist.path.map((a: string) => new Address(a)))
+    }),
+    new xdr.ScMapEntry({
+      key: xdr.ScVal.scvSymbol("protocol_id"),
+      val: nativeToScVal(PROTOCOL_IDS[dist.protocol_id.toLowerCase()] ?? 0, { type: 'u32' })
+    })
+  ];
+
+  return xdr.ScVal.scvMap(entries);
 }
 
 export function useTradeExecution() {
-
-  async function getSwapQuote(
+  async function executeSwap(params: {
     tokenIn: string,
     tokenOut: string,
     amount: bigint,
-    slippageBps: number = 500
-  ): Promise<QuoteResponse> {
-    const decimals = 7;
-    const amountFloat = Number(amount) / Math.pow(10, decimals);
-
-    const response = await fetch('/api/swap/quote', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        tokenIn,
-        tokenOut,
-        amountIn: amountFloat,
-        slippageBps,
-      }),
-    });
-
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error || 'Failed to fetch quote');
-    }
-
-    return await response.json();
-  }
-
-  function routePlanToDistributionScVal(distribution: RawTradeDistribution[]): xdr.ScVal {
-    const vec: xdr.ScVal[] = distribution.map((item) => {
-      const protocolId = PROTOCOL_IDS[item.protocol_id.toLowerCase()];
-      if (protocolId === undefined) {
-        throw new Error(`Unknown protocol: ${item.protocol_id}`);
-      }
-
-      const mapEntries: xdr.ScMapEntry[] = [];
-
-      // map keys must be sorted alphabetically: bytes, parts, path, protocol_id
-
-      // 1. bytes (pool hashes)
-      // Safely handle missing pool_hashes
-      const poolHashes = (item as any).pool_hashes || (item as any).poolHashes || [];
-      const hashVec = poolHashes.map((hash: string) =>
-        xdr.ScVal.scvBytes(Buffer.from(hash, 'hex')) // API usually returns hex
-      );
-      // Soroban Option<Vec<Bytes>>: either scvVec or scvVoid?
-      // If empty, standard Soroban SDK usually expects Void for None, or Vec for Some.
-      // However, if the type is explicitly `Option<Vec<...>>`, simple empty Vec might fail if it expects Void.
-      // Ohloss uses `poolHashesToScVal`.
-      // Let's assume sending an empty Vec is safe if the contract treats it as "no hashes".
-      const bytesVal = xdr.ScVal.scvVec(hashVec);
-
-      mapEntries.push(new xdr.ScMapEntry({
-        key: xdr.ScVal.scvSymbol('bytes'),
-        val: bytesVal
-      }));
-
-      // 2. parts
-      mapEntries.push(new xdr.ScMapEntry({
-        key: xdr.ScVal.scvSymbol('parts'),
-        val: nativeToScVal(item.parts, { type: 'u32' })
-      }));
-
-      // 3. path
-      const pathScVals = item.path.map((addr) => new Address(addr).toScVal());
-      mapEntries.push(new xdr.ScMapEntry({
-        key: xdr.ScVal.scvSymbol('path'),
-        val: xdr.ScVal.scvVec(pathScVals)
-      }));
-
-      // 4. protocol_id
-      mapEntries.push(new xdr.ScMapEntry({
-        key: xdr.ScVal.scvSymbol('protocol_id'),
-        val: nativeToScVal(protocolId, { type: 'u32' })
-      }));
-
-      return xdr.ScVal.scvMap(mapEntries);
-    });
-
-    return xdr.ScVal.scvVec(vec);
-  }
-
-  async function executeSwap(params: SwapParams): Promise<bigint | null> {
+    userContractId: string,
+    userKeyId: string,
+    turnstileToken: string,
+    slippageBps?: number
+  }) {
     const { tokenIn, tokenOut, amount, userContractId, userKeyId, turnstileToken, slippageBps = 500 } = params;
 
-    // 1. Get Quote
-    const quote = await getSwapQuote(tokenIn, tokenOut, amount, slippageBps);
-    console.log('[executeSwap] Quote:', quote);
+    const quoteRes = await fetch('/api/swap/quote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tokenIn, tokenOut, amountIn: Number(amount) / 1e7, slippageBps }),
+    });
 
-    // 2. Parse Trade info
+    const quote = await quoteRes.json() as QuoteResponse;
     const rawTrade = quote.rawTrade as RawTrade;
-    if (!rawTrade || !rawTrade.distribution) {
-      throw new Error('Invalid quote: missing distribution');
-    }
-
-    // 3. Build Transaction Logic
-    const minAmountOut = BigInt(rawTrade.amountOutMin || '0');
-    const distributionScVal = routePlanToDistributionScVal(rawTrade.distribution);
-    const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600); // 1 hour
+    const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
 
     const contract = new Contract(AGGREGATOR_CONTRACT);
     const op = contract.call('swap_exact_tokens_for_tokens',
       new Address(tokenIn).toScVal(),
       nativeToScVal(amount, { type: 'i128' }),
       new Address(tokenOut).toScVal(),
-      nativeToScVal(minAmountOut, { type: 'i128' }),
-      distributionScVal,
+      nativeToScVal(BigInt(rawTrade.amountOutMin || '0'), { type: 'i128' }),
+      nativeToScVal(rawTrade.distribution.map(buildDexDistribution)),
       new Address(userContractId).toScVal(),
       nativeToScVal(deadline, { type: 'u64' })
     );
 
-    // Use NULL_ACCOUNT as source - the relayer will rewrap with its funded account
-    const sourceAccount = new Account(NULL_ACCOUNT, "0");
-    const networkPassphrase = import.meta.env.PUBLIC_NETWORK_PASSPHRASE || Networks.PUBLIC;
+    const tx = new TransactionBuilder(new Account(NULL_ACCOUNT, "0"), {
+      fee: '10000000',
+      networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE || Networks.PUBLIC,
+    }).addOperation(op).setTimeout(300).build();
 
-    const tx = new TransactionBuilder(sourceAccount, {
-      fee: '10000000', // 1 XLM (Standard Relayer Fee per Ohloss spec)
-      networkPassphrase,
-    })
-      .addOperation(op)
-      .setTimeout(300) // 5 Minutes (per Ohloss spec)
-      .build();
-
-    // 4. Sign and send with unified helper
-    const result = await signAndSend(tx, {
-      keyId: userKeyId,
-      turnstileToken,
-      useLock: false, // Swaps don't modify KALE balance directly
-    });
-
-    if (!result.success) {
-      throw new Error(result.error || 'Swap failed');
-    }
-
-    return minAmountOut;
+    const result = await signAndSend(tx, { keyId: userKeyId, turnstileToken });
+    if (!result.success) throw new Error(result.error);
+    return BigInt(rawTrade.amountOutMin || '0');
   }
 
-  return {
-    executeSwap,
-  };
+  return { executeSwap };
 }

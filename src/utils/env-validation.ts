@@ -21,6 +21,7 @@ const REQUIRED_ENV_VARS = [
     'PUBLIC_NETWORK_PASSPHRASE',
     'PUBLIC_RPC_URL',
     'PUBLIC_SMOL_CONTRACT_ID',
+    // 'PUBLIC_WEBAUTHN_VERIFIER_ADDRESS', // Unused (handled by passkey-kit internal logic)
     'PUBLIC_WALLET_WASM_HASH',
     'PUBLIC_TURNSTILE_SITE_KEY',
 ] as const;

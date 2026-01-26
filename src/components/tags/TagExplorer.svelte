@@ -14,13 +14,13 @@
         registerSongNextCallback,
         isPlaying,
         togglePlayPause,
-    } from "../../stores/audio.svelte";
+    } from "../../stores/audio.svelte.ts";
     import MiniVisualizer from "../ui/MiniVisualizer.svelte";
     import LikeButton from "../ui/LikeButton.svelte";
     import { navigate } from "astro:transitions/client";
-    import { userState } from "../../stores/user.svelte";
+    import { userState } from "../../stores/user.svelte.ts";
     import { useGridMediaSession } from "../../hooks/useGridMediaSession";
-    import { upgradesState, isUnlocked } from "../../stores/upgrades.svelte";
+    import { upgradesState, isUnlocked } from "../../stores/upgrades.svelte.ts";
 
     const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
     import {

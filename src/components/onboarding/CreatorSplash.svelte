@@ -2,7 +2,7 @@
     import { onMount } from "svelte";
     import { fade, fly, scale } from "svelte/transition";
     import { useAuthentication } from "../../hooks/useAuthentication";
-    import { userState } from "../../stores/user.svelte";
+    import { userState } from "../../stores/user.svelte.ts";
     import Loader from "../ui/Loader.svelte";
     import { Turnstile } from "svelte-turnstile";
 
@@ -456,6 +456,16 @@
                 >
                     Explore first
                 </button>
+
+                <!-- Migration Warning -->
+                <div
+                    class="mt-4 max-w-sm bg-amber-900/40 border border-amber-500/30 rounded-lg px-3 py-2 flex items-center gap-2 text-amber-200 text-[10px] font-pixel"
+                >
+                    <svg class="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M13 14H11V9H13M13 18H11V16H13M1 21H23L12 2L1 21Z" />
+                    </svg>
+                    <span>We're upgrading passkeys.<br/>Browse free, or use <a href="https://smol.xyz" class="underline hover:text-amber-100" target="_blank" rel="noopener">smol.xyz</a> to create.</span>
+                </div>
             </div>
         {:else if step === "username"}
             <div

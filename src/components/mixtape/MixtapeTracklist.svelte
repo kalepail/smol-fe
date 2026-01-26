@@ -5,7 +5,7 @@
   import MiniAudioPlayer from "../audio/MiniAudioPlayer.svelte";
   import LikeButton from "../ui/LikeButton.svelte";
   import TokenBalancePill from "../ui/TokenBalancePill.svelte";
-  import { audioState } from "../../stores/audio.svelte";
+  import { audioState } from "../../stores/audio.svelte.ts";
 
   interface Props {
     mixtape: MixtapeDetail;

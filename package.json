@@ -15,6 +15,7 @@
     "audit:swaps": "node scripts/swap-audit/audit.js"
   },
   "dependencies": {
+    "@astrojs/check": "^0.9.6",
     "@astrojs/sitemap": "^3.6.1",
     "@google/genai": "^1.34.0",
     "@google/generative-ai": "^0.24.1",
@@ -27,6 +28,7 @@
     "cookie": "^1.0.2",
     "js-cookie": "^3.0.5",
     "passkey-kit": "^0.12.0",
+    "smart-account-kit": "0.2.9",
     "smol-sdk": "link:ext/smol-sdk",
     "soroswap-router-sdk": "1.2.4",
     "svelte-dnd-action": "^0.9.65",

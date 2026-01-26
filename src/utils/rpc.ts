@@ -1,6 +1,7 @@
 /**
- * RPC Endpoint Management with Health Checking
- *
+ * FACTORY FRESH: RPC Health & Failover Management
+ * @see https://deepwiki.com/repo/kalepail/smol-fe#rpc-monitoring
+ * 
  * Provides intelligent RPC endpoint selection with health monitoring
  * and automatic failover to backup endpoints.
  */

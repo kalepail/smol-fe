@@ -5,11 +5,11 @@
   import CreatorSplash from "./onboarding/CreatorSplash.svelte";
   import SmolDisplay from "./smol/SmolDisplay.svelte";
   import MintTradeModal from "./MintTradeModal.svelte";
-  import { userState } from "../stores/user.svelte";
-  import { updateContractBalance } from "../stores/balance.svelte";
+  import { userState } from "../stores/user.svelte.ts";
+  import { updateContractBalance } from "../stores/balance.svelte.ts";
   import { useSmolGeneration } from "../hooks/useSmolGeneration";
   import { useSmolMinting } from "../hooks/useSmolMinting";
-  import { audioState } from "../stores/audio.svelte";
+  import { audioState } from "../stores/audio.svelte.ts";
   import { sac } from "../utils/passkey-kit";
   import { getTokenBalance } from "../utils/balance";
   import { RPC_URL } from "../utils/rpc";

@@ -7,10 +7,10 @@
         registerSongNextCallback,
         isPlaying,
         togglePlayPause,
-    } from "../../stores/audio.svelte";
+    } from "../../stores/audio.svelte.ts";
     import { navigate } from "astro:transitions/client";
     import RadioPlayer from "../radio/RadioPlayer.svelte";
-    import { isAuthenticated, userState } from "../../stores/user.svelte";
+    import { isAuthenticated, userState } from "../../stores/user.svelte.ts";
     import LikeButton from "../ui/LikeButton.svelte";
     import { useSmolMinting } from "../../hooks/useSmolMinting";
     import TokenBalancePill from "../ui/TokenBalancePill.svelte";

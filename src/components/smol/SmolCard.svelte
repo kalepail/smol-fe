@@ -7,11 +7,11 @@
     audioState,
     selectSong,
     togglePlayPause,
-  } from "../../stores/audio.svelte";
+  } from "../../stores/audio.svelte.ts";
   import {
     mixtapeModeState,
     mixtapeTrackIds,
-  } from "../../stores/mixtape.svelte";
+  } from "../../stores/mixtape.svelte.ts";
 
   interface Props {
     smol: Smol;
@@ -48,7 +48,7 @@
     }
   }
 
-  import { preferences } from "../../stores/preferences.svelte";
+  import { preferences } from "../../stores/preferences.svelte.ts";
 
   function handlePointerDown() {
     if (preferences.renderMode === "thinking") {

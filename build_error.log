@@ -1,0 +1,42 @@
+
+> smol-fe@1.5.4 build C:\Users\Jeff\Mixtape Auto\smol-fe
+> node --max-old-space-size=4096 ./node_modules/astro/astro.js build
+
+20:52:50 [@astrojs/cloudflare] Enabling sessions with Cloudflare KV with the "SESSION" KV binding.
+20:52:50 [@astrojs/cloudflare] If you see the error "Invalid binding `SESSION`" in your build output, you need to add the binding to your wrangler config file.
+20:52:50 [WARN] [adapter] Cloudflare does not support sharp at runtime. However, you can configure `imageService: "compile"` to optimize images with sharp on prerendered pages during build time.
+20:52:50 [content] Syncing content
+20:52:50 [content] Synced content
+20:52:50 [types] Generated 125ms
+20:52:50 [build] output: "server"
+20:52:50 [build] mode: "server"
+20:52:50 [build] directory: C:\Users\Jeff\Mixtape Auto\smol-fe\dist\
+20:52:50 [build] adapter: @astrojs/cloudflare
+20:52:50 [build] Collecting build info...
+20:52:50 [build] Γ£ô Completed in 209ms.
+20:52:50 [build] Building server entrypoints...
+20:53:08 [WARN] [vite] [33mGenerated an empty chunk: "kale-or-fail.4a25530b".[39m
+20:53:09 [WARN] [vite] [33mnode_modules/.pnpm/vm-browserify@1.1.2/node_modules/vm-browserify/index.js (110:11): Use of eval in "node_modules/.pnpm/vm-browserify@1.1.2/node_modules/vm-browserify/index.js" is strongly discouraged as it poses security risks and may cause issues with minification.[39m
+20:53:09 [vite] [32mΓ£ô built in 18.96s[39m
+20:53:09 [build] Γ£ô Completed in 19.05s.
+
+ building client (vite) 
+20:53:09 [vite] transforming...
+20:53:09 [vite] [32mΓ£ô[39m 50 modules transformed.
+20:53:09 [ERROR] [vite] Γ£ù Build failed in 261ms
+[vite-plugin-svelte] [plugin vite-plugin-svelte] src/components/Account.svelte (15:4): C:/Users/Jeff/Mixtape Auto/smol-fe/src/components/Account.svelte:15:4 Unexpected token
+https://svelte.dev/e/js_parse_error
+file: C:/Users/Jeff/Mixtape Auto/smol-fe/src/components/Account.svelte:15:4
+
+ 13 |          balanceState,
+ 14 |          updateContractBalance,
+ 15 |      } from "../stores/balance.svelte.ts";
+           ^
+ 16 |      import { signAndSend } from "../utils/transaction-helpers";
+ 17 |      import {
+
+  Location:
+    C:/Users/Jeff/Mixtape Auto/smol-fe/src/components/Account.svelte:15:4
+  Stack trace:
+
+ΓÇëELIFECYCLEΓÇë Command failed with exit code 1.

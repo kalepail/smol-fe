@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { userState } from "../../stores/user.svelte";
+    import { userState } from "../../stores/user.svelte.ts";
 
     let images = $state<string[]>([]);
     let loading = $state(false);

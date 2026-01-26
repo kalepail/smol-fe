@@ -1,6 +1,6 @@
 <script lang="ts">
     import { castService } from "../../services/cast";
-    import { audioState } from "../../stores/audio.svelte";
+    import { audioState } from "../../stores/audio.svelte.ts";
 
     let testUrl = $state("");
     let isRunning = $state(false);

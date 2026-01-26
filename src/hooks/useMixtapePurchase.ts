@@ -1,14 +1,22 @@
+/**
+ * FACTORY FRESH: Mixtape Purchase Hook
+ * @see https://deepwiki.com/repo/kalepail/smol-fe#trading
+ * 
+ * Handles batch purchasing of already-minted tracks via "swap_them_in".
+ * Implements sequential chunking with automated Turnstile token refresh
+ * to scale with large mixtape memberships.
+ */
 import { Client as SmolClient } from 'smol-sdk';
 import type { Smol } from '../types/domain';
 import { RPC_URL } from '../utils/rpc';
 import {
   signSendAndVerify,
-  type GetFreshTokenCallback,
   type SignAndSendResult,
 } from '../utils/transaction-helpers';
 import { account } from '../utils/passkey-kit';
 
 type SignableTransaction = Parameters<ReturnType<typeof account.get>['sign']>[0];
+type GetFreshTokenCallback = () => Promise<string>;
 
 interface PurchaseBatchParams {
   tokensOut: string[];
@@ -73,7 +81,8 @@ export function useMixtapePurchase() {
     onBatchComplete: (trackIds: string[]) => void,
     getFreshToken?: GetFreshTokenCallback
   ): Promise<void> {
-    const BATCH_SIZE = 3;
+    // FACTORY FRESH: Process in chunks of 9 (Aggregator standard)
+    const BATCH_SIZE = 9;
 
     // Build arrays of tokens and their corresponding comet addresses
     const tokenData: Array<{

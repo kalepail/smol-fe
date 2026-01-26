@@ -9,8 +9,8 @@
   import {
     audioState,
     registerSongNextCallback,
-  } from "../../stores/audio.svelte";
-  import { userState } from "../../stores/user.svelte";
+  } from "../../stores/audio.svelte.ts";
+  import { userState } from "../../stores/user.svelte.ts";
   import { useMixtapeMinting } from "../../hooks/useMixtapeMinting";
   import { useMixtapePurchase } from "../../hooks/useMixtapePurchase";
   import { useMixtapeBalances } from "../../hooks/useMixtapeBalances";
@@ -21,7 +21,7 @@
   import {
     loadPublishedMixtape,
     enterMixtapeMode,
-  } from "../../stores/mixtape.svelte";
+  } from "../../stores/mixtape.svelte.ts";
 
   interface Props {
     id: string;

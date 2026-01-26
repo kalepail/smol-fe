@@ -17,13 +17,14 @@ Ralph Loop is a persistence + verification pattern: the loop is the hero, not th
 - Max iteration/time budget
 
 ## How to run
-1) Write success criteria + validators at top of .agent/_reports/RALPH_PROGRESS.md
-2) Run /ralph-loop workflow steps.
-3) Every iteration must:
+1) **Audit Skills**: Check all available scripts and `SKILL.md` files for relevance to the current topic. Read them BEFORE planning.
+2) **Define Success**: Write success criteria + validators at top of .agent/_reports/RALPH_PROGRESS.md
+3) Run /ralph-loop workflow steps.
+4) Every iteration must:
    - change one thing
    - run validators
    - record results
-4) Stop only on verified pass.
+5) Stop only on verified pass.
 
 ## Safety
 - Never include secrets in artifacts.

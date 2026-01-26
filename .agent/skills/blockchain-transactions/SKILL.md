@@ -60,11 +60,11 @@ const signedTx = await account.get().sign(tx, {
 
 ## 5. Transaction Submission 📤
 
-### Primary: Tyler's Relayer (Sponsored Fees)
+### Primary: OZ Relayer (Sponsored Fees)
 ```typescript
 await send(signedTx, turnstileToken);
-// Endpoint: https://api.kalefarm.xyz/
-// Requires Turnstile token for bot protection
+// Endpoint: https://channels.openzeppelin.com
+// Requires Turnstile token in 'X-Turnstile-Response' header
 ```
 
 ### Fallback: Soroswap Direct (User Pays ~0.0001 XLM)
@@ -76,7 +76,7 @@ await sendTransaction(signedTx.toXDR(), false);
 
 ## 6. Soroswap Aggregator Contract 🔀
 
-**Contract ID (Mainnet):** `CAG5LRYQ5JVEUI5TEID72EYOVX44TTUJT5BQR2J6J77FH65PCCFAJDDH`
+**Contract ID (Mainnet):** `CAYP3UWLJM7ZPTUKL6R6BFGTRWLZ46LRKOXTERI2K6BIJAWGYY62TXTO`
 
 ```rust
 fn swap_exact_tokens_for_tokens(
@@ -97,7 +97,27 @@ struct DexDistribution {
 }
 ```
 
-## 7. Common Patterns 🎯
+## 7. Unified Transaction Helper 🚀
+
+**Pattern**: ALWAYS use `signSendAndVerify` from `src/utils/transaction-helpers.ts` for high-level flows.
+
+```typescript
+const result = await signSendAndVerify({
+    contractId: AGGREGATOR_CONTRACT,
+    functionName: "swap_exact_tokens_for_tokens",
+    args: [...invokeArgs],
+    userContractId: currentContractId,
+    userKeyId: currentKeyId,
+    turnstileToken: token
+});
+```
+
+**Benefits**:
+- Automatic Turnstile handling.
+- Automatic Polling for ledger inclusion.
+- Built-in Simulation checks.
+
+## 8. Common Patterns 🎯
 
 ### Get Latest Ledger Sequence
 ```typescript

@@ -1,10 +1,10 @@
 <script lang="ts">
-    import { userState } from "../../stores/user.svelte";
+    import { userState } from "../../stores/user.svelte.ts";
     import { useAuthentication } from "../../hooks/useAuthentication";
     import ArtistResults from "../artist/ArtistResults.svelte";
     import Loader from "../ui/Loader.svelte";
     import KaleEmoji from "../ui/KaleEmoji.svelte";
-    import { preferences, THEMES } from "../../stores/preferences.svelte";
+    import { preferences, THEMES } from "../../stores/preferences.svelte.ts";
     import { Turnstile } from "svelte-turnstile";
 
     // Check if we have a contract ID (user address)

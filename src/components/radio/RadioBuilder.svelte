@@ -8,7 +8,7 @@
     registerSongNextCallback,
     togglePlayPause,
     isPlaying as getIsPlaying,
-  } from "../../stores/audio.svelte";
+  } from "../../stores/audio.svelte.ts";
   import RadioPlayer from "./RadioPlayer.svelte";
   import RadioResults from "./RadioResults.svelte";
   import {
@@ -20,7 +20,7 @@
     publishMixtape,
     getMixtapeDetail,
   } from "../../services/api/mixtapes";
-  import { isAuthenticated } from "../../stores/user.svelte";
+  import { isAuthenticated } from "../../stores/user.svelte.ts";
   import type { MixtapeDraft } from "../../types/domain";
   import { getFullSnapshot, safeFetchSmols } from "../../services/api/smols";
   import {

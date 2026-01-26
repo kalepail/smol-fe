@@ -7,7 +7,10 @@ interface ImportMetaEnv {
   readonly PUBLIC_LAUNCHTUBE_JWT?: string;  // Optional - deprecated fallback
   readonly PUBLIC_LAUNCHTUBE_URL?: string;  // Optional - deprecated fallback
   readonly PUBLIC_NETWORK_PASSPHRASE: string;
+  readonly PUBLIC_WEBAUTHN_VERIFIER_ADDRESS: string;
   readonly PUBLIC_RPC_URL: string;
+  readonly PUBLIC_RELAYER_API_KEY?: string;
+  readonly PUBLIC_RELAYER_URL?: string;
   readonly PUBLIC_SMOL_CONTRACT_ID: string;
   readonly PUBLIC_WALLET_WASM_HASH: string;
   // OpenZeppelin Channels (not currently implemented - using KaleFarm relayer instead)

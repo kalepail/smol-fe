@@ -3,7 +3,7 @@
         audioState,
         playNextSong,
         togglePlayPause,
-    } from "../../stores/audio.svelte";
+    } from "../../stores/audio.svelte.ts";
     import { onMount } from "svelte";
     import type { Smol } from "../../types/domain";
 

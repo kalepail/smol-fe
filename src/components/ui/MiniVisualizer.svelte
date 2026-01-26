@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { audioState } from "../../stores/audio.svelte";
-    import { preferences } from "../../stores/preferences.svelte";
+    import { audioState } from "../../stores/audio.svelte.ts";
+    import { preferences } from "../../stores/preferences.svelte.ts";
 
     // Oscillator State
     let lastDataArray: Float32Array | null = null;

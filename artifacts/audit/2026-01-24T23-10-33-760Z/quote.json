@@ -1,0 +1,39 @@
+{
+  "assetIn": "CB23WRDQWGSP6YPMY4UV5C4OW5CBTXKYN3XEATG7KJEZCXMJBYEHOUOV",
+  "assetOut": "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA",
+  "amountIn": "10000000",
+  "amountOut": 30303,
+  "otherAmountThreshold": 30303,
+  "priceImpactPct": "0.22",
+  "tradeType": "EXACT_IN",
+  "platform": "aggregator",
+  "rawTrade": {
+    "amountIn": "10000000",
+    "amountOutMin": "28788",
+    "distribution": [
+      {
+        "protocol_id": "soroswap",
+        "path": [
+          "CB23WRDQWGSP6YPMY4UV5C4OW5CBTXKYN3XEATG7KJEZCXMJBYEHOUOV",
+          "CCYFFNXEMQZG4TGMYDRQYRWROCSJCDJBZI6JC6BGBTYB2SJAQKQICON5",
+          "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA"
+        ],
+        "parts": 10,
+        "is_exact_in": true
+      }
+    ]
+  },
+  "routePlan": [
+    {
+      "swapInfo": {
+        "protocol": "soroswap",
+        "path": [
+          "CB23WRDQWGSP6YPMY4UV5C4OW5CBTXKYN3XEATG7KJEZCXMJBYEHOUOV",
+          "CCYFFNXEMQZG4TGMYDRQYRWROCSJCDJBZI6JC6BGBTYB2SJAQKQICON5",
+          "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA"
+        ]
+      },
+      "percent": "100.00"
+    }
+  ]
+}

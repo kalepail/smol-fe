@@ -4,8 +4,8 @@
   import TradeForm from "./trade/TradeForm.svelte";
   import TradeBalances from "./trade/TradeBalances.svelte";
   import TradeSimulation from "./trade/TradeSimulation.svelte";
-  import { userState } from "../stores/user.svelte";
-  import { updateContractBalance } from "../stores/balance.svelte";
+  import { userState } from "../stores/user.svelte.ts";
+  import { updateContractBalance } from "../stores/balance.svelte.ts";
   import { kale, sac } from "../utils/passkey-kit";
   import { Client as CometClient } from "comet-sdk";
   import { useTradeSimulation } from "../hooks/useTradeSimulation";

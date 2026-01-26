@@ -10,19 +10,16 @@
 
 const SOROSWAP_API_BASE = 'https://api.soroswap.finance';
 
-/**
- * Safe JSON stringification that handles BigInt values
- */
-function safeStringify(obj: unknown, space?: number): string {
+export function safeStringify(obj: unknown, space?: number): string {
     return JSON.stringify(obj, (key, value) =>
         typeof value === 'bigint' ? value.toString() : value
         , space);
 }
 
 export interface QuoteRequest {
-    assetIn: string;
-    assetOut: string;
-    amount: number;
+    tokenIn: string;
+    tokenOut: string;
+    amountIn: number;
     tradeType: 'EXACT_IN' | 'EXACT_OUT';
     protocols?: string[];
     parts?: number;
@@ -77,9 +74,10 @@ export async function getQuote(request: QuoteRequest, network: 'mainnet' | 'test
     const url = '/api/swap/quote';
 
     const body = {
-        tokenIn: request.assetIn,
-        tokenOut: request.assetOut,
-        amountIn: request.amount, // API expects this name
+        tokenIn: request.tokenIn,
+        tokenOut: request.tokenOut,
+        amountIn: request.amountIn, // API expects this name
+        tradeType: request.tradeType, // Critical: Missing this caused EXACT_OUT issues
         slippageBps: request.slippageBps ?? 500,
     };
 
@@ -254,6 +252,8 @@ export interface RawTradeDistribution {
 export interface RawTrade {
     amountIn: string;
     amountOutMin: string;
+    amountInMax?: string; // EXACT_OUT
+    amountOut?: string;    // EXACT_OUT
     distribution: RawTradeDistribution[];
 }
 

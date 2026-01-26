@@ -78,3 +78,89 @@ Thread: Svelte-check cleanup for passkey-kit + SmolHeroCore
 	•	Resolved type errors in passkey-kit XDR parsing and minting/purchase flows.
 	•	Aligned SmolHeroCore typing and pause/difficulty controls for clean checks.
 	•	Verified pnpm run check passes.
+
+[2026-01-24 20:34] - P0-AUTH-001
+Thread: Passkey login hotfix + SmartAccountKit migration
+	•	Added SmartAccountKit wallet wrapper with IndexedDB storage and relayer config.
+	•	Updated auth flow to use SmartAccountKit, added /login debug logging, and ensured credentialed requests.
+	•	Added production passkey smoke test checklist and documented WebAuthn verifier env var.
+	•	Files changed: src/lib/wallet/smartAccount.ts, src/hooks/useAuthentication.ts, src/stores/user.svelte.ts, src/env.d.ts, src/utils/env-validation.ts, docs/PROD_PASSKEY_SMOKE_TEST.md, docs/passkey-relayer-mainnet.md, package.json, pnpm-lock.yaml, scripts/ralph/prd.json.
+	•	Learnings for future iterations:
+		- SmartAccountKit requires a WebAuthn verifier contract address in env.
+	•	Gotchas encountered:
+		- svelte-check currently fails on pre-existing type errors in SmolResults and Mixtape purchase flow.
+	•	Test note: pnpm run check failed due to existing type errors (SmolResults.svelte, useMixtapePurchase.ts).
+
+[2026-01-24 22:05] - P0-AUTH-001
+Thread: Passkey login hotfix follow-up
+	•	Fixed typecheck blockers by loosening transaction helper typing and adding Created_At to Smol detail response type.
+	•	Installed smart-account-kit in node_modules for type resolution.
+	•	Tests: pnpm run check (pass).
+
+[2026-01-24 22:10] - P0-AUTH-001
+Thread: Passkey onboarding debug load fix
+	•	Hardened passkey onboarding/local auth state against localStorage access failures to prevent blank loads.
+[2026-01-24T23:09:37.856Z] [SPAMMER] STRESS TEST INITIALIZED
+[2026-01-24T23:09:37.859Z] [SPAMMER] Cycle #1 START: kale_to_xlm
+[2026-01-24T23:09:40.172Z] [SPAMMER] Cycle #1 SUCCESS: kale_to_xlm
+[2026-01-24T23:09:40.173Z] [SPAMMER] Next cycle in 4463ms...
+[2026-01-24T23:09:44.647Z] [SPAMMER] Cycle #2 START: xlm_to_kale
+[2026-01-24T23:09:47.069Z] [SPAMMER] Cycle #2 SUCCESS: xlm_to_kale
+[2026-01-24T23:09:47.071Z] [SPAMMER] Next cycle in 4481ms...
+[2026-01-24T23:09:51.560Z] [SPAMMER] Cycle #3 START: kale_to_xlm
+[2026-01-24T23:09:55.588Z] [SPAMMER] Cycle #3 SUCCESS: kale_to_xlm
+[2026-01-24T23:09:55.589Z] [SPAMMER] Next cycle in 3701ms...
+[2026-01-24T23:09:59.300Z] [SPAMMER] Cycle #4 START: xlm_to_kale
+[2026-01-24T23:10:01.890Z] [SPAMMER] Cycle #4 SUCCESS: xlm_to_kale
+[2026-01-24T23:10:01.891Z] [SPAMMER] Next cycle in 4574ms...
+[2026-01-24T23:10:06.476Z] [SPAMMER] Cycle #5 START: kale_to_xlm
+[2026-01-24T23:10:08.368Z] [SPAMMER] Cycle #5 SUCCESS: kale_to_xlm
+[2026-01-24T23:10:08.369Z] [SPAMMER] Next cycle in 4375ms...
+[2026-01-24T23:10:12.747Z] [SPAMMER] Cycle #6 START: xlm_to_kale
+[2026-01-24T23:10:14.791Z] [SPAMMER] Cycle #6 SUCCESS: xlm_to_kale
+[2026-01-24T23:10:14.805Z] [SPAMMER] Next cycle in 3763ms...
+[2026-01-24T23:10:18.597Z] [SPAMMER] Cycle #7 START: kale_to_xlm
+[2026-01-24T23:10:20.985Z] [SPAMMER] Cycle #7 SUCCESS: kale_to_xlm
+[2026-01-24T23:10:20.987Z] [SPAMMER] Next cycle in 4849ms...
+[2026-01-24T23:10:25.840Z] [SPAMMER] Cycle #8 START: xlm_to_kale
+[2026-01-24T23:10:28.230Z] [SPAMMER] Cycle #8 SUCCESS: xlm_to_kale
+[2026-01-24T23:10:28.231Z] [SPAMMER] Next cycle in 4396ms...
+[2026-01-24T23:10:32.628Z] [SPAMMER] Cycle #9 START: kale_to_xlm
+[2026-01-24T23:10:34.753Z] [SPAMMER] Cycle #9 SUCCESS: kale_to_xlm
+[2026-01-24T23:10:34.754Z] [SPAMMER] Next cycle in 4922ms...
+[2026-01-24T23:10:39.683Z] [SPAMMER] Cycle #10 START: xlm_to_kale
+[2026-01-24T23:10:41.710Z] [SPAMMER] Cycle #10 SUCCESS: xlm_to_kale
+[2026-01-24T23:10:41.711Z] [SPAMMER] Next cycle in 4759ms...
+[2026-01-24T23:10:46.484Z] [SPAMMER] Cycle #11 START: kale_to_xlm
+[2026-01-24T23:10:48.824Z] [SPAMMER] Cycle #11 SUCCESS: kale_to_xlm
+[2026-01-24T23:10:48.825Z] [SPAMMER] Next cycle in 4964ms...
+[2026-01-24T23:10:53.802Z] [SPAMMER] Cycle #12 START: xlm_to_kale
+[2026-01-24T23:10:55.752Z] [SPAMMER] Cycle #12 SUCCESS: xlm_to_kale
+[2026-01-24T23:10:55.754Z] [SPAMMER] Next cycle in 3916ms...
+[2026-01-24T23:10:59.683Z] [SPAMMER] Cycle #13 START: kale_to_xlm
+[2026-01-24T23:11:01.972Z] [SPAMMER] Cycle #13 SUCCESS: kale_to_xlm
+[2026-01-24T23:11:01.973Z] [SPAMMER] Next cycle in 4103ms...
+[2026-01-24T23:11:06.087Z] [SPAMMER] Cycle #14 START: xlm_to_kale
+[2026-01-24T23:11:08.184Z] [SPAMMER] Cycle #14 SUCCESS: xlm_to_kale
+[2026-01-24T23:11:08.185Z] [SPAMMER] Next cycle in 3248ms...
+[2026-01-24T23:11:11.435Z] [SPAMMER] Cycle #15 START: kale_to_xlm
+[2026-01-24T23:11:13.580Z] [SPAMMER] Cycle #15 SUCCESS: kale_to_xlm
+[2026-01-24T23:11:13.581Z] [SPAMMER] Next cycle in 3012ms...
+[2026-01-24T23:11:16.597Z] [SPAMMER] Cycle #16 START: xlm_to_kale
+[2026-01-24T23:11:18.711Z] [SPAMMER] Cycle #16 SUCCESS: xlm_to_kale
+[2026-01-24T23:11:18.711Z] [SPAMMER] Next cycle in 3297ms...
+[2026-01-24T23:11:22.017Z] [SPAMMER] Cycle #17 START: kale_to_xlm
+[2026-01-24T23:11:23.987Z] [SPAMMER] Cycle #17 SUCCESS: kale_to_xlm
+[2026-01-24T23:11:23.988Z] [SPAMMER] Next cycle in 3123ms...
+[2026-01-24T23:11:27.119Z] [SPAMMER] Cycle #18 START: xlm_to_kale
+[2026-01-24T23:11:29.146Z] [SPAMMER] Cycle #18 SUCCESS: xlm_to_kale
+[2026-01-24T23:11:29.147Z] [SPAMMER] Next cycle in 4093ms...
+[2026-01-24T23:11:33.241Z] [SPAMMER] Cycle #19 START: kale_to_xlm
+[2026-01-24T23:11:35.516Z] [SPAMMER] Cycle #19 SUCCESS: kale_to_xlm
+[2026-01-24T23:11:35.517Z] [SPAMMER] Next cycle in 4341ms...
+[2026-01-24T23:11:39.871Z] [SPAMMER] Cycle #20 START: xlm_to_kale
+[2026-01-24T23:11:41.939Z] [SPAMMER] Cycle #20 SUCCESS: xlm_to_kale
+[2026-01-24T23:11:41.942Z] [SPAMMER] Next cycle in 3763ms...
+[2026-01-24T23:11:45.714Z] [SPAMMER] Cycle #21 START: kale_to_xlm
+[2026-01-24T23:11:47.732Z] [SPAMMER] Cycle #21 SUCCESS: kale_to_xlm
+[2026-01-24T23:11:47.733Z] [SPAMMER] Next cycle in 4874ms...

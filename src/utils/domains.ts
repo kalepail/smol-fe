@@ -23,9 +23,14 @@ export function getSafeRpId(hostname: string): string | undefined {
     const suffix = getPublicSuffix(hostname);
 
     // If domain logic fails or it matches the suffix (e.g. co.uk), use Origin
-    // Also block known shared suffixes like pages.dev where tldts might return the generic platform domain
-    const blockedDomains = ['pages.dev', 'vercel.app', 'netlify.app', 'herokuapp.com'];
-    if (!domain || !suffix || domain === suffix || blockedDomains.includes(domain) || blockedDomains.includes(suffix)) {
+    // CRITICAL FIX: For shared hosting providers (pages.dev, vercel.app), tldts might return the public suffix as the domain.
+    // We must explicitly return the FULL HOSTNAME for these to ensure a valid unique RP ID.
+    const blockedSuffixes = ['pages.dev', 'vercel.app', 'netlify.app', 'herokuapp.com'];
+    if (blockedSuffixes.some(s => hostname.endsWith(s))) {
+        return hostname;
+    }
+
+    if (!domain || !suffix || domain === suffix) {
         return undefined;
     }
 

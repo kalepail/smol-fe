@@ -9,10 +9,10 @@
         togglePlayPause,
         playNextSong,
         playPrevSong as playPreviousSong,
-    } from "../../stores/audio.svelte";
+    } from "../../stores/audio.svelte.ts";
     import { navigate } from "astro:transitions/client";
     import RadioPlayer from "../radio/RadioPlayer.svelte";
-    import { userState } from "../../stores/user.svelte";
+    import { userState } from "../../stores/user.svelte.ts";
     import LikeButton from "../ui/LikeButton.svelte";
     import { useSmolMinting } from "../../hooks/useSmolMinting";
     import MintTradeModal from "../MintTradeModal.svelte";
@@ -46,8 +46,8 @@
         setTheme,
         setRenderMode,
         validateAndRevertTheme,
-    } from "../../stores/preferences.svelte";
-    import { upgradesState } from "../../stores/upgrades.svelte";
+    } from "../../stores/preferences.svelte.ts";
+    import { upgradesState } from "../../stores/upgrades.svelte.ts";
 
     // Navigation / View State
     let activeModule = $state<"all" | "minted" | "tags">("all");

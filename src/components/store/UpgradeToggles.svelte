@@ -1,10 +1,10 @@
 <script lang="ts">
-    import { userState, isAuthenticated } from "../../stores/user.svelte";
+    import { userState, isAuthenticated } from "../../stores/user.svelte.ts";
     import {
         upgradesState,
         enabledState,
         toggleUpgrade,
-    } from "../../stores/upgrades.svelte";
+    } from "../../stores/upgrades.svelte.ts";
 
     // Fetch artist's actual badge ownership from API
     let artistBadges = $state<{

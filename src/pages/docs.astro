@@ -1,0 +1,309 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout
+  title="Docs | Smol - AI Music Generator"
+  description="Documentation for Smol. Learn how to create AI music, mint NFTs, trade tokens, build mixtapes, and use all platform features."
+>
+  <main class="min-h-screen text-white px-4 py-12 md:py-20 max-w-4xl mx-auto">
+
+    <!-- WIP Warning Banner -->
+    <div class="bg-amber-900/30 border border-amber-500/50 rounded-lg px-4 py-2 mb-6 flex items-center gap-2 text-amber-200 text-sm">
+      <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M13 14H11V9H13M13 18H11V16H13M1 21H23L12 2L1 21Z" />
+      </svg>
+      <span>We're upgrading noot.smol.xyz from Launchtube to OpenZeppelin Relayers. You can still browse and listen for free! To create and mint songs, use <a href="https://smol.xyz" class="underline hover:text-amber-100" target="_blank" rel="noopener">smol.xyz</a>.</span>
+    </div>
+
+    <!-- Header -->
+    <div class="mb-12">
+      <h1 class="text-3xl md:text-5xl font-bold mb-4 tracking-tight">
+        Documentation
+      </h1>
+      <p class="text-lg text-slate-300">
+        Everything you need to know about using Smol.
+      </p>
+    </div>
+
+    <!-- Table of Contents -->
+    <nav class="mb-12 p-6 border border-slate-700 rounded-lg bg-slate-900/50">
+      <h2 class="text-lg font-semibold mb-4 text-[#9ae600]">Contents</h2>
+      <ul class="space-y-2 text-slate-300">
+        <li><a href="#getting-started" class="hover:text-[#9ae600] transition-colors">Getting Started</a></li>
+        <li><a href="#creating-songs" class="hover:text-[#9ae600] transition-colors">Creating Songs</a></li>
+        <li><a href="#minting-nfts" class="hover:text-[#9ae600] transition-colors">Minting NFTs</a></li>
+        <li><a href="#trading" class="hover:text-[#9ae600] transition-colors">Trading Tokens</a></li>
+        <li><a href="#mixtapes" class="hover:text-[#9ae600] transition-colors">Mixtapes</a></li>
+        <li><a href="#ai-radio" class="hover:text-[#9ae600] transition-colors">AI Radio</a></li>
+        <li><a href="#labs" class="hover:text-[#9ae600] transition-colors">Smol Labs</a></li>
+        <li><a href="#kale" class="hover:text-[#9ae600] transition-colors">KALE Token</a></li>
+        <li><a href="#store" class="hover:text-[#9ae600] transition-colors">Store & Upgrades</a></li>
+      </ul>
+    </nav>
+
+    <!-- Getting Started -->
+    <section id="getting-started" class="mb-16 scroll-mt-8">
+      <h2 class="text-2xl font-bold mb-4 text-[#9ae600]">Getting Started</h2>
+      <div class="space-y-4 text-slate-300">
+        <h3 class="text-lg font-semibold text-white">Creating an Account</h3>
+        <p>
+          Smol uses <strong>PasskeyKit</strong> for passwordless authentication. Click "Sign In" and authenticate using:
+        </p>
+        <ul class="list-disc list-inside space-y-1 ml-4">
+          <li>Face ID (iOS/macOS)</li>
+          <li>Touch ID (macOS)</li>
+          <li>Fingerprint (Android/Windows)</li>
+          <li>Hardware security key (YubiKey, etc.)</li>
+        </ul>
+        <p>
+          No passwords or seed phrases required. Your account is secured by your device's biometric authentication and backed by a Stellar smart contract wallet.
+        </p>
+
+        <h3 class="text-lg font-semibold text-white mt-6">Navigating the Platform</h3>
+        <ul class="list-disc list-inside space-y-1 ml-4">
+          <li><strong>Home</strong> - Browse latest public songs</li>
+          <li><strong>Create</strong> - Generate new AI songs</li>
+          <li><strong>Created</strong> - View your created songs</li>
+          <li><strong>Liked</strong> - Songs you've favorited</li>
+          <li><strong>Artists</strong> - Discover creators</li>
+          <li><strong>Mixtapes</strong> - Browse and create playlists</li>
+          <li><strong>Radio</strong> - AI-powered music discovery</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Creating Songs -->
+    <section id="creating-songs" class="mb-16 scroll-mt-8">
+      <h2 class="text-2xl font-bold mb-4 text-[#9ae600]">Creating Songs</h2>
+      <div class="space-y-4 text-slate-300">
+        <h3 class="text-lg font-semibold text-white">Writing Prompts</h3>
+        <p>
+          Navigate to <a href="/create" class="text-[#9ae600] hover:underline">/create</a> and enter a text prompt describing your desired song. Be as specific or abstract as you like.
+        </p>
+        <div class="bg-slate-800 rounded-lg p-4 text-sm">
+          <p class="text-slate-400 mb-2">Example prompts:</p>
+          <ul class="space-y-2">
+            <li>"Upbeat jazz fusion with saxophone solo, 120 BPM, about city nights"</li>
+            <li>"Melancholic lo-fi hip hop beat, rainy day vibes, no vocals"</li>
+            <li>"Epic orchestral soundtrack for a space battle, dramatic crescendo"</li>
+          </ul>
+        </div>
+
+        <h3 class="text-lg font-semibold text-white mt-6">Character Limits</h3>
+        <ul class="list-disc list-inside space-y-1 ml-4">
+          <li><strong>Songs with lyrics:</strong> Up to 2,280 characters</li>
+          <li><strong>Instrumentals:</strong> Up to 380 characters</li>
+        </ul>
+
+        <h3 class="text-lg font-semibold text-white mt-6">Instrumental Mode</h3>
+        <p>
+          Toggle "Instrumental" to generate music without vocals or lyrics. Ideal for background music, beats, and soundtracks.
+        </p>
+
+        <h3 class="text-lg font-semibold text-white mt-6">Dual-Track Generation</h3>
+        <p>
+          Each prompt generates <strong>2 versions</strong> of your song. Listen to both and select your favorite to publish. Generation takes approximately 6 minutes.
+        </p>
+
+        <h3 class="text-lg font-semibold text-white mt-6">Visibility</h3>
+        <ul class="list-disc list-inside space-y-1 ml-4">
+          <li><strong>Public:</strong> Visible to everyone, appears in feeds and search</li>
+          <li><strong>Private:</strong> Only you can see and play the song</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Minting NFTs -->
+    <section id="minting-nfts" class="mb-16 scroll-mt-8">
+      <h2 class="text-2xl font-bold mb-4 text-[#9ae600]">Minting NFTs</h2>
+      <div class="space-y-4 text-slate-300">
+        <p>
+          Convert your songs into NFTs on Stellar blockchain. Minting creates a unique token for your song with built-in trading capabilities.
+        </p>
+
+        <h3 class="text-lg font-semibold text-white mt-6">How to Mint</h3>
+        <ol class="list-decimal list-inside space-y-2 ml-4">
+          <li>Go to any song you've created</li>
+          <li>Click the "Mint" button</li>
+          <li>Confirm the transaction with your passkey</li>
+          <li>Wait for blockchain confirmation (~5-10 seconds)</li>
+        </ol>
+
+        <h3 class="text-lg font-semibold text-white mt-6">Costs</h3>
+        <p>
+          Minting requires minimal Stellar network fees, typically less than $0.01 USD. No hidden fees or platform cuts.
+        </p>
+
+        <h3 class="text-lg font-semibold text-white mt-6">What You Get</h3>
+        <ul class="list-disc list-inside space-y-1 ml-4">
+          <li>Unique NFT proving ownership</li>
+          <li>Token with built-in AMM liquidity</li>
+          <li>Ability to trade on the platform</li>
+          <li>Onchain proof of creation</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Trading -->
+    <section id="trading" class="mb-16 scroll-mt-8">
+      <h2 class="text-2xl font-bold mb-4 text-[#9ae600]">Trading Tokens</h2>
+      <div class="space-y-4 text-slate-300">
+        <p>
+          Minted songs have tradeable tokens via an Automated Market Maker (AMM). Buy tokens of songs you love or sell tokens of songs you own.
+        </p>
+
+        <h3 class="text-lg font-semibold text-white mt-6">How Trading Works</h3>
+        <ul class="list-disc list-inside space-y-1 ml-4">
+          <li>Each minted song has its own token pool</li>
+          <li>Prices adjust automatically based on supply/demand</li>
+          <li>No order books - instant trades via AMM</li>
+          <li>Transparent pricing shown before confirmation</li>
+        </ul>
+
+        <h3 class="text-lg font-semibold text-white mt-6">Buy vs Sell</h3>
+        <ul class="list-disc list-inside space-y-1 ml-4">
+          <li><strong>Buy:</strong> Spend KALE to acquire song tokens</li>
+          <li><strong>Sell:</strong> Exchange song tokens back for KALE</li>
+        </ul>
+
+        <h3 class="text-lg font-semibold text-white mt-6">Viewing Balances</h3>
+        <p>
+          Your token holdings for each song appear in the song details and your account page.
+        </p>
+      </div>
+    </section>
+
+    <!-- Mixtapes -->
+    <section id="mixtapes" class="mb-16 scroll-mt-8">
+      <h2 class="text-2xl font-bold mb-4 text-[#9ae600]">Mixtapes</h2>
+      <div class="space-y-4 text-slate-300">
+        <p>
+          Create custom playlists by curating songs from across the platform.
+        </p>
+
+        <h3 class="text-lg font-semibold text-white mt-6">Creating a Mixtape</h3>
+        <ol class="list-decimal list-inside space-y-2 ml-4">
+          <li>Navigate to <a href="/mixtapes" class="text-[#9ae600] hover:underline">/mixtapes</a></li>
+          <li>Click "Create Mixtape"</li>
+          <li>Add songs by browsing or searching</li>
+          <li>Drag and drop to reorder tracks</li>
+          <li>Give it a title and description</li>
+          <li>Publish when ready</li>
+        </ol>
+
+        <h3 class="text-lg font-semibold text-white mt-6">Mixtape Features</h3>
+        <ul class="list-disc list-inside space-y-1 ml-4">
+          <li>Drag-and-drop track ordering</li>
+          <li>Public or private visibility</li>
+          <li>Shareable links</li>
+          <li>Continuous playback</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- AI Radio -->
+    <section id="ai-radio" class="mb-16 scroll-mt-8">
+      <h2 class="text-2xl font-bold mb-4 text-[#9ae600]">AI Radio</h2>
+      <div class="space-y-4 text-slate-300">
+        <p>
+          AI Radio generates personalized playlists based on genre tags and mood preferences.
+        </p>
+
+        <h3 class="text-lg font-semibold text-white mt-6">How It Works</h3>
+        <ol class="list-decimal list-inside space-y-2 ml-4">
+          <li>Go to <a href="/radio" class="text-[#9ae600] hover:underline">/radio</a></li>
+          <li>Select one or more genre/mood tags</li>
+          <li>AI generates a playlist matching your selection</li>
+          <li>Songs are weighted by tag relevance and freshness</li>
+        </ol>
+
+        <h3 class="text-lg font-semibold text-white mt-6">Multi-Tag Fusion</h3>
+        <p>
+          Combine multiple tags for unique blends. The order of tags affects weighting - first tag has highest priority.
+        </p>
+        <div class="bg-slate-800 rounded-lg p-4 text-sm">
+          <p class="text-slate-400">Example: "Jazz + Electronic + Ambient" creates a fusion playlist prioritizing jazz but incorporating electronic and ambient elements.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Labs -->
+    <section id="labs" class="mb-16 scroll-mt-8">
+      <h2 class="text-2xl font-bold mb-4 text-[#9ae600]">Smol Labs</h2>
+      <div class="space-y-4 text-slate-300">
+        <p>
+          Experimental features and games. Access at <a href="/labs" class="text-[#9ae600] hover:underline">/labs</a>.
+        </p>
+
+        <h3 class="text-lg font-semibold text-white mt-6">Available Experiments</h3>
+        <ul class="list-disc list-inside space-y-2 ml-4">
+          <li><strong>Smol Hero</strong> - Rhythm game synced to songs</li>
+          <li><strong>Quiz</strong> - Music trivia and blind listening tests</li>
+          <li><strong>Roulette</strong> - Random song discovery by tags</li>
+          <li><strong>Waveform Match</strong> - Match songs to their waveforms</li>
+          <li><strong>Swapper</strong> - Token swap interface</li>
+          <li><strong>Stream Pay</strong> - Streaming payment prototype</li>
+          <li><strong>Kale or Fail</strong> - Prediction game</li>
+        </ul>
+
+        <p class="text-sm text-slate-400 mt-4">
+          Labs features are experimental and may change or be removed.
+        </p>
+      </div>
+    </section>
+
+    <!-- KALE Token -->
+    <section id="kale" class="mb-16 scroll-mt-8">
+      <h2 class="text-2xl font-bold mb-4 text-[#9ae600]">KALE Token</h2>
+      <div class="space-y-4 text-slate-300">
+        <p>
+          KALE is the native token used for trading on Smol. Learn more at <a href="/kale" class="text-[#9ae600] hover:underline">/kale</a>.
+        </p>
+
+        <h3 class="text-lg font-semibold text-white mt-6">Uses</h3>
+        <ul class="list-disc list-inside space-y-1 ml-4">
+          <li>Buy song tokens</li>
+          <li>Receive when selling song tokens</li>
+          <li>Purchase store upgrades</li>
+          <li>Platform transactions</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Store -->
+    <section id="store" class="mb-16 scroll-mt-8">
+      <h2 class="text-2xl font-bold mb-4 text-[#9ae600]">Store & Upgrades</h2>
+      <div class="space-y-4 text-slate-300">
+        <p>
+          Purchase profile upgrades at <a href="/store" class="text-[#9ae600] hover:underline">/store</a>.
+        </p>
+
+        <h3 class="text-lg font-semibold text-white mt-6">Available Upgrades</h3>
+        <ul class="list-disc list-inside space-y-1 ml-4">
+          <li><strong>Premium Header</strong> - Custom profile header image</li>
+          <li><strong>Golden Kale Badge</strong> - Exclusive profile badge</li>
+          <li><strong>Vibe Matrix</strong> - Enhanced song visualization</li>
+        </ul>
+
+        <p class="text-sm text-slate-400 mt-4">
+          Upgrades are purchased with KALE tokens and are permanent.
+        </p>
+      </div>
+    </section>
+
+    <!-- Support -->
+    <section class="border-t border-slate-700 pt-12">
+      <h2 class="text-2xl font-bold mb-4 text-[#9ae600]">Need Help?</h2>
+      <div class="space-y-4 text-slate-300">
+        <p>
+          <a href="https://discord.com/invite/stellar-global-761985725453303838" class="text-[#9ae600] hover:underline" target="_blank" rel="noopener">Join our Discord</a> for community support and announcements.
+        </p>
+        <p>
+          <a href="https://github.com/Kalepail/smol-fe" class="text-[#9ae600] hover:underline" target="_blank" rel="noopener">GitHub</a> for technical issues and contributions.
+        </p>
+      </div>
+    </section>
+
+  </main>
+</Layout>

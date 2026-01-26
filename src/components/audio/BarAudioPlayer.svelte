@@ -13,7 +13,7 @@
     playNextSong,
     saveState,
     seek,
-  } from "../../stores/audio.svelte";
+  } from "../../stores/audio.svelte.ts";
   import { onDestroy } from "svelte";
 
   const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
@@ -76,7 +76,10 @@
     }
 
     if (currentSong && playingId === currentSong.Id) {
-      if (audioState.playIntentId && audioState.playIntentId !== currentSong.Id) {
+      if (
+        audioState.playIntentId &&
+        audioState.playIntentId !== currentSong.Id
+      ) {
         return;
       }
       // Prevent redundant play() calls that cause glitches on iOS
@@ -88,15 +91,25 @@
       if (playPromise !== undefined) {
         playPromise.catch((error: unknown) => {
           console.error("Error playing audio:", error);
-          // Preserve intent on autoplay restrictions so we can resume later
-          if (error instanceof DOMException && error.name === "NotAllowedError") {
-            audioState.wasInterrupted = true;
-          } else {
-            // Reset playing state on hard errors
-            audioState.playingId = null;
-          }
-          audioState.playIntentId = null;
+
+          // Circuit Breaker: If we fail, STOP trying immediately
           audioState.isBuffering = false;
+          audioState.playIntentId = null;
+
+          // Preserve intent on autoplay restrictions (NotAllowedError) so we can resume later
+          if (
+            error instanceof DOMException &&
+            error.name === "NotAllowedError"
+          ) {
+            audioState.wasInterrupted = true;
+            // CRITICAL: We MUST clear playingId to stop the toggle -> play -> error -> toggle loop
+            // The UI will revert to "Paused", user must click Play again (which checks out for interaction)
+            audioState.playingId = null;
+          } else {
+            // FATAL ERROR: Stop everything to prevent crash loop
+            audioState.playingId = null;
+            // Optional: Show a toast or small UI error here if we had a toast system
+          }
         });
       }
     } else {
@@ -148,13 +161,117 @@
     let resumeAttempts = 0;
     const maxResumeAttempts = 3;
     let resumeCheckInterval: number | null = null;
+    let interruptionTime: number | null = null;
+    let isExternalAudio = false; // Bluetooth, CarPlay, or external speaker detected
+
+    // Cooldown periods before auto-resume (prevents fighting with other media)
+    const AGGRESSIVE_COOLDOWN_MS = 3000; // Bluetooth/CarPlay - faster resume for drivers
+    const POLITE_COOLDOWN_MS = 5000; // Device speakers - wait for other media to finish
+
+    const getResumeCooldown = () =>
+      isExternalAudio ? AGGRESSIVE_COOLDOWN_MS : POLITE_COOLDOWN_MS;
+
+    /**
+     * Detect if audio is routed through Bluetooth or external speakers
+     * This determines whether we should aggressively auto-resume (car mode)
+     * or be polite and wait for user interaction (home mode)
+     */
+    const detectExternalAudio = async () => {
+      try {
+        if (!navigator.mediaDevices?.enumerateDevices) {
+          console.log("[Audio] mediaDevices API not available");
+          return false;
+        }
+
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const audioOutputs = devices.filter((d) => d.kind === "audiooutput");
+
+        // Check for Bluetooth or external audio devices
+        const hasExternalAudio = audioOutputs.some((device) => {
+          const label = device.label.toLowerCase();
+          return (
+            label.includes("bluetooth") ||
+            label.includes("airpods") ||
+            label.includes("carplay") ||
+            label.includes("car audio") ||
+            label.includes("wireless") ||
+            label.includes("headphone") ||
+            label.includes("headset") ||
+            (label.includes("speaker") &&
+              !label.includes("built-in") &&
+              !label.includes("internal"))
+          );
+        });
+
+        console.log(
+          `[Audio] External audio detected: ${hasExternalAudio}`,
+          audioOutputs.map((d) => d.label).join(", "),
+        );
+
+        return hasExternalAudio;
+      } catch (error) {
+        console.warn("[Audio] Error detecting audio devices:", error);
+        return false;
+      }
+    };
+
+    // Initial detection
+    detectExternalAudio().then((result) => {
+      isExternalAudio = result;
+      console.log(
+        `[Audio] Initial audio mode: ${isExternalAudio ? "AGGRESSIVE (external)" : "POLITE (device speakers)"}`,
+      );
+    });
+
+    // Listen for device changes (Bluetooth connect/disconnect)
+    const handleDeviceChange = async () => {
+      const wasExternal = isExternalAudio;
+      isExternalAudio = await detectExternalAudio();
+
+      if (wasExternal !== isExternalAudio) {
+        console.log(
+          `[Audio] Audio mode changed: ${isExternalAudio ? "AGGRESSIVE (external)" : "POLITE (device speakers)"}`,
+        );
+
+        // If we just connected to Bluetooth and were interrupted, try to resume
+        if (isExternalAudio && audioState.wasInterrupted) {
+          console.log(
+            "[Audio] Bluetooth connected while interrupted - attempting resume",
+          );
+          setTimeout(attemptResume, 500);
+        }
+      }
+    };
+
+    if (navigator.mediaDevices) {
+      navigator.mediaDevices.addEventListener(
+        "devicechange",
+        handleDeviceChange,
+      );
+    }
+
+    /**
+     * Check if enough time has passed since interruption to attempt resume
+     * This prevents fighting with brief audio from other sources (like X videos)
+     */
+    const canAttemptResume = () => {
+      if (!interruptionTime) return true;
+      const elapsed = Date.now() - interruptionTime;
+      return elapsed >= getResumeCooldown();
+    };
 
     if (!("mediaSession" in navigator)) return;
 
     navigator.mediaSession.setActionHandler("play", () => {
       // Resume if paused OR if interrupted by another audio source
-      if (audioState.currentSong && (!audioState.playingId || audioState.wasInterrupted)) {
+      // Media Session play action ALWAYS works (user pressed physical button)
+      if (
+        audioState.currentSong &&
+        (!audioState.playingId || audioState.wasInterrupted)
+      ) {
         console.log("[Audio] Media Session play action - resuming playback");
+        // Reset cooldown since user explicitly requested play
+        interruptionTime = null;
         if (audioState.wasInterrupted) {
           attemptResume();
         } else {
@@ -208,19 +325,25 @@
       }
     });
 
-    // Start polling for resume when interrupted
+    // Start polling for resume when interrupted (only in aggressive/external audio mode)
     const startResumePolling = () => {
       if (resumeCheckInterval) return; // Already polling
+      if (!isExternalAudio) {
+        console.log(
+          "[Audio] Skipping resume polling - not in external audio mode",
+        );
+        return;
+      }
 
-      console.log("[Audio] Starting resume polling for interruption recovery");
+      console.log(
+        "[Audio] Starting resume polling for interruption recovery (external audio mode)",
+      );
       resumeCheckInterval = window.setInterval(() => {
-        // Try to resume regardless of visibility - important for multi-tab scenarios
-        // where another app/tab (like X) might have taken audio focus temporarily
-        if (audioState.wasInterrupted) {
+        if (audioState.wasInterrupted && canAttemptResume()) {
           console.log("[Audio] Polling check - attempting resume");
           attemptResume();
         }
-      }, 1000); // Check every second for faster recovery
+      }, 1000);
     };
 
     // Stop polling when no longer needed
@@ -237,10 +360,15 @@
       // If audio paused but playingId is still set, it's an interruption
       if (audioState.playingId && audioState.currentSong) {
         console.log(
-          "[Audio] Interruption detected - audio paused unexpectedly",
+          `[Audio] Interruption detected - audio paused unexpectedly (mode: ${isExternalAudio ? "aggressive" : "polite"})`,
         );
         audioState.wasInterrupted = true;
-        startResumePolling(); // Start polling for iOS/CarPlay
+        interruptionTime = Date.now(); // Start cooldown timer
+
+        // Only start polling in aggressive mode (external audio)
+        if (isExternalAudio) {
+          startResumePolling();
+        }
       }
     };
 
@@ -250,19 +378,21 @@
         console.log("[Audio] Playback resumed successfully after interruption");
         audioState.wasInterrupted = false;
         resumeAttempts = 0;
-        stopResumePolling(); // Stop polling when playing
+        interruptionTime = null;
+        stopResumePolling();
       }
     };
 
-    // Handle when audio becomes playable - good time to resume on CarPlay reconnect
+    // Handle when audio becomes playable - good time to resume after interruption
     const handleCanPlay = () => {
       if (
         audioState.wasInterrupted &&
         audioState.playingId &&
-        audioState.currentSong
+        audioState.currentSong &&
+        canAttemptResume()
       ) {
         console.log(
-          "[Audio] Audio can play and was interrupted - attempting resume",
+          `[Audio] Audio can play and was interrupted - attempting resume (${isExternalAudio ? "aggressive" : "polite"} mode)`,
         );
         setTimeout(attemptResume, 100);
       }
@@ -282,6 +412,18 @@
       // Don't resume if audio is already playing
       if (!audioState.audioElement.paused) {
         audioState.wasInterrupted = false;
+        interruptionTime = null;
+        return;
+      }
+
+      // Check cooldown (prevents fighting with other media)
+      // Polite mode uses longer cooldown to wait for other media to finish
+      if (!canAttemptResume()) {
+        const cooldown = getResumeCooldown();
+        const remaining = cooldown - (Date.now() - (interruptionTime || 0));
+        console.log(
+          `[Audio] Cooldown active - ${remaining}ms remaining before resume attempt`,
+        );
         return;
       }
 
@@ -303,6 +445,7 @@
         await audioState.audioElement.play();
         console.log("[Audio] Auto-resume successful");
         audioState.wasInterrupted = false;
+        interruptionTime = null;
         resumeAttempts = 0;
       } catch (error) {
         console.warn(
@@ -327,24 +470,54 @@
     // Handle visibility changes and audio focus returns
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible" && audioState.wasInterrupted) {
-        console.log("[Audio] Page became visible - checking for resume");
-        // Try multiple times with increasing delays to catch audio focus return
-        setTimeout(attemptResume, 50);
-        setTimeout(attemptResume, 200);
-        setTimeout(attemptResume, 500);
-        setTimeout(attemptResume, 1000);
+        console.log(
+          `[Audio] Page became visible - mode: ${isExternalAudio ? "aggressive" : "polite"}`,
+        );
+
+        // Auto-resume in both modes after cooldown
+        // Aggressive mode: faster resume (3s cooldown)
+        // Polite mode: wait for other media to finish (5s cooldown)
+        if (canAttemptResume()) {
+          setTimeout(attemptResume, 50);
+          setTimeout(attemptResume, 200);
+          setTimeout(attemptResume, 500);
+          setTimeout(attemptResume, 1000);
+        } else {
+          // Schedule resume after cooldown expires
+          const cooldown = getResumeCooldown();
+          const elapsed = Date.now() - (interruptionTime || 0);
+          const remaining = Math.max(0, cooldown - elapsed);
+          console.log(
+            `[Audio] Scheduling resume after ${remaining}ms cooldown`,
+          );
+          setTimeout(attemptResume, remaining + 100);
+        }
       }
     };
 
     // Handle window focus (returning from notifications, other tabs/apps releasing audio focus)
     const handleFocus = () => {
       if (audioState.wasInterrupted) {
-        console.log("[Audio] Window gained focus - checking for resume");
-        // Try multiple times as audio focus may return gradually
-        setTimeout(attemptResume, 50);
-        setTimeout(attemptResume, 200);
-        setTimeout(attemptResume, 500);
-        setTimeout(attemptResume, 1000);
+        console.log(
+          `[Audio] Window gained focus - mode: ${isExternalAudio ? "aggressive" : "polite"}`,
+        );
+
+        // Auto-resume in both modes after cooldown
+        if (canAttemptResume()) {
+          setTimeout(attemptResume, 50);
+          setTimeout(attemptResume, 200);
+          setTimeout(attemptResume, 500);
+          setTimeout(attemptResume, 1000);
+        } else {
+          // Schedule resume after cooldown expires
+          const cooldown = getResumeCooldown();
+          const elapsed = Date.now() - (interruptionTime || 0);
+          const remaining = Math.max(0, cooldown - elapsed);
+          console.log(
+            `[Audio] Scheduling resume after ${remaining}ms cooldown`,
+          );
+          setTimeout(attemptResume, remaining + 100);
+        }
       }
     };
 
@@ -355,7 +528,9 @@
       );
       if (audioState.playingId && audioState.currentSong) {
         audioState.wasInterrupted = true;
-        startResumePolling(); // Start polling for reconnection
+        interruptionTime = Date.now();
+        // CarPlay events are always "external audio" - start polling
+        startResumePolling();
       }
     };
 
@@ -363,7 +538,8 @@
       console.log(
         "[Audio] iOS audio session ending inactive state (CarPlay reconnect?)",
       );
-      // Try multiple times with different delays for CarPlay
+      // CarPlay reconnect - attempt resume after brief delay (skip cooldown for CarPlay)
+      interruptionTime = null; // Clear cooldown for CarPlay reconnect
       setTimeout(attemptResume, 100);
       setTimeout(attemptResume, 500);
       setTimeout(attemptResume, 1000);
@@ -387,15 +563,17 @@
           "[Audio] Audio context suspended during playback - marking as interrupted",
         );
         audioState.wasInterrupted = true;
+        interruptionTime = Date.now();
       }
 
-      // If context resumes from suspended, attempt to resume playback
+      // If context resumes from suspended, attempt to resume playback (both modes, respecting cooldown)
       if (
         audioState.audioContext.state === "running" &&
-        audioState.wasInterrupted
+        audioState.wasInterrupted &&
+        canAttemptResume()
       ) {
         console.log(
-          "[Audio] Audio context resumed - attempting to resume playback",
+          `[Audio] Audio context resumed - attempting to resume playback (${isExternalAudio ? "aggressive" : "polite"} mode)`,
         );
         setTimeout(attemptResume, 100);
       }
@@ -428,6 +606,13 @@
     // Clean up on unmount
     return () => {
       stopResumePolling(); // Stop polling interval
+
+      if (navigator.mediaDevices) {
+        navigator.mediaDevices.removeEventListener(
+          "devicechange",
+          handleDeviceChange,
+        );
+      }
 
       if ("mediaSession" in navigator) {
         navigator.mediaSession.setActionHandler("play", null);
@@ -633,7 +818,9 @@
           </h3>
           {#if audioState.isBuffering}
             <div class="flex items-center gap-2 text-xs text-white/60">
-              <span class="inline-flex h-2 w-2 rounded-full bg-white/70 animate-pulse"></span>
+              <span
+                class="inline-flex h-2 w-2 rounded-full bg-white/70 animate-pulse"
+              ></span>
               Buffering…
             </div>
           {/if}

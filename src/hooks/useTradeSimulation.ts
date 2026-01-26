@@ -1,3 +1,11 @@
+/**
+ * FACTORY FRESH: Unified Trade Simulation
+ * @see https://deepwiki.com/repo/kalepail/smol-fe#trading
+ * 
+ * Handles market depth simulation via Comet SDK. 
+ * Implements strict nonce tracking and debounce to prevent out-of-order 
+ * UI updates during rapid input.
+ */
 import type { Client as CometClient } from 'comet-sdk';
 
 const MAX_PRICE = 170141183460469231731687303715884105727n;

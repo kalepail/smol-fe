@@ -1,12 +1,15 @@
 <script lang="ts">
-    import { userState } from "../stores/user.svelte";
+    import { userState } from "../stores/user.svelte.ts";
     import { verifyPastPurchases } from "../services/api/verifyUpgrades";
-    import { validateAndRevertTheme, preferences } from "../stores/preferences.svelte";
-    import { upgradesState } from "../stores/upgrades.svelte";
-    import { StrKey } from '@stellar/stellar-sdk';
+    import {
+        validateAndRevertTheme,
+        preferences,
+    } from "../stores/preferences.svelte.ts";
+    import { upgradesState } from "../stores/upgrades.svelte.ts";
+    import { StrKey } from "@stellar/stellar-sdk";
 
     let checkedAddress = $state<string | null>(null);
-    let lastValidatedState = $state<string>('');
+    let lastValidatedState = $state<string>("");
 
     $effect(() => {
         const address = userState.contractId;
@@ -16,7 +19,9 @@
             // Additional validation: ensure it's a valid contract address
             const trimmed = address.trim();
             if (!trimmed || !StrKey.isValidContract(trimmed)) {
-                console.warn('[GlobalVerification] Invalid or empty contract address, skipping verification');
+                console.warn(
+                    "[GlobalVerification] Invalid or empty contract address, skipping verification",
+                );
                 return;
             }
 
@@ -29,7 +34,7 @@
                     validateAndRevertTheme(
                         userState,
                         upgradesState,
-                        preferences.unlockedThemes
+                        preferences.unlockedThemes,
                     );
                 }
             });
@@ -46,7 +51,7 @@
                 validateAndRevertTheme(
                     userState,
                     upgradesState,
-                    preferences.unlockedThemes
+                    preferences.unlockedThemes,
                 );
             }
         }

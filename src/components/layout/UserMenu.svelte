@@ -1,17 +1,27 @@
 <script lang="ts">
-  import { userState, ensureWalletConnected } from "../../stores/user.svelte";
+  /**
+   * FACTORY FRESH: User Menu & SSR Reconnection
+   * @see https://deepwiki.com/repo/kalepail/smol-fe#user-menu
+   *
+   * Handles the primary UI entry point for account management.
+   * Reconciles SSR session state with client-side PasskeyKit wallets.
+   */
+  import {
+    userState,
+    ensureWalletConnected,
+  } from "../../stores/user.svelte.ts";
   import {
     balanceState,
     updateContractBalance,
     resetBalance,
-  } from "../../stores/balance.svelte";
+  } from "../../stores/balance.svelte.ts";
   import {
     mixtapeModeState,
     mixtapeDraftHasContent,
     enterMixtapeMode,
     exitMixtapeMode,
-  } from "../../stores/mixtape.svelte";
-  import { uiState, toggleMenu } from "../../stores/ui.svelte";
+  } from "../../stores/mixtape.svelte.ts";
+  import { uiState, toggleMenu } from "../../stores/ui.svelte.ts";
   import { useAuthentication } from "../../hooks/useAuthentication";
   import { useCurrentPath } from "../../hooks/useCurrentPath.svelte";
   import AuthButtons from "./AuthButtons.svelte";

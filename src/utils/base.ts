@@ -1,3 +1,10 @@
+/**
+ * FACTORY FRESH: Foundational Stellar Utilities
+ * @see https://deepwiki.com/repo/kalepail/smol-fe#utilities
+ * 
+ * Provides centralized RPC server access, ledger sequence polling,
+ * and transaction inclusion verification with integrated health tracking.
+ */
 import { hash, Keypair } from "@stellar/stellar-sdk/minimal"
 import { Server } from "@stellar/stellar-sdk/minimal/rpc"
 

@@ -53,10 +53,15 @@ PUBLIC_SOROSWAP_API_KEY → Soroswap API access
 - **Styling**: Glass morphism with `backdrop-blur`, dark slate backgrounds
 
 ## 7. Transaction Patterns 💳
-- See `blockchain-transactions` skill for detailed Stellar/Soroban patterns
-- Key rule: C addresses → direct aggregator, G addresses → API
+- **One Wire**: ALWAYS use `signSendAndVerify` from `src/utils/transaction-helpers.ts`.
+- **Relayer**: Use `send()` from `src/utils/passkey-kit.ts` (Handles Turnstile).
+- **C Addresses**: Required for all smart account interactions.
+- See `blockchain-transactions` skill for detailed Stellar/Soroban patterns.
 
 ## 8. Testing & Deployment 🚀
+- **Build**: `npm run build`
+- **Lint**: `npx astro check` & `npx svelte-check`
+- **Verification**: Run the **Ralph Loop** pattern for any high-risk changes (Passkeys, TX flows).
 - **Build**: `npm run build`
 - **Local Dev**: `npm run dev` (requires HTTPS for passkeys)
 - **Deployment**: PR to `kalepail/smol-fe:noot` branch for noot.smol.xyz

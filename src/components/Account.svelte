@@ -2,11 +2,11 @@
     import { onMount } from "svelte";
     import { kale } from "../utils/passkey-kit";
     import { truncate } from "../utils/base";
-    import { userState } from "../stores/user.svelte";
+    import { userState } from "../stores/user.svelte.ts";
     import {
         balanceState,
         updateContractBalance,
-    } from "../stores/balance.svelte";
+    } from "../stores/balance.svelte.ts";
     import { signAndSend } from "../utils/transaction-helpers";
     import {
         validateAddress,
@@ -90,7 +90,7 @@
             const destination = to.trim();
 
             // Validate using unified validation utilities
-            validateAddress(destination, 'Destination');
+            validateAddress(destination, "Destination");
 
             // Check if sending to self
             if (destination === userState.contractId) {
@@ -103,7 +103,11 @@
             const amountInUnits = parseAndValidateAmount(amount, kaleDecimals);
 
             // Validate sufficient balance
-            validateSufficientBalance(amountInUnits, balanceState.balance, 'Transfer amount');
+            validateSufficientBalance(
+                amountInUnits,
+                balanceState.balance,
+                "Transfer amount",
+            );
 
             // Validate Turnstile token
             if (!turnstileToken) {
@@ -138,10 +142,9 @@
             success = `Sent ${displayAmount} KALE to ${truncate(destination, 4)}`;
             to = "";
             amount = "";
-
         } catch (err) {
             console.error("Failed to send KALE", err);
-            const wrappedError = wrapError(err, 'Transfer failed');
+            const wrappedError = wrapError(err, "Transfer failed");
             error = wrappedError.getUserFriendlyMessage();
         } finally {
             submitting = false;

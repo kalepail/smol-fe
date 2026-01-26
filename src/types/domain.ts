@@ -103,6 +103,7 @@ export interface SmolDetailResponse {
     Mint_Token?: string;
     Mint_Amm?: string;
     Instrumental?: number;
+    Created_At?: string;
   };
   kv_do?: SmolKV;
   wf?: {

@@ -10,15 +10,15 @@
         togglePlayPause,
         selectSong,
         registerSongNextCallback,
-    } from "../../stores/audio.svelte";
+    } from "../../stores/audio.svelte.ts";
     import { useMixtapePlayback } from "../../hooks/useMixtapePlayback";
     import type { Smol } from "../../types/domain";
     import Loader from "../ui/Loader.svelte";
     import LikeButton from "../ui/LikeButton.svelte";
     import MixtapeSupportBanner from "./MixtapeSupportBanner.svelte";
     import { navigate } from "astro:transitions/client";
-    import { userState } from "../../stores/user.svelte";
-    import { preferences, THEMES } from "../../stores/preferences.svelte";
+    import { userState } from "../../stores/user.svelte.ts";
+    import { preferences, THEMES } from "../../stores/preferences.svelte.ts";
     import { buildRadioUrl } from "../../utils/radio";
     import { safeFetchSmols } from "../../services/api/smols";
     import { fade } from "svelte/transition";

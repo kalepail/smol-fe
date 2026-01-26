@@ -1,10 +1,10 @@
 <script lang="ts">
-    import { userState } from "../../stores/user.svelte";
+    import { userState } from "../../stores/user.svelte.ts";
     import Home from "../Home.svelte";
     import { useAuthentication } from "../../hooks/useAuthentication";
     import Loader from "../ui/Loader.svelte";
     import KaleEmoji from "../ui/KaleEmoji.svelte";
-    import { preferences, THEMES } from "../../stores/preferences.svelte";
+    import { preferences, THEMES } from "../../stores/preferences.svelte.ts";
     import { Turnstile } from "svelte-turnstile";
 
     // Mock ID for development (legacy ref)
@@ -320,9 +320,19 @@
                             {/if}
                         </div>
 
+                        <!-- Migration Warning -->
+                        <div
+                            class="mt-6 bg-amber-900/40 border border-amber-500/30 rounded-lg px-3 py-2 flex items-center gap-2 text-amber-200 text-[10px] font-pixel"
+                        >
+                            <svg class="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M13 14H11V9H13M13 18H11V16H13M1 21H23L12 2L1 21Z" />
+                            </svg>
+                            <span>We're upgrading passkeys.<br/>Browse free, or use <a href="https://smol.xyz" class="underline hover:text-amber-100" target="_blank" rel="noopener">smol.xyz</a> to create.</span>
+                        </div>
+
                         <!-- Bottom info -->
                         <p
-                            class="text-center text-gray-500 text-xs mt-6 font-pixel"
+                            class="text-center text-gray-500 text-xs mt-4 font-pixel"
                         >
                             🔐 Your Keys. Your Music.
                         </p>

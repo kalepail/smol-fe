@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount, tick } from "svelte";
     import { fade, fly } from "svelte/transition";
-    import { userState } from "../../stores/user.svelte";
+    import { userState } from "../../stores/user.svelte.ts";
     import { getRepromptMessage } from "../../utils/reprompt-messages";
 
     let show = $state(false);
@@ -103,6 +103,14 @@
         >
             <!-- Retro Accent -->
             <div class="absolute top-0 left-0 right-0 h-1 bg-[#d836ff]"></div>
+
+            <!-- Migration Warning -->
+            <div class="text-amber-300/90 text-[9px] font-pixel uppercase tracking-wide flex items-center gap-1.5 -mt-1 mb-1">
+                <svg class="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M13 14H11V9H13M13 18H11V16H13M1 21H23L12 2L1 21Z" />
+                </svg>
+                <span>Upgrading passkeys — browse free or use <a href="https://smol.xyz" class="underline" target="_blank" rel="noopener">smol.xyz</a></span>
+            </div>
 
             <p
                 class="text-white/90 font-pixel text-xs md:text-sm leading-relaxed lowercase tracking-wide"
