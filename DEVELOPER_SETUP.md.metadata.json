@@ -1,5 +1,0 @@
-{
-  "artifactType":  "ARTIFACT_TYPE_OTHER",
-  "summary":  "Developer setup guide for the tacticalnoot/smol-fe fork. Documents the localhost authentication workaround (cookie transfer from production), fork-specific environment configuration, mixtape editing features, common issues and their solutions, and links to related repositories.",
-  "updatedAt":  "2025-12-28T10:00:47.043418300Z"
-}

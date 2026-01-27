@@ -1,109 +1,36 @@
+<!--
+CONTRACT:
+- SSOT: [STATE_OF_WORLD.md](docs/STATE_OF_WORLD.md)
+- AUDIENCE: Dev, User, Agent
+- LAST_HARDENED: 2026-01-27
+- VERIFICATION_METHOD: Claim check, Link check
+-->
 # Smol - AI Music Generator Frontend
+**Production URL**: [noot.smol.xyz](https://noot.smol.xyz) | **Dev Preview**: [smol-fe-7jl.pages.dev](https://smol-fe-7jl.pages.dev) | **Docs**: [Information Architecture](docs/INDEX.md)
 
-A decentralized web application for generating AI music powered by Stellar blockchain smart contracts. Users can create songs from text prompts, mint them as NFTs, trade them on an automated market maker (AMM), organize tracks into mixtapes, and manage their music collection.
+A decentralized web application for generating AI music powered by Stellar blockchain smart contracts.
 
-## Features
+## 🏛️ Repository Governance
+This repository follows a "Fail-Closed" documentation policy. All technical facts are governed by the **[STATE OF WORLD](docs/STATE_OF_WORLD.md)**.
 
-### 🎵 Music Generation
-- **AI-powered song creation** from text prompts (up to 2,280 characters, or 380 for instrumentals)
-- **Dual track generation** - AI creates two versions per prompt, choose your favorite
-- **Instrumental mode** - Generate music without lyrics
-- **Real-time generation tracking** - Monitor song creation progress (typically ~6 minutes)
-- **Public/private songs** - Control visibility of your creations
-- **Automatic retry** on failed generations
+## 🚀 Key Documentation Paths
+- **Human Devs**: [START HERE](docs/START_HERE.md) → [DEVELOPER SETUP](docs/DEVELOPER_SETUP.md)
+- **AI Agents**: [AGENTS.md](docs/AGENTS.md) → [REPO MAP](docs/REPO_MAP.md)
+- **Verification**: [TESTING.md](docs/TESTING.md) → `pnpm docs:test`
 
-### 🎨 NFT & Trading
-- **Mint songs as NFTs** - Convert your songs into tradeable blockchain assets
-- **Built-in AMM trading** - Buy and sell song tokens directly in the app
-- **Token balance tracking** - View your holdings for each minted song
-- **PasskeyKit wallet integration** - Passwordless authentication using WebAuthn
-- **Stellar blockchain** - All transactions on Stellar network using Soroban smart contracts
+## 🏗️ Tech Stack
+- **Framework**: Astro `5.14.x` + Svelte `5.39.x` (Runes)
+- **Styling**: Tailwind CSS `4.1.x`
+- **Blockchain**: Stellar/Soroban via `PasskeyKit`
+- **Relayer**: OpenZeppelin Channels / KaleFarm Relayer
 
-### 📀 Mixtapes
-- **Create mixtapes** - Organize your favorite songs into custom playlists
-- **Drag-and-drop builder** - Intuitive interface for arranging tracks
-- **Share mixtapes** - Publish your mixtapes for others to discover
-- **Browse collections** - Explore mixtapes created by the community
-
-### 👤 Artist Profiles
-- **Discography** - View all songs an artist has created/published
-- **Minted** - Songs the artist created AND minted on-chain
-- **Collection** - Songs the artist minted from other creators
-- **Published/Collected badges** - Quick stats on artist activity
-- **Genre tags** - Top genres derived from artist's discography
-
-### 🎧 Playback & Discovery
-- **Audio player** - Built-in player with progress tracking
-- **Like system** - Save your favorite songs
-- **Leaderboard** - Discover trending and popular songs
-- **Filtered views** - Browse songs you've created or liked
-- **Playlist mode** - Generate songs tagged to specific playlists
-
-### 📻 AI Radio 2.0
-- **Smart Generation** - Multi-tag fusion with weighted scoring and lyric analysis
-- **Adaptive Vibe** - Order-based prioritization (e.g. "Jazz" + "Hip Hop" ≠ "Hip Hop" + "Jazz")
-- **Freshness Guarantee** - Deduplication logic ensures fresh tracks every spin
-- **Local Fallback** - Robust "fail-fast" local generation when AI is rate-limited
-
-## Tech Stack
-
-### Frontend Framework
-- **[Astro 5](https://astro.build/)** - Modern meta-framework for content-focused sites
-- **[Svelte 5](https://svelte.dev/)** - Reactive UI components with latest runes API
-- **Server-side rendering** - Deployed on Cloudflare Pages
-
-### Styling
-- **[Tailwind CSS 4](https://tailwindcss.com/)** - Utility-first CSS via Vite plugin
-- **SCSS** - Additional styling capabilities
-
-### Blockchain & Web3
-- **[Stellar SDK](https://stellar.github.io/js-stellar-sdk/)** - Interact with Stellar blockchain
-- **[PasskeyKit](https://www.npmjs.com/package/passkey-kit)** - WebAuthn-based smart contract wallet
-- **[Soroban](https://soroban.stellar.org/)** - Stellar smart contract platform
-- **Local contract SDKs** - TypeScript bindings for Smol and Comet smart contracts
-
-### Additional Libraries
-- **svelte-dnd-action** - Drag-and-drop for mixtape builder
-- **jimp** - Image processing
-- **cookie/js-cookie** - Cookie management for authentication
-- **tldts** - Domain parsing utilities
-
-## Project Structure
-
-```
-smol-fe/
-├── src/
-│   ├── components/          # Svelte components
-│   │   ├── audio/          # Audio player components
-│   │   ├── layout/         # Navigation and layout components
-│   │   ├── mixtape/        # Mixtape-related components
-│   │   │   └── builder/    # Mixtape builder UI
-│   │   ├── smol/           # Song card and grid components
-│   │   └── ui/             # Reusable UI elements
-│   ├── layouts/            # Astro layout templates
-│   ├── pages/              # Astro pages (routes)
-│   │   ├── mixtapes/       # Mixtape pages
-│   │   └── playlist/       # Playlist pages
-│   ├── services/           # Business logic and API clients
-│   │   └── api/            # API service modules
-│   ├── stores/             # Svelte 5 state stores (runes)
-│   ├── styles/             # Global styles and Tailwind config
-│   ├── types/              # TypeScript type definitions
-│   └── utils/              # Utility functions
-│       └── api/            # API utilities
-├── ext/                    # External contract SDKs
-│   ├── smol-sdk/          # Main Smol contract bindings
-│   └── comet-sdk/         # Comet contract bindings
-├── public/                # Static assets
-└── astro.config.mjs       # Astro configuration
-```
 
 ## Getting Started
 
 ### Prerequisites
 
 - **Node.js** (v18 or higher recommended)
-- **pnpm** (v10.18.0+) - Required package manager
+- **pnpm** (v10.18.1+) - Required package manager
 
 ### Installation
 
@@ -123,14 +50,22 @@ pnpm install
 Create a `.env` file with the following variables:
 
 ```bash
-PUBLIC_RPC_URL=                    # Stellar RPC endpoint
-PUBLIC_NETWORK_PASSPHRASE=         # Network passphrase (testnet/mainnet)
-PUBLIC_WALLET_WASM_HASH=           # PasskeyKit wallet WASM hash
-PUBLIC_LAUNCHTUBE_URL=             # LaunchTube service URL
-PUBLIC_LAUNCHTUBE_JWT=             # LaunchTube authentication token
-PUBLIC_API_URL=                    # Backend API URL
-PUBLIC_KALE_SAC_ID=                # KALE token SAC ID
-PUBLIC_SMOL_CONTRACT_ID=           # Smol smart contract ID
+# Core Connectivity (1/27/2026)
+PUBLIC_RPC_URL="https://rpc.ankr.com/stellar_soroban"
+PUBLIC_NETWORK_PASSPHRASE="Public Global Stellar Network ; September 2015"
+PUBLIC_API_URL="https://api.smol.xyz"
+
+# Identity & Contract IDs
+PUBLIC_WALLET_WASM_HASH="ecd990f0b45ca6817149b6175f79b32efb442f35731985a084131e8265c4cd90"
+PUBLIC_SMOL_CONTRACT_ID="CBRNUVLGFM5OYWAGZVGU7CTMP2UJLKZCLFY2ANUCK5UGKND6BBAA5PLA"
+PUBLIC_KALE_SAC_ID="CB23WRDQWGSP6YPMY4UV5C4OW5CBTXKYN3XEATG7KJEZCXMJBYEHOUOV"
+PUBLIC_XLM_SAC_ID="CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA"
+
+# Execution & Services
+PUBLIC_RELAYER_URL="https://api.kalefarm.xyz"
+PUBLIC_RELAYER_API_KEY=            # Request from admin
+PUBLIC_AGGREGATOR_CONTRACT_ID="CAG5LRYQ5JVEUI5TEID72EYOVX44TTUJT5BQR2J6J77FH65PCCFAJDDH"
+PUBLIC_SOROSWAP_API_KEY=           # Optional: your_soroswap_api_key
 ```
 
 See `.env` for production example values.
@@ -139,13 +74,13 @@ See `.env` for production example values.
 
 Start the dev server:
 ```bash
-pnpm dev
-```
+The dev server runs on `http://localhost:4321`.
 
-The app runs at `https://app.smol.xyz` (configured in `astro.config.mjs`). You may need to update your hosts file:
-```bash
-echo "127.0.0.1 app.smol.xyz" | sudo tee -a /etc/hosts
-```
+### Local Authentication
+Passkeys are domain-bound. To test authentication:
+- **Default**: Use `http://localhost:4321` for general development.
+- **Recommended**: Deploy your fork to **Cloudflare Pages**. This is the easiest way to test Passkeys/Stellar on a `*.pages.dev` domain.
+- **Advanced**: For local authentication workflows, see the **[Cookie Transfer](docs/DEVELOPER_SETUP.md#-localhost-authentication-the-cookie-transfer)** method in the developer setup guide.
 
 ### Type Checking
 
@@ -153,6 +88,12 @@ Run Svelte type checking:
 ```bash
 pnpm check          # One-time check
 pnpm check:watch    # Watch mode
+```
+
+### Repo Health
+```bash
+pnpm doctor         # Check environment sanity (Node, .env, etc.)
+pnpm docs:check     # Validate documentation links and coverage
 ```
 
 ### Build
@@ -268,6 +209,7 @@ The app is configured for Cloudflare Pages deployment:
 - Output: `server` mode for SSR (astro.config.mjs:12)
 - Build command: `pnpm build`
 - Output directory: `dist/`
+- **Developer Preview**: [smol-fe-7jl.pages.dev](https://smol-fe-7jl.pages.dev)
 
 ## Contributing
 

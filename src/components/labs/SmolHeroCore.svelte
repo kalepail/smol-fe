@@ -85,6 +85,7 @@
     let analyzingProgress = $state(0); // 0-100
     let cachedBeatmap = $state<Beatmap | null>(null);
     let beatmapCache = new Map<string, Beatmap>(); // Cache beatmaps by trackId-difficulty
+    const BEATMAP_CACHE_MAX_SIZE = 20; // Limit cache to prevent unbounded memory growth
 
     // Audio
     let audio: HTMLAudioElement | null = null;
@@ -900,10 +901,14 @@
                     onsets: detectedOnsets.sort((a, b) => a.time - b.time),
                 };
 
-                beatmapCache.set(
-                    `${track.Song_1}-${settings.difficulty}`,
-                    beatmap,
-                );
+                // Enforce cache size limit (LRU-style: remove oldest entries)
+                const cacheKey = `${track.Song_1}-${settings.difficulty}`;
+                if (beatmapCache.size >= BEATMAP_CACHE_MAX_SIZE) {
+                    // Remove the first (oldest) entry
+                    const firstKey = beatmapCache.keys().next().value;
+                    if (firstKey) beatmapCache.delete(firstKey);
+                }
+                beatmapCache.set(cacheKey, beatmap);
                 resolve(beatmap);
             } catch (e: any) {
                 console.error("[SmolHero] Offline Analysis Failed:", e);
@@ -1129,13 +1134,29 @@
         window.removeEventListener("keyup", handleKeyUp);
         if (animationFrameId) {
             cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
         }
         if (audio) {
             audio.pause();
+            audio.src = '';
+            audio = null;
         }
+        // Clean up Web Audio API nodes to prevent memory leaks
+        if (bassAnalyser) { bassAnalyser.disconnect(); bassAnalyser = null; }
+        if (midAnalyser) { midAnalyser.disconnect(); midAnalyser = null; }
+        if (trebleAnalyser) { trebleAnalyser.disconnect(); trebleAnalyser = null; }
+        if (bassFilter) { bassFilter.disconnect(); bassFilter = null; }
+        if (midFilter) { midFilter.disconnect(); midFilter = null; }
+        if (trebleFilter) { trebleFilter.disconnect(); trebleFilter = null; }
+        if (gainNode) { gainNode.disconnect(); gainNode = null; }
         if (audioContext) {
             audioContext.close();
+            audioContext = null;
         }
+        // Clear cached data
+        cachedDecodedBuffer = null;
+        cachedBeatmap = null;
+        beatmapCache.clear();
     });
 </script>
 

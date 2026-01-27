@@ -247,8 +247,8 @@ stellar container start local
 ```typescript
 import * as StellarSdk from "@stellar/stellar-sdk";
 
-const LOCAL_RPC = "http://localhost:8000/soroban/rpc";
-const LOCAL_HORIZON = "http://localhost:8000";
+const LOCAL_RPC = "http://noot.smol.xyz/soroban/rpc";
+const LOCAL_HORIZON = "http://noot.smol.xyz";
 const LOCAL_PASSPHRASE = "Standalone Network ; February 2017";
 
 const rpc = new StellarSdk.rpc.Server(LOCAL_RPC);
@@ -262,7 +262,7 @@ const horizon = new StellarSdk.Horizon.Server(LOCAL_HORIZON);
 stellar keys generate --global test-account --network local --fund
 
 # Or via friendbot endpoint
-curl "http://localhost:8000/friendbot?addr=G..."
+curl "http://noot.smol.xyz/friendbot?addr=G..."
 ```
 
 ### Deploy and Test Locally
@@ -341,7 +341,7 @@ Check reset schedule: https://stellar.org/developers/blog
 // tests/integration/contract.test.ts
 import * as StellarSdk from "@stellar/stellar-sdk";
 
-const RPC_URL = process.env.RPC_URL || "http://localhost:8000/soroban/rpc";
+const RPC_URL = process.env.RPC_URL || "http://noot.smol.xyz/soroban/rpc";
 const NETWORK_PASSPHRASE = process.env.NETWORK_PASSPHRASE || "Standalone Network ; February 2017";
 
 describe("Contract Integration Tests", () => {
@@ -480,7 +480,7 @@ jobs:
         ports:
           - 8000:8000
         options: >-
-          --health-cmd "curl -f http://localhost:8000 || exit 1"
+          --health-cmd "curl -f http://noot.smol.xyz || exit 1"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10

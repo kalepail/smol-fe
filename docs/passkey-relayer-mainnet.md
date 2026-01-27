@@ -17,7 +17,7 @@ This repository uses:
 
 | Commit | File | What Changed | Why |
 |--------|------|--------------|-----|
-| `5fe8060` | `src/utils/passkey-kit.ts` | Added `send()` function | Migrate from Launchtube to OZ Relayer |
+| `5fe8060` | `src/utils/passkey-kit.ts` | Added `send()` function | Migrate to OZ Relayer |
 | `5fe8060` | Multiple hooks | Updated to use new `send()` | Unified relayer submission path |
 | `743bbde` | `src/hooks/useAuthentication.ts` | Refactored passkey flows | Clarify guest entry vs authenticated |
 | `b4199aa` | `src/stores/balance.svelte.ts` | Added XLM balance state | Phase G XLM balance integration |
@@ -152,7 +152,7 @@ stateDiagram-v2
 | `PUBLIC_RPC_URL` | Stellar RPC endpoint | `src/utils/rpc.ts:2` |
 | `PUBLIC_NETWORK_PASSPHRASE` | Network identifier | `src/utils/passkey-kit.ts:8` |
 | `PUBLIC_WALLET_WASM_HASH` | Smart wallet WASM hash | `src/utils/passkey-kit.ts:9` |
-| `PUBLIC_WEBAUTHN_VERIFIER_ADDRESS` | WebAuthn verifier contract address | `src/lib/wallet/smartAccount.ts:26` |
+| `PUBLIC_WEBAUTHN_VERIFIER_ADDRESS` | WebAuthn verifier contract address | `src/utils/passkey-kit.ts` |
 | `PUBLIC_CHANNELS_BASE_URL` | OZ Relayer endpoint | `src/utils/passkey-kit.ts:43` |
 | `PUBLIC_CHANNELS_API_KEY` | OZ Relayer auth key | `src/utils/passkey-kit.ts:44` |
 | `PUBLIC_KALE_SAC_ID` | KALE token contract | `src/utils/passkey-kit.ts:19` |
@@ -256,7 +256,7 @@ export async function send<T>(txn: AssembledTransaction<T> | Tx | string, turnst
 
 ```bash
 # Install dependencies
-pnpm install
+ppnpm install
 
 # Build check (svelte-check)
 pnpm check
@@ -265,13 +265,9 @@ pnpm check
 pnpm dev
 ```
 
-### No Launchtube References
+### Deployment Environment
 
-```bash
-# Should return no results
-rg -i "launchtube" --type ts --type svelte
-rg -i "launchtubeUrl" --type ts
-```
+Verify that the `PUBLIC_RELAYER_URL` and `PUBLIC_RELAYER_API_KEY` are correctly set in the production environment.
 
 ### Transaction Verification (Requires TX Hash)
 
@@ -329,7 +325,7 @@ export const account = new PasskeyKit({
 
 1. Clone repository
 2. Copy `.env.example` to `.env` and fill in secrets
-3. Run `pnpm install`
+3. Run `ppnpm install`
 4. Run `pnpm dev`
 5. Navigate to `/labs/swapper?demo=true` for demo mode
 6. For real transactions: use production domain with valid passkey

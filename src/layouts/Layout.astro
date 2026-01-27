@@ -2,6 +2,7 @@
 import { ClientRouter } from 'astro:transitions';
 import Header from '../components/Header.svelte'
 import MixtapeBuilderOverlay from '../components/mixtape/MixtapeBuilderOverlay.svelte'
+import MixtapeDropZone from '../components/mixtape/MixtapeDropZone.svelte'
 import BarAudioPlayer from '../components/audio/BarAudioPlayer.svelte'
 import GlobalVerification from '../components/GlobalVerification.svelte'
 import OnboardingGuard from '../components/onboarding/OnboardingGuard.svelte'
@@ -108,16 +109,19 @@ const fullSchema = [...siteSchema, ...schema];
 		<meta property="og:description" content={description} />
 		<meta property="og:type" content={twitter_player ? "video.other" : "music.song"} />
 		<meta property="og:url" content={canonical} />
-		<meta property="og:site_name" content="Smol" />
-		<meta property="og:image" content={image_url ? `${image_url}?scale=16` : `${siteOrigin}/meta.png`} />
+		<meta property="og:site_name" content="SMOL" />
+		<meta property="og:image" content={image_url ? `${image_url}?scale=32` : `${siteOrigin}/meta.png`} />
+		<meta property="og:image:width" content="1024" />
+		<meta property="og:image:height" content="1024" />
 		<meta property="og:audio" content={song_url} />
 		<meta property="og:audio:secure_url" content={song_url} />
 		<meta property="og:audio:type" content="audio/mpeg" />
 
 		<meta name="twitter:card" content={song_url ? "player" : "summary_large_image"} />
+		<meta name="twitter:site" content="@smolxyz" />
 		<meta name="twitter:title" content={title} />
 		<meta name="twitter:description" content={description} />
-		<meta name="twitter:image" content={image_url ? `${image_url}?scale=16` : `${siteOrigin}/meta.png`} />
+		<meta name="twitter:image" content={image_url ? `${image_url}?scale=32` : `${siteOrigin}/meta.png`} />
 		<meta name="twitter:url" content={canonical} />
 		
 		{song_url && (
@@ -250,6 +254,7 @@ const fullSchema = [...siteSchema, ...schema];
 		<BarAudioPlayer client:only="svelte" transition:persist="audio-player" hideBottomBar={hideBottomBar || Astro.url.pathname.startsWith('/labs')} />
 
 		<MixtapeBuilderOverlay client:load transition:persist="mixtape-builder" />
+		<MixtapeDropZone client:load transition:persist="mixtape-drop-zone" />
 		<slot />
 
 		<!-- Debug Panel (only shows in dev mode or with ?debug=true) -->

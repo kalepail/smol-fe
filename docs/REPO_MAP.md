@@ -1,8 +1,16 @@
+<!--
+CONTRACT:
+- SSOT: [STATE_OF_WORLD.md | Subordinate]
+- AUDIENCE: [Dev | Agent]
+- NATURE: [Current]
+- LAST_HARDENED: 2026-01-27
+- VERIFICATION_METHOD: [Link check | Claim check | State trace]
+-->
 # Smol FE Repository Map
 
 ## Overview
 - **Stack**: Astro + Svelte 5 (Runes) + TailwindCSS
-- **State Management**: Svelte 5 Rune Stores (`src/stores/*.svelte.ts`)
+- **State Management**: Svelte 5 Rune Stores (`src/stores/`)
 - **API**: Astro Endpoints (`src/pages/api/*`), Backend Handoff (`BACKEND_HANDOFF.md`)
 - **Blockchains**: Stellar (Soroban) via `smol-sdk` and `comet-sdk`.
 
@@ -38,10 +46,10 @@
 2.  **Auth & Tipping** (Requires Ralph Loop):
     - **Passkey Kit**: Hard interaction with `passkey-kit` and `OpenZeppelin Relayer`.
     - **Relayer**: Configured via environment variables (~`RELAYER_URL`).
-    - **Files**: `src/stores/user.svelte.ts`, `src/services/api/transact.ts` (hypothetical).
+    - **Files**: `src/stores/user.svelte.ts`, [rpc.ts](../src/utils/rpc.ts)
 3.  **Data Consistency**:
     - `GalacticSnapshot.json` (Static) vs Live API.
-    - `src/services/api/snapshot.ts`: Unification logic.
+    - [snapshot.ts](../src/services/api/snapshot.ts): Unification logic.
 4.  **Svelte 5 Runes**:
     - This project uses Runes (`$state`, `$effect`). Do NOT introduce Svelte 4 stores (`writable`) without good reason.
 

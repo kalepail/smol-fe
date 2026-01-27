@@ -43,29 +43,20 @@
         new URLSearchParams(window.location.search).has("debug");
     shouldRedirect = checkAuth() && !hasDebug;
 
-    // Check for Direct Relayer Mode (Dev/Preview)
-    // Direct Relayer (OZ Channels) should ONLY be used on dev/preview environments to bypass Turnstile.
-    // Production (smol.xyz) must ALWAYS use KaleFarm Turnstile Proxy.
-    const isPagesDev =
-        typeof window !== "undefined" &&
-        window.location.hostname.includes("pages.dev");
-    const isLocalhost =
-        typeof window !== "undefined" &&
-        window.location.hostname.includes("localhost");
+    // Check for Direct Relayer Mode
+    // PROD FIX: If we have an OZ API key, use direct relayer regardless of hostname.
+    // This allows noot.smol.xyz to use OZ Channels directly without Turnstile.
     const hasApiKey = !!import.meta.env.PUBLIC_RELAYER_API_KEY;
-
-    const isDirectRelayer = (isPagesDev || isLocalhost) && hasApiKey;
+    const isDirectRelayer = hasApiKey;
 
     if (typeof window !== "undefined") {
         console.log(
             "[Debug] Relayer Config:",
             JSON.stringify({
                 isDirectRelayer,
-                isPagesDev,
-                isLocalhost,
                 hasKey: hasApiKey,
+                hostname: window.location.hostname,
                 mode: import.meta.env.MODE,
-                baseUrl: import.meta.env.BASE_URL,
             }),
         );
     }
@@ -348,9 +339,6 @@
                             : "SERVER"}
                     </div>
                     <div>KEY: {hasApiKey ? "PRESENT" : "MISSING"}</div>
-                    <div>
-                        IS_DEV: {isPagesDev || isLocalhost ? "YES" : "NO"}
-                    </div>
                     <div>
                         CFG_URL: {import.meta.env.PUBLIC_RELAYER_URL || "N/A"}
                     </div>

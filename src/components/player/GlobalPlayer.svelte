@@ -1,10 +1,12 @@
 <script lang="ts">
-    import { onMount, untrack, tick } from "svelte";
+    import { onMount, onDestroy, untrack, tick } from "svelte";
     import {
         audioState,
         selectSong,
         registerSongNextCallback,
         registerSongPrevCallback,
+        setPlaylistContext,
+        updatePlaylistIndex,
         isPlaying,
         togglePlayPause,
         playNextSong,
@@ -140,7 +142,8 @@
             }
 
             // Tiny timeout to ensure DOM is ready if it was just unhidden or expanded
-            setTimeout(() => {
+            const scrollTimeout = setTimeout(() => {
+                pendingTimeouts.delete(scrollTimeout);
                 const el = document.getElementById(
                     `song-card-${audioState.playingId}`,
                 );
@@ -152,6 +155,7 @@
                     });
                 }
             }, 100);
+            pendingTimeouts.add(scrollTimeout);
         }
     });
 
@@ -202,13 +206,23 @@
         }
     });
 
+    // PERF FIX: Fisher-Yates shuffle - O(n) instead of O(n²) from .sort(() => Math.random() - 0.5)
+    function shuffleArray<T>(array: T[]): T[] {
+        const result = [...array];
+        for (let i = result.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [result[i], result[j]] = [result[j], result[i]];
+        }
+        return result;
+    }
+
     $effect(() => {
         if (liveDiscography.length > 0 && collageImages.length === 0) {
-            const base = liveDiscography
-                .filter((s) => s.Id)
-                .map((s) => `${API_URL}/image/${s.Id}.png?scale=16`)
-                .sort(() => Math.random() - 0.5)
-                .slice(0, 40);
+            const base = shuffleArray(
+                liveDiscography
+                    .filter((s) => s.Id)
+                    .map((s) => `${API_URL}/image/${s.Id}.png?scale=16`)
+            ).slice(0, 40);
             collageImages = [...base, ...base];
         }
     });
@@ -417,6 +431,15 @@
     });
 
     let gridLimit = $state(50);
+    const GRID_LIMIT_MAX = 500; // Cap to prevent unbounded DOM growth
+
+    // Track pending timeouts for cleanup
+    let pendingTimeouts = new Set<ReturnType<typeof setTimeout>>();
+
+    onDestroy(() => {
+        pendingTimeouts.forEach(t => clearTimeout(t));
+        pendingTimeouts.clear();
+    });
     const displayPlaylist = $derived.by(() => {
         if (shuffleEnabled && shuffledOrder.length > 0) {
             return shuffledOrder;
@@ -430,8 +453,8 @@
         const el = e.currentTarget as HTMLElement;
         const { scrollTop, scrollHeight, clientHeight } = el;
         if (scrollHeight - scrollTop - clientHeight < 800) {
-            if (gridLimit < displayPlaylist.length) {
-                gridLimit += 50;
+            if (gridLimit < displayPlaylist.length && gridLimit < GRID_LIMIT_MAX) {
+                gridLimit = Math.min(gridLimit + 50, GRID_LIMIT_MAX);
             }
         }
     }
@@ -519,6 +542,13 @@
             registerSongNextCallback(null);
             registerSongPrevCallback(null);
         };
+    });
+
+    // Store playlist context for fallback playback when navigating to pages without playlists
+    $effect(() => {
+        if (displayPlaylist.length > 0) {
+            setPlaylistContext(displayPlaylist, currentIndex);
+        }
     });
 
     function toggleArtistTag(tag: string) {
@@ -842,13 +872,13 @@
 
     <!-- Main Player Card -->
     <div
-        class="max-w-6xl w-full mx-auto reactive-glass border border-white/5 backdrop-blur-xl md:rounded-2xl rounded-none shadow-2xl relative flex flex-col flex-1 min-h-0 transition-all duration-700 bg-cover bg-center"
+        class="max-w-6xl w-full mx-auto reactive-glass border border-white/5 backdrop-blur-sm md:rounded-2xl rounded-none shadow-2xl relative flex flex-col flex-1 min-h-0 transition-all duration-700 bg-cover bg-center"
         style={THEMES[preferences.glowTheme as keyof typeof THEMES].style ||
             "background-color: rgba(29, 29, 29, 0.7);"}
     >
         <!-- Control Bar -->
         <div
-            class="relative z-[100] flex items-center border-b border-white/5 bg-black/10 backdrop-blur-xl shrink-0 min-w-0 py-2 px-3 gap-3 landscape:sticky landscape:top-0"
+            class="relative z-[100] flex items-center border-b border-white/5 bg-black/50 backdrop-blur-sm shrink-0 min-w-0 py-2 px-3 gap-3 landscape:sticky landscape:top-0"
         >
             <!-- Primary Grid Toggle with Rainbow Glow -->
             <button

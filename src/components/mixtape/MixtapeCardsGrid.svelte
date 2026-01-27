@@ -10,6 +10,7 @@
         togglePlayPause,
         selectSong,
         registerSongNextCallback,
+        setPlaylistContext,
     } from "../../stores/audio.svelte.ts";
     import { useMixtapePlayback } from "../../hooks/useMixtapePlayback";
     import type { Smol } from "../../types/domain";
@@ -195,6 +196,13 @@
         return () => {
             if (activeMixtapeId) registerSongNextCallback(null);
         };
+    });
+
+    // Store playlist context for fallback playback when navigating to pages without playlists
+    $effect(() => {
+        if (activeMixtapeId && mixtapeTracks.length > 0) {
+            setPlaylistContext(mixtapeTracks, Math.max(0, currentTrackIndex));
+        }
     });
 
     async function fetchSnapshot() {

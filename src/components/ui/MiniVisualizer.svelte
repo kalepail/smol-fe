@@ -5,6 +5,8 @@
 
     // Oscillator State
     let lastDataArray: Float32Array | null = null;
+    // Reusable typed array to avoid per-frame allocations (memory optimization)
+    let dataArray: Uint8Array | null = null;
     const SMOOTHING = 0.12; // Smoother movement
 
     let canvas = $state<HTMLCanvasElement>();
@@ -20,8 +22,12 @@
         }
 
         const bufferLength = audioState.analyser.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
-        audioState.analyser.getByteTimeDomainData(dataArray);
+
+        // Reuse typed arrays instead of allocating new ones every frame
+        if (!dataArray || dataArray.length !== bufferLength) {
+            dataArray = new Uint8Array(bufferLength);
+        }
+        audioState.analyser.getByteTimeDomainData(dataArray as any);
 
         // Initialize smoothing buffer
         if (!lastDataArray || lastDataArray.length !== bufferLength) {
@@ -70,7 +76,11 @@
 
     $effect(() => {
         // Only run visualizer in thinking mode (performance optimization)
-        if (canvas && audioState.analyser && preferences.renderMode === 'thinking') {
+        if (
+            canvas &&
+            audioState.analyser &&
+            preferences.renderMode === "thinking"
+        ) {
             draw();
         }
 
@@ -80,7 +90,7 @@
     });
 </script>
 
-{#if preferences.renderMode === 'thinking'}
+{#if preferences.renderMode === "thinking"}
     <canvas
         bind:this={canvas}
         width="300"

@@ -20,7 +20,7 @@ Stellar provides two API paradigms:
 | Mainnet | `https://soroban.stellar.org` |
 | Testnet | `https://soroban-testnet.stellar.org` |
 | Futurenet | `https://rpc-futurenet.stellar.org` |
-| Local | `http://localhost:8000/soroban/rpc` |
+| Local | `http://noot.smol.xyz/soroban/rpc` |
 
 ### Setup
 
@@ -151,7 +151,7 @@ for (const event of events.events) {
 |---------|-------------|
 | Mainnet | `https://horizon.stellar.org` |
 | Testnet | `https://horizon-testnet.stellar.org` |
-| Local | `http://localhost:8000` |
+| Local | `http://noot.smol.xyz` |
 
 ### Setup
 
@@ -402,10 +402,10 @@ const configs: Record<string, NetworkConfig> = {
     friendbotUrl: "https://friendbot.stellar.org",
   },
   local: {
-    rpcUrl: "http://localhost:8000/soroban/rpc",
-    horizonUrl: "http://localhost:8000",
+    rpcUrl: "http://noot.smol.xyz/soroban/rpc",
+    horizonUrl: "http://noot.smol.xyz",
     networkPassphrase: "Standalone Network ; February 2017",
-    friendbotUrl: "http://localhost:8000/friendbot",
+    friendbotUrl: "http://noot.smol.xyz/friendbot",
   },
 };
 

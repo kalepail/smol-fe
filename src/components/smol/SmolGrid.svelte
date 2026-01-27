@@ -6,6 +6,7 @@
     audioState,
     selectSong,
     registerSongNextCallback,
+    setPlaylistContext,
   } from "../../stores/audio.svelte.ts";
   import {
     mixtapeDraftState,
@@ -50,6 +51,7 @@
   let loadingMore = $state(false);
   let scrollTrigger = $state<HTMLDivElement | null>(null);
   let displayLimit = $state(50); // Start with 50 items for speed
+  let preloadedImageIds = new Set<string>(); // Track preloaded images to prevent duplicates
 
   // Profile mode tab state
   let activeTab = $state<"discography" | "minted" | "collection">(
@@ -287,6 +289,16 @@
     registerSongNextCallback(null);
   });
 
+  // Store playlist context for fallback playback when navigating to pages without playlists
+  $effect(() => {
+    if (results.length > 0) {
+      const currentIndex = audioState.currentSong
+        ? results.findIndex((s) => s.Id === audioState.currentSong?.Id)
+        : 0;
+      setPlaylistContext(results, Math.max(0, currentIndex));
+    }
+  });
+
   // Infinite scroll observer - set up when scrollTrigger is available
   $effect(() => {
     if (!scrollTrigger) return;
@@ -312,8 +324,9 @@
   // Speculative Image Preloading: Load images for the NEXT page of results
   // This ensures that when the user scrolls down, images are already cached
   // DISABLED IN FAST MODE to save memory
+  // MEMORY FIX: Track preloaded IDs to prevent creating duplicate Image objects
   $effect(() => {
-    if (preferences.renderMode !== 'thinking') return;
+    if (preferences.renderMode !== "thinking") return;
 
     const nextLimit = displayLimit + 50;
     const nextBatch = filteredResults.slice(displayLimit, nextLimit);
@@ -322,8 +335,11 @@
       // Use requestIdleCallback if available to avoid blocking main thread
       const preload = () => {
         nextBatch.forEach((smol) => {
-          const img = new Image();
-          img.src = `${API_URL}/image/${smol.Id}.png`;
+          if (!preloadedImageIds.has(smol.Id)) {
+            preloadedImageIds.add(smol.Id);
+            const img = new Image();
+            img.src = `${API_URL}/image/${smol.Id}.png`;
+          }
         });
       };
 
@@ -376,9 +392,11 @@
   }
 
   function handleLikeChanged(smol: Smol, liked: boolean) {
-    const foundSmol = results.find((s) => s.Id === smol.Id);
-    if (foundSmol) {
-      foundSmol.Liked = liked;
+    // PERFORMANCE FIX: Direct mutation instead of array.map() spread
+    // With Svelte 5 $state, direct mutation triggers reactivity without copying entire array
+    const item = results.find((s) => s.Id === smol.Id);
+    if (item) {
+      item.Liked = liked;
     }
   }
 

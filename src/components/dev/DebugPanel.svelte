@@ -609,66 +609,6 @@
         font-size: 11px;
     }
 
-    .stats-grid strong {
-        color: #fff;
-    }
-
-    .stats-grid strong.error {
-        color: #ff4444;
-    }
-
-    .stats-grid strong.warn {
-        color: #ffaa00;
-    }
-
-    .rpc-table {
-        background: #0a0a0a;
-        padding: 8px;
-        border-radius: 4px;
-        margin-bottom: 4px;
-    }
-
-    .rpc-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 10px;
-        padding: 4px 0;
-        border-bottom: 1px solid #1a1a1a;
-    }
-
-    .rpc-row:last-child {
-        border-bottom: none;
-    }
-
-    .rpc-row.unhealthy {
-        opacity: 0.5;
-        color: #ff4444;
-    }
-
-    .rpc-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: #ff4444;
-    }
-
-    .rpc-dot.healthy {
-        background: #00ff00;
-        box-shadow: 0 0 4px #00ff00;
-    }
-
-    .rpc-url {
-        flex: 1;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    .rpc-latency {
-        color: #888;
-    }
-
     .recent-logs {
         max-height: 200px;
         overflow-y: auto;

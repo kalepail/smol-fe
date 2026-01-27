@@ -17,6 +17,11 @@
         "a",
     ];
 
+    // Track timers and audio for cleanup
+    let confettiInterval: ReturnType<typeof setInterval> | null = null;
+    let resetTimeout: ReturnType<typeof setTimeout> | null = null;
+    let currentAudio: HTMLAudioElement | null = null;
+
     function handleKeyPress(e: KeyboardEvent) {
         if (activated) return;
 
@@ -31,8 +36,27 @@
         }
     }
 
+    function cleanupEasterEgg() {
+        if (confettiInterval) {
+            clearInterval(confettiInterval);
+            confettiInterval = null;
+        }
+        if (resetTimeout) {
+            clearTimeout(resetTimeout);
+            resetTimeout = null;
+        }
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.src = '';
+            currentAudio = null;
+        }
+    }
+
     function activateEasterEgg() {
         activated = true;
+
+        // Clean up any previous activation
+        cleanupEasterEgg();
 
         // Epic confetti explosion!
         const duration = 3000;
@@ -43,11 +67,15 @@
             return Math.random() * (max - min) + min;
         }
 
-        const interval: any = setInterval(function () {
+        confettiInterval = setInterval(function () {
             const timeLeft = animationEnd - Date.now();
 
             if (timeLeft <= 0) {
-                return clearInterval(interval);
+                if (confettiInterval) {
+                    clearInterval(confettiInterval);
+                    confettiInterval = null;
+                }
+                return;
             }
 
             const particleCount = 50 * (timeLeft / duration);
@@ -66,14 +94,15 @@
         }, 250);
 
         // Play a hidden smol song!
-        const audio = new Audio('https://api.smol.xyz/song/random.mp3');
-        audio.volume = 0.3;
-        audio.play().catch(() => {});
+        currentAudio = new Audio('https://api.smol.xyz/song/random.mp3');
+        currentAudio.volume = 0.3;
+        currentAudio.play().catch(() => {});
 
         // Reset after showing
-        setTimeout(() => {
+        resetTimeout = setTimeout(() => {
             activated = false;
             konamiIndex = 0;
+            cleanupEasterEgg();
         }, 5000);
     }
 
@@ -83,6 +112,7 @@
 
     onDestroy(() => {
         window.removeEventListener("keydown", handleKeyPress);
+        cleanupEasterEgg();
     });
 </script>
 

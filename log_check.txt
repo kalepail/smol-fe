@@ -1,5 +1,0 @@
-5fe0ba0 fix(auth): refine RP ID logic to allow valid subdomains while blocking pages.dev
-77bf56e fix: resolve passkey regression (revert strict RP ID, restore auto-burn)
-00d5aca chore(audit): ralph workspace hardening audit completion
-5fad117 chore: final verification run - all tests green
-fea6fae fix: replace axios with fetch, remove orphaned ts files - build passes

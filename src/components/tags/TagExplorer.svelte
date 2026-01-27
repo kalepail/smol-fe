@@ -12,13 +12,14 @@
         audioState,
         selectSong,
         registerSongNextCallback,
+        setPlaylistContext,
         isPlaying,
         togglePlayPause,
     } from "../../stores/audio.svelte.ts";
     import MiniVisualizer from "../ui/MiniVisualizer.svelte";
     import LikeButton from "../ui/LikeButton.svelte";
     import { navigate } from "astro:transitions/client";
-    import { userState } from "../../stores/user.svelte.ts";
+    import { userState } from "../../stores/user.state.svelte";
     import { useGridMediaSession } from "../../hooks/useGridMediaSession";
     import { upgradesState, isUnlocked } from "../../stores/upgrades.svelte.ts";
 
@@ -305,6 +306,16 @@
         mediaHook.updateMediaMetadata(song, API_URL);
     });
 
+    // Store playlist context for fallback playback when navigating to pages without playlists
+    $effect(() => {
+        if (filteredSmols.length > 0) {
+            const currentIndex = audioState.currentSong
+                ? filteredSmols.findIndex((s) => s.Id === audioState.currentSong?.Id)
+                : 0;
+            setPlaylistContext(filteredSmols, Math.max(0, currentIndex));
+        }
+    });
+
     function handleLikeChanged(smol: Smol, liked: boolean) {
         // Update local state
         const foundIndex = smols.findIndex((s) => s.Id === smol.Id);
@@ -320,6 +331,7 @@
     });
 </script>
 
+```html
 <div
     class="h-full flex flex-col lg:flex-row gap-6 p-4 max-w-[1800px] mx-auto overflow-hidden relative"
 >

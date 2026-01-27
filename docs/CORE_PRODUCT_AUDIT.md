@@ -1,13 +1,21 @@
+<!--
+CONTRACT:
+- SSOT: [STATE_OF_WORLD.md](STATE_OF_WORLD.md)
+- AUDIENCE: Dev, Product
+- NATURE: Audit / Backlog
+- LAST_HARDENED: 2026-01-27
+- VERIFICATION_METHOD: [Product Trace | State Trace]
+-->
 # Core Product UX Audit (Music Site)
 
-## Executive Summary (impact-ordered)
-1. **Guard against rapid play switching and duplicate `play()` calls** by adding a lightweight “intent-to-play” gate in the audio layer to avoid iOS glitches and race conditions when users spam play or switch songs quickly.
-2. **Add a unified “buffering/loading” state** in audio UI to eliminate silent dead-air moments when `play()` is called but media is still loading.
-3. **Improve track-detail resilience** by adding a short retry/backoff when the detail endpoint returns 404 immediately after creation (eventual consistency).
-4. **Prevent metadata race conditions** by deferring `play()` until metadata is loaded and the src is stable, avoiding “seek on zero duration” issues.
-5. **Prefetch detail and audio on list-hover** to reduce perceived latency when jumping from list to detail.
-6. **Reduce layout shift** by reserving image space for track art across loading states.
-7. **Centralize media session configuration** (avoid multiple handlers in multiple components) to reduce edge-case conflicts.
+| Status | PR ID | Focus | Source |
+| :--- | :--- | :--- | :--- |
+| ✅ **EXECUTED** | PR-01 | Buffering state + play gating | [`audio.svelte.ts`](../src/stores/audio.svelte.ts) |
+| ⏳ PENDING | PR-02 | Detail loading resilience | `SmolResults.svelte` |
+| ⏳ PENDING | PR-03 | MediaSession consolidation | `BarAudioPlayer.svelte` |
+| ⏳ PENDING | PR-04 | List-hover prefetching | `SmolCard.svelte` |
+
+---
 
 ## Playback + Navigation State Machine (text)
 ```

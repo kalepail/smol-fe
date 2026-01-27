@@ -50,7 +50,7 @@ mcp_github_create_pull_request({
 - [Change 2]
 
 ## Testing
-- [ ] `npm run check` passes
+- [ ] `pnpm check` passes
 - [ ] Manual testing completed
 
 ## Related Issues
@@ -179,7 +179,7 @@ mcp_github_list_commits({
 
 ### After completing a feature/fix:
 
-1. Verify build: `npm run check`
+1. Verify build: `pnpm check`
 2. Create PR to upstream:
    ```typescript
    mcp_github_create_pull_request({

@@ -2,15 +2,13 @@
  * FACTORY FRESH: Unified Authentication Hook
  * @see https://deepwiki.com/repo/kalepail/smol-fe#authentication
  * 
- * Handles PasskeyKit wallet creation and login, synchronized with
- * the smol-workflow backend. Uses the centralized "send" helper
- * for all wallet deployment transactions.
+ * Refactored to use DYNAMIC IMPORTS for heavy SDKs.
  */
 import Cookies from 'js-cookie';
 import { getDomain } from 'tldts';
-import { account, send } from '../utils/passkey-kit';
+// import { account, send } from '../utils/passkey-kit'; // REMOVED STATIC IMPORT
 import { getSafeRpId } from '../utils/domains';
-import { setUserAuth, clearUserAuth, userState } from '../stores/user.svelte.ts';
+import { setUserAuth, clearUserAuth, userState } from '../stores/user.svelte';
 import logger, { LogCategory } from '../utils/debug-logger';
 
 export function useAuthentication() {
@@ -23,6 +21,7 @@ export function useAuthentication() {
     clearUserAuth();
 
     try {
+      const { account } = await import('../utils/passkey-kit');
       const rpId = getSafeRpId(window.location.hostname);
       const result = await account.get().connectWallet({
         rpId,
@@ -73,34 +72,44 @@ export function useAuthentication() {
       throw new Error(`Login failed: ${errorMsg}`);
     }
 
-    const jwt = await res.text();
+    const authToken = await res.text();
 
     setUserAuth(cid, keyIdBase64);
     userState.walletConnected = true;
 
-    const domain = getDomain(window.location.hostname);
+    const { getSafeCookieDomain } = await import('../utils/domains');
+    const domain = getSafeCookieDomain(window.location.hostname);
+
+    const registrableDomain = getDomain(window.location.hostname);
+    if (registrableDomain && registrableDomain !== domain?.replace(/^\./, '')) {
+      Cookies.remove('smol_token', { domain: `.${registrableDomain}`, path: '/' });
+      Cookies.remove('smol_token', { domain: registrableDomain, path: '/' });
+    }
+
+    Cookies.remove('smol_token', { path: '/' });
+
     const cookieOptions: Cookies.CookieAttributes = {
       path: '/',
       secure: window.location.protocol === 'https:',
-      sameSite: 'Lax',
+      sameSite: window.location.protocol === 'https:' ? 'None' : 'Lax',
       expires: 30,
     };
     if (domain) {
-      cookieOptions.domain = `.${domain}`;
+      cookieOptions.domain = domain;
     }
 
-    Cookies.set('smol_token', jwt, cookieOptions);
+    Cookies.set('smol_token', authToken, cookieOptions);
   }
 
   async function signUp(username: string, turnstileToken: string) {
     console.log('[Auth] Creating wallet for username:', username);
 
-    // Clear any stale credentials
     clearUserAuth();
 
     try {
+      const { account, send } = await import('../utils/passkey-kit');
       const rpId = getSafeRpId(window.location.hostname);
-      const result = await account.get().createWallet('smol.xyz', `SMOL — ${username}`, {
+      const result = await account.get().createWallet(username, `SMOL — ${username}`, {
         rpId,
       });
 
@@ -113,10 +122,8 @@ export function useAuthentication() {
         signedTx,
       } = result;
 
-      // 1. Perform API login to get session token
       await performLogin(cid, keyIdBase64, rawResponse, 'create', username);
 
-      // 2. Submit deployment transaction via proxy relayer
       console.log('[Auth] Submitting wallet deployment transaction...');
       await send(signedTx, turnstileToken);
 
@@ -129,19 +136,27 @@ export function useAuthentication() {
   async function logout() {
     clearUserAuth();
 
-    const domain = getDomain(window.location.hostname);
+    const { getSafeCookieDomain } = await import('../utils/domains');
+    const domain = getSafeCookieDomain(window.location.hostname);
+    const registrableDomain = getDomain(window.location.hostname);
+
     const cookieOptions: Cookies.CookieAttributes = {
       path: '/',
-      secure: true,
-      sameSite: 'Lax',
+      secure: window.location.protocol === 'https:',
+      sameSite: window.location.protocol === 'https:' ? 'None' : 'Lax',
     };
+
     if (domain) {
-      cookieOptions.domain = `.${domain}`;
+      Cookies.remove('smol_token', { ...cookieOptions, domain });
     }
 
-    Cookies.remove('smol_token', cookieOptions);
+    Cookies.remove('smol_token', { ...cookieOptions });
 
-    // Clear all smol: related data
+    if (registrableDomain) {
+      Cookies.remove('smol_token', { ...cookieOptions, domain: registrableDomain });
+      Cookies.remove('smol_token', { ...cookieOptions, domain: `.${registrableDomain}` });
+    }
+
     Object.keys(localStorage).forEach((key) => {
       if (key.includes('smol:')) {
         localStorage.removeItem(key);
@@ -162,9 +177,18 @@ export function useAuthentication() {
     location.reload();
   }
 
+  function getAuthHeaders(): Record<string, string> {
+    const token = Cookies.get('smol_token');
+    if (!token) return {};
+    return {
+      'Authorization': `Bearer ${token}`,
+    };
+  }
+
   return {
     login,
     signUp,
     logout,
+    getAuthHeaders,
   };
 }

@@ -1,3 +1,11 @@
+<!--
+CONTRACT:
+- SSOT: [STATE_OF_WORLD.md](../STATE_OF_WORLD.md)
+- AUDIENCE: Dev, Marketing
+- NATURE: Snapshot / Playbook
+- LAST_HARDENED: 2026-01-27
+- VERIFICATION_METHOD: Claim check
+-->
 # Visibility Playbook — SEO + GEO Maintenance Guide
 **Last Updated:** 2026-01-19
 **Site:** https://noot.smol.xyz

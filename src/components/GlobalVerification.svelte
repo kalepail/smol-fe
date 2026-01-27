@@ -1,12 +1,15 @@
 <script lang="ts">
-    import { userState } from "../stores/user.svelte.ts";
+    import { userState } from "../stores/user.state.svelte";
     import { verifyPastPurchases } from "../services/api/verifyUpgrades";
     import {
         validateAndRevertTheme,
         preferences,
-    } from "../stores/preferences.svelte.ts";
-    import { upgradesState } from "../stores/upgrades.svelte.ts";
-    import { StrKey } from "@stellar/stellar-sdk";
+    } from "../stores/preferences.svelte";
+    import { upgradesState } from "../stores/upgrades.svelte";
+
+    // Use a simple regex for contract validation to avoid pulling in stellar-sdk in main chunk
+    const isValidContract = (address: string) =>
+        /^C[A-Z0-9]{55}$/.test(address);
 
     let checkedAddress = $state<string | null>(null);
     let lastValidatedState = $state<string>("");
@@ -18,7 +21,7 @@
         if (address && address !== checkedAddress) {
             // Additional validation: ensure it's a valid contract address
             const trimmed = address.trim();
-            if (!trimmed || !StrKey.isValidContract(trimmed)) {
+            if (!trimmed || !isValidContract(trimmed)) {
                 console.warn(
                     "[GlobalVerification] Invalid or empty contract address, skipping verification",
                 );

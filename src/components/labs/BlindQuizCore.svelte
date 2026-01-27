@@ -27,6 +27,7 @@
     let bestStreak = $state(0);
     let achievements = $state<string[]>([]);
     let showAchievement = $state<string | null>(null);
+    let achievementTimeout: ReturnType<typeof setTimeout> | null = null;
 
     function updatePlayableSmols() {
         playableSmols = smols.filter((s) => {
@@ -127,7 +128,12 @@
         if (newAchievements.length > 0) {
             achievements = [...achievements, ...newAchievements];
             showAchievement = newAchievements[0];
-            setTimeout(() => showAchievement = null, 3000);
+            // Clear any existing timeout before setting a new one
+            if (achievementTimeout) clearTimeout(achievementTimeout);
+            achievementTimeout = setTimeout(() => {
+                showAchievement = null;
+                achievementTimeout = null;
+            }, 3000);
 
             // Extra confetti for achievements!
             confetti({
@@ -175,6 +181,10 @@
 
     onDestroy(() => {
         window.removeEventListener('keydown', handleKeyPress);
+        if (achievementTimeout) {
+            clearTimeout(achievementTimeout);
+            achievementTimeout = null;
+        }
     });
 </script>
 

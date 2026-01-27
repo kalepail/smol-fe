@@ -6,6 +6,7 @@
     audioState,
     selectSong,
     registerSongNextCallback,
+    setPlaylistContext,
     togglePlayPause,
     isPlaying as getIsPlaying,
   } from "../../stores/audio.svelte.ts";
@@ -933,6 +934,13 @@
     if (generatedPlaylist.length > 0) {
       registerSongNextCallback(playNext);
       return () => registerSongNextCallback(null);
+    }
+  });
+
+  // Store playlist context for fallback playback when navigating to pages without playlists
+  $effect(() => {
+    if (generatedPlaylist.length > 0) {
+      setPlaylistContext(generatedPlaylist, currentIndex);
     }
   });
 

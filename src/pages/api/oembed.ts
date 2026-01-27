@@ -45,7 +45,7 @@ export const GET: APIRoute = async ({ url, request }) => {
             if (data) {
                 title = data.kv_do?.lyrics?.title || data.d1?.Title || "Untitled";
                 author = data.d1?.Creator || data.d1?.Address?.slice(0, 8) || "Smol Artist";
-                thumbnailUrl = `${API_URL}/image/${songId}.png?scale=16`;
+                thumbnailUrl = `${API_URL}/image/${songId}.png?scale=32`;
             }
         }
     } catch (e) {

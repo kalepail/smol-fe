@@ -1,6 +1,6 @@
 # Security Rules
 
-1. **No Secrets**: Never commit `.env` files. never paste real API keys or JWTs into artifacts/logs.
+1. **No Secrets**: Never commit `.env` files. never paste real API keys or Auth Tokens into artifacts/logs.
 2. **Redaction**: If you see a key in the logs, stop, redact it, and rotate it.
 3. **Approved Domains**:
    - `*.smol.xyz` (API)

@@ -11,6 +11,11 @@
     import Loader from "../ui/Loader.svelte";
     import { Turnstile } from "svelte-turnstile";
 
+    // PROD FIX: If we have an OZ API key, use direct relayer regardless of hostname.
+    // This allows noot.smol.xyz to use OZ Channels directly without Turnstile.
+    const hasApiKey = !!import.meta.env.PUBLIC_RELAYER_API_KEY;
+    const isDirectRelayer = hasApiKey;
+
     const AMOUNT_PER_TIP_BASE = 10000000n; // 1 KALE = 10^7 units
     const DECIMALS_FACTOR = 10000000n;
 
@@ -49,14 +54,21 @@
     );
     let turnstileToken = $state("");
 
+    // Track timeouts for cleanup
+    let loadingTimeout: ReturnType<typeof setTimeout> | null = null;
+    let swipeTimeout: ReturnType<typeof setTimeout> | null = null;
+    let settleDelayTimeout: ReturnType<typeof setTimeout> | null = null;
+    let redirectTimeout: ReturnType<typeof setTimeout> | null = null;
+
     onMount(async () => {
         try {
             // Timeout fallback
-            setTimeout(() => {
+            loadingTimeout = setTimeout(() => {
                 if (loading) {
                     console.warn("Fetch timed out, forcing load state.");
                     loading = false;
                 }
+                loadingTimeout = null;
             }, 8000);
 
             audio = new Audio();
@@ -76,8 +88,14 @@
     onDestroy(() => {
         if (audio) {
             audio.pause();
+            audio.src = '';
             audio = null;
         }
+        // Clean up all pending timeouts
+        if (loadingTimeout) { clearTimeout(loadingTimeout); loadingTimeout = null; }
+        if (swipeTimeout) { clearTimeout(swipeTimeout); swipeTimeout = null; }
+        if (settleDelayTimeout) { clearTimeout(settleDelayTimeout); settleDelayTimeout = null; }
+        if (redirectTimeout) { clearTimeout(redirectTimeout); redirectTimeout = null; }
     });
 
     function playCurrent() {
@@ -125,7 +143,10 @@
         cardX.set(dir === "right" ? 500 : -500);
         cardRotate.set(dir === "right" ? 20 : -20);
 
-        setTimeout(() => {
+        // Clear any previous swipe timeout
+        if (swipeTimeout) clearTimeout(swipeTimeout);
+        swipeTimeout = setTimeout(() => {
+            swipeTimeout = null;
             if (dir === "right" && song.Address) {
                 const amount = isCustom
                     ? parseFloat(customTipAmount) || 1
@@ -159,7 +180,7 @@
             alert("Please connect your wallet first!");
             return;
         }
-        if (!turnstileToken) {
+        if (!isDirectRelayer && !turnstileToken) {
             alert("Please verify you are human.");
             return;
         }
@@ -204,11 +225,17 @@
                 settleStep = completed;
 
                 // Sequential safe mode
-                await new Promise((r) => setTimeout(r, 1000));
+                await new Promise((r) => {
+                    settleDelayTimeout = setTimeout(() => {
+                        settleDelayTimeout = null;
+                        r(undefined);
+                    }, 1000);
+                });
             }
 
             settleStatus = "All tips sent!";
-            setTimeout(() => {
+            redirectTimeout = setTimeout(() => {
+                redirectTimeout = null;
                 window.location.href = "/labs";
             }, 2000);
         } catch (e: any) {
@@ -243,16 +270,18 @@
                     <p class="text-red-500 text-xs">Connect Wallet to Tip</p>
                 </div>
             {:else if !isSettling}
-                <div class="flex justify-center my-4">
-                    <Turnstile
-                        siteKey={import.meta.env.PUBLIC_TURNSTILE_SITE_KEY}
-                        on:callback={(e) => (turnstileToken = e.detail.token)}
-                        theme="dark"
-                    />
-                </div>
+                {#if !isDirectRelayer}
+                    <div class="flex justify-center my-4">
+                        <Turnstile
+                            siteKey={import.meta.env.PUBLIC_TURNSTILE_SITE_KEY}
+                            on:callback={(e) => (turnstileToken = e.detail.token)}
+                            theme="dark"
+                        />
+                    </div>
+                {/if}
                 <button
                     onclick={settleTips}
-                    disabled={!turnstileToken}
+                    disabled={!isDirectRelayer && !turnstileToken}
                     class="w-full border border-[#9ae600] bg-[#9ae600]/10 px-6 py-3 rounded-lg hover:bg-[#9ae600] hover:text-black transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     SEND TIPS

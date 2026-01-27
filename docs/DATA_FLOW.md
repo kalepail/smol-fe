@@ -1,3 +1,11 @@
+<!--
+CONTRACT:
+- SSOT: [STATE_OF_WORLD.md | Subordinate]
+- AUDIENCE: [Dev | Agent]
+- NATURE: [Current]
+- LAST_HARDENED: 2026-01-27
+- VERIFICATION_METHOD: [State trace]
+-->
 # Data Flow & Data Models
 
 ## Core Entity: `Smol`
@@ -15,7 +23,7 @@ Refers to the Song/Track object. Type definition located in `src/types/domain.ts
 ### 2. Galactic Snapshot (`public/data/GalacticSnapshot.json`)
 *   **Usage:**
     *   Radio (`RadioBuilder.svelte`) uses this for seed data.
-    *   Merged with Live API data in `src/services/api/smols.ts`.
+    *   Merged with Live API data in [smols.ts](../src/services/api/smols.ts).
 
 ## Create -> Detail Flow (The "Sticky" vs "Fresh" Gap)
 1.  **Creation (Sticky):**

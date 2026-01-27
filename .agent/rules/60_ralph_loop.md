@@ -21,7 +21,7 @@ You may stop *only* when the task’s **Success Criteria** are satisfied by vali
 - Max iterations: 8 (default)
 - Max wall time: 90 minutes per loop session
 - If iteration 3 repeats the same failure: stop and switch to **Triage workflow**.
-- No secrets in artifacts. Never paste tokens/JWTs in logs.
+- No secrets in artifacts. Never paste tokens/Auth Tokens in logs.
 
 ## Mandatory artifacts each iteration
 Write/update:

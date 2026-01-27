@@ -19,6 +19,11 @@
   import { RPC_URL } from "../utils/rpc";
   import { Turnstile } from "svelte-turnstile";
 
+  // PROD FIX: If we have an OZ API key, use direct relayer regardless of hostname.
+  // This allows noot.smol.xyz to use OZ Channels directly without Turnstile.
+  const hasApiKey = !!import.meta.env.PUBLIC_RELAYER_API_KEY;
+  const isDirectRelayer = hasApiKey;
+
   const DISPLAY_TOKEN_NAME = "SMOL";
 
   interface Props {
@@ -332,7 +337,7 @@
       return;
     }
 
-    if (!turnstileToken) {
+    if (!isDirectRelayer && !turnstileToken) {
       simulationError = "Please complete the CAPTCHA.";
       return;
     }
@@ -481,18 +486,20 @@
           displayTokenName={DISPLAY_TOKEN_NAME}
         />
 
-        <div class="flex justify-center -mb-2">
-          <Turnstile
-            siteKey={import.meta.env.PUBLIC_TURNSTILE_SITE_KEY}
-            on:callback={(e) => {
-              turnstileToken = e.detail.token;
-            }}
-            on:expired={() => {
-              turnstileToken = "";
-            }}
-            theme="dark"
-          />
-        </div>
+        {#if !isDirectRelayer}
+          <div class="flex justify-center -mb-2">
+            <Turnstile
+              siteKey={import.meta.env.PUBLIC_TURNSTILE_SITE_KEY}
+              on:callback={(e) => {
+                turnstileToken = e.detail.token;
+              }}
+              on:expired={() => {
+                turnstileToken = "";
+              }}
+              theme="dark"
+            />
+          </div>
+        {/if}
 
         <button
           class="w-full rounded bg-lime-500 px-4 py-2 text-base font-semibold text-slate-900 hover:bg-lime-400 disabled:opacity-60"
@@ -502,7 +509,7 @@
             !currentKeyId ||
             !inputAmount.trim() ||
             loading ||
-            !turnstileToken}
+            (!isDirectRelayer && !turnstileToken)}
         >
           {actionLabel}
         </button>

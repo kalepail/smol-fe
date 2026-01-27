@@ -60,7 +60,7 @@ Create a hygiene branch (example):
 ## Phase 1 — Health Checks (Read-Only First)
 ### 1. Install / Dependency Drift (Prefer Frozen)
 - Prefer a frozen install if supported:
-  - pnpm: `pnpm install --frozen-lockfile` (or `--prefer-frozen-lockfile` if strict mode causes noise)
+  - pnpm: `ppnpm install --frozen-lockfile` (or `--prefer-frozen-lockfile` if strict mode causes noise)
 - If install changes lockfile unexpectedly:
   - STOP and explain why. Do not commit lockfile changes unless required.
 
@@ -193,7 +193,7 @@ If any hygiene step introduces failures:
 ## Quick Command Template (Adapt to Repo)
 (Only run what exists in package.json)
 ```bash
-pnpm install --frozen-lockfile
+ppnpm install --frozen-lockfile
 pnpm lint
 pnpm typecheck
 pnpm test

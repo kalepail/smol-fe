@@ -29,8 +29,9 @@ import { safeStringify } from "./soroswap";
 /**
  * Soroswap Router Contract (Mainnet)
  * Verified: This is a ROUTER, not an Aggregator.
+ * Signature: swap_exact_tokens_for_tokens(amount_in, amount_out_min, path, to, deadline)
  */
-export const AGGREGATOR_CONTRACT = import.meta.env.PUBLIC_AGGREGATOR_CONTRACT_ID || "CAG5LRYQ5JVEUI5TEID72EYOVX44TTUJT5BQR2J6J77FH65PCCFAJDDH";
+export const ROUTER_CONTRACT = import.meta.env.PUBLIC_AGGREGATOR_CONTRACT_ID || "CAG5LRYQ5JVEUI5TEID72EYOVX44TTUJT5BQR2J6J77FH65PCCFAJDDH";
 
 /** RPC endpoint */
 const RPC_URL = import.meta.env.PUBLIC_RPC_URL || "https://rpc.ankr.com/stellar_soroban";
@@ -61,17 +62,28 @@ function validateAmount(value: string, fieldName: string): void {
  * SIGNATURE (Verified via WASM inspection):
  * swap_exact_tokens_for_tokens(amount_in, amount_out_min, path, to, deadline)
  * swap_tokens_for_exact_tokens(amount_out, amount_in_max, path, to, deadline)
- * 
+ *
  * where 'path' is Vec<Address>
+ *
+ * AI DEBUG GUIDE:
+ * - "InvalidAction" or "UnreachableCodeReached": Wrong contract signature being used
+ * - "Invalid path": Quote doesn't have proper distribution array
+ * - Check ROUTER_CONTRACT matches expected contract ID
+ * - Verify 5-arg signature: (amount_in, amount_out_min, path[], to, deadline)
  */
 export async function buildSwapTransactionForCAddress(
     quote: QuoteResponse,
     fromAddress: string
 ): Promise<string> {
+    // AI DEBUG: Full quote structure for diagnosis
     console.log("[SwapBuilder] Starting buildSwapTransactionForCAddress (Router Mode)", {
         quoteAmountIn: quote.amountIn,
         quoteAmountOut: quote.amountOut,
-        fromAddress
+        tradeType: quote.tradeType,
+        platform: quote.platform,
+        fromAddress,
+        routerContract: ROUTER_CONTRACT,
+        hasRawTrade: !!quote.rawTrade,
     });
 
     const rawTrade = quote.rawTrade as {
@@ -123,19 +135,25 @@ export async function buildSwapTransactionForCAddress(
     const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600);
 
     const server = new Server(RPC_URL);
-    const contract = new Contract(AGGREGATOR_CONTRACT);
+    const contract = new Contract(ROUTER_CONTRACT);
     const sourceAccount = new Account(NULL_ACCOUNT, "0");
 
     /**
      * BUILD ROUTER ARGS (5 ARGUMENTS)
-     * Signature: swap_exact_tokens_for_tokens(amount_in, amount_out_min, path, to, deadline)
+     * Verified Router signature:
+     * swap_exact_tokens_for_tokens(amount_in, amount_out_min, path, to, deadline)
+     * swap_tokens_for_exact_tokens(amount_out, amount_in_max, path, to, deadline)
+     *
+     * where 'path' is Vec<Address> (simple token address array)
      */
+    const pathAddresses = path.map(addr => new Address(addr));
+
     const invokeArgs = [
-        nativeToScVal(BigInt(amount1), { type: "i128" }),
-        nativeToScVal(BigInt(amount2), { type: "i128" }),
-        nativeToScVal(path.map(addr => new Address(addr))),
-        nativeToScVal(new Address(fromAddress)),
-        nativeToScVal(deadline, { type: "u64" }),
+        nativeToScVal(BigInt(amount1), { type: "i128" }), // amount_in (or amount_out for EXACT_OUT)
+        nativeToScVal(BigInt(amount2), { type: "i128" }), // amount_out_min (or amount_in_max for EXACT_OUT)
+        nativeToScVal(pathAddresses), // path: Vec<Address>
+        nativeToScVal(new Address(fromAddress)), // to: Address (recipient)
+        nativeToScVal(deadline, { type: "u64" }), // deadline: u64
     ];
 
     console.log(`[SwapBuilder] Built ${methodName} args (Router 5-arg):`, {
@@ -167,12 +185,22 @@ export async function buildSwapTransactionForCAddress(
         path
     });
 
+    console.log('[SwapBuilder] Simulating transaction...');
     const simResult = await server.simulateTransaction(tx);
 
     if (Api.isSimulationError(simResult)) {
+        // AI DEBUG: Simulation errors usually mean wrong contract signature
+        console.error('[SwapBuilder] Simulation FAILED:', {
+            error: simResult.error,
+            method: methodName,
+            contract: ROUTER_CONTRACT,
+            argsCount: invokeArgs.length,
+            hint: 'Check if contract signature matches Router 5-arg format',
+        });
         throw new Error(`Simulation failed: ${simResult.error}`);
     }
 
+    console.log('[SwapBuilder] Simulation SUCCESS, assembling final transaction...');
     const finalTx = assembleTransaction(tx, simResult).build();
     const finalXdr = finalTx.toXDR();
 
@@ -181,6 +209,11 @@ export async function buildSwapTransactionForCAddress(
         tradeType,
         method: methodName,
         from: fromAddress
+    });
+
+    console.log('[SwapBuilder] Transaction ready:', {
+        method: methodName,
+        xdrLength: finalXdr.length,
     });
 
     return finalXdr;

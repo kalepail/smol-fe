@@ -131,6 +131,9 @@
     }
 
     // --- 4. Smart Pre-fetching ---
+    // Track prefetch links to clean up old ones (prevents memory leak)
+    let currentPrefetchLinks: HTMLLinkElement[] = [];
+
     function prefetchNext() {
         if (!isBrowser || typeof document === "undefined") return;
         if (!audioState.currentSong || playlist.length === 0) return;
@@ -142,13 +145,13 @@
 
         const nextSong = playlist[currentIdx + 1];
         const nextUrl = `https://api.smol.xyz/song/${nextSong.Id}.mp3`;
-
-        // Check if already cached (optional optimization) or just blindly fetch (browser handles cache)
-        // Using 'no-cors' mode for opaque response if needed, but standard fetch is fine for media usually
-        // Note: fetch() for mp3 might need range handling support, but for simple cache priming this works
-
-        // console.log('[AudioManager] Prefetching:', nextSong.Title);
         const imgUrl = `https://api.smol.xyz/image/${nextSong.Id}.png?scale=8`;
+
+        // Clean up previous prefetch links to prevent DOM accumulation
+        for (const link of currentPrefetchLinks) {
+            link.remove();
+        }
+        currentPrefetchLinks = [];
 
         // Prefetch Audio
         const linkAudio = document.createElement("link");
@@ -156,6 +159,7 @@
         linkAudio.href = nextUrl;
         linkAudio.as = "audio";
         document.head.appendChild(linkAudio);
+        currentPrefetchLinks.push(linkAudio);
 
         // Prefetch Image
         const linkImg = document.createElement("link");
@@ -163,6 +167,7 @@
         linkImg.href = imgUrl;
         linkImg.as = "image";
         document.head.appendChild(linkImg);
+        currentPrefetchLinks.push(linkImg);
     }
 
     // --- Lifecycle & Effects ---

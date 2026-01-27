@@ -3,6 +3,11 @@
     import Loader from "../ui/Loader.svelte";
     import { Turnstile } from "svelte-turnstile";
 
+    // PROD FIX: If we have an OZ API key, use direct relayer regardless of hostname.
+    // This allows noot.smol.xyz to use OZ Channels directly without Turnstile.
+    const hasApiKey = !!import.meta.env.PUBLIC_RELAYER_API_KEY;
+    const isDirectRelayer = hasApiKey;
+
     const dispatch = createEventDispatcher();
 
     interface Props {
@@ -385,7 +390,7 @@
                 class="sticky bottom-0 z-10 flex flex-col gap-3 border-t border-slate-700 bg-slate-900 p-6"
             >
                 {#if tracksToMint.length > 0 || tracksToPurchase.length > 0}
-                    {#if !isProcessing || needsVerification}
+                    {#if !isDirectRelayer && (!isProcessing || needsVerification)}
                         {#if needsVerification}
                             <p
                                 class="text-lime-400 text-sm mb-2 text-center animate-pulse"
@@ -427,7 +432,7 @@
                             <button
                                 class="flex-1 rounded-lg bg-lime-400 px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-lime-300 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                 onclick={handleConfirm}
-                                disabled={!turnstileToken}
+                                disabled={!isDirectRelayer && !turnstileToken}
                             >
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"

@@ -1,5 +1,0 @@
-Loaded old snapshot: 1864 items
-Fetching live smols from api.smol.xyz...
-API Error 500: Internal Server Error
-Fetch failed: API Error: 500
-No smols fetched from API. Aborting snapshot update to avoid data loss.

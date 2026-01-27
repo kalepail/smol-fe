@@ -31,3 +31,12 @@ data/all-smols.json!.agent/
 
 test-results/
 playwright-report/
+
+# Junk / Logs / Dumps
+tldts-results*.txt
+usernames.txt
+verification-check.txt
+check-output.txt
+
+.agent/_reports/
+

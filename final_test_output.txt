@@ -1,0 +1,25 @@
+
+> smol-fe@1.5.4 docs:test C:\Users\Jeff\Mixtape Auto\smol-fe
+> pnpm docs:xref && pnpm docs:lint && pnpm docs:flows
+
+
+> smol-fe@1.5.4 docs:xref C:\Users\Jeff\Mixtape Auto\smol-fe
+> node scripts/docs/build_xref.mjs
+
+Γ£à Generated XREF_MAP.json with 92 files.
+
+> smol-fe@1.5.4 docs:lint C:\Users\Jeff\Mixtape Auto\smol-fe
+> node scripts/docs/check_links.mjs && node scripts/docs/check_claims.mjs && node scripts/docs/check_consistency.mjs
+
+
+Γ£à Link and Anchor check passed.
+≡ƒôí SSOT Facts: Port=4321, API=https://api.smol.xyz, pnpm=10.18.1
+
+Γ£à Claim verification passed.
+
+Γ£à Consistency check passed.
+
+> smol-fe@1.5.4 docs:flows C:\Users\Jeff\Mixtape Auto\smol-fe
+> node scripts/docs/extract_flows.mjs
+
+Γ£à Extracted 8 flows into FLOW_SPECS.json

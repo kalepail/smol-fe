@@ -8,9 +8,9 @@
 
 ## Recommended Dependencies
 ```bash
-npm install @stellar/stellar-sdk @stellar/freighter-api
+pnpm install @stellar/stellar-sdk @stellar/freighter-api
 # Or for multi-wallet support:
-npm install @stellar/stellar-sdk @creit.tech/stellar-wallets-kit
+pnpm install @stellar/stellar-sdk @creit.tech/stellar-wallets-kit
 ```
 
 ## SDK Initialization
@@ -538,7 +538,7 @@ For passwordless authentication using WebAuthn passkeys, use Smart Account Kit.
 
 ### Installation
 ```bash
-npm install smart-account-kit
+pnpm install smart-account-kit
 ```
 
 ### Quick Start

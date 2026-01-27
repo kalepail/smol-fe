@@ -41,7 +41,7 @@ Every new page MUST pass the **Entity Test**:
 
 ## 4. Deployment Checklist
 Before major releases:
-1.  **Sitemap:** Does the build generate it? (`npm run build` -> check `dist/sitemap-index.xml`)
+1.  **Sitemap:** Does the build generate it? (`pnpm build` -> check `dist/sitemap-index.xml`)
 2.  **Robots:** Is `/api` still blocked? Are new landing pages allowed?
 3.  **Verify Schema:** Use validator.schema.org on a deployment preview URL.
 

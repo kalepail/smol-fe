@@ -287,11 +287,16 @@
     const bufferLength = 256; // Matching analyser.fftSize
     let lastDataArray = new Uint8Array(bufferLength).fill(128);
     let dataArray = new Uint8Array(bufferLength);
+    // Reusable array for spatial smoothing (memory optimization)
+    let smoothedArray: Float32Array | null = null;
 
     function draw() {
       // CRITICAL: Read playing state directly from store, not closure
-      if (!isPlaying()) return;
-      animationId = requestAnimationFrame(draw);
+      // Check BEFORE scheduling next frame to prevent orphaned RAF loops
+      if (!isPlaying()) {
+        animationId = null;
+        return;
+      }
 
       const currentAnalyser = audioState.analyser;
       let isBroken = false;
@@ -367,14 +372,18 @@
         }
 
         // Spatial Smoothing (Moving Average) - Removes "jaggies"
-        const smoothed = new Float32Array(bufferLength);
+        // Reuse smoothed array instead of allocating per frame (memory optimization)
+        if (!smoothedArray || smoothedArray.length !== bufferLength) {
+          smoothedArray = new Float32Array(bufferLength);
+        }
         for (let i = 1; i < bufferLength - 1; i++) {
-          smoothed[i] =
+          smoothedArray[i] =
             (lastDataArray[i - 1] + lastDataArray[i] + lastDataArray[i + 1]) /
             3;
         }
-        smoothed[0] = lastDataArray[0];
-        smoothed[bufferLength - 1] = lastDataArray[bufferLength - 1];
+        smoothedArray[0] = lastDataArray[0];
+        smoothedArray[bufferLength - 1] = lastDataArray[bufferLength - 1];
+        const smoothed = smoothedArray;
 
         const sliceWidth = canvas.width / bufferLength;
         const BOOST = isFs ? 4.0 : 3.0; // Slightly bigger (was 2.5) for visibility
@@ -411,8 +420,12 @@
       }
 
       ctx.stroke();
+
+      // Schedule next frame at END of draw, only if still playing
+      animationId = requestAnimationFrame(draw);
     }
 
+    // Initial frame
     animationId = requestAnimationFrame(draw);
   }
 

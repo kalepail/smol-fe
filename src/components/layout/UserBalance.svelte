@@ -11,12 +11,16 @@
   let { contractId, balance, loading }: Props = $props();
 
   let copied = $state(false);
+  let copiedTimeout: ReturnType<typeof setTimeout> | null = null;
 
   function copyToClipboard() {
     navigator.clipboard.writeText(contractId);
     copied = true;
-    setTimeout(() => {
+    // Clear any existing timeout to prevent accumulation
+    if (copiedTimeout) clearTimeout(copiedTimeout);
+    copiedTimeout = setTimeout(() => {
       copied = false;
+      copiedTimeout = null;
     }, 2000);
   }
 </script>

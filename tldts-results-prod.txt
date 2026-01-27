@@ -1,3 +1,0 @@
-noot.smol.xyz -> smol.xyz
-smol.xyz -> smol.xyz
-www.smol.xyz -> smol.xyz

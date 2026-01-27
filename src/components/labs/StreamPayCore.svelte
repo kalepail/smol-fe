@@ -73,7 +73,9 @@
     onDestroy(() => {
         clearInterval(timer);
         if (audio) {
+            audio.removeEventListener("ended", handleNext);
             audio.pause();
+            audio.src = '';
             audio = null;
         }
         window.removeEventListener("beforeunload", handleUnload);

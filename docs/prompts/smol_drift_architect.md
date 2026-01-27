@@ -44,7 +44,7 @@ Replace the current visual prototype in `SmolDriftCore.svelte` with a **fully pl
 *   Ensure proper cleanup in `onDestroy` (dispose geometries/materials to prevent leaks).
 
 ## Code Structure (Single File for Copy-Paste Reliability)
-Provide the full content for `src/components/labs/SmolDriftCore.svelte`.
+Provide the full content for `src/components/labs/AsteroidsBackground.svelte`.
 
 ```typescript
 <script lang="ts">

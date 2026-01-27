@@ -16,6 +16,11 @@
         updateContractBalance,
     } from "../../stores/balance.svelte.ts";
 
+    // PROD FIX: If we have an OZ API key, use direct relayer regardless of hostname.
+    // This allows noot.smol.xyz to use OZ Channels directly without Turnstile.
+    const hasApiKey = !!import.meta.env.PUBLIC_RELAYER_API_KEY;
+    const isDirectRelayer = hasApiKey;
+
     interface Props {
         curatorAddress: string;
         curatorName?: string;
@@ -72,7 +77,7 @@
             return;
         }
 
-        if (!turnstileToken) {
+        if (!isDirectRelayer && !turnstileToken) {
             error = "please complete the captcha";
             return;
         }
@@ -231,8 +236,8 @@
 
         <!-- Action Buttons -->
         <div class="flex gap-2 items-center">
-            <!-- Visible Turnstile Wrapper to ensure it loads -->
-            {#if !submitting || needsVerification}
+            <!-- Visible Turnstile Wrapper to ensure it loads (only if not using direct relayer) -->
+            {#if !isDirectRelayer && (!submitting || needsVerification)}
                 {#if needsVerification}
                     <div
                         class="absolute inset-0 bg-black/80 z-20 flex flex-col items-center justify-center p-4 text-center rounded-2xl"
@@ -295,7 +300,7 @@
                     ? 'bg-lime-700/50 text-lime-200 cursor-wait'
                     : 'bg-lime-500 text-black hover:bg-lime-400 shadow-[0_0_15px_rgba(132,204,22,0.3)]'}"
                 onclick={handleSupport}
-                disabled={submitting || !turnstileToken}
+                disabled={submitting || (!isDirectRelayer && !turnstileToken)}
             >
                 {#if submitting}
                     <Loader

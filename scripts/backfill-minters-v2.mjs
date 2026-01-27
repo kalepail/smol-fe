@@ -7,7 +7,7 @@
  * - from: The minter's address (who paid for the mint)
  * 
  * Strategy:
- * 1. Get transactions from LaunchTube's source account
+ * 1. Get transactions from legacy relayer's source account
  * 2. For each invoke_host_function operation
  * 3. Check asset_balance_changes for matching song ID prefix
  * 4. Extract the 'from' field as the minter
@@ -23,14 +23,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const HORIZON_URL = 'https://horizon.stellar.org';
-const LAUNCHTUBE_SOURCE = 'GAALXAZVF6GW764VDOAD336OFCSW3HTQVPXGNAHXPJWWUO4PQ7D6VWBG';
+const LEGACY_RELAYER_SOURCE = 'GAALXAZVF6GW764VDOAD336OFCSW3HTQVPXGNAHXPJWWUO4PQ7D6VWBG';
 const SNAPSHOT_PATH = path.join(__dirname, '../src/data/smols-snapshot.json');
 
 async function fetchAllTransactions() {
     const allTxs = [];
-    let url = `${HORIZON_URL}/accounts/${LAUNCHTUBE_SOURCE}/transactions?limit=200&order=desc`;
+    let url = `${HORIZON_URL}/accounts/${LEGACY_RELAYER_SOURCE}/transactions?limit=200&order=desc`;
 
-    console.log('Fetching transactions from LaunchTube source...');
+    console.log('Fetching transactions from legacy relayer source...');
 
     while (url && allTxs.length < 2000) {
         console.log(`  Page... (${allTxs.length} txs so far)`);

@@ -8,7 +8,7 @@
 
 export const RPC_OPTIONS = [
     import.meta.env.PUBLIC_RPC_URL,  // Defaults to Ankr from wrangler.toml
-    "https://soroban-rpc.mainnet.stellar.org",  // Official Stellar RPC
+    "https://mainnet.stellar.org:443", // Official Stellar RPC (Corrected)
     "https://stellar-mainnet.publicnode.com"  // PublicNode fallback
 ].filter(Boolean) as string[];
 

@@ -17,32 +17,30 @@
         getEffectiveAnimationsEnabled(),
     );
 
-    // Sparkles Generation (Magic/Music Vibe)
-    // Reduced count in fast mode for performance
-    const sparkleCount = $derived(preferences.renderMode === "fast" ? 8 : 20);
-    const sparkles = $derived(
-        Array.from({ length: sparkleCount }).map(() => ({
-            top: Math.random() * 100 + "%",
-            left: Math.random() * 100 + "%",
-            delay: Math.random() * 5 + "s",
-            duration: 2 + Math.random() * 3 + "s",
-        })),
-    );
-
-    // Musical Notes Generation
-    // Reduced count in fast mode for performance
-    const noteCount = $derived(preferences.renderMode === "fast" ? 6 : 12);
+    // PERFORMANCE FIX: Generate animation elements ONCE on component init
+    // Using $state instead of $derived prevents re-generation on every render
+    // Also significantly reduced counts to prevent GPU stress (was 122 elements, now max 24)
     const noteChars = ["♩", "♪", "♫", "♬", "♭", "♯"];
-    const musicNotes = $derived(
-        Array.from({ length: noteCount }).map(() => ({
-            char: noteChars[Math.floor(Math.random() * noteChars.length)],
-            top: 60 + Math.random() * 40 + "%", // Start lower (near fields)
-            left: Math.random() * 100 + "%",
-            delay: Math.random() * 8 + "s",
-            duration: 4 + Math.random() * 4 + "s",
-            size: 0.8 + Math.random() * 0.8 + "rem",
-        })),
-    );
+
+    // Sparkles - reduced from 20 to 6 (fast: 8 to 3)
+    const sparkleCount = preferences.renderMode === "fast" ? 3 : 6;
+    const sparkles = Array.from({ length: sparkleCount }).map(() => ({
+        top: Math.random() * 100 + "%",
+        left: Math.random() * 100 + "%",
+        delay: Math.random() * 5 + "s",
+        duration: 2 + Math.random() * 3 + "s",
+    }));
+
+    // Musical Notes - reduced from 12 to 4 (fast: 6 to 2)
+    const noteCount = preferences.renderMode === "fast" ? 2 : 4;
+    const musicNotes = Array.from({ length: noteCount }).map(() => ({
+        char: noteChars[Math.floor(Math.random() * noteChars.length)],
+        top: 60 + Math.random() * 40 + "%",
+        left: Math.random() * 100 + "%",
+        delay: Math.random() * 8 + "s",
+        duration: 4 + Math.random() * 4 + "s",
+        size: 0.8 + Math.random() * 0.8 + "rem",
+    }));
 
     // Weather Simulation
     interface Props {
@@ -107,28 +105,22 @@
         return "bg-gradient-to-b from-[#020617] via-[#1e1b4b] to-[#312e81]"; // Night
     });
 
-    // Star Generation
-    // Reduced count in fast mode for performance
-    const starCount = $derived(preferences.renderMode === "fast" ? 20 : 50);
-    const stars = $derived(
-        Array.from({ length: starCount }).map(() => ({
-            top: Math.random() * 60 + "%", // Top 60% of screen only
-            left: Math.random() * 100 + "%",
-            delay: Math.random() * 2 + "s",
-            size: Math.random() > 0.8 ? "w-1 h-1" : "w-0.5 h-0.5",
-        })),
-    );
+    // Star Generation - reduced from 50 to 10 (fast: 20 to 5)
+    const starCount = preferences.renderMode === "fast" ? 5 : 10;
+    const stars = Array.from({ length: starCount }).map(() => ({
+        top: Math.random() * 60 + "%",
+        left: Math.random() * 100 + "%",
+        delay: Math.random() * 2 + "s",
+        size: Math.random() > 0.8 ? "w-1 h-1" : "w-0.5 h-0.5",
+    }));
 
-    // Rain/Snow Generation
-    // Reduced count in fast mode for performance
-    const dropCount = $derived(preferences.renderMode === "fast" ? 15 : 40);
-    const drops = $derived(
-        Array.from({ length: dropCount }).map(() => ({
-            left: Math.random() * 100 + "%",
-            delay: Math.random() * 2 + "s",
-            duration: 0.5 + Math.random() * 0.5 + "s",
-        })),
-    );
+    // Rain/Snow Generation - reduced from 40 to 8 (fast: 15 to 4)
+    const dropCount = preferences.renderMode === "fast" ? 4 : 8;
+    const drops = Array.from({ length: dropCount }).map(() => ({
+        left: Math.random() * 100 + "%",
+        delay: Math.random() * 2 + "s",
+        duration: 0.5 + Math.random() * 0.5 + "s",
+    }));
 </script>
 
 {#if !hidden}

@@ -32,7 +32,7 @@ npx create-video@latest remotion-studio
 ## Workflow
 
 1.  **Work Directory**: Always `cd remotion-studio` before running Remotion commands.
-2.  **Start Studio**: `npm start` (Runs on localhost:3000)
+2.  **Start Studio**: `npm start` (Runs on noot.smol.xyz)
 3.  **Render**: `npx remotion render Root <CompositionID> out.mp4`
 
 ## Prompting Guide for Animations (The "Claude Code" Way)

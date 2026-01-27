@@ -38,7 +38,7 @@ Make it unbreakable.
 
 ### Step 4: Inspection (Scaling & Monitoring)
 Verify it can handle the load.
-- **Bundle Size**: Watch `npm run build`. Keep payloads light.
+- **Bundle Size**: Watch `pnpm build`. Keep payloads light.
 - **Render Cycles**: Use DevTools to spot unnecessary re-renders. Use `memo` or signals where appropriate.
 - **Memory Leaks**: Ensure all listeners and intervals are cleared in `onDestroy`.
 
@@ -46,7 +46,7 @@ Verify it can handle the load.
 
 ### Step 1: Diagnostics (Gather Information)
 Before touching any code, check the diagnostics.
-- **Run Checks**: `npm run check`, `npm run build`, or `npm run lint`.
+- **Run Checks**: `pnpm check`, `pnpm build`, or `pnpm lint`.
 - **Read Logs**: Capture the *exact* error message, filename, and line number.
 - **Isolate**: Determine if the error is local (one file) or systemic.
 

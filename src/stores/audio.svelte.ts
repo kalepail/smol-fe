@@ -29,6 +29,9 @@ type AudioState = {
   playIntentId: string | null;
   // Next song for pre-caching
   nextSong: Smol | null;
+  // Playlist context - persists across navigation for fallback playback
+  playlist: Smol[];
+  playlistIndex: number;
 };
 
 // Load from localStorage if available
@@ -73,6 +76,9 @@ export const audioState = $state<AudioState>({
   wasInterrupted: false,
   playIntentId: null,
   nextSong: null,
+  // Playlist context for fallback navigation
+  playlist: [],
+  playlistIndex: -1,
 });
 
 // Helper to save state (throttled to avoid UI jank)
@@ -266,20 +272,57 @@ export function registerSongPrevCallback(callback: (() => void) | null) {
 }
 
 /**
- * Call the registered next song callback if it exists
+ * Set the playlist context for fallback playback
+ * This allows audio to continue through a playlist even when navigating
+ * to pages that don't have their own playlist (e.g., swapper, settings)
+ */
+export function setPlaylistContext(playlist: Smol[], currentIndex: number) {
+  audioState.playlist = playlist;
+  audioState.playlistIndex = currentIndex;
+}
+
+/**
+ * Update just the playlist index (when song changes within same playlist)
+ */
+export function updatePlaylistIndex(index: number) {
+  audioState.playlistIndex = index;
+}
+
+/**
+ * Call the registered next song callback if it exists,
+ * otherwise use the stored playlist context as fallback
  */
 export function playNextSong() {
   if (audioState.songNextCallback) {
     audioState.songNextCallback();
+  } else if (audioState.playlist.length > 0 && audioState.playlistIndex >= 0) {
+    // Fallback: use stored playlist context
+    const nextIndex = (audioState.playlistIndex + 1) % audioState.playlist.length;
+    const nextSong = audioState.playlist[nextIndex];
+    if (nextSong) {
+      audioState.playlistIndex = nextIndex;
+      selectSong(nextSong);
+    }
   }
 }
 
 /**
- * Call the registered previous song callback if it exists
+ * Call the registered previous song callback if it exists,
+ * otherwise use the stored playlist context as fallback
  */
 export function playPrevSong() {
   if (audioState.songPrevCallback) {
     audioState.songPrevCallback();
+  } else if (audioState.playlist.length > 0 && audioState.playlistIndex >= 0) {
+    // Fallback: use stored playlist context
+    const prevIndex = audioState.playlistIndex === 0
+      ? audioState.playlist.length - 1
+      : audioState.playlistIndex - 1;
+    const prevSong = audioState.playlist[prevIndex];
+    if (prevSong) {
+      audioState.playlistIndex = prevIndex;
+      selectSong(prevSong);
+    }
   }
 }
 
@@ -316,6 +359,11 @@ export function initAudioContext(force = false) {
     // If we re-mounted, the element changed, so the old source is invalid for the new element.
     if (cached.source.mediaElement !== audioElement) {
       try {
+        // Disconnect old source to prevent memory leak
+        try {
+          cached.source.disconnect();
+        } catch (e) { /* already disconnected */ }
+
         const newSource = cached.context.createMediaElementSource(audioElement);
         newSource.connect(cached.analyser);
 
@@ -347,6 +395,11 @@ export function initAudioContext(force = false) {
     if (audioState.sourceNode.mediaElement !== audioElement) {
       // This case handles store persistence without window cache (rare but possible)
       try {
+        // Disconnect old source to prevent memory leak
+        try {
+          audioState.sourceNode.disconnect();
+        } catch (e) { /* already disconnected */ }
+
         const ctx = audioState.audioContext;
         const newSource = ctx.createMediaElementSource(audioElement);
         newSource.connect(audioState.analyser);

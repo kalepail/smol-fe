@@ -31,7 +31,7 @@ Follow these conventions when developing for Smol FE.
 - **Client Hydration**: Use `client:only="svelte"` for interactive components.
 
 ## 4. State Management 📊
-- **Global Stores**: Located in `src/stores/*.svelte.ts`
+- **Global Stores**: Located in `src/stores/`
   - `userState` — Authentication, contractId, keyId
   - `balanceState` — XLM and KALE balances
   - `audioState` — Playback state
@@ -59,11 +59,11 @@ PUBLIC_SOROSWAP_API_KEY → Soroswap API access
 - See `blockchain-transactions` skill for detailed Stellar/Soroban patterns.
 
 ## 8. Testing & Deployment 🚀
-- **Build**: `npm run build`
+- **Build**: `pnpm build`
 - **Lint**: `npx astro check` & `npx svelte-check`
 - **Verification**: Run the **Ralph Loop** pattern for any high-risk changes (Passkeys, TX flows).
-- **Build**: `npm run build`
-- **Local Dev**: `npm run dev` (requires HTTPS for passkeys)
+- **Build**: `pnpm build`
+- **Local Dev**: `pnpm dev` (requires HTTPS for passkeys)
 - **Deployment**: PR to `kalepail/smol-fe:noot` branch for noot.smol.xyz
 
 ## 9. Troubleshooting 🔧

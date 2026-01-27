@@ -72,7 +72,7 @@
 | Priority | Issue | Fix | Impact | Effort |
 | :--- | :--- | :--- | :--- | :--- |
 | **P0** | **Empty RSS Feed** | Implement real data fetching in `rss.xml.ts` (fetch from `api.smol.xyz/recent` or snapshot). | **Critical** (Freshness) | Medium |
-| **P1** | **Missing Organization Entity** | Create `src/lib/schema.ts` with a robust `Organization` definition and inject it globally. | **High** (Knowledge Graph) | Low |
+| **P1** | **Missing Organization Entity** | Create `src/utils/seo-schema.ts` with a robust `Organization` definition and inject it globally. | **High** (Knowledge Graph) | Low |
 | **P1** | **Missing Product Schema** | Add `Product` schema to `store.astro` for Premium/Badge items. | **High** (Shopping/Answer) | Low |
 | **P2** | **Static LLMS.txt** | Update `llms.txt` with truly recent links or automate it. | **Medium** (CrawlQ) | Low |
 | **P2** | **Song Schema Enhancement** | Add `potentialAction` (Listen) and `offers` (Mint) to `[id].astro`. | **Medium** (Rich Results) | Low |

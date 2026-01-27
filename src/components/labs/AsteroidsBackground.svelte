@@ -272,12 +272,14 @@
     // --- initialization ---
     let ship: Ship;
     let asteroids: Asteroid[] = [];
+    let resizeHandler: (() => void) | null = null;
+    let pendingSpawnTimeouts: ReturnType<typeof setTimeout>[] = [];
 
     onMount(() => {
         if (!canvas) return;
         ctx = canvas.getContext("2d");
 
-        const resize = () => {
+        resizeHandler = () => {
             if (!canvas) return;
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
@@ -285,8 +287,8 @@
             // Reset ship to safe zone top left if needed, or just outside center
             if (!ship) ship = new Ship(100, 100);
         };
-        window.addEventListener("resize", resize);
-        resize();
+        window.addEventListener("resize", resizeHandler);
+        resizeHandler();
 
         // Spawn Asteroids
         for (let i = 0; i < 8; i++) {
@@ -333,14 +335,18 @@
 
                         // Respawn big one elsewhere to keep density
                         if (asteroids.length < 5) {
-                            setTimeout(() => {
+                            const spawnTimeout = setTimeout(() => {
                                 // Spawn far from ship
                                 let sx = Math.random() * w;
                                 let sy = Math.random() * h;
                                 if (Math.hypot(sx - ship.x, sy - ship.y) < 300)
                                     sx += 300;
                                 asteroids.push(new Asteroid(sx, sy, 40));
+                                // Remove from tracking array
+                                const idx = pendingSpawnTimeouts.indexOf(spawnTimeout);
+                                if (idx > -1) pendingSpawnTimeouts.splice(idx, 1);
                             }, 1000);
+                            pendingSpawnTimeouts.push(spawnTimeout);
                         }
                     }
                 }
@@ -359,6 +365,13 @@
     onDestroy(() => {
         if (typeof window !== "undefined") {
             cancelAnimationFrame(animationFrameId);
+            if (resizeHandler) {
+                window.removeEventListener("resize", resizeHandler);
+                resizeHandler = null;
+            }
+            // Clear all pending spawn timeouts
+            pendingSpawnTimeouts.forEach(t => clearTimeout(t));
+            pendingSpawnTimeouts = [];
         }
     });
 </script>

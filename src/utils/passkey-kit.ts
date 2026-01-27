@@ -54,11 +54,21 @@ export const xlm = {
     get: () => sac.get().getSACClient(import.meta.env.PUBLIC_XLM_SAC_ID || "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA")
 };
 
+export const usdc = {
+    get: () => sac.get().getSACClient("CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75")
+};
+
 /**
  * Send a transaction through the relayer proxy.
  * Supports two modes:
  * 1. DIRECT (OZ): Uses PUBLIC_RELAYER_API_KEY + channels.openzeppelin.com (Bypasses Turnstile)
  * 2. PROXY (KALE): Uses Turnstile token + api.kalefarm.xyz
+ *
+ * AI DEBUG GUIDE:
+ * - If "DIRECT mode" logs appear but fails with 503: OZ relayer is overloaded
+ * - If "PROXY mode" fails with "Missing X-Turnstile-Response": No captcha token available
+ * - If failover attempted but fails: pages.dev users can't use PROXY (no Turnstile)
+ * - Check isDirectMode to see which path is taken
  */
 export async function send<T>(txn: AssembledTransaction<T> | Tx | string, turnstileToken?: string) {
     // Extract XDR from transaction
@@ -73,90 +83,132 @@ export async function send<T>(txn: AssembledTransaction<T> | Tx | string, turnst
 
     const apiKey = import.meta.env.PUBLIC_RELAYER_API_KEY;
     const isDirectMode = !!apiKey;
+    const hostname = typeof window !== 'undefined' ? window.location.hostname : 'server';
+    const storedToken = getTurnstileToken();
 
-    // Default to KaleFarm if no API key is present
-    let relayerUrl = import.meta.env.PUBLIC_RELAYER_URL || "https://api.kalefarm.xyz";
+    // AI DEBUG: Log relayer decision context
+    console.log('[Relayer] Configuration:', {
+        mode: isDirectMode ? 'DIRECT (OZ)' : 'PROXY (KaleFarm)',
+        hasApiKey: !!apiKey,
+        hostname,
+        hasTurnstileToken: !!(turnstileToken || storedToken),
+        turnstileSource: turnstileToken ? 'passed' : storedToken ? 'stored' : 'none',
+        xdrLength: xdr.length,
+    });
+
+    let relayerUrl = "";
     let headers: Record<string, string> = {
         'Content-Type': 'application/json',
     };
 
-    if (isDirectMode) {
-        // Path 2: Direct to OpenZeppelin Channels
-        relayerUrl = "https://channels.openzeppelin.com";
-        headers['Authorization'] = `Bearer ${apiKey}`;
-
-        // Log intent (pre-send)
-        // logger.info(LogCategory.TRANSACTION, "Relayer Request (DIRECT)", { url: relayerUrl });
-    } else {
-        // Path 1: Proxy through KaleFarm with Turnstile
-        const token = turnstileToken || getTurnstileToken();
-        if (!token) {
-            throw new Error('Turnstile token not available');
+    const getRelayerConfig = (useDirect: boolean) => {
+        if (useDirect) {
+            return {
+                url: "https://channels.openzeppelin.com",
+                headers: { ...headers, 'Authorization': `Bearer ${apiKey}` },
+                body: { params: { xdr } }
+            };
+        } else {
+            const token = turnstileToken || getTurnstileToken();
+            const isLocalhost = typeof window !== 'undefined' && window.location.hostname.includes('localhost');
+            if (!token && !isLocalhost) {
+                // If we are on pages.dev and have no token, this might fail unless we promote.
+                // But for now, we try.
+            }
+            return {
+                url: import.meta.env.PUBLIC_RELAYER_URL || "https://api.kalefarm.xyz",
+                headers: { ...headers, 'X-Turnstile-Response': token || '' },
+                body: { xdr }
+            };
         }
-        headers['X-Turnstile-Response'] = token;
-        // logger.info(LogCategory.TRANSACTION, "Relayer Request (PROXY)", { url: relayerUrl, has_turnstile: !!token });
-    }
-
-    if (!relayerUrl) {
-        throw new Error('Relayer URL not configured');
-    }
-
-    // Capture Request Debug Info for Dump
-    const requestDebug = {
-        url: relayerUrl,
-        method: 'POST',
-        headers: headers,
-        body: isDirectMode ? { params: { xdr } } : { xdr }
     };
 
-    let responseDebug: any = {};
+    async function attemptSend(useDirect: boolean) {
+        const config = getRelayerConfig(useDirect);
 
-    try {
-        const response = await fetch(relayerUrl, {
+        const requestDebug = {
+            url: config.url,
             method: 'POST',
-            headers,
-            body: JSON.stringify(isDirectMode ? { params: { xdr } } : { xdr }),
+            headers: config.headers,
+            body: config.body
+        };
+
+        const response = await fetch(config.url, {
+            method: 'POST',
+            headers: config.headers,
+            body: JSON.stringify(config.body),
         });
 
-        // Capture Response Headers
-        const responseHeaders = Object.fromEntries(response.headers.entries());
         const responseText = await response.text();
-
-        responseDebug = {
+        const responseDebug = {
             status: response.status,
             statusText: response.statusText,
-            headers: responseHeaders,
+            headers: Object.fromEntries(response.headers.entries()),
             body: responseText
         };
 
-        // Log the full interaction for the Dump button
-        logger.info(LogCategory.RELAYER, "Relayer Interaction", {
+        logger.info(LogCategory.RELAYER, `Relayer Interaction (${useDirect ? 'DIRECT' : 'PROXY'})`, {
             request: requestDebug,
             response: responseDebug
         });
 
         if (!response.ok) {
-            // Re-throw with detailed debugging info
-            const debugInfo = {
-                ...responseDebug,
-                url: relayerUrl,
-                mode: isDirectMode ? 'DIRECT' : 'PROXY'
-            };
-            logger.error(LogCategory.TRANSACTION, `Relayer Failure (${response.status})`, debugInfo);
-            throw new Error(`Relayer proxy error: ${responseText || response.statusText}`);
+            throw { status: response.status, text: responseText, isDirect: useDirect };
         }
 
-        const result = JSON.parse(responseText);
-        logger.info(LogCategory.TRANSACTION, "Relayer Success", { hash: result.hash || result.transactionHash });
-        return result;
+        return JSON.parse(responseText);
+    }
 
+    try {
+        if (isDirectMode) {
+            console.log('[Relayer] Attempting DIRECT mode (OZ)...');
+            try {
+                const result = await attemptSend(true);
+                console.log('[Relayer] DIRECT mode SUCCESS:', { hash: result.hash || result.transactionHash });
+                return result;
+            } catch (err: any) {
+                // AI DEBUG: Log the exact failure reason
+                console.error('[Relayer] DIRECT mode FAILED:', {
+                    status: err.status,
+                    text: err.text?.substring(0, 200),
+                    isDirect: err.isDirect,
+                });
+
+                // FAILOVER: If OZ is 503/502, try KaleFarm ONLY if we have a Turnstile token
+                // pages.dev users won't have Turnstile, so don't failover for them
+                if ((err.status === 503 || err.status === 502)) {
+                    const token = turnstileToken || getTurnstileToken();
+                    console.log('[Relayer] Checking failover eligibility:', {
+                        ozStatus: err.status,
+                        hasTurnstileForFailover: !!token,
+                        willFailover: !!token,
+                    });
+                    if (token) {
+                        console.warn('[Relayer] DIRECT mode failed, attempting failover to PROXY...');
+                        return await attemptSend(false);
+                    } else {
+                        console.warn('[Relayer] DIRECT mode failed (503), no Turnstile token for failover');
+                        // AI DEBUG: This is the key error for pages.dev users when OZ is down
+                        throw new Error('Relayer temporarily unavailable. Please try again in a moment.');
+                    }
+                }
+                throw err;
+            }
+        } else {
+            console.log('[Relayer] Attempting PROXY mode (KaleFarm)...');
+            const result = await attemptSend(false);
+            console.log('[Relayer] PROXY mode SUCCESS:', { hash: result.hash || result.transactionHash });
+            return result;
+        }
     } catch (e: any) {
-        if (!responseDebug.status) {
-            logger.error(LogCategory.RELAYER, "Relayer Network Failure", {
-                request: requestDebug,
-                error: e.message
-            });
-        }
-        throw e;
+        const msg = e.text || e.message || "Relayer failure";
+        // AI DEBUG: Final failure with full context
+        logger.error(LogCategory.TRANSACTION, `Final Relayer Failure`, {
+            error: msg,
+            mode: isDirectMode ? 'DIRECT' : 'PROXY',
+            hostname,
+            hadTurnstile: !!(turnstileToken || storedToken),
+        });
+        throw new Error(`Relayer proxy error: ${msg}`);
     }
 }

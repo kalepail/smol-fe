@@ -1,3 +1,11 @@
+<!--
+CONTRACT:
+- SSOT: [STATE_OF_WORLD.md | Subordinate]
+- AUDIENCE: [Dev | Agent]
+- NATURE: [Current]
+- LAST_HARDENED: 2026-01-27
+- VERIFICATION_METHOD: [Link check | Claim check | State trace]
+-->
 # Routes and Pages
 
 ## Route Inventory
@@ -10,7 +18,7 @@ Generated from `src/pages`.
 | `/[id]` | `src/pages/[id].astro` | SSR | `SmolResults.svelte` | SSR Fetch + Client Fetch |
 | `/create` | `src/pages/create.astro` | SSR | `Smol.svelte` (client:only) | `useSmolGeneration` |
 | `/radio` | `src/pages/radio.astro` | SSR | `RadioBuilder.svelte` | Snapshot + Live |
-| `/artists` | `src/pages/artists.astro` | SSR | `ArtistList.svelte` | Unknown |
+| `/artists` | `src/pages/artists.astro` | SSR | `ArtistsIndex.svelte` | Client Fetch |
 
 ### Navigation Mechanics: Create Flow
 **File:** `src/hooks/useSmolGeneration.ts`

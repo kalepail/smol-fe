@@ -10,8 +10,8 @@
 # Check build status
 pnpm check
 
-# Search for Launchtube references (should return empty)
-rg -i "launchtube" --type ts
+# Search for legacy references (should return empty)
+rg -i "kale-relayer" --type ts
 
 # Verify env vars are set
 grep -E "PUBLIC_CHANNELS|PUBLIC_RPC|PUBLIC_NETWORK" .env

@@ -376,15 +376,21 @@
 
     // Copy any value to clipboard with visual feedback
     let copiedField = $state<string | null>(null);
+    let copiedFieldTimeout: ReturnType<typeof setTimeout> | null = null;
     async function copyToClipboard(
         value: string | undefined | null,
         fieldName: string,
     ) {
         if (!value) return;
+        // Clear any existing timeout to prevent accumulation
+        if (copiedFieldTimeout) clearTimeout(copiedFieldTimeout);
         try {
             await navigator.clipboard.writeText(value);
             copiedField = fieldName;
-            setTimeout(() => (copiedField = null), 1500);
+            copiedFieldTimeout = setTimeout(() => {
+                copiedField = null;
+                copiedFieldTimeout = null;
+            }, 1500);
         } catch (e) {
             // Fallback for older browsers
             const textarea = document.createElement("textarea");
@@ -394,7 +400,10 @@
             document.execCommand("copy");
             document.body.removeChild(textarea);
             copiedField = fieldName;
-            setTimeout(() => (copiedField = null), 1500);
+            copiedFieldTimeout = setTimeout(() => {
+                copiedField = null;
+                copiedFieldTimeout = null;
+            }, 1500);
         }
     }
 </script>

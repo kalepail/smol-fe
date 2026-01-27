@@ -1,6 +1,7 @@
 <script lang="ts">
-    import { account, sac, kale, xlm } from "../../utils/passkey-kit";
+    import { account, sac, kale, xlm, usdc } from "../../utils/passkey-kit";
     import { onMount, tick } from "svelte";
+    import confetti from "canvas-confetti";
     import { getSafeRpId } from "../../utils/domains";
     import { Buffer } from "buffer";
     import {
@@ -25,6 +26,7 @@
     import {
         balanceState,
         updateAllBalances,
+        getUsdcBalance,
     } from "../../stores/balance.svelte.ts";
     import {
         signSendAndVerify,
@@ -34,32 +36,22 @@
     import { Turnstile } from "svelte-turnstile";
     import { Transaction, Networks } from "@stellar/stellar-sdk";
 
-    import {
-        getXBullQuote,
-        buildXBullTransaction,
-    } from "../../utils/xbull-api";
-
     // --- DEBUG LOGIC ---
-    const isPagesDev =
-        typeof window !== "undefined" &&
-        window.location.hostname.includes("pages.dev");
-    const isLocalhost =
-        typeof window !== "undefined" &&
-        window.location.hostname.includes("localhost");
+    // PROD FIX: If we have an OZ API key, use direct relayer regardless of hostname.
+    // This allows noot.smol.xyz to use OZ Channels directly without Turnstile.
     const hasApiKey = !!import.meta.env.PUBLIC_RELAYER_API_KEY;
-    const isDirectRelayer = (isPagesDev || isLocalhost) && hasApiKey;
+    const isDirectRelayer = hasApiKey;
 
     console.log("[Swapper Debug]", {
         isDirectRelayer,
-        isPagesDev,
-        isLocalhost,
         hasApiKey,
+        hostname: typeof window !== "undefined" ? window.location.hostname : "server",
     });
 
     // --- TYPES ---
     type AppState = "intro" | "transition" | "main";
     type Mode = "swap" | "send";
-    type Provider = "soroswap" | "xbull";
+
     type SwapState =
         | "idle"
         | "quoting"
@@ -81,7 +73,9 @@
 
     // Swap Logic
     let swapState = $state<SwapState>("idle");
-    let direction = $state<SwapDirection>("XLM_TO_KALE");
+    // Refactored from fixed direction to flexible tokens
+    let swapInToken = $state<"XLM" | "KALE" | "USDC">("XLM");
+    let swapOutToken = $state<"XLM" | "KALE" | "USDC">("KALE");
 
     // Bi-Directional Input State
     let swapAmount = $state(""); // Top Input (Sell)
@@ -96,34 +90,32 @@
     let turnstileFailed = $state(false); // Fallback mode when Turnstile returns 401
 
     // Provider Logic
-    let provider = $state<Provider>("soroswap");
 
     // Send Logic
     let sendTo = $state("");
     let sendAmount = $state("");
-    let sendToken = $state<"XLM" | "KALE">("XLM");
+    let sendToken = $state<"XLM" | "KALE" | "USDC">("XLM");
 
     // Balances
     let xlmBalance = $derived(balanceState.xlmBalance);
     let kaleBalance = $derived(balanceState.balance);
+    let usdcBalance = $derived(balanceState.usdcBalance);
 
     // Derived Display
-    let tokenInSymbol = $derived(
-        mode === "swap"
-            ? direction === "XLM_TO_KALE"
-                ? "XLM"
-                : "KALE"
-            : sendToken,
-    );
-    let tokenOutSymbol = $derived(direction === "XLM_TO_KALE" ? "KALE" : "XLM");
+    let tokenInSymbol = $derived(mode === "swap" ? swapInToken : sendToken);
+    let tokenOutSymbol = $derived(swapOutToken);
     let balanceIn = $derived(
         mode === "swap"
-            ? direction === "XLM_TO_KALE"
+            ? swapInToken === "XLM"
                 ? xlmBalance
-                : kaleBalance
+                : swapInToken === "KALE"
+                  ? kaleBalance
+                  : usdcBalance
             : sendToken === "XLM"
               ? xlmBalance
-              : kaleBalance,
+              : sendToken === "KALE"
+                ? kaleBalance
+                : usdcBalance,
     );
 
     // --- UTILS ---
@@ -159,13 +151,39 @@
     }
 
     function toggleDirection() {
-        direction = direction === "XLM_TO_KALE" ? "KALE_TO_XLM" : "XLM_TO_KALE";
+        const temp = swapInToken;
+        swapInToken = swapOutToken;
+        swapOutToken = temp;
         swapAmount = "";
         swapOutputAmount = "";
         lastEdited = "in";
         quote = null;
         quoteError = "";
         swapState = "idle";
+    }
+
+    const TOKENS_LIST: ("XLM" | "KALE" | "USDC")[] = ["XLM", "KALE", "USDC"];
+
+    function cycleTokenIn() {
+        const idx = TOKENS_LIST.indexOf(swapInToken);
+        let next = TOKENS_LIST[(idx + 1) % TOKENS_LIST.length];
+        if (next === swapOutToken) {
+            next = TOKENS_LIST[(idx + 2) % TOKENS_LIST.length];
+        }
+        swapInToken = next;
+        quote = null;
+        if (swapAmount || swapOutputAmount) fetchQuote();
+    }
+
+    function cycleTokenOut() {
+        const idx = TOKENS_LIST.indexOf(swapOutToken);
+        let next = TOKENS_LIST[(idx + 1) % TOKENS_LIST.length];
+        if (next === swapInToken) {
+            next = TOKENS_LIST[(idx + 2) % TOKENS_LIST.length];
+        }
+        swapOutToken = next;
+        quote = null;
+        if (swapAmount || swapOutputAmount) fetchQuote();
     }
 
     function getImpactColor(pct: string | undefined): string {
@@ -175,6 +193,25 @@
         if (val <= 5) return "#4ade80"; // Green
         if (val <= 10) return "#facc15"; // Yellow
         return "#ef4444"; // Red
+    }
+
+    function triggerSuccessConfetti() {
+        const btn = document.querySelector(".action-btn");
+        const rect = btn?.getBoundingClientRect();
+
+        if (rect) {
+            // Normalized coordinates (0-1)
+            const x = (rect.left + rect.width / 2) / window.innerWidth;
+            const y = (rect.top + rect.height / 2) / window.innerHeight;
+
+            confetti({
+                particleCount: 150,
+                spread: 70,
+                origin: { x, y },
+                colors: ["#94db03", "#ffffff", "#fdda24"],
+                zIndex: 10000,
+            });
+        }
     }
 
     // --- LIFECYCLE ---
@@ -261,48 +298,23 @@
 
             try {
                 const stroops = toStroops(amountStr);
-                const assetIn =
-                    direction === "XLM_TO_KALE" ? TOKENS.XLM : TOKENS.KALE;
-                const assetOut =
-                    direction === "XLM_TO_KALE" ? TOKENS.KALE : TOKENS.XLM;
+                const assetIn = TOKENS[swapInToken];
+                const assetOut = TOKENS[swapOutToken];
                 const tradeType =
                     lastEdited === "in" ? "EXACT_IN" : "EXACT_OUT";
 
                 let result;
-                if (provider === "soroswap") {
-                    result = await getQuote({
-                        tokenIn: assetIn,
-                        tokenOut: assetOut,
-                        amountIn: Number(stroops),
-                        tradeType,
-                        slippageBps: 500, // 5% (matches Tyler's ohloss implementation)
-                    });
-                } else {
-                    // xBull API
-                    const sender = userState.contractId || undefined;
-                    const xbullResult = await getXBullQuote({
-                        fromAsset: assetIn,
-                        toAsset: assetOut,
-                        fromAmount: String(stroops),
-                        sender: sender,
-                    });
-
-                    // Map xBull response to local QuoteResponse format
-                    result = {
-                        amountIn: xbullResult.fromAmount,
-                        amountOut: xbullResult.toAmount,
-                        minAmountOut: xbullResult.toAmount, // xBull pre-calculates slippage in toAmount maybe? or user sets minToGet in accept
-                        price: (
-                            Number(xbullResult.toAmount) /
-                            Number(xbullResult.fromAmount)
-                        ).toFixed(7),
-                        path: [], // xBull handles routing internally via UUID
-                        tradeType,
-                        // Custom props for xBull
-                        xbullRoute: xbullResult.route,
-                        otherAmountThreshold: xbullResult.toAmount, // Placeholder
-                    } as any;
+                if (isCAddress(userState.contractId)) {
+                    // Logic for C-Address if needed, or identical
                 }
+
+                result = await getQuote({
+                    tokenIn: assetIn,
+                    tokenOut: assetOut,
+                    amountIn: Number(stroops),
+                    tradeType,
+                    slippageBps: 500, // 5% (matches Tyler's ohloss implementation)
+                });
 
                 quote = result;
 
@@ -352,32 +364,19 @@
 
         try {
             let tx;
-            if (provider === "soroswap") {
-                if (isCAddress(userState.contractId)) {
-                    tx = await buildSwapTransactionForCAddress(
-                        quote,
-                        userState.contractId,
-                    );
-                } else {
-                    const result = await buildTransaction(
-                        quote,
-                        userState.contractId,
-                        userState.contractId,
-                    );
-                    tx = new Transaction(
-                        result.xdr,
-                        import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
-                    );
-                }
+
+            if (isCAddress(userState.contractId)) {
+                tx = await buildSwapTransactionForCAddress(
+                    quote,
+                    userState.contractId,
+                );
             } else {
-                const result = await buildXBullTransaction({
-                    fromAmount: (quote as any).amountIn,
-                    minToGet: (quote as any).amountOut,
-                    route: (quote as any).xbullRoute,
-                    sender: userState.contractId,
-                    recipient: userState.contractId,
-                    gasless: false,
-                });
+                // Update buildTransaction to use flexible tokens
+                const result = await buildTransaction(
+                    quote,
+                    userState.contractId,
+                    userState.contractId,
+                );
                 tx = new Transaction(
                     result.xdr,
                     import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
@@ -401,6 +400,7 @@
             txHash = sendResult.transactionHash || "submitted";
             swapState = "confirmed";
             statusMessage = "Swap complete!";
+            triggerSuccessConfetti();
 
             // Reset
             swapAmount = "";
@@ -444,13 +444,16 @@
         statusMessage = `Sending ${sendToken}...`;
 
         try {
-            const tx = await (sendToken === "KALE" ? kale : xlm)
-                .get()
-                .transfer({
-                    from: userState.contractId,
-                    to: recipient,
-                    amount: amountInStroops,
-                });
+            let client;
+            if (sendToken === "KALE") client = kale;
+            else if (sendToken === "USDC") client = usdc;
+            else client = xlm;
+
+            const tx = await client.get().transfer({
+                from: userState.contractId,
+                to: recipient,
+                amount: amountInStroops,
+            });
 
             swapState = "submitting";
             statusMessage = "Submitting transfer...";
@@ -469,6 +472,7 @@
             txHash = sendResult.transactionHash || "submitted";
             swapState = "confirmed";
             statusMessage = `Sent ${amountNum} ${sendToken}!`;
+            triggerSuccessConfetti();
 
             // Reset
             sendTo = "";
@@ -521,6 +525,21 @@
                             >{formatBigInt(kaleBalance, 2)}</span
                         >
                     </div>
+                    <div
+                        class="bg-[#0f172a]/60 px-3 py-2 rounded-lg border border-[#1e293b] flex items-center gap-2 shadow-sm backdrop-blur-sm"
+                    >
+                        <img
+                            src="https://cryptologos.cc/logos/usd-coin-usdc-logo.png"
+                            alt="USDC"
+                            class="w-3 h-3 object-contain opacity-90"
+                        />
+                        <span class="text-[#2775ca] uppercase tracking-wider"
+                            >USDC</span
+                        >
+                        <span class="text-[#e2e8f0] drop-shadow-sm"
+                            >{formatBigInt(usdcBalance, 2)}</span
+                        >
+                    </div>
                 </div>
                 <button
                     onclick={refreshBalances}
@@ -545,7 +564,6 @@
                         : "SERVER"}
                 </div>
                 <div>KEY: {hasApiKey ? "PRESENT" : "MISSING"}</div>
-                <div>IS_DEV: {isPagesDev || isLocalhost ? "YES" : "NO"}</div>
                 <div>
                     CFG_URL: {import.meta.env.PUBLIC_RELAYER_URL || "N/A"}
                 </div>
@@ -574,38 +592,6 @@
 
                 <div class="p-6 md:p-8 flex flex-col gap-6">
                     {#if mode === "swap"}
-                        <!-- PROVIDER TOGGLE -->
-                        <div class="flex justify-center gap-2 mb-2">
-                            <button
-                                class="px-3 py-1 text-[10px] font-mono tracking-wider rounded-full border transition-all {provider ===
-                                'soroswap'
-                                    ? 'bg-white text-black border-white'
-                                    : 'bg-transparent text-white/50 border-white/20 hover:text-white hover:border-white/50'}"
-                                onclick={() => {
-                                    provider = "soroswap";
-                                    quote = null;
-                                    if (swapAmount || swapOutputAmount)
-                                        fetchQuote();
-                                }}
-                            >
-                                SOROSWAP
-                            </button>
-                            <button
-                                class="px-3 py-1 text-[10px] font-mono tracking-wider rounded-full border transition-all {provider ===
-                                'xbull'
-                                    ? 'bg-white text-black border-white'
-                                    : 'bg-transparent text-white/50 border-white/20 hover:text-white hover:border-white/50'}"
-                                onclick={() => {
-                                    provider = "xbull";
-                                    quote = null;
-                                    if (swapAmount || swapOutputAmount)
-                                        fetchQuote();
-                                }}
-                            >
-                                XBULL
-                            </button>
-                        </div>
-
                         <!-- SWAP MODE -->
                         <div class="flex flex-col gap-2">
                             <!-- INPUT (TOP) -->
@@ -617,10 +603,15 @@
                                     placeholder="0.0"
                                     class="w-full bg-transparent text-[#f1f5f9] text-2xl focus:outline-none font-[inherit] placeholder-[#334155]"
                                 />
-                                <span
-                                    class="text-xs text-[#94a3b8] ml-2 tracking-wider"
-                                    >{tokenInSymbol}</span
+
+                                <button
+                                    class="text-xs text-[#94a3b8] ml-2 tracking-wider hover:text-white hover:bg-white/10 px-2 py-1 rounded transition-colors flex items-center gap-1"
+                                    onclick={cycleTokenIn}
                                 >
+                                    {tokenInSymbol}
+                                    <span class="text-[10px] opacity-50">▼</span
+                                    >
+                                </button>
                             </div>
 
                             <!-- FLIPPER BRIDGE (Compact) -->
@@ -650,10 +641,15 @@
                                         class="w-full bg-transparent text-[#f1f5f9] text-2xl focus:outline-none font-[inherit] placeholder-[#334155]"
                                     />
                                 {/if}
-                                <span
-                                    class="text-xs text-[#94a3b8] ml-2 tracking-wider"
-                                    >{tokenOutSymbol}</span
+
+                                <button
+                                    class="text-xs text-[#94a3b8] ml-2 tracking-wider hover:text-white hover:bg-white/10 px-2 py-1 rounded transition-colors flex items-center gap-1"
+                                    onclick={cycleTokenOut}
                                 >
+                                    {tokenOutSymbol}
+                                    <span class="text-[10px] opacity-50">▼</span
+                                    >
+                                </button>
                             </div>
                         </div>
                     {:else}
@@ -678,6 +674,14 @@
                                         : 'text-[#64748b]'}"
                                     onclick={() => (sendToken = "KALE")}
                                     >KALE</button
+                                >
+                                <button
+                                    class="flex-1 py-3 text-[10px] rounded-lg transition-all {sendToken ===
+                                    'USDC'
+                                        ? 'bg-[#2775ca] text-white shadow-sm'
+                                        : 'text-[#64748b]'}"
+                                    onclick={() => (sendToken = "USDC")}
+                                    >USDC</button
                                 >
                             </div>
 

@@ -9,6 +9,7 @@
   import {
     audioState,
     registerSongNextCallback,
+    setPlaylistContext,
   } from "../../stores/audio.svelte.ts";
   import { userState } from "../../stores/user.svelte.ts";
   import { useMixtapeMinting } from "../../hooks/useMixtapeMinting";
@@ -301,6 +302,13 @@
     mintingHook.clearAllMintPolling();
     // Unregister the callback when this component is destroyed
     registerSongNextCallback(null);
+  });
+
+  // Store playlist context for fallback playback when navigating to pages without playlists
+  $effect(() => {
+    if (mixtapeTracks.length > 0) {
+      setPlaylistContext(mixtapeTracks, Math.max(0, currentTrackIndex));
+    }
   });
 
   function handleBalanceUpdated(trackId: string, balance: bigint) {

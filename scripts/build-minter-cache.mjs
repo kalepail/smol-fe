@@ -23,8 +23,8 @@ const __dirname = path.dirname(__filename);
 
 const SMOL_ISSUER = 'GBVJZCVQIKK7SL2K6NL4BO6ZYNXAGNVBTAQDDNOIJ5VPP3IXCSE2SMOL';
 const HORIZON_URL = 'https://horizon.stellar.org';
-const SNAPSHOT_PATH = path.join(__dirname, '../src/data/smols-snapshot.json');
-const CACHE_PATH = path.join(__dirname, '../src/data/minter-cache.json');
+const SNAPSHOT_PATH = path.join(__dirname, '../public/data/GalacticSnapshot.json');
+const CACHE_PATH = path.join(__dirname, '../public/data/minter-cache.json');
 
 /**
  * Fetch all operations for the SMOL issuer account from Horizon
@@ -111,7 +111,10 @@ function buildMinterCache(operations) {
 async function enrichSnapshot(minterCache) {
     console.log('Loading snapshot...');
     const raw = await fs.readFile(SNAPSHOT_PATH, 'utf8');
-    const snapshot = JSON.parse(raw);
+    let snapshot = JSON.parse(raw);
+    if (!Array.isArray(snapshot) && snapshot.songs) {
+        snapshot = snapshot.songs;
+    }
 
     console.log(`Snapshot has ${snapshot.length} items`);
 

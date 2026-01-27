@@ -1,7 +1,7 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
     import Loader from "./Loader.svelte";
-    import { userState } from "../../stores/user.svelte.ts";
+    import { userState, isAuthenticated } from "../../stores/user.state.svelte";
     import { toggleLike } from "../../utils/like";
 
     interface Props {
@@ -44,24 +44,35 @@
             const newLikedState = await toggleLike(smolId, localLiked);
             localLiked = newLikedState;
             dispatch("likeChanged", { smolId, liked: newLikedState });
+
             if (newLikedState) {
                 window.dispatchEvent(new CustomEvent("smol:action-like"));
+                // Trigger heartbeat animation
+                heartBeat = true;
+                setTimeout(() => (heartBeat = false), 400);
             }
         } catch (error) {
             console.error("Failed to toggle like:", error);
-            alert(
-                error instanceof Error
-                    ? error.message
-                    : "Failed to like/unlike",
-            );
+            const msg = error instanceof Error ? error.message : String(error);
+            if (msg.includes("Cookie") || msg.includes("token")) {
+                alert(
+                    "Session expired or invalid. Please refresh and try again.",
+                );
+            } else {
+                alert(msg || "Failed to like/unlike");
+            }
         } finally {
             liking = false;
         }
     }
+
+    let heartBeat = $state(false);
 </script>
 
 <button
-    class="{classNames} touch-manipulation active:scale-90 transition-transform duration-75"
+    class="{classNames} touch-manipulation active:scale-90 transition-transform duration-75 {heartBeat
+        ? 'animate-heartbeat text-pink-500'
+        : ''}"
     aria-label={localLiked ? "Unlike" : "Like"}
     disabled={liking}
     onclick={handleLike}
@@ -96,3 +107,27 @@
         </svg>
     {/if}
 </button>
+
+<style>
+    @keyframes heartbeat {
+        0% {
+            transform: scale(1);
+        }
+        25% {
+            transform: scale(1.15);
+        }
+        50% {
+            transform: scale(1);
+        }
+        75% {
+            transform: scale(1.15);
+        }
+        100% {
+            transform: scale(1);
+        }
+    }
+
+    .animate-heartbeat {
+        animation: heartbeat 0.4s ease-in-out;
+    }
+</style>
