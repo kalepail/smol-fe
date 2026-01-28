@@ -216,14 +216,15 @@
         return result;
     }
 
+    // MEMORY OPTIMIZATION: Reduce collage images from 80 to 24 (12 unique x 2)
     $effect(() => {
         if (liveDiscography.length > 0 && collageImages.length === 0) {
             const base = shuffleArray(
                 liveDiscography
                     .filter((s) => s.Id)
                     .map((s) => `${API_URL}/image/${s.Id}.png?scale=16`)
-            ).slice(0, 40);
-            collageImages = [...base, ...base];
+            ).slice(0, 12); // Reduced from 40 to 12
+            collageImages = [...base, ...base]; // 24 total instead of 80
         }
     });
 
@@ -267,17 +268,32 @@
                     new Date(a.Created_At || 0).getTime(),
             );
 
-            liveDiscography = smols;
+            // MEMORY OPTIMIZATION: Strip heavy fields from in-memory representation
+            // Full data (lyrics, kv_do) can be fetched on-demand when viewing song details
+            liveDiscography = smols.map((s) => ({
+                ...s,
+                unique_lyrics: undefined, // Can be 5-10KB per song
+                style: undefined, // Style descriptions can be long
+                Description: s.Description?.slice(0, 200), // Truncate long descriptions
+            })) as Smol[];
             updateTopTags(smols);
             isUrlStateLoaded = true; // Data ready
 
-            // Update Cache (Safe Mode)
+            // Update Cache (Safe Mode) - MEMORY OPTIMIZED
             try {
                 // Strip heavy fields to save space (lyrics are huge)
-                const lightSmols = smols.slice(0, 500).map((s) => ({
-                    ...s,
-                    unique_lyrics: undefined,
-                    style: undefined, // stylistic description can be long
+                // Reduced from 500 to 200 songs for faster load and less memory
+                const lightSmols = smols.slice(0, 200).map((s) => ({
+                    Id: s.Id,
+                    Title: s.Title,
+                    Song_1: s.Song_1,
+                    Address: s.Address,
+                    Created_At: s.Created_At,
+                    Tags: s.Tags,
+                    Mint_Token: s.Mint_Token,
+                    Mint_Amm: s.Mint_Amm,
+                    Liked: s.Liked,
+                    // Strip: unique_lyrics, style, Description, kv_do (these can be fetched on demand)
                 }));
 
                 const dataToSave = JSON.stringify({

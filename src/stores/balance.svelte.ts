@@ -35,6 +35,28 @@ export function isTransactionInProgress(): boolean {
   return balanceState.transactionLock;
 }
 
+// --- INTERNAL HELPERS (No state/locking logic) ---
+
+async function _fetchKale(address: string): Promise<bigint | null> {
+  const { kale } = await import('../utils/passkey-kit');
+  const { result } = await kale.get().balance({ id: address });
+  return result;
+}
+
+async function _fetchXlm(address: string): Promise<bigint | null> {
+  const { xlm } = await import('../utils/passkey-kit');
+  const { result } = await xlm.get().balance({ id: address });
+  return result;
+}
+
+async function _fetchUsdc(address: string): Promise<bigint | null> {
+  const { usdc } = await import('../utils/passkey-kit');
+  const { result } = await usdc.get().balance({ id: address });
+  return result;
+}
+
+// --- EXPORTED ACTIONS ---
+
 /**
  * Update KALE balance for a given address
  */
@@ -51,13 +73,12 @@ export async function updateContractBalance(address: string | null): Promise<voi
 
   balanceState.loading = true;
   try {
-    // DYNAMIC IMPORT: Keep Stellar SDK out of main bundle
-    const { kale } = await import('../utils/passkey-kit');
-    const { result } = await kale.get().balance({ id: address });
+    const result = await _fetchKale(address);
     balanceState.balance = result;
     balanceState.lastUpdated = new Date();
+    // console.log('[Balance] KALE updated:', result);
   } catch (error) {
-    console.error('Failed to update KALE balance:', error);
+    console.error('[Balance] Failed to update KALE balance:', error);
     balanceState.balance = null;
   } finally {
     balanceState.loading = false;
@@ -78,14 +99,13 @@ export async function updateXlmBalance(address: string | null): Promise<void> {
     return;
   }
 
+  // NOTE: We don't typically show a global loader for just XLM updates
   try {
-    // DYNAMIC IMPORT
-    const { xlm } = await import('../utils/passkey-kit');
-    const { result } = await xlm.get().balance({ id: address });
+    const result = await _fetchXlm(address);
     balanceState.xlmBalance = result;
     balanceState.lastUpdated = new Date();
   } catch (error) {
-    console.error('Failed to update XLM balance:', error);
+    console.error('[Balance] Failed to update XLM balance:', error);
     balanceState.xlmBalance = null;
   }
 }
@@ -105,35 +125,68 @@ export async function updateUsdcBalance(address: string | null): Promise<void> {
   }
 
   try {
-    // DYNAMIC IMPORT
-    const { usdc } = await import('../utils/passkey-kit');
-    const { result } = await usdc.get().balance({ id: address });
+    const result = await _fetchUsdc(address);
     balanceState.usdcBalance = result;
     balanceState.lastUpdated = new Date();
   } catch (error) {
-    console.error('Failed to update USDC balance:', error);
+    console.error('[Balance] Failed to update USDC balance:', error);
     balanceState.usdcBalance = null;
   }
 }
 
 /**
- * Update all balances (KALE + XLM) for a given address
+ * Update all balances (KALE + XLM + USDC) for a given address
+ * Handles loading state globally for the batch operation.
  */
 export async function updateAllBalances(address: string | null): Promise<void> {
+  if (!address) {
+    console.warn('[Balance] updateAllBalances called with null address');
+    return;
+  }
+
   if (balanceState.transactionLock) {
     console.log('[Balance] Skipping all balances update - transaction in progress');
     return;
   }
 
+  console.log('[Balance] Updating all balances for:', address.slice(0, 4));
   balanceState.loading = true;
+
   try {
-    await Promise.all([
-      updateContractBalance(address),
-      updateXlmBalance(address),
-      updateUsdcBalance(address),
+    // Run fetches in parallel using internal helpers to avoid individual loading state updates
+    const [kaleRes, xlmRes, usdcRes] = await Promise.allSettled([
+      _fetchKale(address),
+      _fetchXlm(address),
+      _fetchUsdc(address)
     ]);
+
+    // Apply Results
+    if (kaleRes.status === 'fulfilled') {
+      balanceState.balance = kaleRes.value;
+    } else {
+      console.error('[Balance] KALE fetch failed:', kaleRes.reason);
+      balanceState.balance = null;
+    }
+
+    if (xlmRes.status === 'fulfilled') {
+      balanceState.xlmBalance = xlmRes.value;
+    } else {
+      console.error('[Balance] XLM fetch failed:', xlmRes.reason);
+      balanceState.xlmBalance = null;
+    }
+
+    if (usdcRes.status === 'fulfilled') {
+      balanceState.usdcBalance = usdcRes.value;
+    } else {
+      console.error('[Balance] USDC fetch failed:', usdcRes.reason);
+      balanceState.usdcBalance = null;
+    }
+
+    balanceState.lastUpdated = new Date();
+    // console.log('[Balance] All updated.');
+
   } catch (error) {
-    console.error('[Balance] Failed to update all balances:', error);
+    console.error('[Balance] Critical error in updateAllBalances:', error);
   } finally {
     balanceState.loading = false;
   }
@@ -150,3 +203,4 @@ export function resetBalance(): void {
   balanceState.lastUpdated = null;
   balanceState.transactionLock = false;
 }
+

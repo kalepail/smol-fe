@@ -5,7 +5,7 @@
 import { account, send } from "./passkey-kit";
 import { getLatestSequence } from "./base";
 import { getSafeRpId } from "./domains";
-import { updateContractBalance } from "../stores/balance.svelte.ts";
+import { updateAllBalances } from "../stores/balance.svelte.ts";
 
 export interface SignAndSendOptions {
     keyId: string;
@@ -85,8 +85,8 @@ export async function signAndSend(
         const result = await send(signedTx, turnstileToken);
 
         if (updateBalance && contractId) {
-            console.log('[SignAndSend] Updating balance...');
-            await updateContractBalance(contractId);
+            console.log('[SignAndSend] Updating all balances...');
+            await updateAllBalances(contractId);
         }
 
         console.log('[SignAndSend] SUCCESS:', {

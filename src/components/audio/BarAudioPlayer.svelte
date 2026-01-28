@@ -269,13 +269,30 @@
           `[Audio] Audio mode changed: ${isExternalAudio ? "AGGRESSIVE (external)" : "POLITE (device speakers)"}`,
         );
 
-        // If we just connected to Bluetooth and were interrupted, try to resume
-        if (isExternalAudio && audioState.wasInterrupted) {
+        // CAR MODE ACTIVATION: When Bluetooth connects and we have a song loaded, START playing
+        // This is different from interrupt recovery - this is "I got in my car, play my music"
+        if (isExternalAudio && audioState.currentSong) {
           console.log(
-            "[Audio] Bluetooth connected while interrupted - attempting resume",
+            "[Audio] Bluetooth connected with song loaded - activating car mode",
           );
           currentPoliteCooldown = MIN_POLITE_COOLDOWN; // Reset on device change
-          trackedTimeout(attemptResume, 500);
+          interruptionCount = 0; // Fresh start for car mode
+          interruptionTime = null; // Clear any cooldown
+
+          // If we were interrupted, resume. If we weren't playing, START playing.
+          if (audioState.wasInterrupted) {
+            console.log("[Audio] Car mode: resuming interrupted playback");
+            trackedTimeout(attemptResume, 300);
+          } else if (!audioState.playingId && audioState.currentSong.Id) {
+            // Not playing but have a song - auto-start for car mode
+            console.log("[Audio] Car mode: auto-starting playback");
+            trackedTimeout(() => {
+              if (audioState.currentSong && !audioState.playingId) {
+                audioState.playingId = audioState.currentSong.Id;
+                audioState.playIntentId = audioState.currentSong.Id;
+              }
+            }, 300);
+          }
         }
       }
     };
@@ -598,11 +615,24 @@
       console.log(
         "[Audio] iOS audio session ending inactive state (CarPlay reconnect?)",
       );
-      // CarPlay reconnect - attempt resume after brief delay (skip cooldown for CarPlay)
-      interruptionTime = null; // Clear cooldown for CarPlay reconnect
-      trackedTimeout(attemptResume, 100);
-      trackedTimeout(attemptResume, 500);
-      trackedTimeout(attemptResume, 1000);
+      // CarPlay reconnect - CAR MODE ACTIVATION (skip cooldown)
+      interruptionTime = null; // Clear cooldown for CarPlay
+      interruptionCount = 0; // Fresh start
+
+      // If interrupted, resume. If not playing but have song, auto-start (car mode).
+      if (audioState.wasInterrupted) {
+        trackedTimeout(attemptResume, 100);
+        trackedTimeout(attemptResume, 500);
+        trackedTimeout(attemptResume, 1000);
+      } else if (!audioState.playingId && audioState.currentSong?.Id) {
+        console.log("[Audio] CarPlay reconnect: auto-starting playback (car mode)");
+        trackedTimeout(() => {
+          if (audioState.currentSong && !audioState.playingId) {
+            audioState.playingId = audioState.currentSong.Id;
+            audioState.playIntentId = audioState.currentSong.Id;
+          }
+        }, 300);
+      }
     };
 
     // Handle audio context state changes (Bluetooth connection, system audio changes)

@@ -115,9 +115,21 @@ if (typeof window !== "undefined") {
   window.addEventListener("beforeunload", forceSaveState);
 }
 
-// Cross-tab synchronization (Golfed)
-const bId = crypto.randomUUID(), ch = typeof window !== 'undefined' && 'BroadcastChannel' in window && new BroadcastChannel("smol_audio_sync");
-if (ch) ch.onmessage = ({ data: d }) => d.type == 'play' && d.src !== bId && audioState.playingId && (audioState.playingId = null);
+// Cross-tab synchronization
+const bId = crypto.randomUUID();
+let ch: BroadcastChannel | false = false;
+if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+  ch = new BroadcastChannel("smol_audio_sync");
+  ch.onmessage = ({ data: d }) => {
+    if (d.type === 'play' && d.src !== bId && audioState.playingId) {
+      audioState.playingId = null;
+    }
+  };
+  // Clean up BroadcastChannel on page unload to prevent memory leak
+  window.addEventListener('pagehide', () => {
+    if (ch) ch.close();
+  });
+}
 
 function isIOSDevice() {
   if (typeof navigator === 'undefined') return false;
@@ -275,10 +287,25 @@ export function registerSongPrevCallback(callback: (() => void) | null) {
  * Set the playlist context for fallback playback
  * This allows audio to continue through a playlist even when navigating
  * to pages that don't have their own playlist (e.g., swapper, settings)
+ *
+ * MEMORY OPTIMIZATION: Only store a window of songs around the current position
+ * to prevent memory bloat on low-end devices.
  */
+const PLAYLIST_WINDOW_SIZE = 50; // 25 before + 25 after current position
+
 export function setPlaylistContext(playlist: Smol[], currentIndex: number) {
-  audioState.playlist = playlist;
-  audioState.playlistIndex = currentIndex;
+  // For small playlists, store as-is
+  if (playlist.length <= PLAYLIST_WINDOW_SIZE * 2) {
+    audioState.playlist = playlist;
+    audioState.playlistIndex = currentIndex;
+    return;
+  }
+
+  // For large playlists, only store a window around current position
+  const start = Math.max(0, currentIndex - PLAYLIST_WINDOW_SIZE);
+  const end = Math.min(playlist.length, currentIndex + PLAYLIST_WINDOW_SIZE);
+  audioState.playlist = playlist.slice(start, end);
+  audioState.playlistIndex = currentIndex - start; // Adjust index relative to window
 }
 
 /**
