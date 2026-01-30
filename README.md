@@ -78,9 +78,8 @@ The dev server runs on `http://localhost:4321`.
 
 ### Local Authentication
 Passkeys are domain-bound. To test authentication:
-- **Default**: Use `http://localhost:4321` for general development.
-- **Recommended**: Deploy your fork to **Cloudflare Pages**. This is the easiest way to test Passkeys/Stellar on a `*.pages.dev` domain.
-- **Advanced**: For local authentication workflows, see the **[Cookie Transfer](docs/DEVELOPER_SETUP.md#-localhost-authentication-the-cookie-transfer)** method in the developer setup guide.
+- **Default**: Use `http://localhost:4321` for general development (auth features will be limited).
+- **Recommended**: Deploy your fork to **Cloudflare Pages**. This gives you a `*.pages.dev` domain with HTTPS, the easiest way to test Passkeys/Stellar accurately.
 
 ### Type Checking
 

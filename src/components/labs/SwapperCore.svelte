@@ -45,7 +45,8 @@
     console.log("[Swapper Debug]", {
         isDirectRelayer,
         hasApiKey,
-        hostname: typeof window !== "undefined" ? window.location.hostname : "server",
+        hostname:
+            typeof window !== "undefined" ? window.location.hostname : "server",
     });
 
     // --- TYPES ---
@@ -304,7 +305,7 @@
                     lastEdited === "in" ? "EXACT_IN" : "EXACT_OUT";
 
                 let result;
-                if (isCAddress(userState.contractId)) {
+                if (userState.contractId && isCAddress(userState.contractId)) {
                     // Logic for C-Address if needed, or identical
                 }
 

@@ -39,24 +39,10 @@ The dev server runs on `http://localhost:4321` by default.
 ### Authentication Strategy
 Passkeys are domain-bound and require a secure context.
 1. **General Dev**: Use `http://localhost:4321`. Authentication features will be limited.
-2. **Full Auth Test**: Deploy your fork to **Cloudflare Pages**. This is the easiest way to test Passkeys accurately.
-3. **Local Auth (Advanced)**: Use the "Cookie Transfer" method below if you need to test authentication logic on your machine.
+2. **Full Auth Test (Recommended)**: Deploy your fork to **Cloudflare Pages**. This gives you a `*.pages.dev` domain with HTTPS, the easiest way to test Passkeys accurately.
 
 ---
 
-## 🔐 Localhost Authentication (The "Cookie Transfer")
-
-Passkeys are **domain-bound**. To authenticate locally, you must transfer your auth cookie from production:
-
-1. **Login on production**: [smol.xyz](https://smol.xyz).
-2. **Copy the cookie**: Open DevTools → Application → Cookies → `smol.xyz` → Copy `smol_token`.
-3. **Set on dev host**: Open [https://noot.smol.xyz](https://noot.smol.xyz), run in Console:
-   ```javascript
-   document.cookie = `smol_token=${prompt('Paste smol_token:')}; domain=.smol.xyz; path=/`;
-   location.reload();
-   ```
-   > [!TIP]
-   > Setting the domain to `.smol.xyz` ensures the cookie is shared correctly across subdomains.
 
 
 ---
@@ -117,8 +103,8 @@ The "Save Changes" button for existing mixtapes uses a `PUT /mixtapes/:id` API c
 
 ### Login button does nothing on localhost
 
-**Cause**: Passkey domain mismatch (see Authentication Workaround above)  
-**Fix**: Transfer your `smol_token` cookie from production
+**Cause**: Passkeys require a secure context (HTTPS) and are domain-bound  
+**Fix**: Deploy to Cloudflare Pages for full auth testing. Localhost has inherent auth limitations.
 
 ### "Edit Mixtape" button not visible
 

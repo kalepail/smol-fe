@@ -26,7 +26,7 @@ This is the **Canonical Source of Truth** for the Smol Frontend environment and 
 | **Method** | WebAuthn (Passkeys) |
 | **Session Key** | `smol_token` (Cookie) |
 | **Local Storage** | `smol:contractId`, `smol:keyId` |
-| **Localhost Auth** | Advanced: Cookie Transfer via `.smol.xyz` |
+| **Localhost Auth** | Limited (use Cloudflare Pages for full testing) |
 
 ## 🎼 Product Logic
 - **Tipping Tokens**: `KALE`, `XLM`, `USDC`

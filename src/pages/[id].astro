@@ -38,7 +38,8 @@ if (id) {
 
 		if (data) {
 			title = data.kv_do?.lyrics?.title || data.d1?.Title;
-			const rawDesc = data.kv_do?.payload?.prompt || data.kv_do?.description || "AI generated song";
+			// Don't include prompt in share preview - just use title or generic description
+            const rawDesc = title || "AI generated song";
             // SEO: append value prop
             description = `${rawDesc} | Made with Smol AI Music Generator`;
 

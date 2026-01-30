@@ -48,7 +48,6 @@
   - ✅ Improve: add “dev server uses 4322 here vs 4321 in START_HERE” note to avoid confusion.
 - `START_HERE.md`
   - ✅ Good: step-by-step local testing checklist.
-  - ⚠️ Missing: mention passkey cookie workaround for localhost (see DEVELOPER_SETUP).
   - ✅ Improve: add note about default port in this repo vs fork.
 - `DEBUGGING_GUIDE.md`
   - ✅ Good: clear logging recipes and categories.

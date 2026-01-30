@@ -1,0 +1,17 @@
+
+> smol-fe@1.5.4 check
+> svelte-check --tsconfig ./tsconfig.json
+
+Loading svelte-check in workspace: c:\Users\Jeff\Mixtape Auto\smol-fe
+Getting Svelte diagnostics...
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\labs\SwapperCore.svelte[39m:307:32
+[31mError[39m: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'. (ts)
+[36m                let result;
+                if (isCAddress([35muserState.contractId[36m)) {
+                    // Logic for C-Address if needed, or identical[39m
+
+====================================
+[31msvelte-check found 1 error and 0 warnings in 1 file
+[39m

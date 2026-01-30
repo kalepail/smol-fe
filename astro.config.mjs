@@ -40,5 +40,8 @@ export default defineConfig({
       // mkcert(),
       tailwindcss()
     ],
+    define: {
+      self: 'globalThis'
+    }
   },
 });// touch

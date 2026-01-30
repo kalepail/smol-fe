@@ -27,7 +27,7 @@ interface Props {
 const {
 	title,
 	description = "Create and collect AI music onchain. The best AI music generator for making full songs from text prompts. Own your music.",
-	song_url = "https://api.smol.xyz/song/491bb94b-79df-41bb-b09b-2d295f1dfd05.mp3",
+	song_url = null,
 	image_url,
 	hideBottomBar = false,
     schema = [],
@@ -113,9 +113,13 @@ const fullSchema = [...siteSchema, ...schema];
 		<meta property="og:image" content={image_url ? `${image_url}?scale=32` : `${siteOrigin}/meta.png`} />
 		<meta property="og:image:width" content="1024" />
 		<meta property="og:image:height" content="1024" />
-		<meta property="og:audio" content={song_url} />
-		<meta property="og:audio:secure_url" content={song_url} />
-		<meta property="og:audio:type" content="audio/mpeg" />
+		{song_url && (
+			<>
+				<meta property="og:audio" content={song_url} />
+				<meta property="og:audio:secure_url" content={song_url} />
+				<meta property="og:audio:type" content="audio/mpeg" />
+			</>
+		)}
 
 		<meta name="twitter:card" content={song_url ? "player" : "summary_large_image"} />
 		<meta name="twitter:site" content="@smolxyz" />

@@ -1,0 +1,26 @@
+Loading svelte-check in workspace: c:\Users\Jeff\Mixtape Auto\smol-fe
+Getting Svelte diagnostics...
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\labs\KaleOrFailCore.svelte[39m:159:39
+[31mError[39m: Argument of type 'Uint8Array<ArrayBufferLike>' is not assignable to parameter of type 'Uint8Array<ArrayBuffer>'.
+  Type 'ArrayBufferLike' is not assignable to type 'ArrayBuffer'.
+    Type 'SharedArrayBuffer' is missing the following properties from type 'ArrayBuffer': resizable, resize, detached, transfer, transferToFixedLength (ts)
+[36m
+        analyser.getByteFrequencyData([35mdataArray[36m);[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\labs\SwapperCore.svelte[39m:307:32
+[31mError[39m: Argument of type 'string | null' is not assignable to parameter of type 'string'.
+  Type 'null' is not assignable to type 'string'. (ts)
+[36m                let result;
+                if (isCAddress([35muserState.contractId[36m)) {
+                    // Logic for C-Address if needed, or identical[39m
+
+c:\Users\Jeff\Mixtape Auto\smol-fe\[32msrc\components\player\GlobalPlayer.svelte[39m:277:32
+[31mError[39m: Property 'Description' does not exist on type 'Smol'. (ts)
+[36m                style: undefined, // Style descriptions can be long
+                Description: s.[35mDescription[36m?.slice(0, 200), // Truncate long descriptions
+            })) as Smol[];[39m
+
+====================================
+[31msvelte-check found 3 errors and 0 warnings in 3 files
+[39m

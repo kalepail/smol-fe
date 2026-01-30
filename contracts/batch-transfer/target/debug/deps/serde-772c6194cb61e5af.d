@@ -1,0 +1,14 @@
+C:\Users\Jeff\Mixtape Auto\smol-fe\contracts\batch-transfer\target\debug\deps\serde-772c6194cb61e5af.d: C:\Users\Jeff\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\Jeff\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\Jeff\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\Jeff\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\Jeff\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs C:\Users\Jeff\Mixtape\ Auto\smol-fe\contracts\batch-transfer\target\debug\build\serde-291d5c27960f80df\out/private.rs
+
+C:\Users\Jeff\Mixtape Auto\smol-fe\contracts\batch-transfer\target\debug\deps\libserde-772c6194cb61e5af.rlib: C:\Users\Jeff\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\Jeff\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\Jeff\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\Jeff\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\Jeff\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs C:\Users\Jeff\Mixtape\ Auto\smol-fe\contracts\batch-transfer\target\debug\build\serde-291d5c27960f80df\out/private.rs
+
+C:\Users\Jeff\Mixtape Auto\smol-fe\contracts\batch-transfer\target\debug\deps\libserde-772c6194cb61e5af.rmeta: C:\Users\Jeff\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\Jeff\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\Jeff\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\Jeff\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\Jeff\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs C:\Users\Jeff\Mixtape\ Auto\smol-fe\contracts\batch-transfer\target\debug\build\serde-291d5c27960f80df\out/private.rs
+
+C:\Users\Jeff\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs:
+C:\Users\Jeff\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs:
+C:\Users\Jeff\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs:
+C:\Users\Jeff\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs:
+C:\Users\Jeff\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs:
+C:\Users\Jeff\Mixtape\ Auto\smol-fe\contracts\batch-transfer\target\debug\build\serde-291d5c27960f80df\out/private.rs:
+
+# env-dep:OUT_DIR=C:\\Users\\Jeff\\Mixtape Auto\\smol-fe\\contracts\\batch-transfer\\target\\debug\\build\\serde-291d5c27960f80df\\out

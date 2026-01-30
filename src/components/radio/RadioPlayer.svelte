@@ -177,6 +177,49 @@
   let controlsTimeout: number | null = null;
   let isSongDetailPage = $state(false);
 
+  // Scrubber drag state for timestamp tooltip
+  let isScrubbing = $state(false);
+  let scrubProgress = $state(0);
+
+  function formatTime(seconds: number): string {
+    if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  }
+
+  function handleScrubStart(e: PointerEvent) {
+    isScrubbing = true;
+    const bar = e.currentTarget as HTMLDivElement;
+    bar.setPointerCapture(e.pointerId);
+    updateScrubProgress(e, bar);
+  }
+
+  function handleScrubMove(e: PointerEvent) {
+    if (!isScrubbing) return;
+    const bar = e.currentTarget as HTMLDivElement;
+    updateScrubProgress(e, bar);
+  }
+
+  function handleScrubEnd(e: PointerEvent) {
+    if (!isScrubbing) return;
+    const bar = e.currentTarget as HTMLDivElement;
+    updateScrubProgress(e, bar);
+    // Seek to the final position
+    seek(scrubProgress);
+    isScrubbing = false;
+  }
+
+  function updateScrubProgress(e: PointerEvent, bar: HTMLDivElement) {
+    const rect = bar.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    scrubProgress = Math.max(0, Math.min(100, (x / rect.width) * 100));
+  }
+
+  const scrubTime = $derived(
+    formatTime((scrubProgress / 100) * audioState.duration),
+  );
+
   onMount(() => {
     if (!isBrowser) return;
     isSongDetailPage = !!window.location.pathname.match(/^\/[a-f0-9]{64}$/i);
@@ -272,7 +315,7 @@
 
   function startVis() {
     // Skip visualization in fast mode for performance
-    if (preferences.renderMode === 'fast') return;
+    if (preferences.renderMode === "fast") return;
 
     if (!canvasRef) return;
     const canvas = canvasRef;
@@ -751,7 +794,7 @@
           >
 
           <!-- Visualizer Canvas (Bottom Bar) -->
-          {#if preferences.renderMode === 'thinking'}
+          {#if preferences.renderMode === "thinking"}
             <div
               class="absolute bottom-20 left-0 right-0 h-24 z-30 pointer-events-none opacity-90"
             >
@@ -1194,18 +1237,38 @@
               role="button"
               tabindex="0"
               class="absolute top-0 left-0 right-0 h-4 -mt-2 z-50 flex items-center lg:hidden cursor-pointer group"
-              onclick={handleSeek}
+              onpointerdown={handleScrubStart}
+              onpointermove={handleScrubMove}
+              onpointerup={handleScrubEnd}
+              onpointercancel={handleScrubEnd}
+              onclick={(e) => e.stopPropagation()}
               onkeydown={(e) => {
                 if (e.key === "Enter") handleSeek(e as unknown as MouseEvent);
               }}
             >
+              <!-- Timestamp tooltip (visible while dragging) -->
+              {#if isScrubbing}
+                <div
+                  class="absolute -top-7 px-2 py-0.5 bg-black/80 backdrop-blur-sm rounded text-white text-xs font-mono pointer-events-none animate-in fade-in zoom-in-95 duration-100"
+                  style="left: {scrubProgress}%; transform: translateX(-50%);"
+                >
+                  {scrubTime}
+                </div>
+              {/if}
               <div
                 class="w-full h-1 bg-white/10 transition-all group-hover:h-2"
               >
                 <div
-                  class="h-full bg-white/60 transition-all duration-200 ease-linear group-hover:bg-lime-400"
-                  style="width: {progress}%;"
-                ></div>
+                  class="h-full bg-white/60 transition-all duration-200 ease-linear group-hover:bg-lime-400 relative"
+                  style="width: {isScrubbing ? scrubProgress : progress}%;"
+                >
+                  <!-- Scrubber thumb (visible on hover/drag) -->
+                  <div
+                    class="absolute right-0 top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-lime-400 rounded-full shadow-md opacity-0 group-hover:opacity-100 {isScrubbing
+                      ? 'opacity-100 scale-110'
+                      : ''} transition-all"
+                  ></div>
+                </div>
               </div>
             </div>
           {/if}
@@ -1216,18 +1279,38 @@
               role="button"
               tabindex="0"
               class="absolute top-0 left-0 right-0 h-4 -mt-2 z-50 flex items-center cursor-pointer group"
-              onclick={handleSeek}
+              onpointerdown={handleScrubStart}
+              onpointermove={handleScrubMove}
+              onpointerup={handleScrubEnd}
+              onpointercancel={handleScrubEnd}
+              onclick={(e) => e.stopPropagation()}
               onkeydown={(e) => {
                 if (e.key === "Enter") handleSeek(e as unknown as MouseEvent);
               }}
             >
+              <!-- Timestamp tooltip (visible while dragging) -->
+              {#if isScrubbing}
+                <div
+                  class="absolute -top-7 px-2 py-0.5 bg-black/80 backdrop-blur-sm rounded text-white text-xs font-mono pointer-events-none animate-in fade-in zoom-in-95 duration-100"
+                  style="left: {scrubProgress}%; transform: translateX(-50%);"
+                >
+                  {scrubTime}
+                </div>
+              {/if}
               <div
                 class="w-full h-1 bg-white/10 transition-all group-hover:h-2"
               >
                 <div
-                  class="h-full bg-white/80 transition-all duration-200 ease-linear group-hover:bg-white"
-                  style="width: {progress}%;"
-                ></div>
+                  class="h-full bg-white/80 transition-all duration-200 ease-linear group-hover:bg-white relative"
+                  style="width: {isScrubbing ? scrubProgress : progress}%;"
+                >
+                  <!-- Scrubber thumb (visible on hover/drag) -->
+                  <div
+                    class="absolute right-0 top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-white rounded-full shadow-md opacity-0 group-hover:opacity-100 {isScrubbing
+                      ? 'opacity-100 scale-110'
+                      : ''} transition-all"
+                  ></div>
+                </div>
               </div>
             </div>
           {/if}

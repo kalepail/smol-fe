@@ -24,6 +24,7 @@ export interface SmolKV {
 export interface Smol {
   Id: string;
   Title: string;
+  Description?: string;
   Creator?: string;
   Username?: string;
   artist?: string;

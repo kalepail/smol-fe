@@ -14,7 +14,7 @@ This guide provides a "Symptom → Fix" cookbook and a manual for the `smolLogge
 
 | Symptom | Primary Suspect | Fix / Investigation |
 | :--- | :--- | :--- |
-| **Login button does nothing** | Passkey Domain Mismatch | Transfer session cookie via Console (See [Setup](DEVELOPER_SETUP.md)). |
+| **Login button does nothing** | Passkey Domain Mismatch | Deploy to Cloudflare Pages for full auth testing. Localhost has limitations. |
 | **"Account not found (404)"** | New Smart Account | Expected for first-time users. Fund wallet via Swapper or Faucet. |
 | **Mixtape list is empty** | API URL Mismatch | Check `PUBLIC_API_URL` in `.env`. Must be `api.smol.xyz`. |
 | **Transaction timeouts** | Relayer Latency | Check `RPC` and `AUTH` logs for 429/504 errors. |

@@ -35,7 +35,7 @@ export function useAuthentication() {
       console.log('[Auth] connectWallet succeeded:', { contractId: result.contractId });
 
       const { rawResponse, keyIdBase64, contractId: cid } = result;
-      await performLogin(cid, keyIdBase64, rawResponse, 'connect');
+      await performLogin(cid, keyIdBase64, rawResponse, 'connect', undefined, primaryRpId);
       return;
     } catch (err: any) {
       console.warn("[Auth] Login failed with RP ID:", primaryRpId, "Error:", err.message);
@@ -63,7 +63,7 @@ export function useAuthentication() {
           console.log('[Auth] Fallback succeeded with hostname RP ID:', { contractId: result.contractId });
 
           const { rawResponse, keyIdBase64, contractId: cid } = result;
-          await performLogin(cid, keyIdBase64, rawResponse, 'connect');
+          await performLogin(cid, keyIdBase64, rawResponse, 'connect', undefined, hostname);
           return;
         } catch (fallbackErr: any) {
           console.warn("[Auth] Fallback also failed:", fallbackErr.message);
@@ -76,13 +76,14 @@ export function useAuthentication() {
     }
   }
 
-  async function performLogin(cid: string, keyIdBase64: string, rawResponse: any, type: 'connect' | 'create', username?: string) {
+  async function performLogin(cid: string, keyIdBase64: string, rawResponse: any, type: 'connect' | 'create', username?: string, rpId?: string) {
     const payload = {
       type,
       keyId: keyIdBase64,
       contractId: cid,
       response: rawResponse,
       username,
+      rpId: rpId || getSafeRpId(window.location.hostname),
     };
 
     logger.info(LogCategory.AUTH, "Login Payload", payload);
