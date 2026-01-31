@@ -6,6 +6,7 @@
     import { userState } from "../../stores/user.svelte.ts";
     import { getSafeRpId } from "../../utils/domains";
     import { fade, slide } from "svelte/transition";
+    import type { Keypair as KeypairType } from "@stellar/stellar-sdk";
     import type { Smol } from "../../types/domain";
     import Loader from "../ui/Loader.svelte";
     import { Turnstile } from "svelte-turnstile";
@@ -13,17 +14,29 @@
     const DECIMALS = 10_000_000n; // 7 Decimals
 
     // Phases
-    type Phase = "AGREEMENT" | "DEPOSIT" | "PLAYING" | "SETTLING" | "EMPTY";
+    type Phase =
+        | "AGREEMENT"
+        | "DEPOSIT"
+        | "PLAYING"
+        | "SETTLING"
+        | "SUCCESS"
+        | "EMPTY";
     let phase = $state<Phase>("AGREEMENT");
+
+    // Success state
+    let txHash = $state("");
 
     // Config
     let rate = $state(1); // KALE per second
     let depositAmount = $state(100); // Initial Deposit Request
 
     // Session
+    let sessionKey = $state<KeypairType | null>(null);
+    let isAuthorizing = $state(false);
+    let isSettling = $state(false);
     let sessionBalance = $state(0); // Current tracked balance (Virtual)
     let totalSpent = $state(0);
-    let sessionStartTime = 0;
+    let artistDebts = $state<Record<string, number>>({}); // artistAddress -> secondCount
 
     // Playlist
     let smols = $state<Smol[]>([]);
@@ -58,7 +71,23 @@
         }
     }
 
+    // Dynamic Imports for heavy deps
+    let Keypair: any;
+    let SignerStore: any;
+    let buildBatchKaleTransfer: any;
+    let Networks: any;
+
     onMount(async () => {
+        // Load heavy SDKs only on the client
+        const sdk = await import("@stellar/stellar-sdk/minimal");
+        const pk = await import("passkey-kit");
+        const bt = await import("../../utils/batch-transfer");
+
+        Keypair = sdk.Keypair;
+        Networks = sdk.Networks;
+        SignerStore = pk.SignerStore;
+        buildBatchKaleTransfer = bt.buildBatchKaleTransfer;
+
         // Push state to enable popstate trap
         history.pushState(null, "", window.location.href);
 
@@ -75,7 +104,7 @@
         if (audio) {
             audio.removeEventListener("ended", handleNext);
             audio.pause();
-            audio.src = '';
+            audio.src = "";
             audio = null;
         }
         window.removeEventListener("beforeunload", handleUnload);
@@ -92,22 +121,51 @@
             return;
         }
 
-        // In a real Pay Channel, we would lock funds in a contract.
-        // Here, we will just simulate the verification of funds or a "Sign to Start"
-        // asking to transfer 'depositAmount' to a HOLDING address.
-        // For EXP-005, we will simulate the Holding Address as 'userState.contractId' (Self-to-Self lock?)
-        // Or a Null Address.
+        isAuthorizing = true;
+        try {
+            // 1. Generate Ephemeral Session Key
+            const key = Keypair.random();
+            sessionKey = key;
 
-        // User asked to "Devise a transaction...".
-        // Let's do a Transfer to a "Lab Wallet" (Simulated).
-        // note: We won't actually burn funds, but we will Mock the Tx for the experiment flow
-        // to show we CAN force it.
+            // 2. Build the "add signer" transaction
+            // This adds the Ed25519 key as a temporary signer to the smart wallet
+            console.log(
+                "[StreamPay] Authorizing Session Key:",
+                key.publicKey(),
+            );
+            const pk = await account.get();
+            const addSignerTx = await pk.addEd25519(
+                key.publicKey(),
+                undefined, // No specific limits for the experiment
+                SignerStore.Temporary,
+            );
 
-        // Simulating Deposit:
-        sessionBalance = depositAmount;
-        phase = "PLAYING";
-        playSong();
-        startTimer();
+            // 3. Sign with Passkey (biometric prompt) and submit
+            // This is the ONLY passkey signature needed for the entire session
+            console.log("[StreamPay] Signing session key authorization...");
+            await pk.sign(addSignerTx);
+
+            // 4. Submit to relayer
+            console.log("[StreamPay] Submitting session key authorization...");
+            await send(addSignerTx);
+            console.log("[StreamPay] Session Key registered on-chain!");
+
+            // 5. Start Session
+            sessionBalance = depositAmount;
+            phase = "PLAYING";
+            playSong();
+            startTimer();
+            console.log(
+                "[StreamPay] Session Authorized. Background signing enabled.",
+            );
+        } catch (e) {
+            console.error("[StreamPay] Authorization Failed:", e);
+            alert(
+                "Authorization failed. Ensure your wallet is connected and try again.",
+            );
+        } finally {
+            isAuthorizing = false;
+        }
     }
 
     function startTimer() {
@@ -121,6 +179,15 @@
                 sessionBalance -= rate;
                 totalSpent += rate;
 
+                // Track Artist Debt
+                const artist =
+                    currentSong?.Creator ||
+                    currentSong?.Address ||
+                    currentSong?.artist;
+                if (artist) {
+                    artistDebts[artist] = (artistDebts[artist] || 0) + rate;
+                }
+
                 if (sessionBalance <= 0) {
                     // Out of funds
                     stop();
@@ -132,8 +199,10 @@
 
     function playSong() {
         if (!currentSong || !audio) return;
-        const url = currentSong.Song_1;
-        if (url) {
+        // Song_1 is a UUID, construct full URL
+        const songId = currentSong.Song_1 || currentSong.Id;
+        if (songId) {
+            const url = `${import.meta.env.PUBLIC_API_URL}/song/${songId}.mp3`;
             audio.src = url;
             audio.play().catch((e) => console.error(e));
         }
@@ -164,17 +233,209 @@
         playSong();
     }
 
-    async function settle() {
-        // Send the SPENT amount to... Artists?
-        // We tracked "secondsListened".
-        // In a real stream pay, we'd batch pay each artist based on their specific seconds.
-        // For MVP, we just "Cash Out".
-        alert(
-            `Session Ended. Total Cost: ${totalSpent} KALE. Remaining: ${sessionBalance} KALE refunded.`,
-        );
+    // Retry configuration
+    const MAX_RETRIES = 3;
+    const INITIAL_DELAY_MS = 2000;
+    let retryCount = $state(0);
+    let settlementStatus = $state("");
 
-        // In reality, we'd run the Batch Settle Tx here.
-        window.location.reload();
+    /**
+     * Delay helper with exponential backoff
+     */
+    function delay(ms: number): Promise<void> {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    async function settle() {
+        if (!userState.contractId || !sessionKey || totalSpent <= 0) {
+            alert("Nothing to settle.");
+            phase = "EMPTY";
+            return;
+        }
+
+        isSettling = true;
+        retryCount = 0;
+        settlementStatus = "Preparing batch payment...";
+
+        try {
+            console.log(
+                "[StreamPay] Finalizing Session. Batch Paying Artists...",
+                artistDebts,
+            );
+
+            // 1. Prepare Transfers - filter out invalid addresses
+            settlementStatus = "Building transfer batch...";
+
+            // Filter out NULL_ACCOUNT and invalid addresses
+            const NULL_ACCOUNT =
+                "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF";
+            const validEntries = Object.entries(artistDebts).filter(
+                ([addr, amount]) => {
+                    // Skip null/undefined addresses
+                    if (!addr) return false;
+                    // Skip NULL_ACCOUNT
+                    if (addr === NULL_ACCOUNT) {
+                        console.warn(
+                            "[StreamPay] Skipping NULL_ACCOUNT recipient",
+                        );
+                        return false;
+                    }
+                    // Skip if amount is 0 or negative
+                    if (amount <= 0) return false;
+                    // Basic format validation (C-addr or G-addr)
+                    if (!addr.startsWith("C") && !addr.startsWith("G")) {
+                        console.warn(
+                            "[StreamPay] Skipping invalid address:",
+                            addr,
+                        );
+                        return false;
+                    }
+                    return true;
+                },
+            );
+
+            if (validEntries.length === 0) {
+                throw new Error("No valid artist addresses to pay");
+            }
+
+            console.log(
+                `[StreamPay] Paying ${validEntries.length} artists (filtered from ${Object.keys(artistDebts).length})`,
+            );
+
+            const transfers = validEntries.map(([to, amount]) => ({
+                to,
+                amount: BigInt(amount) * 10_000_000n, // Convert to 7 Decimals
+            }));
+
+            // 1.5. BALANCE PRE-CHECK - Verify user has enough KALE before proceeding
+            settlementStatus = "Verifying balance...";
+            const totalTransferAmount = transfers.reduce(
+                (sum, t) => sum + t.amount,
+                0n,
+            );
+
+            try {
+                const kaleContract = await kale.get();
+                const { result: userBalance } = await kaleContract.balance({
+                    id: userState.contractId,
+                });
+
+                console.log(
+                    `[StreamPay] Balance check: Need ${totalTransferAmount}, Have ${userBalance}`,
+                );
+
+                if (userBalance < totalTransferAmount) {
+                    const needed = Number(totalTransferAmount) / 10_000_000;
+                    const have = Number(userBalance) / 10_000_000;
+                    throw new Error(
+                        `Insufficient KALE balance. Need ${needed.toFixed(2)}, have ${have.toFixed(2)}`,
+                    );
+                }
+            } catch (e: any) {
+                if (e.message?.includes("Insufficient KALE")) {
+                    throw e; // Re-throw balance errors
+                }
+                console.warn(
+                    "[StreamPay] Balance pre-check failed, proceeding anyway:",
+                    e.message,
+                );
+                // Continue - simulation will catch any real issues
+            }
+
+            // 2. Build Batch Transaction
+            // The batch contract takes the SENDER'S C-address.
+            settlementStatus = "Simulating transaction...";
+            const xdr = await buildBatchKaleTransfer(
+                userState.contractId,
+                transfers,
+            );
+
+            // 3. BACKGROUND SIGN using the Session Key
+            // NO PASSKEY PROMPT HERE!
+            settlementStatus = "Signing with session key...";
+            console.log("[StreamPay] Signing Batch Tx with Session Key...");
+            const signedTx = await (
+                await account.get()
+            ).sign(xdr, {
+                keypair: sessionKey,
+                networkPassphrase: Networks.PUBLIC,
+            });
+
+            // 4. Submit to Relayer with Retry
+            await submitWithRetry(signedTx);
+        } catch (e: any) {
+            console.error("[StreamPay] Settlement Failed:", e);
+            const msg = e?.message || "Unknown error";
+            settlementStatus = `Failed: ${msg.substring(0, 50)}...`;
+            alert(`Settlement failed: ${msg}`);
+        } finally {
+            isSettling = false;
+        }
+    }
+
+    /**
+     * Submit transaction with automatic retry and exponential backoff
+     */
+    async function submitWithRetry(signedTx: any) {
+        let lastError: Error | null = null;
+
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+            retryCount = attempt;
+
+            if (attempt > 0) {
+                const waitTime = INITIAL_DELAY_MS * Math.pow(2, attempt - 1);
+                settlementStatus = `Retry ${attempt}/${MAX_RETRIES} in ${(waitTime / 1000).toFixed(0)}s...`;
+                console.log(
+                    `[StreamPay] Retry ${attempt}/${MAX_RETRIES} after ${waitTime}ms...`,
+                );
+                await delay(waitTime);
+            }
+
+            settlementStatus =
+                attempt > 0
+                    ? `Retry ${attempt}/${MAX_RETRIES}: Submitting...`
+                    : "Submitting to network...";
+
+            try {
+                const result = await send(signedTx);
+                console.log("[StreamPay] Settlement Success!", result);
+
+                // Capture transaction hash from result
+                txHash =
+                    result?.hash || result?.transactionHash || result?.id || "";
+                settlementStatus = "✓ Settlement complete!";
+
+                // Transition to success screen instead of reload
+                isSettling = false;
+                phase = "SUCCESS";
+                return; // Success - exit retry loop
+            } catch (e: any) {
+                lastError = e;
+                const msg = e?.message || "";
+
+                // Check if it's a retryable error (503, 502, timeout)
+                const isRetryable =
+                    msg.includes("temporarily unavailable") ||
+                    msg.includes("503") ||
+                    msg.includes("502") ||
+                    msg.includes("timeout");
+
+                if (isRetryable && attempt < MAX_RETRIES) {
+                    console.warn(
+                        `[StreamPay] Attempt ${attempt + 1} failed (retryable):`,
+                        msg,
+                    );
+                    settlementStatus = `Network busy... preparing retry ${attempt + 1}`;
+                    continue; // Try again
+                }
+
+                // Non-retryable error or max retries reached
+                throw e;
+            }
+        }
+
+        // If we get here, all retries failed
+        throw lastError || new Error("All retry attempts failed");
     }
 </script>
 
@@ -182,43 +443,39 @@
     class="border border-[#9ae600] p-4 min-h-[400px] flex flex-col relative bg-black/50 backdrop-blur-md"
 >
     {#if phase === "AGREEMENT"}
-        <div class="flex flex-col h-full gap-6 text-center justify-center p-4">
-            <h2 class="text-xl animate-pulse">⚠ PAYMENT STREAM REQUIRED</h2>
-            <div class="text-sm text-[#888] space-y-4 font-sans">
+        <div class="flex flex-col h-full gap-4 text-center justify-center p-4">
+            <h2 class="text-xl animate-pulse">🎧 STREAM. PAY. VIBE.</h2>
+            <div class="text-sm text-[#888] space-y-3 font-sans">
                 <p>
-                    This experiment utilizes a <strong class="text-[#9ae600]"
-                        >Continuous Payment Stream</strong
+                    Welcome to <strong class="text-[#9ae600]">StreamPay</strong>
+                    — where every second counts.
+                </p>
+                <p>
+                    Deposit KALE, hit play, and watch artists get paid <strong
+                        class="text-[#9ae600]">in real-time</strong
                     >.
                 </p>
                 <p>
-                    You must deposit funds to initialize the listening session.
+                    No subscriptions. No middlemen. Just <strong
+                        class="text-red-500">per-second compensation</strong
+                    >.
                 </p>
-                <p>
-                    Funds are deducted <strong class="text-red-500"
-                        >PER SECOND</strong
-                    > of audio playback.
-                </p>
-                <p
-                    class="text-xs text-[#888] mt-4 border border-[#333] p-3 rounded bg-[#111]"
+                <div
+                    class="text-xs text-[#888] mt-4 border border-[#333] p-3 rounded bg-[#111] text-left"
                 >
-                    <strong class="text-[#9ae600]">Note for the curious:</strong
-                    ><br />
-                    Once the session begins, your specific browser tab becomes the
-                    Signer. Closing it or refreshing <em>during playback</em>
-                    will burn the deposit.
-                    <span class="text-red-500/70"
-                        >(Artists are NOT paid in this scenario as no proof is
-                        generated).</span
+                    <strong class="text-[#9ae600]">🔐 Session Keys:</strong>
+                    <span class="block mt-1"
+                        >One passkey = unlimited background payments.</span
                     >
-                    <br /><span class="text-[10px] opacity-70"
-                        >(We'll warn you before it happens!)</span
+                    <span class="block text-[#888] mt-1"
+                        >Eject anytime → artists get paid, you keep the rest.</span
                     >
-                </p>
+                </div>
             </div>
 
             <div class="mt-8">
                 <label class="text-xs uppercase mb-2 block"
-                    >Set Streaming Rate</label
+                    >Pick Your Burn Rate</label
                 >
                 <div class="flex justify-center gap-4">
                     {#each [1, 5, 10, 100] as r}
@@ -238,18 +495,18 @@
                 onclick={acceptAgreement}
                 class="mt-8 bg-[#9ae600] text-black px-8 py-3 uppercase font-bold hover:scale-105 transition-transform"
             >
-                I Understand ->
+                LET'S GO →
             </button>
         </div>
     {:else if phase === "DEPOSIT"}
         <div class="flex flex-col h-full gap-6 text-center justify-center">
-            <h2 class="text-lg">INITIALIZE SESSION</h2>
+            <h2 class="text-lg">💰 LOAD UP</h2>
 
             <div
                 class="bg-[#111] p-6 border border-[#333] mx-auto w-full max-w-xs"
             >
                 <label class="text-xs text-[#555] block mb-2"
-                    >DEPOSIT AMOUNT (Collateral)</label
+                    >SESSION BUDGET</label
                 >
                 <div
                     class="flex items-center justify-center gap-2 text-2xl text-[#9ae600]"
@@ -266,11 +523,23 @@
                     >
                 </div>
                 <p class="text-[10px] text-[#555] mt-2">
-                    Est. Time: {Math.floor(depositAmount / rate)} seconds
+                    ≈ {Math.floor(depositAmount / rate)} seconds of music
                 </p>
             </div>
 
-            {#if !userState.contractId}
+            {#if isAuthorizing}
+                <div class="flex flex-col items-center gap-4 py-8">
+                    <Loader />
+                    <p
+                        class="text-xs animate-pulse text-[#9ae600] uppercase font-bold tracking-widest"
+                    >
+                        Generating Session Key...
+                    </p>
+                    <p class="text-[10px] text-[#555] font-sans">
+                        One passkey prompt, then hands-free streaming.
+                    </p>
+                </div>
+            {:else if !userState.contractId}
                 <div class="text-red-500">Connect Wallet Required</div>
                 <button
                     onclick={() => (userState.contractId = "CFAKE")}
@@ -281,10 +550,10 @@
                     onclick={handleDeposit}
                     class="mx-auto w-full max-w-xs border border-[#9ae600] text-[#9ae600] py-3 hover:bg-[#9ae600] hover:text-black transition-colors text-xs"
                 >
-                    AUTHORIZE SESSION KEY & DEPOSIT
+                    🔑 UNLOCK SESSION
                 </button>
                 <p class="text-[8px] text-[#555] mt-2 max-w-xs mx-auto">
-                    *Signs a delegation for background streaming.
+                    One-time passkey auth enables hands-free payments.
                 </p>
             {/if}
         </div>
@@ -351,7 +620,7 @@
                     onclick={stop}
                     class="border border-red-500 text-red-500 py-4 hover:bg-red-500 hover:text-white transition-colors uppercase tracking-widest text-xs"
                 >
-                    ⏏ EJECT (SETTLE)
+                    ⏏️ EJECT
                 </button>
                 <button
                     onclick={handleNext}
@@ -363,30 +632,165 @@
         </div>
     {:else if phase === "SETTLING"}
         <div class="flex flex-col h-full gap-6 text-center justify-center">
-            <h2 class="text-lg">SESSION FINALIZED</h2>
-            <div class="space-y-2">
-                <p class="text-[#555]">
-                    Total Listened: <span class="text-white"
-                        >{secondsListened}s</span
+            <h2 class="text-lg">⏹️ SESSION COMPLETE</h2>
+            {#if isSettling}
+                <div class="flex flex-col items-center gap-4 py-8">
+                    <Loader />
+                    <p
+                        class="text-xs animate-pulse text-[#9ae600] uppercase font-bold tracking-widest"
                     >
-                </p>
-                <p class="text-[#555]">
-                    Total Paid: <span class="text-[#9ae600]"
+                        {settlementStatus || "Atomic Settlement In Progress..."}
+                    </p>
+                    {#if retryCount > 0}
+                        <div
+                            class="flex items-center gap-2 text-[10px] text-yellow-500"
+                        >
+                            <span
+                                class="inline-block w-2 h-2 rounded-full bg-yellow-500 animate-pulse"
+                            ></span>
+                            Retry {retryCount}/{MAX_RETRIES}
+                        </div>
+                    {/if}
+                    <p class="text-[10px] text-[#555] font-sans">
+                        Session key doing the heavy lifting. Sit back.
+                    </p>
+                </div>
+            {:else}
+                <div class="space-y-2">
+                    <p class="text-[#555]">
+                        Total Listened: <span class="text-white"
+                            >{secondsListened}s</span
+                        >
+                    </p>
+                    <p class="text-[#555]">
+                        Total Paid: <span class="text-[#9ae600]"
+                            >{totalSpent} KALE</span
+                        >
+                    </p>
+                    <p class="text-[#555]">
+                        Refunded: <span class="text-white"
+                            >{sessionBalance} KALE</span
+                        >
+                    </p>
+                </div>
+                <button
+                    onclick={settle}
+                    class="mt-8 border border-white px-8 py-3 hover:bg-white hover:text-black transition-colors"
+                >
+                    💸 PAY THE ARTISTS
+                </button>
+            {/if}
+        </div>
+    {:else if phase === "SUCCESS"}
+        <div
+            class="flex flex-col h-full gap-6 text-center justify-center relative overflow-hidden"
+            transition:fade
+        >
+            <!-- Confetti -->
+            <div
+                class="confetti-container absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center"
+            >
+                {#each Array(30) as _, i}
+                    <div
+                        class="confetti"
+                        style="--delay: {i * 0.03}s; --angle: {(i * 360) /
+                            30}deg; --distance: {80 +
+                            Math.random() * 120}px; --color: {[
+                            '#9ae600',
+                            '#ff6b6b',
+                            '#4ecdc4',
+                            '#ffe66d',
+                            '#95e1d3',
+                        ][i % 5]}"
+                    ></div>
+                {/each}
+            </div>
+
+            <!-- Animated Success Checkmark -->
+            <div class="relative mx-auto">
+                <div
+                    class="w-24 h-24 rounded-full border-4 border-[#9ae600] flex items-center justify-center bg-[#9ae600]/10 animate-pulse"
+                >
+                    <span class="text-5xl text-[#9ae600]">✓</span>
+                </div>
+                <div
+                    class="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-[#9ae600] text-black text-sm font-bold flex items-center justify-center animate-bounce"
+                >
+                    🎵
+                </div>
+            </div>
+
+            <h2 class="text-2xl text-[#9ae600] font-bold tracking-wide">
+                STREAM COMPLETE
+            </h2>
+
+            <!-- Session Stats -->
+            <div
+                class="bg-[#111] border border-[#333] p-6 mx-auto w-full max-w-sm space-y-3"
+            >
+                <div class="flex justify-between text-sm">
+                    <span class="text-[#555]">Duration</span>
+                    <span class="text-white font-mono">{secondsListened}s</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-[#555]">Artists Paid</span>
+                    <span class="text-[#9ae600] font-mono"
+                        >{Object.keys(artistDebts).length}</span
+                    >
+                </div>
+                <div
+                    class="flex justify-between text-sm border-t border-[#333] pt-3"
+                >
+                    <span class="text-[#555]">Total Paid</span>
+                    <span class="text-[#9ae600] font-bold text-lg"
                         >{totalSpent} KALE</span
                     >
-                </p>
-                <p class="text-[#555]">
-                    Refunded: <span class="text-white"
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-[#555]">Unspent (returned)</span>
+                    <span class="text-white font-mono"
                         >{sessionBalance} KALE</span
                     >
-                </p>
+                </div>
             </div>
+
+            <!-- Transaction Link -->
+            {#if txHash}
+                <a
+                    href="https://stellar.expert/explorer/public/tx/{txHash}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="group mx-auto flex items-center gap-2 px-4 py-2 border border-[#333] hover:border-[#9ae600] transition-all rounded-full text-xs"
+                >
+                    <span
+                        class="text-[#555] group-hover:text-[#9ae600] transition-colors"
+                        >View on Stellar Expert</span
+                    >
+                    <span
+                        class="text-[#9ae600] font-mono truncate max-w-[120px]"
+                        >{txHash.substring(0, 8)}...{txHash.substring(
+                            txHash.length - 4,
+                        )}</span
+                    >
+                    <span
+                        class="text-[#555] group-hover:translate-x-1 transition-transform"
+                        >→</span
+                    >
+                </a>
+            {/if}
+
+            <!-- Play Again -->
             <button
-                onclick={settle}
-                class="mt-8 border border-white px-8 py-3 hover:bg-white hover:text-black transition-colors"
+                onclick={() => window.location.reload()}
+                class="mt-4 mx-auto bg-[#9ae600] text-black px-8 py-4 uppercase font-bold text-sm hover:scale-105 transition-transform tracking-widest"
             >
-                CLOSE TICKET
+                🔄 PLAY AGAIN
             </button>
+
+            <p class="text-[8px] text-[#555] mt-2">
+                Thanks for using StreamPay! Artists have been compensated
+                directly.
+            </p>
         </div>
     {/if}
 </div>
@@ -401,6 +805,45 @@
         }
         to {
             transform: rotate(360deg);
+        }
+    }
+
+    /* Confetti Explosion Animation */
+    .confetti {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        background: var(--color, #9ae600);
+        opacity: 0;
+        animation: confetti-explode 1.5s ease-out var(--delay, 0s) forwards;
+    }
+
+    .confetti:nth-child(odd) {
+        width: 6px;
+        height: 12px;
+        border-radius: 2px;
+    }
+
+    .confetti:nth-child(even) {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+    }
+
+    @keyframes confetti-explode {
+        0% {
+            transform: rotate(var(--angle)) translateY(0) scale(0);
+            opacity: 0;
+        }
+        20% {
+            opacity: 1;
+            transform: rotate(var(--angle))
+                translateY(calc(var(--distance) * 0.3)) scale(1.2);
+        }
+        100% {
+            transform: rotate(var(--angle)) translateY(var(--distance))
+                rotate(720deg) scale(0);
+            opacity: 0;
         }
     }
 </style>

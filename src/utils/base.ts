@@ -5,8 +5,8 @@
  * Provides centralized RPC server access, ledger sequence polling,
  * and transaction inclusion verification with integrated health tracking.
  */
-import { hash, Keypair } from "@stellar/stellar-sdk/minimal"
-import { Server } from "@stellar/stellar-sdk/minimal/rpc"
+import { hash, Keypair, rpc as sorobanRpc } from "@stellar/stellar-sdk/minimal"
+const { Server } = sorobanRpc;
 
 export const keypair = Keypair.fromRawEd25519Seed(hash(Buffer.from('kalepail')))
 export const publicKey = keypair.publicKey()

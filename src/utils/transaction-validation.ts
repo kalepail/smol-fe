@@ -5,7 +5,7 @@
  * and other transaction-related data.
  */
 
-import { StrKey } from "@stellar/stellar-sdk";
+import { StrKey } from "@stellar/stellar-sdk/minimal";
 import { createValidationError, createSequenceExpirationError } from "./errors";
 
 /**

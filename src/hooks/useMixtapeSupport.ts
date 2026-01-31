@@ -177,7 +177,7 @@ export async function sendSupportPayment(
             onProgress?.(`Transferring to ${truncate(address, 4)}...`);
 
             // Build transfer transaction
-            const tx = await kale.get().transfer({
+            const tx = await (await kale.get()).transfer({
                 from: userState.contractId,
                 to: address,
                 amount,

@@ -279,7 +279,7 @@
             const base = shuffleArray(
                 liveDiscography
                     .filter((s) => s.Id)
-                    .map((s) => `${API_URL}/image/${s.Id}.png?scale=16`)
+                    .map((s) => `${API_URL}/image/${s.Id}.png?scale=16`),
             ).slice(0, 40);
             collageImages = [...base, ...base];
         }
@@ -513,11 +513,13 @@
 
     $effect(() => {
         if (currentSong?.Mint_Token && userState.contractId) {
-            getTokenBalance(
-                sac.get().getSACClient(currentSong.Mint_Token),
-                userState.contractId,
-            ).then((b) => {
-                tradeMintBalance = b;
+            sac.get().then((kit) => {
+                getTokenBalance(
+                    kit.getSACClient(currentSong.Mint_Token!),
+                    userState.contractId!,
+                ).then((b) => {
+                    tradeMintBalance = b;
+                });
             });
         }
     });
@@ -817,7 +819,7 @@
 
     onDestroy(() => {
         // Clear all pending timeouts
-        pendingTimeouts.forEach(t => clearTimeout(t));
+        pendingTimeouts.forEach((t) => clearTimeout(t));
         pendingTimeouts.clear();
         preloadedImageIds.clear();
     });
@@ -889,7 +891,10 @@
         const { scrollTop, scrollHeight, clientHeight } = el;
         // Load more when within 800px of bottom
         if (scrollHeight - scrollTop - clientHeight < 800) {
-            if (gridLimit < displayPlaylist.length && gridLimit < GRID_LIMIT_MAX) {
+            if (
+                gridLimit < displayPlaylist.length &&
+                gridLimit < GRID_LIMIT_MAX
+            ) {
                 // Throttle? Svelte updates are fast enough usually, but let's be safe
                 gridLimit = Math.min(gridLimit + 50, GRID_LIMIT_MAX);
             }

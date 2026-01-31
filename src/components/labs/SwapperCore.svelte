@@ -34,7 +34,7 @@
     } from "../../utils/transaction-helpers";
     import KaleEmoji from "../ui/KaleEmoji.svelte";
     import { Turnstile } from "svelte-turnstile";
-    import { Transaction, Networks } from "@stellar/stellar-sdk";
+    import { Transaction, Networks } from "@stellar/stellar-sdk/minimal";
 
     // --- DEBUG LOGIC ---
     // PROD FIX: If we have an OZ API key, use direct relayer regardless of hostname.
@@ -240,7 +240,9 @@
         try {
             if (!isAuthenticated) {
                 const rpId = getSafeRpId(window.location.hostname);
-                const result = await account.get().connectWallet({ rpId });
+                const result = await (
+                    await account.get()
+                ).connectWallet({ rpId });
                 setUserAuth(result.contractId, result.keyIdBase64);
             } else {
                 await ensureWalletConnected();
@@ -446,11 +448,11 @@
 
         try {
             let client;
-            if (sendToken === "KALE") client = kale;
-            else if (sendToken === "USDC") client = usdc;
-            else client = xlm;
+            if (sendToken === "KALE") client = await kale.get();
+            else if (sendToken === "USDC") client = await usdc.get();
+            else client = await xlm.get();
 
-            const tx = await client.get().transfer({
+            const tx = await client.transfer({
                 from: userState.contractId,
                 to: recipient,
                 amount: amountInStroops,

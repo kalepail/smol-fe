@@ -449,8 +449,8 @@
                 throw new Error("No valid recipients found");
             }
 
-            // Chunk transfers into batches of 5 to avoid Relayer timeouts
-            const MAX_BATCH_SIZE = 5;
+            // Chunk transfers into batches of 50 (Soroban can handle ~100)
+            const MAX_BATCH_SIZE = 50;
             const chunks = [];
             for (let i = 0; i < allTransfers.length; i += MAX_BATCH_SIZE) {
                 chunks.push(allTransfers.slice(i, i + MAX_BATCH_SIZE));
@@ -491,7 +491,9 @@
                 settleStep = Math.floor((chunkIndex / chunks.length) * 50); // Progress visual
 
                 // Sign
-                const signedXdr = await account.get().sign(batchXdr, {
+                const signedXdr = await (
+                    await account.get()
+                ).sign(batchXdr, {
                     rpId: getSafeRpId(window.location.hostname),
                     keyId: userState.keyId,
                     expiration: sequence + 60,

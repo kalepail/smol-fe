@@ -27,7 +27,7 @@
 
     onMount(async () => {
         try {
-            const { result } = await kale.get().decimals();
+            const { result } = await (await kale.get()).decimals();
             kaleDecimals = Number(result);
             decimalsFactor = 10n ** BigInt(kaleDecimals);
         } catch (err) {
@@ -115,7 +115,9 @@
             }
 
             // Build transfer transaction
-            const tx = await kale.get().transfer({
+            const tx = await (
+                await kale.get()
+            ).transfer({
                 from: userState.contractId,
                 to: destination,
                 amount: amountInUnits,

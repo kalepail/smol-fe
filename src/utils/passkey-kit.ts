@@ -1,6 +1,8 @@
-import { PasskeyKit, SACClient } from "passkey-kit";
-import { AssembledTransaction } from "@stellar/stellar-sdk/minimal/contract";
-import type { Tx } from "@stellar/stellar-sdk/minimal/contract";
+// No top-level imports of PasskeyKit or SACClient to keep them out of server bundle
+import { contract } from "@stellar/stellar-sdk/minimal";
+const { AssembledTransaction } = contract;
+import type { Transaction, FeeBumpTransaction } from "@stellar/stellar-sdk/minimal";
+type Tx = Transaction | FeeBumpTransaction;
 import { getTurnstileToken } from "../stores/turnstile.svelte.ts";
 import logger, { LogCategory } from "./debug-logger";
 
@@ -14,18 +16,31 @@ import { getRpcUrl } from "./rpc";
  * set after connectWallet() is called. Creating a new instance for each
  * operation loses this state.
  */
-let _passkeyKitInstance: PasskeyKit | null = null;
+let _passkeyKitInstance: any = null;
+let _passkeyKitPromise: Promise<any> | null = null;
 
-function getPasskeyKit(): PasskeyKit {
-    if (!_passkeyKitInstance) {
-        _passkeyKitInstance = new PasskeyKit({
-            rpcUrl: getRpcUrl(),
-            networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
-            walletWasmHash: import.meta.env.PUBLIC_WALLET_WASM_HASH,
-            timeoutInSeconds: 30,
-        });
+async function getPasskeyKit(): Promise<any> {
+    // Fast path: instance already exists
+    if (_passkeyKitInstance) {
+        return _passkeyKitInstance;
     }
-    return _passkeyKitInstance;
+
+    // Serialize initialization: cache the in-flight promise so all concurrent
+    // callers share the same instance instead of each creating their own
+    if (!_passkeyKitPromise) {
+        _passkeyKitPromise = (async () => {
+            const { PasskeyKit } = await import("passkey-kit");
+            _passkeyKitInstance = new PasskeyKit({
+                rpcUrl: getRpcUrl(),
+                networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
+                walletWasmHash: import.meta.env.PUBLIC_WALLET_WASM_HASH,
+                timeoutInSeconds: 30,
+            });
+            return _passkeyKitInstance;
+        })();
+    }
+
+    return _passkeyKitPromise;
 }
 
 /**
@@ -33,6 +48,7 @@ function getPasskeyKit(): PasskeyKit {
  */
 export function resetPasskeyKit(): void {
     _passkeyKitInstance = null;
+    _passkeyKitPromise = null;
 }
 
 export const account = {
@@ -40,22 +56,25 @@ export const account = {
 };
 
 export const sac = {
-    get: () => new SACClient({
-        rpcUrl: getRpcUrl(), // Dynamic failover
-        networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
-    })
+    get: async () => {
+        const { SACClient } = await import("passkey-kit");
+        return new SACClient({
+            rpcUrl: getRpcUrl(), // Dynamic failover
+            networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE,
+        });
+    }
 };
 
 export const kale = {
-    get: () => sac.get().getSACClient(import.meta.env.PUBLIC_KALE_SAC_ID)
+    get: async () => (await sac.get()).getSACClient(import.meta.env.PUBLIC_KALE_SAC_ID)
 };
 
 export const xlm = {
-    get: () => sac.get().getSACClient(import.meta.env.PUBLIC_XLM_SAC_ID || "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA")
+    get: async () => (await sac.get()).getSACClient(import.meta.env.PUBLIC_XLM_SAC_ID || "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA")
 };
 
 export const usdc = {
-    get: () => sac.get().getSACClient("CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75")
+    get: async () => (await sac.get()).getSACClient("CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75")
 };
 
 /**

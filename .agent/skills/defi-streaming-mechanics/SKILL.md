@@ -30,7 +30,18 @@ To ensure "Charged Regardless" behavior (Anti-gaming):
     - *Fix*: Detailed accounting would require a centralized "Tick Server", which reduces decentralization.
 
 
-## 4. Implementation Checklist
+## 4. Virtual Escrow (Cloudflare Durable Objects)
+To avoid excessive ledger fees and latency:
+- **Off-Chain Accounting**: Use a Cloudflare Durable Object to track per-second debt.
+- **Heartbeat**: If the user's connection drops, the DO stops the session immediately, limiting "unpaid" listening to a few seconds.
+- **Settlement**: The DO triggers a Soroban contract call only once per session or when a significant balance threshold is reached.
+
+## 5. State Expiration & Storage
+- **Temporary Storage**: Use for transaction nonces and short-lived session IDs to keep contract rent low.
+- **TTL Management**: Ensure the contract extends the TTL of active user data to prevent premature expiration during long listening sessions.
+
+## 6. Implementation Checklist
 - [ ] **Limit Loop**: Ensure `played_songs.length` does not exceed `MAX_OPS` (safe limit: 50).
 - [ ] **Gas Estimation**: Ensure Deposit covers not just the Stream Cost but also the `Rent/Gas` for the Settlement Tx.
-- [ ] **Dust**: Handle cases where `time_listened` < 1 second (Micro-payments below minimum granularity).
+- [ ] **Dust**: Handle cases where `time_listened` < 1 second.
+- [ ] **DO Heartbeat**: Implement client-side `ping` to the Durable Object every 5 seconds.

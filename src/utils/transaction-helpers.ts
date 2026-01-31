@@ -51,7 +51,7 @@ export async function signAndSend(
     try {
         const sequence = await getLatestSequence();
         const rpId = getSafeRpId(window.location.hostname);
-        const kit = account.get();
+        const kit = await account.get();
 
         // AI DEBUG: Log wallet state before potential connection
         console.log('[SignAndSend] PasskeyKit state:', {

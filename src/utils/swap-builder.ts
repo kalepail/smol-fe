@@ -18,8 +18,9 @@ import {
     Networks,
     Account,
     rpc
-} from "@stellar/stellar-sdk";
-const { Server, Api, assembleTransaction } = rpc;
+} from "@stellar/stellar-sdk/minimal";
+
+const { assembleTransaction, Server, Api } = rpc;
 import type { QuoteResponse, RawTradeDistribution } from "./soroswap";
 import logger, { LogCategory } from "./debug-logger";
 import { safeStringify } from "./soroswap";

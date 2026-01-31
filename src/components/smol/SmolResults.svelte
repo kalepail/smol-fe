@@ -5,6 +5,7 @@
         selectSong,
         togglePlayPause,
         isPlaying,
+        initAudioContext,
     } from "../../stores/audio.svelte.ts";
     import { navigate } from "astro:transitions/client";
     import { onDestroy } from "svelte";
@@ -24,6 +25,47 @@
     let { id }: { id: string } = $props();
 
     const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
+
+    // Twitter referrer detection for tap-to-play overlay
+    let showTapToPlay = $state(false);
+    let isFromTwitter = $state(false);
+    let isMobileDevice = $state(false);
+
+    // Detect Twitter referrer and mobile device on mount
+    $effect(() => {
+        if (typeof window !== "undefined") {
+            const referrer = document.referrer.toLowerCase();
+            // Check for Twitter/X referrers (t.co is Twitter's URL shortener)
+            isFromTwitter =
+                referrer.includes("t.co") ||
+                referrer.includes("twitter.com") ||
+                referrer.includes("x.com");
+
+            // Check if mobile device
+            isMobileDevice =
+                /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+                    navigator.userAgent,
+                ) ||
+                (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
+
+            // Show tap-to-play overlay for Twitter referrals (mobile primarily, but works for desktop too)
+            // This ensures the user gesture unlocks audio playback
+            if (isFromTwitter) {
+                showTapToPlay = true;
+            }
+        }
+    });
+
+    // Handle tap-to-play action
+    function handleTapToPlay() {
+        showTapToPlay = false;
+        // Initialize audio context with user gesture
+        initAudioContext();
+        // Now select and play the song
+        if (track) {
+            selectSong(track);
+        }
+    }
 
     // Data State
     let data = $state<SmolDetailResponse | null>(null);
@@ -220,8 +262,8 @@
             stopPolling();
             loading = false;
 
-            // Auto-play if track is ready
-            if (track) {
+            // Auto-play if track is ready (but not if showing tap-to-play overlay)
+            if (track && !showTapToPlay) {
                 selectSong(track);
             }
         } catch (e: any) {
@@ -286,10 +328,12 @@
         const mintToken = data?.d1?.Mint_Token;
         const contractId = userState.contractId;
         if (mintToken && contractId) {
-            const client = sac.get().getSACClient(mintToken);
-            getTokenBalance(client, contractId).then(
-                (b) => (tradeMintBalance = b),
-            );
+            sac.get().then((kit) => {
+                const client = kit.getSACClient(mintToken);
+                getTokenBalance(client, contractId).then(
+                    (b) => (tradeMintBalance = b),
+                );
+            });
         }
     });
 
@@ -409,6 +453,63 @@
 </script>
 
 <div class="max-w-6xl mx-auto px-4 font-mono overflow-x-hidden">
+    <!-- Tap to Play Overlay for Twitter Referrals -->
+    {#if showTapToPlay && data && !loading}
+        <button
+            onclick={handleTapToPlay}
+            class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-xl cursor-pointer transition-opacity duration-300"
+            aria-label="Tap to play"
+        >
+            <!-- Album Art Preview -->
+            {#if data.kv_do?.image_base64}
+                <div
+                    class="w-48 h-48 md:w-64 md:h-64 rounded-2xl overflow-hidden shadow-2xl mb-8 ring-2 ring-[#d836ff]/30 animate-pulse"
+                >
+                    <img
+                        src="data:image/png;base64,{data.kv_do.image_base64}"
+                        alt="Album art"
+                        class="w-full h-full object-cover"
+                    />
+                </div>
+            {:else}
+                <div
+                    class="w-48 h-48 md:w-64 md:h-64 rounded-2xl overflow-hidden shadow-2xl mb-8 ring-2 ring-[#d836ff]/30"
+                >
+                    <img
+                        src="{API_URL}/image/{id}.png?scale=8"
+                        alt="Album art"
+                        class="w-full h-full object-cover"
+                    />
+                </div>
+            {/if}
+
+            <!-- Song Title -->
+            <h2
+                class="text-xl md:text-2xl font-bold text-white mb-2 text-center px-4"
+            >
+                {data.kv_do?.lyrics?.title || data.d1?.Title || "Untitled"}
+            </h2>
+
+            <!-- Play Button -->
+            <div
+                class="w-20 h-20 md:w-24 md:h-24 rounded-full bg-[#d836ff] flex items-center justify-center mt-6 shadow-[0_0_40px_rgba(216,54,255,0.5)] hover:scale-110 transition-transform duration-200"
+            >
+                <svg
+                    class="w-10 h-10 md:w-12 md:h-12 text-white ml-1"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                >
+                    <path d="M8 5v14l11-7z" />
+                </svg>
+            </div>
+
+            <!-- Tap to Play Text -->
+            <p class="text-white/60 text-sm mt-6 uppercase tracking-widest">
+                {isMobileDevice ? "Tap to Play" : "Click to Play"}
+            </p>
+        </button>
+    {/if}
+
     {#if loading}
         <div
             data-smol-loading
@@ -1199,7 +1300,8 @@
                                                         class="text-white/60 font-mono text-[10px]"
                                                     >
                                                         {new Date(
-                                                            data.d1?.Created_At ||
+                                                            data.d1
+                                                                ?.Created_At ||
                                                                 "",
                                                         ).toLocaleDateString()}
                                                     </div>

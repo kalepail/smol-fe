@@ -109,15 +109,17 @@
         lastFetchedMintToken = mintToken;
         lastFetchedUser = contractId;
 
-        const client = sac.get().getSACClient(mintToken);
-        getTokenBalance(client, contractId)
-          .then((balance) => {
-            tradeMintBalance = balance;
-          })
-          .catch((error) => {
-            console.error("Failed to fetch mint token balance:", error);
-            tradeMintBalance = 0n;
-          });
+        sac.get().then((kit) => {
+          const client = kit.getSACClient(mintToken);
+          getTokenBalance(client, contractId)
+            .then((balance) => {
+              tradeMintBalance = balance;
+            })
+            .catch((error) => {
+              console.error("Failed to fetch mint token balance:", error);
+              tradeMintBalance = 0n;
+            });
+        });
       }
     } else if (!mintToken) {
       tradeMintBalance = 0n;

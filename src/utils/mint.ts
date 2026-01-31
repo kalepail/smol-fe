@@ -4,7 +4,7 @@ import { account } from "./passkey-kit";
 import { getLatestSequence } from "./base";
 import { getSafeRpId } from "./domains";
 
-type SignableTransaction = Parameters<ReturnType<typeof account.get>["sign"]>[0];
+type SignableTransaction = any;
 
 export const MINT_POLL_INTERVAL = 1000 * 6;
 export const MINT_POLL_TIMEOUT = 1000 * 60 * 5;
@@ -72,7 +72,7 @@ export async function createMintTransaction(options: MintOptions) {
     const sequence = await getLatestSequence();
 
     const signable = at as unknown as SignableTransaction;
-    const signed = await account.get().sign(signable, {
+    const signed = await (await account.get()).sign(signable, {
         rpId: getSafeRpId(window.location.hostname),
         keyId,
         expiration: sequence + 60,

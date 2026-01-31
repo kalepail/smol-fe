@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { getVIPAccess } from '../../../../utils/vip';
-import { StrKey } from '@stellar/stellar-sdk';
+import { StrKey } from '@stellar/stellar-sdk/minimal';
 import { findTransfersToRecipient } from '../../../../utils/horizon';
 
 const ADMIN_ADDRESS = "CBNORBI4DCE7LIC42FWMCIWQRULWAUGF2MH2Z7X2RNTFAYNXIACJ33IM";

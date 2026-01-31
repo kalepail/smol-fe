@@ -120,16 +120,16 @@
         networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE!,
       });
 
-      mintTokenClient = sac.get().getSACClient(mintTokenId);
+      mintTokenClient = (await sac.get()).getSACClient(mintTokenId);
 
       const [
         { result: kaleDecRes },
         { result: mintDecRes },
         { result: ammBalanceRes },
       ] = await Promise.all([
-        kale.get().decimals(),
+        (await kale.get()).decimals(),
         mintTokenClient.decimals(),
-        kale.get().balance({ id: ammId }),
+        (await kale.get()).balance({ id: ammId }),
       ]);
 
       kaleDecimals = Number(kaleDecRes);
@@ -159,7 +159,7 @@
     try {
       const [{ result: kaleResult }, { result: mintResult }] =
         await Promise.all([
-          kale.get().balance({ id: currentContractId }),
+          (await kale.get()).balance({ id: currentContractId }),
           mintTokenClient.balance({ id: currentContractId }),
         ]);
       userKaleBalance = kaleResult;
@@ -174,8 +174,7 @@
     const promises: Promise<void>[] = [];
 
     promises.push(
-      kale
-        .get()
+      (await kale.get())
         .balance({ id: ammId })
         .then(({ result }) => {
           ammKaleBalance = result;
@@ -188,7 +187,7 @@
     if (currentContractId) {
       promises.push(
         Promise.all([
-          kale.get().balance({ id: currentContractId }),
+          (await kale.get()).balance({ id: currentContractId }),
           mintTokenClient.balance({ id: currentContractId }),
         ])
           .then(([{ result: kaleResult }, { result: mintResult }]) => {

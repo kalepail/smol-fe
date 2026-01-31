@@ -58,7 +58,21 @@ When asking the agent to create animations, use this structured approach:
 *   "Use `z-transform` for depth."
 *   "Rotate X 15deg to give perspective."
 
-## Code Patterns
+## Code Patterns & Best Practices
+
+### Animation Rules
+- **Frame-Driven**: Always derive values from `useCurrentFrame()` and `useVideoConfig()`.
+- **NO SIDE EFFECTS**: Do not use CSS animations, `setTimeout`, or `requestAnimationFrame`.
+- **Interpolation**: Use `interpolate()` with `extrapolateRight: "clamp"` to prevent values from exceeding bounds.
+- **Springs**: Use `spring()` for natural motion. Map the 0-1 output to properties using `interpolate()`.
+
+### Layout & Sequencing
+- **Sequences**: Use `<Sequence>` with `from` and `durationInFrames`.
+- **Series**: Use `<Series>` for consecutive segments. Use `<Series.Step>` or negative `offset` for overlaps.
+- **Transitions**: Use `<TransitionSeries>` from `@remotion/transitions` for fullscreen scene changes.
+- **Asset Loading**: Always use `staticFile('path/to/asset')` for files in the `public/` folder.
+
+## Essential Code Snippets
 
 **Interpolation:**
 ```tsx
@@ -68,23 +82,40 @@ const opacity = interpolate(frame, [0, 30], [0, 1], {
 });
 ```
 
-**Springs:**
+**Advanced Springs:**
 ```tsx
 const { fps } = useVideoConfig();
+const frame = useCurrentFrame();
 const scale = spring({
   frame,
   fps,
-  config: { damping: 200 },
+  config: { damping: 12, stiffness: 100, mass: 1 },
+  durationInFrames: 30, // Stretch/compress the spring
 });
+const mappedScale = interpolate(scale, [0, 1], [0.8, 1]);
 ```
 
-**Sequencing:**
-Use `<Sequence>` to time events:
+**Sequencing & Series:**
 ```tsx
-<Sequence from={0} durationInFrames={60}>
-  <Intro />
-</Sequence>
-<Sequence from={60}>
-  <MainContent />
-</Sequence>
+<Series>
+  <Series.Step durationInFrames={30}>
+    <Intro />
+  </Series.Step>
+  <Series.Step durationInFrames={60}>
+    <MainContent />
+  </Series.Step>
+</Series>
+```
+
+**Asset Management:**
+```tsx
+import { staticFile, Audio, Video, Img } from "remotion";
+
+const MyComponent = () => (
+  <>
+    <Audio src={staticFile("bg-music.mp3")} />
+    <Video src={staticFile("overlay.mp4")} />
+    <Img src={staticFile("logo.png")} />
+  </>
+);
 ```

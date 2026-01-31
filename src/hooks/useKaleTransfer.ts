@@ -63,7 +63,7 @@ export function useKaleTransfer() {
   async function executeTransfer(params: TransferParams): Promise<SignAndSendResult> {
     try {
       // Build transfer transaction
-      const tx = await kale.get().transfer({
+      const tx = await (await kale.get()).transfer({
         from: params.from,
         to: params.to,
         amount: params.amount,

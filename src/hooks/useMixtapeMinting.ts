@@ -17,7 +17,7 @@ import { RPC_URL } from '../utils/rpc';
 import { MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from '../utils/mint';
 import { isUserCancellation } from '../utils/transaction-helpers';
 
-type SignableTransaction = Parameters<ReturnType<typeof account.get>['sign']>[0];
+type SignableTransaction = any;
 
 interface MintingState {
   mintIntervals: Map<string, NodeJS.Timeout>;
@@ -170,7 +170,7 @@ export function useMixtapeMinting() {
 
     const sequence = await getLatestSequence();
     const signable = at as unknown as SignableTransaction;
-    const signed = await account.get().sign(signable, {
+    const signed = await (await account.get()).sign(signable, {
       rpId: getSafeRpId(window.location.hostname),
       keyId: userKeyId,
       expiration: sequence + 60,

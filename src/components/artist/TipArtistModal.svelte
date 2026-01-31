@@ -14,7 +14,7 @@
         balanceState,
         isTransactionInProgress,
     } from "../../stores/balance.svelte.ts";
-    import { StrKey } from "@stellar/stellar-sdk";
+    import { StrKey } from "@stellar/stellar-sdk/minimal";
     import Loader from "../ui/Loader.svelte";
     import {
         parseAndValidateAmount,
@@ -74,7 +74,7 @@
         }
 
         try {
-            const { result } = await kale.get().decimals();
+            const { result } = await (await kale.get()).decimals();
             kaleDecimals = Number(result);
             decimalsFactor = 10n ** BigInt(kaleDecimals);
         } catch (err) {
@@ -174,7 +174,9 @@
         submitting = true;
         try {
             // Build transfer
-            const tx = await kale.get().transfer({
+            const tx = await (
+                await kale.get()
+            ).transfer({
                 from: userState.contractId,
                 to: lockedArtistAddress,
                 amount: amountInStroops,

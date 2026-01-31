@@ -39,19 +39,19 @@ export function isTransactionInProgress(): boolean {
 
 async function _fetchKale(address: string): Promise<bigint | null> {
   const { kale } = await import('../utils/passkey-kit');
-  const { result } = await kale.get().balance({ id: address });
+  const { result } = await (await kale.get()).balance({ id: address });
   return result;
 }
 
 async function _fetchXlm(address: string): Promise<bigint | null> {
   const { xlm } = await import('../utils/passkey-kit');
-  const { result } = await xlm.get().balance({ id: address });
+  const { result } = await (await xlm.get()).balance({ id: address });
   return result;
 }
 
 async function _fetchUsdc(address: string): Promise<bigint | null> {
   const { usdc } = await import('../utils/passkey-kit');
-  const { result } = await usdc.get().balance({ id: address });
+  const { result } = await (await usdc.get()).balance({ id: address });
   return result;
 }
 

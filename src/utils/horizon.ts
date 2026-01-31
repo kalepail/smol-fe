@@ -9,7 +9,8 @@
  * - Proper error handling
  */
 
-import { xdr, StrKey, scValToNative } from '@stellar/stellar-sdk';
+import { xdr, StrKey, contract } from '@stellar/stellar-sdk/minimal';
+const { scValToNative } = contract;
 import logger, { LogCategory, createScopedLogger } from './debug-logger';
 
 const HORIZON_URL = 'https://horizon.stellar.org';

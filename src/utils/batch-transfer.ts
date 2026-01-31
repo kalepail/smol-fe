@@ -14,11 +14,11 @@ import {
     TransactionBuilder,
     Networks,
     Account,
-    rpc,
     xdr,
-} from "@stellar/stellar-sdk";
+    rpc
+} from "@stellar/stellar-sdk/minimal";
 
-const { Server, assembleTransaction } = rpc;
+const { assembleTransaction, Server, Api } = rpc;
 
 // RPC URL from environment or failover
 const RPC_URL = import.meta.env.PUBLIC_RPC_URL || "https://rpc.ankr.com/stellar_soroban";
@@ -97,7 +97,7 @@ export async function buildBatchKaleTransfer(
 
     const simResult = await server.simulateTransaction(tx);
 
-    if (rpc.Api.isSimulationError(simResult)) {
+    if (Api.isSimulationError(simResult)) {
         console.error("[BatchTransfer] Simulation failed:", simResult.error);
         throw new Error(`Batch simulation failed: ${simResult.error}`);
     }
