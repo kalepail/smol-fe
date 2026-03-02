@@ -1,0 +1,5 @@
+# Ignore build outputs
+/target/
+/artifacts/samples/*.json
+/Prover.toml
+/2*

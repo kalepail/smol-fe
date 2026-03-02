@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head><style>body { background: #1e1e1e; color: #d4d4d4; font-family: 'Courier New', Courier, monospace; font-size: 28px; padding: 60px; margin: 0; }</style></head>
+<body>
+<h2>// ZK Proof Verification & Stellar Smart Contract</h2>
+<pre>
+<span style="color: #569cd6;">const</span> verifierId = <span style="color: #ce9178;">import.meta.env.PUBLIC_TIER_VERIFIER_CONTRACT_ID_TESTNET</span>;
+
+<span style="color: #6a9955;">// Submit the locally generated ZK proof for on-chain verification</span>
+<span style="color: #569cd6;">const</span> txHash = <span style="color: #c586c0;">await</span> signAndSubmit({
+  contract: verifierId,
+  method: <span style="color: #ce9178;">"verify_and_start_game"</span>,
+  args: [ nativeToScVal(proofBytes, { type: <span style="color: #ce9178;">"bytes"</span> }) ]
+});
+
+<span style="color: #c586c0;">if</span> (txHash) {
+  <span style="color: #4ec9b0;">console</span>.log(<span style="color: #ce9178;">"&#10004; ZK Proof Verified on Stellar Testnet!"</span>);
+  <span style="color: #4ec9b0;">console</span>.log(<span style="color: #ce9178;">"Starting game session..."</span>);
+}
+</pre>
+</body></html>

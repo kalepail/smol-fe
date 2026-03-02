@@ -1,3 +1,11 @@
+<!--
+CONTRACT:
+- SSOT: [STATE_OF_WORLD.md](STATE_OF_WORLD.md)
+- AUDIENCE: Dev, Ops
+- NATURE: Runbook
+- LAST_HARDENED: 2026-02-19
+- VERIFICATION_METHOD: [Manual Verify]
+-->
 # Passkey-Kit + OZ Relayer: Operational Runbook
 
 > Troubleshooting matrix and failure mode catalog for the passkey authentication and relayer submission system.

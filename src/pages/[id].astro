@@ -6,6 +6,7 @@ const { id } = Astro.params;
 
 
 const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
+const SITE_URL = import.meta.env.PUBLIC_URL || "https://noot.smol.xyz";
 
 // Fetch minimal data for SEO/meta tags only
 let title: string | undefined;
@@ -18,6 +19,13 @@ let rawPrompt = "";
 let createdDate = "";
 
 if (id) {
+    if (!/^[a-f0-9]{64}$/i.test(id)) {
+        return new Response(null, {
+            status: 404,
+            statusText: 'Not Found'
+        });
+    }
+
     // PREVENT ROUTING CONFLICT: Explicitly reject known static routes that might fall through
     if (id === "radio") {
         return new Response(null, {
@@ -61,9 +69,9 @@ if (id) {
             schema = [{
                 "@context": "https://schema.org",
                 "@type": "MusicRecording",
-                "@id": `${import.meta.env.PUBLIC_URL || 'https://noot.smol.xyz'}/${id}#recording`,
+                "@id": `${SITE_URL}/${id}#recording`,
                 "name": title,
-                "url": `${import.meta.env.PUBLIC_URL || 'https://noot.smol.xyz'}/${id}`,
+                "url": `${SITE_URL}/${id}`,
                 "description": description,
                 "datePublished": createdDate,
                 "image": image_url ? { "@type": "ImageObject", "url": image_url } : undefined,
@@ -77,11 +85,11 @@ if (id) {
                 "isAccessibleForFree": true,
                 "producer": {
                      "@type": "Organization",
-                     "@id": `${import.meta.env.PUBLIC_URL || 'https://noot.smol.xyz'}/#organization`
+                     "@id": `${SITE_URL}/#organization`
                 },
                 "potentialAction": {
                     "@type": "ListenAction",
-                    "target": `${import.meta.env.PUBLIC_URL || 'https://noot.smol.xyz'}/${id}`,
+                    "target": `${SITE_URL}/${id}`,
                     "expectsAcceptanceOf": {
                         "@type": "Offer",
                         "availability": "https://schema.org/OnlineOnly",
@@ -114,9 +122,9 @@ if (id) {
                 "@context": "https://schema.org",
                 "@type": "BreadcrumbList",
                 "itemListElement": [
-                  { "@type": "ListItem", "position": 1, "name": "Smol", "item": "https://noot.smol.xyz" },
-                  { "@type": "ListItem", "position": 2, "name": "Songs", "item": "https://noot.smol.xyz" },
-                  { "@type": "ListItem", "position": 3, "name": title, "item": `${import.meta.env.PUBLIC_URL || 'https://noot.smol.xyz'}/${id}` }
+                  { "@type": "ListItem", "position": 1, "name": "Smol", "item": SITE_URL },
+                  { "@type": "ListItem", "position": 2, "name": "Songs", "item": SITE_URL },
+                  { "@type": "ListItem", "position": 3, "name": title, "item": `${SITE_URL}/${id}` }
                 ]
              }];
 		}
@@ -126,7 +134,16 @@ if (id) {
 }
 ---
 
-<Layout {title} {description} {song_url} {image_url} hideBottomBar={true} {schema} twitter_player={song_url ? `${Astro.url.origin}/embed/${id}` : null}>
+<Layout
+    {title}
+    {description}
+    {song_url}
+    {image_url}
+    hideBottomBar={true}
+    {schema}
+    twitter_player={song_url ? `${Astro.url.origin}/embed/${id}` : null}
+    twitter_player_stream={song_url}
+>
 	<div class="w-full min-h-[calc(100vh-80px)] lg:h-[calc(100vh-80px)] h-auto flex flex-col items-center justify-center lg:overflow-hidden overflow-y-auto pt-4 lg:pt-12 pb-8 px-4 lg:px-6">
 		<div data-astro-transition-scope={`song-${id}`}>
 			<SmolResults id={id as string} client:only="svelte" />

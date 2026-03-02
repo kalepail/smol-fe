@@ -21,7 +21,8 @@
 
     function getCurrentAudioUrl(): string {
         if (audioState.currentSong) {
-            const songId = audioState.currentSong.Id;
+            const songId = audioState.currentSong.Song_1 || audioState.currentSong.Id;
+            if (!songId) return "";
             return `${window.location.origin}/api/audio/${songId}`;
         }
         return "";

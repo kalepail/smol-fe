@@ -1,3 +1,11 @@
+<!--
+CONTRACT:
+- SSOT: [STATE_OF_WORLD.md](STATE_OF_WORLD.md)
+- AUDIENCE: All
+- NATURE: Index
+- LAST_HARDENED: 2026-02-19
+- VERIFICATION_METHOD: [Link check]
+-->
 # Documentation Index
 `INDEX` → **Information Architecture**
 

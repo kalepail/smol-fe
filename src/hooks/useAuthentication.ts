@@ -28,7 +28,8 @@ export function useAuthentication() {
     console.log('[Auth] Attempting login with RP ID:', primaryRpId, 'for hostname:', hostname);
 
     try {
-      const result = await (await account.get()).connectWallet({
+      const kit = await account.get();
+      const result = await kit.connectWallet({
         rpId: primaryRpId,
       });
 
@@ -56,7 +57,8 @@ export function useAuthentication() {
         console.log('[Auth] Trying fallback RP ID (full hostname):', hostname);
 
         try {
-          const result = await (await account.get()).connectWallet({
+          const kit = await account.get();
+          const result = await kit.connectWallet({
             rpId: hostname,
           });
 

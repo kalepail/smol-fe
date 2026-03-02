@@ -1,3 +1,11 @@
+<!--
+CONTRACT:
+- SSOT: [STATE_OF_WORLD.md](../STATE_OF_WORLD.md)
+- AUDIENCE: Dev
+- NATURE: Archive
+- LAST_HARDENED: 2026-02-19
+- VERIFICATION_METHOD: [Historical]
+-->
 # Mainnet Passkey-Kit Validation Notes
 
 ## Inputs (Verified)

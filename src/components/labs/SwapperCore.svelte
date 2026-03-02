@@ -240,9 +240,8 @@
         try {
             if (!isAuthenticated) {
                 const rpId = getSafeRpId(window.location.hostname);
-                const result = await (
-                    await account.get()
-                ).connectWallet({ rpId });
+                const kit = await account.get();
+                const result = await kit.connectWallet({ rpId });
                 setUserAuth(result.contractId, result.keyIdBase64);
             } else {
                 await ensureWalletConnected();
@@ -400,7 +399,7 @@
                 throw new Error(sendResult.error || "Swap submission failed");
             }
 
-            txHash = sendResult.transactionHash || "submitted";
+            txHash = sendResult.transactionHash ?? null;
             swapState = "confirmed";
             statusMessage = "Swap complete!";
             triggerSuccessConfetti();
@@ -472,7 +471,7 @@
                 throw new Error(sendResult.error || "Transfer failed");
             }
 
-            txHash = sendResult.transactionHash || "submitted";
+            txHash = sendResult.transactionHash ?? null;
             swapState = "confirmed";
             statusMessage = `Sent ${amountNum} ${sendToken}!`;
             triggerSuccessConfetti();

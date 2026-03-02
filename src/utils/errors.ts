@@ -4,6 +4,7 @@
  * Provides structured error types with proper categorization, user-friendly
  * messages, and recovery suggestions.
  */
+import { reportCriticalError } from "./monitoring";
 
 export enum ErrorCategory {
     NETWORK = 'NETWORK',
@@ -339,6 +340,16 @@ export function logError(error: SmolError): void {
     switch (error.severity) {
         case ErrorSeverity.CRITICAL:
             console.error('[CRITICAL]', logData);
+            reportCriticalError({
+                scope: "smol-error",
+                code: error.code,
+                category: error.category,
+                severity: error.severity,
+                message: error.message,
+                metadata: error.metadata,
+                stack: error.stack,
+                timestamp: new Date().toISOString(),
+            });
             break;
         case ErrorSeverity.HIGH:
             console.error('[ERROR]', logData);

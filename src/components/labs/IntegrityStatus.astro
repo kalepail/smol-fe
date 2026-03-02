@@ -1,0 +1,53 @@
+---
+export type IntegrityTone = "good" | "warn" | "bad" | "info";
+
+export type IntegrityItem = {
+  label: string;
+  value: string;
+  tone?: IntegrityTone;
+};
+
+export type Props = {
+  title?: string;
+  items: IntegrityItem[];
+  note?: string;
+};
+
+const { title = "Integrity Status", items, note } = Astro.props;
+
+const toneClass: Record<IntegrityTone, string> = {
+  good: "text-emerald-200",
+  warn: "text-amber-200",
+  bad: "text-rose-200",
+  info: "text-sky-200",
+};
+---
+
+<section class="rounded-2xl border border-white/10 bg-black/40 p-4 md:p-5 backdrop-blur">
+  <div class="flex flex-wrap items-center justify-between gap-2">
+    <h2 class="text-xs font-semibold uppercase tracking-[0.25em] text-white/70">
+      {title}
+    </h2>
+    <span class="text-[10px] uppercase tracking-[0.25em] text-white/40">Labs</span>
+  </div>
+
+  <dl class="mt-3 grid gap-3 md:grid-cols-2">
+    {items.map((item) => (
+      <div class="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
+        <dt class="text-[10px] uppercase tracking-[0.24em] text-white/45">
+          {item.label}
+        </dt>
+        <dd class={`mt-1 text-sm ${item.tone ? toneClass[item.tone] : "text-white/80"}`}>
+          {item.value}
+        </dd>
+      </div>
+    ))}
+  </dl>
+
+  {note && (
+    <p class="mt-3 text-xs text-white/55 leading-relaxed">
+      {note}
+    </p>
+  )}
+</section>
+

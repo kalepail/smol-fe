@@ -1,0 +1,6 @@
+[package]
+name = "the_farm_noir_legacy"
+type = "bin"
+authors = ["smol"]
+
+[dependencies]

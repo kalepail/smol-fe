@@ -1,3 +1,11 @@
+<!--
+CONTRACT:
+- SSOT: [STATE_OF_WORLD.md](../STATE_OF_WORLD.md)
+- AUDIENCE: Dev, Marketing
+- NATURE: Playbook
+- LAST_HARDENED: 2026-02-19
+- VERIFICATION_METHOD: [Claim check]
+-->
 # AEO/GEO v2 Playbook
 
 **Version:** 2.0 (Jan 2026)

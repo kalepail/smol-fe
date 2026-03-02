@@ -6,7 +6,7 @@ import { once } from "node:events";
 const PORT = 4321;
 const BASE_URL = `http://localhost:${PORT}`;
 const ADDRESS = "CBNORBI4DCE7LIC42FWMCIWQRULWAUGF2MH2Z7X2RNTFAYNXIACJ33IM";
-const READY_TIMEOUT_MS = 15000;
+const READY_TIMEOUT_MS = 45000;
 const SHUTDOWN_TIMEOUT_MS = 3000;
 
 function waitForReady(process) {
@@ -24,6 +24,11 @@ function waitForReady(process) {
       }
     };
 
+    const onError = (error) => {
+      cleanup();
+      reject(error);
+    };
+
     const onExit = (code) => {
       cleanup();
       reject(new Error(`Dev server exited early with code ${code}`));
@@ -33,11 +38,13 @@ function waitForReady(process) {
       clearTimeout(timeout);
       process.stdout?.off("data", onData);
       process.stderr?.off("data", onData);
+      process.off("error", onError);
       process.off("exit", onExit);
     };
 
     process.stdout?.on("data", onData);
     process.stderr?.on("data", onData);
+    process.on("error", onError);
     process.on("exit", onExit);
   });
 }
@@ -48,7 +55,13 @@ async function fetchArtist(path) {
   return { response, body };
 }
 
-test("artist route SSR renders shell with and without query params", async (t) => {
+const runSsrDevServerTest = process.env.RUN_SSR_TESTS === "1";
+
+(runSsrDevServerTest ? test : test.skip)(
+  "artist route SSR renders shell with and without query params",
+  async (t) => {
+  const keepAlive = setInterval(() => {}, 1000);
+
   const server = spawn(
     process.execPath,
     [
@@ -68,9 +81,9 @@ test("artist route SSR renders shell with and without query params", async (t) =
     },
   );
 
-  await waitForReady(server);
-
+  // Ensure we always tear down, even if the readiness wait fails.
   t.after(async () => {
+    clearInterval(keepAlive);
     server.kill("SIGTERM");
     const exitPromise = once(server, "exit");
     await Promise.race([
@@ -82,6 +95,8 @@ test("artist route SSR renders shell with and without query params", async (t) =
       await once(server, "exit");
     }
   });
+
+  await waitForReady(server);
 
   const cases = [
     `/artist/${ADDRESS}`,

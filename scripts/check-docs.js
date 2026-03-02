@@ -13,16 +13,28 @@ function checkDocs() {
     }
 
     const indexContent = fs.readFileSync(INDEX_FILE, 'utf-8');
-    const links = indexContent.match(/\((.*?)\)/g)?.map(link => link.slice(1, -1)) || [];
+    const links = Array.from(
+        indexContent.matchAll(/\[[^\]]+\]\(([^)]+)\)/g),
+        (match) => match[1].trim(),
+    );
+    const normalizedLinks = links
+        .map((link) => link.split('#')[0].split('?')[0].trim())
+        .filter(Boolean);
 
     let errors = 0;
 
-    console.log(`📝 Found ${links.length} links in INDEX.md`);
+    console.log(`📝 Found ${normalizedLinks.length} links in INDEX.md`);
 
     // 1. Check if linked files exist
-    links.forEach(link => {
-        // Skip external links
-        if (link.startsWith('http')) return;
+    normalizedLinks.forEach(link => {
+        // Skip external and non-file links
+        if (
+            link.startsWith('http') ||
+            link.startsWith('#') ||
+            link.startsWith('mailto:')
+        ) {
+            return;
+        }
 
         const filePath = path.join(DOCS_DIR, link);
         if (!fs.existsSync(filePath)) {
@@ -55,7 +67,7 @@ function checkDocs() {
 
     const files = getFiles(DOCS_DIR);
     files.forEach(file => {
-        if (!links.includes(file)) {
+        if (!normalizedLinks.includes(file)) {
             console.warn(`⚠️  Orphan file (not linked in INDEX.md): ${file}`);
             // Don't fail checking for optimization, just warn
         }

@@ -1,3 +1,11 @@
+<!--
+CONTRACT:
+- SSOT: [STATE_OF_WORLD.md](../STATE_OF_WORLD.md)
+- AUDIENCE: Dev, Marketing
+- NATURE: Baseline
+- LAST_HARDENED: 2026-02-19
+- VERIFICATION_METHOD: [Claim check]
+-->
 # SEO + GEO Baseline Audit
 **Site:** https://noot.smol.xyz
 **Framework:** Astro 5.14.1 (SSR) + Svelte 5

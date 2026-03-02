@@ -1,0 +1,33 @@
+---
+import Layout from "../../../layouts/Layout.astro";
+import VipRooms from "../../../components/vip/VipRooms.svelte";
+import { VIP_ROOMS } from "../../../lib/vip/rooms";
+import IntegrityStatus from "../../../components/labs/IntegrityStatus.astro";
+---
+
+<Layout title="THE VIP" description="Signature-gated, end-to-end encrypted chat for Stellar VIP cohorts (Labs).">
+  <main class="min-h-screen bg-gradient-to-b from-black to-[#0a0b10] text-white px-4 pt-24 pb-16">
+    <div class="mx-auto max-w-6xl space-y-8">
+      <div class="flex flex-col gap-3">
+        <p class="text-xs uppercase tracking-[0.3em] text-white/60">Labs</p>
+        <h1 class="text-4xl font-semibold">THE VIP</h1>
+        <p class="max-w-3xl text-white/70">
+          Route-isolated Stellar Wallets Kit + end-to-end encrypted chat. Connect once, sign a SEP-10 challenge, talk in ciphertext.
+        </p>
+      </div>
+
+      <IntegrityStatus
+        title="Integrity Status (THE VIP)"
+        items={[
+          { label: "ZK", value: "None (eligibility is signature + ledger checks)", tone: "info" },
+          { label: "On-Chain Verify", value: "None", tone: "info" },
+          { label: "Stellar TX", value: "None (sign-only auth)", tone: "info" },
+          { label: "Relay", value: "Labs-only in-memory HTTP relay (ciphertext only)", tone: "warn" },
+        ]}
+        note="This page is review-proof: no on-chain verification claims. E2EE happens client-side; the relay sees only ciphertext + metadata."
+      />
+
+      <VipRooms client:only="svelte" rooms={VIP_ROOMS} />
+    </div>
+  </main>
+</Layout>

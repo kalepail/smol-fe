@@ -1,0 +1,51 @@
+1
+00:00:00,000 --> 00:00:07,500
+Welcome to ZK Dungeon, a decentralized rogue-lite experience built for the DoraHacks Stellar ZK Gaming track.
+
+2
+00:00:07,500 --> 00:00:15,000
+This demo showcases our single-player MVP in Hackathon Mode, running entirely on the Stellar Testnet.
+
+3
+00:00:15,000 --> 00:00:25,000
+We begin by connecting our Freighter wallet in testnet mode. In this solo instance, the player goes up against the house.
+
+4
+00:00:25,000 --> 00:00:35,000
+Connecting the wallet initiates our game session and prepares the on-chain state to track our progress.
+
+5
+00:00:35,000 --> 00:00:48,000
+Instead of relying on a centralized server to validate moves, ZK Dungeon targets verifiable zero-knowledge gaming.
+
+6
+00:00:48,000 --> 00:00:56,000
+When a player makes a choice, a zero-knowledge proof is generated locally on the client.
+
+7
+00:00:56,000 --> 00:01:05,000
+This ensures the player's moves are valid without revealing the dungeon's underlying cryptographic secrets.
+
+8
+00:01:05,000 --> 00:01:13,000
+Once generated, this proof is submitted to the Stellar Testnet via the connected Freighter wallet.
+
+9
+00:01:13,000 --> 00:01:25,000
+A Stellar smart contract then verifies the proof on-chain, acting as an impartial, decentralized referee.
+
+10
+00:01:25,000 --> 00:01:37,000
+This combination of off-chain ZK execution and on-chain verification guarantees a provably fair game.
+
+11
+00:01:37,000 --> 00:01:45,000
+When the run concludes, the game settles the outcome cryptographically.
+
+12
+00:01:45,000 --> 00:01:54,000
+True 2-player state channels are actively in progress, but the core ZK verification loop is firmly in place today.
+
+13
+00:01:54,000 --> 00:02:00,000
+Thank you for watching, and good luck to all teams in the Stellar ZK Gaming hackathon.

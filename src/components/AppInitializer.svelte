@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { validateEnvironmentOrThrow } from "../utils/env-validation";
+    import { reportCriticalError } from "../utils/monitoring";
 
     /**
      * App Initializer Component
@@ -33,6 +34,25 @@
                 "[AppInit] Unhandled promise rejection:",
                 event.reason,
             );
+            reportCriticalError({
+                scope: "app-init.unhandledrejection",
+                message: String(
+                    (event.reason as Error)?.message ?? event.reason,
+                ),
+                metadata: {
+                    reasonType: typeof event.reason,
+                },
+                stack:
+                    typeof event.reason === "object" &&
+                    event.reason !== null &&
+                    "stack" in (event.reason as Record<string, unknown>)
+                        ? String(
+                              (event.reason as Record<string, unknown>).stack ??
+                                  "",
+                          )
+                        : undefined,
+                timestamp: new Date().toISOString(),
+            });
             // Don't prevent default - let browser handle it
         };
 

@@ -1,3 +1,11 @@
+<!--
+CONTRACT:
+- SSOT: [STATE_OF_WORLD.md](STATE_OF_WORLD.md)
+- AUDIENCE: Dev
+- NATURE: Guide
+- LAST_HARDENED: 2026-02-19
+- VERIFICATION_METHOD: [Claim check | State trace]
+-->
 # Passkey-Kit + OpenZeppelin Relayer: Mainnet Implementation Guide
 
 > **For humans + AI agents**: This document explains exactly how passkey authentication and transaction submission works in this codebase on Stellar mainnet.
@@ -333,4 +341,4 @@ export const account = new PasskeyKit({
 ---
 
 *Last updated: 2026-01-16*
-*Ralph Hardening Audit: H-003 documentation sync applied*
+*Hardening Audit: H-003 documentation sync applied*

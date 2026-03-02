@@ -1,3 +1,11 @@
+<!--
+CONTRACT:
+- SSOT: [STATE_OF_WORLD.md](STATE_OF_WORLD.md)
+- AUDIENCE: Dev
+- NATURE: Procedure
+- LAST_HARDENED: 2026-02-19
+- VERIFICATION_METHOD: [Manual Verify]
+-->
 # 🚀 START HERE - Local Testing Guide
 
 **Everything is now set up for local testing!** Follow these steps:
@@ -163,8 +171,8 @@ This repository is optimized for AI-assisted development. If you are stuck or wa
 - **[Claude Code](https://docs.anthropic.com/en/docs/agents-and-tools/claude-code)**: Great for terminal-based iteration and surgical fixes.
 
 **How to use them:**
-1. Provide the agent with the relevant parts of the `docs/` folder (especially `STATE_OF_WORLD.md` and `REPO_MAP.md`).
-2. Ask for specific implementations (e.g., *"Add a new Svelte component for music filtering"*).
+1. Provide the agent with the relevant parts of the `docs/` folder (especially `STATE_OF_WORLD.md`, `LABS_INTEGRITY.md`, and `REPO_MAP.md`).
+2. Ask for specific implementations (e.g., *"Add a new Svelte component for music filtering"* or *"Modify the ZK Dungeon Room 2 relay logic"*).
 3. Use the agents to analyze console logs (see Step 5 above).
 
 ---
@@ -174,10 +182,10 @@ This repository is optimized for AI-assisted development. If you are stuck or wa
 For a complete step-by-step checklist, see:
 ```bash
 cat docs/LOCAL_TESTING_CHECKLIST.md
-\`\`\`
+```
 
 For debugging help, see:
-\`\`\`bash
+```bash
 cat docs/DEBUGGING_GUIDE.md
 ```
 

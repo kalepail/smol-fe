@@ -3,7 +3,7 @@ CONTRACT:
 - SSOT: [STATE_OF_WORLD.md](STATE_OF_WORLD.md)
 - AUDIENCE: Dev, QA
 - NATURE: Procedure
-- LAST_HARDENED: 2026-01-27
+- LAST_HARDENED: 2026-02-19
 - VERIFICATION_METHOD: Manual Verify
 -->
 # Production Passkey Smoke Test (noot.smol.xyz)

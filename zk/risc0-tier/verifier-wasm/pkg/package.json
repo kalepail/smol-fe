@@ -1,0 +1,15 @@
+{
+  "name": "risc0-receipt-verifier-wasm",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "risc0_receipt_verifier_wasm_bg.wasm",
+    "risc0_receipt_verifier_wasm.js",
+    "risc0_receipt_verifier_wasm.d.ts"
+  ],
+  "main": "risc0_receipt_verifier_wasm.js",
+  "types": "risc0_receipt_verifier_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

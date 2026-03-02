@@ -1,0 +1,26 @@
+id: lab_the_vip
+title: "THE VIP"
+owner: "Smol Labs"
+status_color: ORANGE
+readiness_score: 55
+risk_level: HIGH
+blast_radius: LABS_ONLY
+env: FUTURE_MAINNET
+feature_flag: "labs.the_vip.enabled"
+last_reviewed: "2026-02-13"
+dependencies:
+  - "src/pages/labs/the-vip"
+  - "src/components/vip"
+  - "src/lib/vip"
+  - "src/pages/api/vip"
+links:
+  spec: ""
+  pr: ""
+  docs: []
+definition_of_done:
+  - "Wallet connect + cohort qualification"
+  - "E2EE room messaging"
+notes: |
+  Restored to /labs registry after an interrupted cleanup/regeneration pass.
+  This is a Labs-only relay: the server stores ciphertext + metadata only.
+  Production reviewers should set VIP_SERVER_SECRET and run under a single server instance (or replace the in-memory relay with a durable store).

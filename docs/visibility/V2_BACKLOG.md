@@ -1,3 +1,11 @@
+<!--
+CONTRACT:
+- SSOT: [STATE_OF_WORLD.md](../STATE_OF_WORLD.md)
+- AUDIENCE: Dev, Marketing
+- NATURE: Backlog
+- LAST_HARDENED: 2026-02-19
+- VERIFICATION_METHOD: [Claim check]
+-->
 # AEO/GEO v2 Backlog
 
 **Strategy:** execute minimal, high-impact PRs to move from "Checking the box" to "Grade A Identity".

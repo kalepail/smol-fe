@@ -44,6 +44,8 @@
     let decimalsFactor = $state(10n ** 7n);
     let turnstileToken = $state("");
     let turnstileExpired = $state(false);
+    let qrDataUrl = $state<string | null>(null);
+    let qrError = $state<string | null>(null);
 
     // Lock address at mount time to prevent reactive changes mid-transaction
     let lockedArtistAddress = $state("");
@@ -93,6 +95,22 @@
                 await updateContractBalance(userState.contractId);
             } catch (err) {
                 console.warn("Failed to load initial balance:", err);
+            }
+        }
+
+        // Generate QR locally to avoid external image failures
+        if (lockedArtistAddress) {
+            try {
+                const { toDataURL } = await import("qrcode");
+                qrDataUrl = await toDataURL(`stellar:${lockedArtistAddress}`, {
+                    width: 180,
+                    margin: 1,
+                    color: { dark: "#000000", light: "#ffffff" },
+                });
+            } catch (err) {
+                console.warn("QR code generation failed; falling back to remote", err);
+                qrError = "Live QR unavailable, using fallback image.";
+                qrDataUrl = null;
             }
         }
     });
@@ -261,6 +279,28 @@
             <p class="text-white/40 text-xs font-mono mt-2 break-all">
                 {lockedArtistAddress || "Unavailable address"}
             </p>
+            {#if lockedArtistAddress}
+                <div class="mt-3 flex flex-col items-center gap-1">
+                    <div class="p-1.5 bg-white/90 rounded-md">
+                        <img
+                            src={qrDataUrl ||
+                                `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(
+                                    `stellar:${lockedArtistAddress}`,
+                                )}`}
+                            alt="Tip QR"
+                            class="w-[120px] h-[120px]"
+                        />
+                    </div>
+                    <p class="text-[8px] text-white/25 tracking-wide">
+                        scan with any Stellar wallet
+                    </p>
+                    {#if qrError}
+                        <p class="text-[9px] text-red-300/80 text-center">
+                            {qrError}
+                        </p>
+                    {/if}
+                </div>
+            {/if}
         </div>
 
         {#if !userState.contractId}

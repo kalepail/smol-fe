@@ -1,0 +1,7 @@
+[package]
+name = "dungeon_role_noir_legacy"
+type = "bin"
+version = "0.1.0"
+authors = [""]
+
+[dependencies]

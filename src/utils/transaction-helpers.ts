@@ -22,6 +22,37 @@ export interface SignAndSendResult {
     error?: string;
 }
 
+function extractHexTxHash(value: unknown): string | undefined {
+    if (typeof value !== "string") return undefined;
+    const normalized = value.startsWith("0x") ? value.slice(2) : value;
+    if (/^[0-9a-fA-F]{64}$/.test(normalized)) return normalized;
+    return undefined;
+}
+
+export function extractTxHashFromRelayerResponse(result: any, depth = 0): string | undefined {
+    if (!result || depth > 3) return undefined;
+    // Common shapes we see across relayers:
+    // 1) { hash: "..." }
+    // 2) { transactionHash: "..." }
+    // 3) { data: { hash: "..." } }  (OpenZeppelin Channels)
+    // 4) { data: { transactionHash: "..." } }
+    // Never treat UUID-like transactionId as a tx hash.
+    const direct =
+        extractHexTxHash(result?.hash) ||
+        extractHexTxHash(result?.transactionHash) ||
+        extractHexTxHash(result?.txHash) ||
+        extractHexTxHash(result?.transaction_hash) ||
+        extractHexTxHash(result?.data?.hash) ||
+        extractHexTxHash(result?.data?.transactionHash) ||
+        extractHexTxHash(result?.data?.txHash) ||
+        extractHexTxHash(result?.data?.transaction_hash);
+
+    if (direct) return direct;
+
+    // Some relayers wrap the response as { success, result: { ... } } or { result: { data: { hash } } }.
+    return extractTxHashFromRelayerResponse(result?.result, depth + 1);
+}
+
 /**
  * Simplified sign and send
  *
@@ -82,7 +113,37 @@ export async function signAndSend(
         });
         console.log('[SignAndSend] Transaction signed, sending to relayer...');
 
-        const result = await send(signedTx, turnstileToken);
+        // Retry *sending* a signed transaction when the relayer is transiently overloaded.
+        // This avoids extra passkey prompts on 503 bursts.
+        const sendWithRetries = async () => {
+            const isRetryable = (msg: string) =>
+                msg.includes("temporarily unavailable") ||
+                msg.includes("503") ||
+                msg.includes("502") ||
+                msg.includes("gateway") ||
+                msg.includes("timeout");
+
+            let lastErr: any = null;
+            for (let attempt = 0; attempt < 3; attempt += 1) {
+                try {
+                    return await send(signedTx, turnstileToken);
+                } catch (e: any) {
+                    lastErr = e;
+                    const msg = String(e?.message || e);
+                    if (!isRetryable(msg) || attempt === 2) throw e;
+                    const waitMs = 750 * 2 ** attempt + Math.floor(Math.random() * 200);
+                    console.warn("[SignAndSend] Relayer send failed, retrying without re-sign...", {
+                        attempt: attempt + 1,
+                        waitMs,
+                        message: msg.slice(0, 160),
+                    });
+                    await new Promise<void>((resolve) => setTimeout(resolve, waitMs));
+                }
+            }
+            throw lastErr;
+        };
+
+        const result = await sendWithRetries();
 
         if (updateBalance && contractId) {
             console.log('[SignAndSend] Updating all balances...');
@@ -90,13 +151,15 @@ export async function signAndSend(
         }
 
         console.log('[SignAndSend] SUCCESS:', {
-            hash: result.hash || result.transactionHash,
+            hash: result?.hash || result?.transactionHash || result?.data?.hash || result?.data?.transactionHash,
         });
+
+        const txHash = extractTxHashFromRelayerResponse(result);
 
         return {
             success: true,
             result,
-            transactionHash: result.hash || result.transactionHash,
+            transactionHash: txHash,
         };
     } catch (error: any) {
         // AI DEBUG: Detailed error logging

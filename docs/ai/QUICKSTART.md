@@ -1,3 +1,11 @@
+<!--
+CONTRACT:
+- SSOT: [STATE_OF_WORLD.md](../STATE_OF_WORLD.md)
+- AUDIENCE: Agent, Dev
+- NATURE: Procedure
+- LAST_HARDENED: 2026-02-19
+- VERIFICATION_METHOD: [Claim check]
+-->
 # AI Agent Quickstart
 
 **Canonical Context for Agents**

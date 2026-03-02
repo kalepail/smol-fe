@@ -89,7 +89,7 @@ export const usdc = {
  * - If failover attempted but fails: pages.dev users can't use PROXY (no Turnstile)
  * - Check isDirectMode to see which path is taken
  */
-export async function send<T>(txn: AssembledTransaction<T> | Tx | string, turnstileToken?: string) {
+export async function send<T>(txn: any /* AssembledTransaction<T> | Tx | string */, turnstileToken?: string) {
     // Extract XDR from transaction
     let xdr: string;
     if (txn instanceof AssembledTransaction) {
@@ -142,6 +142,10 @@ export async function send<T>(txn: AssembledTransaction<T> | Tx | string, turnst
         }
     };
 
+    function sleep(ms: number): Promise<void> {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
     async function attemptSend(useDirect: boolean) {
         const config = getRelayerConfig(useDirect);
 
@@ -178,12 +182,45 @@ export async function send<T>(txn: AssembledTransaction<T> | Tx | string, turnst
         return JSON.parse(responseText);
     }
 
+    async function attemptSendWithRetries(
+        useDirect: boolean,
+        opts: { retries: number; baseDelayMs: number; maxDelayMs: number },
+    ) {
+        let attempt = 0;
+        // Retry only for transient gateway/overload conditions.
+        const isRetryableStatus = (status: any) =>
+            status === 429 || status === 502 || status === 503 || status === 504;
+
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+            try {
+                return await attemptSend(useDirect);
+            } catch (err: any) {
+                const status = err?.status;
+                if (!isRetryableStatus(status) || attempt >= opts.retries) {
+                    throw err;
+                }
+
+                const delay = Math.min(opts.baseDelayMs * 2 ** attempt, opts.maxDelayMs);
+                const jitter = Math.floor(Math.random() * 150);
+                const waitMs = delay + jitter;
+                console.warn(`[Relayer] ${useDirect ? "DIRECT" : "PROXY"} transient failure, retrying...`, {
+                    status,
+                    attempt: attempt + 1,
+                    waitMs,
+                });
+                await sleep(waitMs);
+                attempt += 1;
+            }
+        }
+    }
+
     try {
         if (isDirectMode) {
             console.log('[Relayer] Attempting DIRECT mode (OZ)...');
             try {
-                const result = await attemptSend(true);
-                console.log('[Relayer] DIRECT mode SUCCESS:', { hash: result.hash || result.transactionHash });
+                const result = await attemptSendWithRetries(true, { retries: 3, baseDelayMs: 250, maxDelayMs: 2500 });
+                console.log('[Relayer] DIRECT mode SUCCESS:', { hash: result?.hash || result?.transactionHash || result?.data?.hash || result?.data?.transactionHash });
                 return result;
             } catch (err: any) {
                 // AI DEBUG: Log the exact failure reason
@@ -204,7 +241,7 @@ export async function send<T>(txn: AssembledTransaction<T> | Tx | string, turnst
                     });
                     if (token) {
                         console.warn('[Relayer] DIRECT mode failed, attempting failover to PROXY...');
-                        return await attemptSend(false);
+                        return await attemptSendWithRetries(false, { retries: 2, baseDelayMs: 350, maxDelayMs: 3000 });
                     } else {
                         console.warn('[Relayer] DIRECT mode failed (503), no Turnstile token for failover');
                         // AI DEBUG: This is the key error for pages.dev users when OZ is down
@@ -215,8 +252,8 @@ export async function send<T>(txn: AssembledTransaction<T> | Tx | string, turnst
             }
         } else {
             console.log('[Relayer] Attempting PROXY mode (KaleFarm)...');
-            const result = await attemptSend(false);
-            console.log('[Relayer] PROXY mode SUCCESS:', { hash: result.hash || result.transactionHash });
+            const result = await attemptSendWithRetries(false, { retries: 2, baseDelayMs: 350, maxDelayMs: 3000 });
+            console.log('[Relayer] PROXY mode SUCCESS:', { hash: result?.hash || result?.transactionHash || result?.data?.hash || result?.data?.transactionHash });
             return result;
         }
     } catch (e: any) {

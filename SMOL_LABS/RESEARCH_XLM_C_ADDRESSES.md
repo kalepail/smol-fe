@@ -28,7 +28,7 @@ Yes.
 - **Direct Swap:** For a simple `XLM -> TOKEN` pool, we can call the pool or router directly.
 - **Simulation:** We can use `rpc.simulateTransaction` to estimate the output amount (`min_out`) before submitting, removing the need for an off-chain price API.
 
-**Safe Ralph Plan:**
+**Safe Plan:**
 1.  **Simulate:** User inputs "10 XLM". We simulate the swap transaciton against the Router/Pool.
 2.  **Display:** Show the result "You will get ~500 SMOL".
 3.  **Execute:** If user accepts, sign and send the transaction.
