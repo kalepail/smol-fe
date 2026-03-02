@@ -16,7 +16,8 @@ const DEFAULT_OPTIONS: Required<RetryOptions> = {
     backoffFactor: 2,
     shouldRetry: (error: any) => {
         // Intelligent default: Retry on network/server errors, fail on client logic
-        const msg = String(error?.message || error || "").toLowerCase();
+        // Handle both Error objects and plain objects with error property (common in this app)
+        const msg = String(error?.message || error?.error || JSON.stringify(error) || "").toLowerCase();
 
         // Don't retry user rejections or business logic failures
         if (msg.includes("user rejected") || msg.includes("insufficient balance") || msg.includes("invalid address")) {
@@ -30,9 +31,11 @@ const DEFAULT_OPTIONS: Required<RetryOptions> = {
             msg.includes("504") ||
             msg.includes("econnreset") ||
             msg.includes("timeout") ||
+            msg.includes("timed out") ||
             msg.includes("network error") ||
             msg.includes("fetch failed") ||
-            msg.includes("gateway")
+            msg.includes("gateway") ||
+            msg.includes("queue error")
         );
     },
     onRetry: () => { }

@@ -1,0 +1,43 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import BackLink from "../../components/labs/BackLink.astro";
+import LastFrame from "../../components/labs/LastFrame.svelte";
+import IntegrityStatus from "../../components/labs/IntegrityStatus.astro";
+---
+
+<Layout title="Smol Labs | LastFrame">
+  <div class="min-h-screen bg-black text-[#9ae600] font-pixel p-4 pt-24">
+    <div class="max-w-4xl mx-auto space-y-8">
+      <BackLink href="/labs" label="Return to Lab" />
+      
+      <div class="border border-[#333] rounded-xl p-8 bg-[#111]">
+        <IntegrityStatus
+          title="Integrity Status (LastFrame)"
+          items={[
+            { label: "ZK", value: "None", tone: "info" },
+            { label: "On-Chain Verify", value: "None", tone: "info" },
+            { label: "Stellar TX", value: "None", tone: "info" },
+            { label: "Data Handling", value: "Local-only (video never uploaded)", tone: "good" },
+          ]}
+          note="LastFrame is a pure client-side media tool. It does not generate ZK proofs and does not submit Stellar transactions."
+        />
+
+        <div class="flex items-center justify-between mb-8 pb-8 border-b border-[#333]">
+           <div>
+              <span class="text-xs text-[#555] uppercase tracking-widest">EXP-011</span>
+              <h1 class="text-4xl text-[#ff424c] mt-2">LASTFRAME</h1>
+           </div>
+           <div class="text-right">
+              <span class="text-xs text-[#ff424c] animate-pulse">● LIVE</span>
+           </div>
+        </div>
+
+        <p class="text-[#777] mb-8 text-sm max-w-lg">
+          Grab the final frame from any video in full resolution. Perfect for <strong>extending AI generations</strong>, creating seamless loops, or input images for img2vid workflows.
+        </p>
+
+        <LastFrame client:visible />
+      </div>
+    </div>
+  </div>
+</Layout>

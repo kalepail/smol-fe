@@ -26,7 +26,7 @@ export const onRequest: MiddlewareHandler = async (ctx, next) => {
 
     // 1) Prevent preview deployments from being indexed (EXCEPT embed routes or Social Bots)
     const ua = ctx.request.headers.get("user-agent") || "";
-    const isSocialBot = /Twitterbot|facebookexternalhit|Discordbot/i.test(ua);
+    const isSocialBot = /Twitterbot|facebookexternalhit|Discordbot|Slackbot|LinkedInBot|TelegramBot|WhatsApp|Pinterest|redditbot/i.test(ua);
 
     if (host.endsWith(".pages.dev") && !url.pathname.startsWith('/embed/') && !isSocialBot) {
         res.headers.set("X-Robots-Tag", "noindex");

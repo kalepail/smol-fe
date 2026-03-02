@@ -10,13 +10,15 @@ export const GET: APIRoute = async ({ params, request }) => {
     // Bot detection for social previews
     // If a bot requests the audio directly, redirect to the song page to show the player card
     const ua = request.headers.get('user-agent')?.toLowerCase() || '';
-    const isBot = /bot|facebook|twitter|discord|telegram|whatsapp|slack/i.test(ua);
+    const accept = request.headers.get('accept')?.toLowerCase() || '';
+    const isBot = /bot|facebook|twitter|x\.com|discord|telegram|whatsapp|slack|linkedin/i.test(ua);
+    const prefersHtml = accept.includes('text/html');
 
     // Clean ID: remove .mp3 extension if present, then sanitize
     const rawId = id.endsWith('.mp3') ? id.slice(0, -4) : id;
     const safeId = rawId.replace(/[^a-zA-Z0-9-]/g, '');
 
-    if (isBot) {
+    if (isBot && prefersHtml) {
         // Redirect bots to the main song page which has the meta tags
         const siteUrl = import.meta.env.PUBLIC_URL || 'https://noot.smol.xyz';
         return new Response(null, {
@@ -98,8 +100,14 @@ export const HEAD: APIRoute = async ({ params }) => {
         return new Response(null, { status: 400 });
     }
 
+    const rawId = id.endsWith('.mp3') ? id.slice(0, -4) : id;
+    const safeId = rawId.replace(/[^a-zA-Z0-9-]/g, '');
+    if (safeId !== rawId || safeId.length > 64) {
+        return new Response(null, { status: 400 });
+    }
+
     const baseUrl = import.meta.env.PUBLIC_API_URL || 'https://api.smol.xyz';
-    const upstreamUrl = `${baseUrl}/song/${id}.mp3`;
+    const upstreamUrl = `${baseUrl}/song/${safeId}.mp3`;
 
     try {
         const response = await fetch(upstreamUrl, { method: 'HEAD' });

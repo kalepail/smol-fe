@@ -1,233 +1,96 @@
-<!--
-CONTRACT:
-- SSOT: [STATE_OF_WORLD.md](docs/STATE_OF_WORLD.md)
-- AUDIENCE: Dev, User, Agent
-- LAST_HARDENED: 2026-01-27
-- VERIFICATION_METHOD: Claim check, Link check
--->
-# Smol - AI Music Generator Frontend
-**Production URL**: [noot.smol.xyz](https://noot.smol.xyz) | **Dev Preview**: [smol-fe-7jl.pages.dev](https://smol-fe-7jl.pages.dev) | **Docs**: [Information Architecture](docs/INDEX.md)
+# Smol - AI Music & Everything Lab ⚡
 
-A decentralized web application for generating AI music powered by Stellar blockchain smart contracts.
-
-## 🏛️ Repository Governance
-This repository follows a "Fail-Closed" documentation policy. All technical facts are governed by the **[STATE OF WORLD](docs/STATE_OF_WORLD.md)**.
-
-## 🚀 Key Documentation Paths
-- **Human Devs**: [START HERE](docs/START_HERE.md) → [DEVELOPER SETUP](docs/DEVELOPER_SETUP.md)
-- **AI Agents**: [AGENTS.md](docs/AGENTS.md) → [REPO MAP](docs/REPO_MAP.md)
-- **Verification**: [TESTING.md](docs/TESTING.md) → `pnpm docs:test`
-
-## 🏗️ Tech Stack
-- **Framework**: Astro `5.14.x` + Svelte `5.39.x` (Runes)
-- **Styling**: Tailwind CSS `4.1.x`
-- **Blockchain**: Stellar/Soroban via `PasskeyKit`
-- **Relayer**: OpenZeppelin Channels / KaleFarm Relayer
+**Production**: [noot.smol.xyz](https://noot.smol.xyz) | **Hackathon Preview**: [smol-fe-7jl.pages.dev](https://smol-fe-7jl.pages.dev) | **Docs**: [Information Architecture](docs/INDEX.md)
 
 
-## Getting Started
+Smol is a decentralized high-fidelity application powered by **Stellar Smart Contracts** and **Zero-Knowledge Proofs (ZK)**. It combines generative AI music with on-chain verifiable gaming mechanics.
+
+## 🎵 Smol Music: The Core Product
+Smol is the premier destination for high-fidelity, AI-generated music on the Stellar network. Developed as an **officially maintained** high-fidelity fork of **[smol.xyz](https://smol.xyz)**, this repository retains all original ecosystem connections while introducing advanced organization, enhanced performance, and new experimental features.
+
+-   🏆 **Kalepail-Approved Builds**: Stable, production-ready releases are deployed to **[noot.smol.xyz](https://noot.smol.xyz)**.
+-   🧪 **Experimental Alpha**: The latest cutting-edge updates and "Everything Lab" features are first deployed to the **[Pages Dev Preview](https://smol-fe-7jl.pages.dev)**.
+- **Generative AI Audio**: Produce high-fidelity, diverse musical variations at the click of a button.
+- **On-Chain Minting**: Seamlessly transform generations into NFTs via our integrated Soroban smart contracts.
+- **Social Tipping & Splits**: Support your favorite artists with direct tips in **XLM**, **KALE**, or **USDC**. For on-chain mixtapes, our contract-level splits ensure fair distribution between artists, curators, and minters.
+- **Mixtape Builder**: Create and publish on-chain mixtapes to share your curated collections with the community.
+- **Radio V2**: Experience a 24/7 stream of the latest and greatest community-minted songs.
+- **Passkey Security**: Zero seed phrases. Authenticate and sign transactions securely using device biometrics via **PasskeyKit**.
+
+## 🛡️ The Future: PasskeyKit & Smart Accounts
+Smol is built on the belief that Web3 must be invisible to reach the next billion users. We achieve this through a state-of-the-art **Smart Account** architecture.
+- **PasskeyKit Smart Wallets**: By leveraging WebAuthn, we've replaced confusing seed phrases with the biometrics users already trust (FaceID, TouchID). Your device *is* your key.
+- **Onboarding Billions**: Our architecture removes the "Gas Gap". Users can join and start creating **for free** without ever needing to buy XLM or understand transaction fees.
+- **No Trustline Hurdles**: Unlike traditional Stellar accounts, these Smart Wallets can receive any amount of any coin instantly **for free**. No manual trustline setup required for incoming payments—anybody can send assets to a Smol wallet and it just works.
+- **Seamless Sending**: When enabled, these smart accounts can send assets out **for free** (via sponsored fee channels). Currently, built-in support is optimized for **XLM**, **KALE**, and **USDC**—adding support for new assets is easy, so reach out and let's talk about expanding the list!
+- **Kale Relayer & OpenZeppelin**: We utilize the **Kale Relayer** in tandem with **OpenZeppelin GSN (Gas Station Network)** patterns to sponsor transaction fees. This allows the base product to feel like a high-speed "Web2" app while maintaining "Web3" sovereignty.
+- **Programmable Accounts**: Every account is a smart contract, enabling complex features like multi-sig, recovery, and batching that standard accounts cannot touch.
+
+## 🧪 Smol Labs: The Everything Lab
+While **Smol** serves as our base product and AI music foundation, **Labs** is our "Everything Lab"—a high-fidelity R&D environment where we showcase the newest and greatest innovations on the **Stellar Network**. It is an active testing ground for:
+- **Zero-Knowledge Proofs (ZK)**: On-chain verifiable gaming and privacy-preserving state settlement.
+- **AI Music Automation**: Advanced generative audio pipelines and NFT minting experiments.
+- **Stellar Innovations**: Soroban session keys, batch transitions, and next-gen smart contract patterns.
+- **Personal Tools**: Custom developer utilities and experimental interfaces designed for anyone to play with and extend.
+
+We use Labs to push the boundaries of what is possible on Stellar, transforming experimental ideas into verifiable, state-of-the-art decentralized experiences.
+
+> [!NOTE]
+> **Graduation Strategy**: Features and innovations perfected in the Everything Lab may graduate to the main Smol product or continue advancing as specialized tools within the Labs ecosystem.
+
+## 🕹️ ZK Dungeon (Hackathon Mode)
+A flagship experiment within the Labs section, participating in the **DoraHacks Stellar Hacks: ZK Gaming** hackathon.
+- **Verifiable Strategy**: Uses **Noir**, **RISC0**, and **Circom** to generate zero-knowledge proofs of gameplay, verified on-chain via Stellar.
+- **Multiplayer State Channels**: Proxied relay architecture for seamless peer-to-peer gaming.
+
+## 🏗️ Core Technology
+- **Framework**: Astro `5.x` + Svelte `5.x` (Runes)
+- **Styling**: Tailwind CSS `4.x` (Design-Tokens first)
+- **Blockchain**: Stellar/Soroban (Mainnet via PasskeyKit, Testnet via SWK)
+- **Cryptography**: Zero-Knowledge Proofs (Noir, RISC0, Circom)
+- **Architecture**: Server-side Astro Proxy for bypassing CORS during decentralized relay syncing.
+
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
-
-- **Node.js** (v18 or higher recommended)
-- **pnpm** (v10.18.1+) - Required package manager
+- **Node.js** (v22+)
+- **pnpm** (v10+)
+- **Stellar Wallets Kit** / Freighter (for Testnet Labs)
 
 ### Installation
+1. `git clone <repo>`
+2. `pnpm install`
+3. `pnpm dev`
 
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd smol-fe
-```
+### Environment
+Copy `.env.example` to `.env`. For Hackathon testing on Testnet, ensure `PUBLIC_NETWORK_PASSPHRASE` is set to the Testnet string.
 
-2. Install dependencies:
-```bash
-pnpm install
-```
+---
 
-3. Configure environment variables:
+## 🛡️ Repository Governance
+This repository follows a **Fail-Closed** documentation policy. All technical facts are governed by the **[STATE OF WORLD](docs/STATE_OF_WORLD.md)**.
 
-Create a `.env` file with the following variables:
+- **Human Onboarding**: [START HERE](docs/START_HERE.md)
+- **AI Agent Protocol**: [AGENTS.md](docs/AGENTS.md)
+- **Verification Suite**: [TESTING.md](docs/TESTING.md)
 
-```bash
-# Core Connectivity (1/27/2026)
-PUBLIC_RPC_URL="https://rpc.ankr.com/stellar_soroban"
-PUBLIC_NETWORK_PASSPHRASE="Public Global Stellar Network ; September 2015"
-PUBLIC_API_URL="https://api.smol.xyz"
+## 🤝 Contributing
+We prioritize **Velocity & Trust**. Please read our **[CONTRIBUTING.md](CONTRIBUTING.md)** and **[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)** before opening a PR.
 
-# Identity & Contract IDs
-PUBLIC_WALLET_WASM_HASH="ecd990f0b45ca6817149b6175f79b32efb442f35731985a084131e8265c4cd90"
-PUBLIC_SMOL_CONTRACT_ID="CBRNUVLGFM5OYWAGZVGU7CTMP2UJLKZCLFY2ANUCK5UGKND6BBAA5PLA"
-PUBLIC_KALE_SAC_ID="CB23WRDQWGSP6YPMY4UV5C4OW5CBTXKYN3XEATG7KJEZCXMJBYEHOUOV"
-PUBLIC_XLM_SAC_ID="CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA"
+## 🔒 Security
+Security is paramount, especially regarding ZK G2 point serialization and Passkey signatures. See **[SECURITY.md](SECURITY.md)** for reporting vulnerabilities.
 
-# Execution & Services
-PUBLIC_RELAYER_URL="https://api.kalefarm.xyz"
-PUBLIC_RELAYER_API_KEY=            # Request from admin
-PUBLIC_AGGREGATOR_CONTRACT_ID="CAG5LRYQ5JVEUI5TEID72EYOVX44TTUJT5BQR2J6J77FH65PCCFAJDDH"
-PUBLIC_SOROSWAP_API_KEY=           # Optional: your_soroswap_api_key
-```
+> [!TIP]
+> ### ⚡ The Bleeding Edge
+> The **[Dev Preview](https://smol-fe-7jl.pages.dev)** is updated in real-time. It is our high-velocity alpha channel where new experiments, ZK circuits, and UI patterns go live the moment they are conceived. Things may break, get better, or evolve dramatically day-by-day. We build in the open, we fix as we go, and we never stop moving. ☄️
 
-See `.env` for production example values.
+*Built on Stellar. Secured by Smart Accounts.*
 
-### Development
+---
 
-Start the dev server:
-```bash
-The dev server runs on `http://localhost:4321`.
+### 🧪 A Note on the Pioneer Spirit
+This repository is a living, breathing experiment powered by autonomous AI agents. I (Antigravity) help maintain the docs, references, and logic. Because we build in the open and evolve in real-time, things might look a little different today than they did when they were first conceived. 
 
-### Local Authentication
-Passkeys are domain-bound. To test authentication:
-- **Default**: Use `http://localhost:4321` for general development (auth features will be limited).
-- **Recommended**: Deploy your fork to **Cloudflare Pages**. This gives you a `*.pages.dev` domain with HTTPS, the easiest way to test Passkeys/Stellar accurately.
-
-### Type Checking
-
-Run Svelte type checking:
-```bash
-pnpm check          # One-time check
-pnpm check:watch    # Watch mode
-```
-
-### Repo Health
-```bash
-pnpm doctor         # Check environment sanity (Node, .env, etc.)
-pnpm docs:check     # Validate documentation links and coverage
-```
-
-### Build
-
-Build for production:
-```bash
-pnpm build
-```
-
-Preview production build:
-```bash
-pnpm preview
-```
-
-## Smart Contract SDKs
-
-The project uses locally linked TypeScript SDKs generated from Soroban smart contracts:
-
-### Smol SDK (`ext/smol-sdk/`)
-Main contract for song minting, NFT creation, and AMM trading functionality.
-
-### Comet SDK (`ext/comet-sdk/`)
-Supporting contract for additional blockchain operations.
-
-Both SDKs are auto-generated using Soroban CLI:
-```bash
-soroban contract bindings ts \
-  --rpc-url <RPC_URL> \
-  --network-passphrase "<PASSPHRASE>" \
-  --contract-id <CONTRACT_ID> \
-  --output-dir ./ext/<sdk-name>
-```
-
-To regenerate bindings after contract updates, see the README in each SDK directory.
-
-## Key Architecture
-
-### Authentication
-- **PasskeyKit** manages smart contract wallets using WebAuthn (biometrics/security keys)
-- **No seed phrases** - Users authenticate with device biometrics
-- Wallet state stored in `userState` (src/stores/user.svelte.ts:5-11)
-
-### State Management
-Uses Svelte 5 runes for reactive state:
-- **userState** - Authentication and wallet info (src/stores/user.svelte.ts:5-11)
-- **audioState** - Music playback state (src/stores/audio.svelte.ts)
-- **mixtapeState** - Mixtape builder state (src/stores/mixtape.svelte.ts)
-- **balanceStore** - Token balance tracking (src/stores/balance.svelte.ts)
-
-### API Integration
-Backend API handles:
-- Song generation workflow (POST /api)
-- Song metadata and streaming (GET /api/:id)
-- Image serving (/api/image/:id.png)
-- Audio streaming (/api/song/:id.mp3)
-- Mixtape CRUD operations (/api/mixtapes)
-- Likes and social features
-
-See `src/services/api/` for service layer implementations.
-
-### Minting Flow
-1. User creates and selects best song variant (src/components/Smol.svelte:211-216)
-2. Click "Mint" triggers transaction creation (src/utils/mint.ts:24-148)
-3. PasskeyKit signs transaction using WebAuthn
-4. Transaction submitted to blockchain via backend (src/utils/mint.ts:153-168)
-5. Poll for mint completion (AMM and token creation)
-6. Trade modal becomes available when minted (src/components/Smol.svelte:174-177)
-
-### Mixtape Builder
-- Drag-and-drop interface using svelte-dnd-action (src/components/mixtape/builder/)
-- Local draft saved in localStorage (src/services/localStorage.ts)
-- Publish converts draft to on-chain mixtape (src/services/api/mixtapes.ts:42-71)
-
-## Pages & Routes
-
-- **/** - Home feed with latest public songs
-- **/[id]** - Individual song detail and player
-- **/create** - Song generation interface
-- **/created** - User's created songs
-- **/liked** - User's liked songs
-- **/account** - Account management
-- **/mixtapes** - Mixtape index
-- **/mixtapes/[id]** - Mixtape detail and player
-- **/playlist/[id]** - Playlist view
-
-## Development Tips
-
-### Working with Stores
-Svelte 5 uses runes instead of traditional stores:
-```ts
-// Reading reactive state
-const { contractId } = $derived(userState);
-
-// Mutating state
-userState.contractId = "new-id";
-```
-
-### Adding New Components
-1. Create `.svelte` file in appropriate `src/components/` subdirectory
-2. Use TypeScript with `<script lang="ts">`
-3. Import and use in Astro pages with `client:visible` or `client:load`
-
-### Updating Smart Contracts
-1. Deploy new contract version
-2. Update contract ID in `.env`
-3. Regenerate SDK bindings (see SDK READMEs)
-4. Update imports and types as needed
-
-## Deployment
-
-The app is configured for Cloudflare Pages deployment:
-- Adapter: `@astrojs/cloudflare` (astro.config.mjs:14)
-- Output: `server` mode for SSR (astro.config.mjs:12)
-- Build command: `pnpm build`
-- Output directory: `dist/`
-- **Developer Preview**: [smol-fe-7jl.pages.dev](https://smol-fe-7jl.pages.dev)
-
-## Contributing
-
-### Code Style
-- TypeScript for all logic
-- Svelte 5 runes for reactivity
-- Tailwind for styling
-- Async/await for promises
-
-### Naming Conventions
-- Components: PascalCase (e.g., `SmolCard.svelte`)
-- Utilities: camelCase (e.g., `getTokenBalance`)
-- Types: PascalCase (e.g., `SmolDetailResponse`)
-- Stores: camelCase with "State" suffix (e.g., `userState`)
-
-## License
-
-See LICENSE file for details.
-
-## Support
-
-For issues and feature requests, please open an issue on GitHub.
+We strive for high-fidelity, "unbreakable" builds, but this is **vibe-coding** at the frontier. You might find a few rough edges, some instructions that have drifted, or logic that’s in the middle of a beautiful transformation. Stay graceful, keep it cool, and enjoy the high-velocity journey. If it works, it’s genius—if it doesn’t, it’s just the pioneer spirit at work. ✨

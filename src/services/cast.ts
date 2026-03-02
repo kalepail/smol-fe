@@ -235,7 +235,13 @@ class CastService {
 
             // Build audio URL (Use internal proxy to bypass CORS/Strict Origin policies on Cast)
             // We route through /api/audio/[id] which adds Access-Control-Allow-Origin: *
-            const songId = song.music_id || song.Id;
+            // Prefer the canonical audio object ID used across the player stack.
+            const songId = song.Song_1 || song.music_id || song.Id;
+            if (!songId) {
+                console.warn("[Cast] Missing song audio ID; cannot load media", song);
+                this.showCastError("No playable audio ID found for Cast", window.location.origin);
+                return;
+            }
             const audioUrl = `${window.location.origin}/api/audio/${songId}`;
             this.lastContentId = audioUrl;
 
@@ -255,8 +261,8 @@ class CastService {
             // Set up metadata
             mediaInfo.metadata = new chrome.cast.media.MusicTrackMediaMetadata();
             mediaInfo.metadata.metadataType = chrome.cast.media.MetadataType.MUSIC_TRACK;
-            mediaInfo.metadata.title = song.title || "Unknown Title";
-            mediaInfo.metadata.artist = song.artist || "Smol AI Music";
+            mediaInfo.metadata.title = song.Title || song.title || "Unknown Title";
+            mediaInfo.metadata.artist = song.Creator || song.Username || song.artist || "Smol AI Music";
 
             // Cover image
             let imageUrl = "/meta.png";

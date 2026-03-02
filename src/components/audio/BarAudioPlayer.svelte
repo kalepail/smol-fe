@@ -11,6 +11,7 @@
     updateProgress,
     togglePlayPause,
     playNextSong,
+    playPrevSong,
     saveState,
     seek,
   } from "../../stores/audio.svelte.ts";
@@ -346,6 +347,10 @@
       playNextSong();
     });
 
+    navigator.mediaSession.setActionHandler("previoustrack", () => {
+      playPrevSong();
+    });
+
     navigator.mediaSession.setActionHandler("seekto", (details) => {
       if (details.seekTime !== undefined && audioState.audioElement) {
         audioState.audioElement.currentTime = details.seekTime;
@@ -562,9 +567,7 @@
       if (document.visibilityState === "visible" && audioState.wasInterrupted) {
         if (isExternalAudio) {
           // Aggressive mode: Auto-resume for Bluetooth/CarPlay
-          console.log(
-            `[Audio] Page visible + external audio - auto-resuming`,
-          );
+          console.log(`[Audio] Page visible + external audio - auto-resuming`);
           currentPoliteCooldown = MIN_POLITE_COOLDOWN;
           interruptionTime = null;
           trackedTimeout(attemptResume, 100);
@@ -583,9 +586,7 @@
       if (audioState.wasInterrupted) {
         if (isExternalAudio) {
           // Aggressive mode: Auto-resume for Bluetooth/CarPlay
-          console.log(
-            `[Audio] Window focus + external audio - auto-resuming`,
-          );
+          console.log(`[Audio] Window focus + external audio - auto-resuming`);
           currentPoliteCooldown = MIN_POLITE_COOLDOWN;
           interruptionTime = null;
           trackedTimeout(attemptResume, 100);
@@ -625,7 +626,9 @@
         trackedTimeout(attemptResume, 500);
         trackedTimeout(attemptResume, 1000);
       } else if (!audioState.playingId && audioState.currentSong?.Id) {
-        console.log("[Audio] CarPlay reconnect: auto-starting playback (car mode)");
+        console.log(
+          "[Audio] CarPlay reconnect: auto-starting playback (car mode)",
+        );
         trackedTimeout(() => {
           if (audioState.currentSong && !audioState.playingId) {
             audioState.playingId = audioState.currentSong.Id;
@@ -714,6 +717,7 @@
         navigator.mediaSession.setActionHandler("play", null);
         navigator.mediaSession.setActionHandler("pause", null);
         navigator.mediaSession.setActionHandler("nexttrack", null);
+        navigator.mediaSession.setActionHandler("previoustrack", null);
         navigator.mediaSession.setActionHandler("seekto", null);
         navigator.mediaSession.setActionHandler("seekbackward", null);
         navigator.mediaSession.setActionHandler("seekforward", null);
@@ -746,6 +750,25 @@
   function handleTimeUpdate(event: Event) {
     const audio = event.target as HTMLAudioElement;
     updateProgress(audio.currentTime, audio.duration);
+
+    // Update lock-screen timeline scrubber (invisible QoL for mobile users)
+    if (
+      "mediaSession" in navigator &&
+      "setPositionState" in navigator.mediaSession &&
+      audio.duration &&
+      !isNaN(audio.duration) &&
+      isFinite(audio.duration)
+    ) {
+      try {
+        navigator.mediaSession.setPositionState({
+          duration: audio.duration,
+          playbackRate: audio.playbackRate || 1,
+          position: audio.currentTime,
+        });
+      } catch (e) {
+        // Silently ignore - some browsers don't support this fully
+      }
+    }
   }
 
   function handleEnded() {
@@ -949,6 +972,17 @@
         </a>
 
         {#if audioState.currentSong.Id && audioState.currentSong.Song_1}
+          <!-- Previous Track -->
+          <button
+            onclick={playPrevSong}
+            class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white active:scale-95 transition-all rounded-full"
+            title="Previous track"
+          >
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+            </svg>
+          </button>
+
           <MiniAudioPlayer
             id={audioState.currentSong.Id}
             playing_id={audioState.playingId}
@@ -956,6 +990,17 @@
             songNext={playNextSong}
             progress={audioState.progress}
           />
+
+          <!-- Next Track -->
+          <button
+            onclick={playNextSong}
+            class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white active:scale-95 transition-all rounded-full"
+            title="Next track"
+          >
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+            </svg>
+          </button>
         {/if}
       </div>
     </div>

@@ -10,11 +10,11 @@
       "AGENTS.md"
     ]
   },
-  ".agent/rules/60_ralph_loop.md": {
-    "path": ".agent/rules/60_ralph_loop.md",
+  ".agent/rules/60_agent_loop.md": {
+    "path": ".agent/rules/60_agent_loop.md",
     "anchors": [
-      "ralph-loop-rule-completion-vibes",
-      "when-ralph-loop-is-required",
+      "agent-loop-rule-completion-vibes",
+      "when-agent-loop-is-required",
       "the-only-acceptable-stop-condition",
       "hard-stop-safety-rails-anti-chaos",
       "mandatory-artifacts-each-iteration"
@@ -38,7 +38,7 @@
     "anchors": [
       "agent-onboarding-skill",
       "1-internalize-the-manual",
-      "2-check-the-ralph-loop",
+      "2-check-the-agent-loop",
       "3-work-habits",
       "4-updates"
     ],
@@ -46,8 +46,8 @@
     "fileRefs": [
       "AGENTS.md",
       "docs/REPO_MAP.md",
-      "scripts/ralph/prd.json",
-      "scripts/ralph/progress.txt",
+      "scripts/agent/prd.json",
+      "scripts/agent/progress.txt",
       "progress.txt",
       "AGENTS.md",
       "docs/REPO_MAP.md"
@@ -339,10 +339,10 @@
       "src/utils/passkey-kit.ts"
     ]
   },
-  ".agent/skills/ralph-loop/SKILL.md": {
-    "path": ".agent/skills/ralph-loop/SKILL.md",
+  ".agent/skills/agent-loop/SKILL.md": {
+    "path": ".agent/skills/agent-loop/SKILL.md",
     "anchors": [
-      "ralph-loop-skill-verified-completion",
+      "agent-loop-skill-verified-completion",
       "when-to-use",
       "required-inputs",
       "how-to-run",
@@ -352,19 +352,6 @@
     "fileRefs": [
       "SKILL.md"
     ]
-  },
-  ".agent/skills/remotion/SKILL.md": {
-    "path": ".agent/skills/remotion/SKILL.md",
-    "anchors": [
-      "remotion-skill",
-      "directory-structure",
-      "setup-if-not-already-set-up",
-      "workflow",
-      "prompting-guide-for-animations-the-claude-code-way",
-      "code-patterns"
-    ],
-    "links": [],
-    "fileRefs": []
   },
   ".agent/skills/stellar-dev-skill/README.md": {
     "path": ".agent/skills/stellar-dev-skill/README.md",
@@ -1116,10 +1103,10 @@
       "cat package.json"
     ]
   },
-  ".agent/workflows/ralph-loop.md": {
-    "path": ".agent/workflows/ralph-loop.md",
+  ".agent/workflows/agent-loop.md": {
+    "path": ".agent/workflows/agent-loop.md",
     "anchors": [
-      "ralph-loop-verified-completion-workflow",
+      "agent-loop-verified-completion-workflow",
       "inputs-must-be-explicit",
       "setup",
       "loop-cycle-repeat",
@@ -1142,10 +1129,10 @@
     "links": [],
     "fileRefs": []
   },
-  ".agent/_reports/RALPH_PROGRESS.md": {
-    "path": ".agent/_reports/RALPH_PROGRESS.md",
+  ".agent/_reports/AGENT_PROGRESS.md": {
+    "path": ".agent/_reports/AGENT_PROGRESS.md",
     "anchors": [
-      "ralph-loop-deepwiki-architectural-verification",
+      "agent-loop-deepwiki-architectural-verification",
       "iteration-1-relayer-fee-sponsorship",
       "iteration-2-passkeykit-session-persistence",
       "iteration-3-soroswap-aggregator-call-signature",
@@ -1163,10 +1150,10 @@
       "src/stores/user.svelte.ts"
     ]
   },
-  ".agent/_reports/RALPH_PROGRESS_GLOBAL.md": {
-    "path": ".agent/_reports/RALPH_PROGRESS_GLOBAL.md",
+  ".agent/_reports/AGENT_PROGRESS_GLOBAL.md": {
+    "path": ".agent/_reports/AGENT_PROGRESS_GLOBAL.md",
     "anchors": [
-      "ralph-loop-global-stellar-audit",
+      "agent-loop-global-stellar-audit",
       "iteration-1-global-discovery-categorization",
       "iteration-3-auth-refinement-factory-fresh",
       "iteration-4-trading-refinement-factory-fresh",
@@ -1202,11 +1189,11 @@
       "useTradeExecution.ts"
     ]
   },
-  ".agent/_reports/RALPH_PROGRESS_META.md": {
-    "path": ".agent/_reports/RALPH_PROGRESS_META.md",
+  ".agent/_reports/AGENT_PROGRESS_META.md": {
+    "path": ".agent/_reports/AGENT_PROGRESS_META.md",
     "anchors": [
-      "ralph-loop-meta-skill-upgrade",
-      "iteration-1-reframing-the-ralph-loop",
+      "agent-loop-meta-skill-upgrade",
+      "iteration-1-reframing-the-agent-loop",
       "iteration-2-upgrading-technical-skills"
     ],
     "links": [],
@@ -1214,10 +1201,10 @@
       "SKILL.md"
     ]
   },
-  ".agent/_reports/RALPH_PROGRESS_RP_ID.md": {
-    "path": ".agent/_reports/RALPH_PROGRESS_RP_ID.md",
+  ".agent/_reports/AGENT_PROGRESS_RP_ID.md": {
+    "path": ".agent/_reports/AGENT_PROGRESS_RP_ID.md",
     "anchors": [
-      "ralph-loop-progress-passkey-rp-id-fix",
+      "agent-loop-progress-passkey-rp-id-fix",
       "success-criteria",
       "hypotheses",
       "validation-steps",
@@ -1245,14 +1232,14 @@
       "useAuthentication.ts"
     ]
   },
-  ".agent/_reports/RALPH_RISK.md": {
-    "path": ".agent/_reports/RALPH_RISK.md",
+  ".agent/_reports/AGENT_RISK.md": {
+    "path": ".agent/_reports/AGENT_RISK.md",
     "anchors": [
-      "ralph-risk-report-channels-xdr-parsing-fix-2026-01-16",
+      "agent-risk-report-channels-xdr-parsing-fix-2026-01-16",
       "change-summary",
       "risks-mitigations",
       "checks-performed",
-      "ralph-risk-report-passkey-login-hotfix-2026-01-24",
+      "agent-risk-report-passkey-login-hotfix-2026-01-24",
       "change-summary",
       "risks-mitigations",
       "checks-performed",
@@ -1522,17 +1509,17 @@
       "docs/visibility/BASELINE_AUDIT.md",
       "docs/visibility/V2_BACKLOG.md",
       "docs/visibility/V2_AUDIT.md",
-      "scripts/ralph/prompt.md",
+      "scripts/agent/prompt.md",
       "AGENTS.md",
-      "scripts/ralph/progress.txt",
+      "scripts/agent/progress.txt",
       "scripts/matrix-report.txt",
       ".agent/rules/00_core.md",
-      ".agent/rules/60_ralph_loop.md",
+      ".agent/rules/60_agent_loop.md",
       ".agent/rules/90_security.md",
-      ".agent/workflows/ralph-loop.md",
-      ".agent/_reports/RALPH_PROGRESS.md",
-      ".agent/_reports/RALPH_DIFFSTAT.txt",
-      ".agent/_reports/RALPH_RISK.md",
+      ".agent/workflows/agent-loop.md",
+      ".agent/_reports/AGENT_PROGRESS.md",
+      ".agent/_reports/AGENT_DIFFSTAT.txt",
+      ".agent/_reports/AGENT_RISK.md",
       ".agent/skills/*/SKILL.md",
       ".agent/skills/blockchain-transactions/aquarius-research.md",
       "docs/REPO_MAP.md",
@@ -3094,20 +3081,20 @@
       "*.pages.dev"
     ]
   },
-  "scripts/ralph/prompt.md": {
-    "path": "scripts/ralph/prompt.md",
+  "scripts/agent/prompt.md": {
+    "path": "scripts/agent/prompt.md",
     "anchors": [
-      "ralph-agent-instructions-swapper-audit-harness",
+      "agent-instructions-swapper-audit-harness",
       "your-task",
       "progress-report-format",
       "stop-condition"
     ],
     "links": [],
     "fileRefs": [
-      "scripts/ralph/prd.json",
-      "scripts/ralph/progress.txt",
+      "scripts/agent/prd.json",
+      "scripts/agent/progress.txt",
       "AGENTS.md",
-      "scripts/ralph/progress.txt"
+      "scripts/agent/progress.txt"
     ]
   },
   "SECURITY.md": {

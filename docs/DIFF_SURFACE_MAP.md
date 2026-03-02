@@ -1,3 +1,11 @@
+<!--
+CONTRACT:
+- SSOT: [STATE_OF_WORLD.md](STATE_OF_WORLD.md)
+- AUDIENCE: Agent, Dev
+- NATURE: Audit
+- LAST_HARDENED: 2026-02-19
+- VERIFICATION_METHOD: [File scan]
+-->
 # Diff Surface Map
 
 Exhaustive inventory of callsites relevant to Song Detail, Navigation, and Creation.

@@ -46,7 +46,7 @@
                 /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
                     navigator.userAgent,
                 ) ||
-                (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
+                (!!navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
 
             // Show tap-to-play overlay for Twitter referrals (mobile primarily, but works for desktop too)
             // This ensures the user gesture unlocks audio playback

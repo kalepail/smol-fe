@@ -1,3 +1,11 @@
+<!--
+CONTRACT:
+- SSOT: [STATE_OF_WORLD.md](STATE_OF_WORLD.md)
+- AUDIENCE: Dev
+- NATURE: Current
+- LAST_HARDENED: 2026-02-19
+- VERIFICATION_METHOD: [Claim check]
+-->
 # 🔗 smol-fe ↔ smol-workflow Integration Reference
 
 Quick reference for working across both repositories together.
@@ -7,7 +15,8 @@ Quick reference for working across both repositories together.
 |------|---------|------------|
 | `tacticalnoot/smol-fe` | **Canonical Frontend** | Svelte 5, Astro, TailwindCSS |
 | `kalepail/smol-fe` | Upstream Original | Svelte 5, Astro, TailwindCSS |
-| `kalepail/smol-workflow` | Backend API | Hono, Cloudflare Workers, D1, R2, KV |
+| `kalepail/smol-workflow` | Backend API (Legacy) | Hono, Cloudflare Workers, D1, R2, KV |
+| `kalefarm-relay` | ZK Dungeon Relay | Rust/Soroban/Astro Proxy |
 
 ---
 
@@ -81,10 +90,11 @@ cors({
 
 | Variable | Purpose |
 |----------|---------|
-| `PUBLIC_API_URL` | Backend API (e.g., `https://api.smol.xyz`) |
+| `PUBLIC_API_URL` | Base AI Music API (`https://api.smol.xyz`) |
+| `PUBLIC_RELAYER_URL` | ZK Dungeon / Labs Relay (`https://api.kalefarm.xyz`) |
 | `PUBLIC_AUDIO_PROXY_URL` | Optional audio proxy for CORS |
 | `PUBLIC_RPC_URL` | Stellar RPC endpoint |
-| `PUBLIC_NETWORK_PASSPHRASE` | Stellar network |
+| `PUBLIC_NETWORK_PASSPHRASE` | Stellar network (Public vs Testnet) |
 | `PUBLIC_KALE_SAC_ID` | $KALE token contract |
 | `PUBLIC_SMOL_CONTRACT_ID` | SMOL NFT contract |
 

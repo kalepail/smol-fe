@@ -1,0 +1,43 @@
+---
+import Layout from "../../../../layouts/Layout.astro";
+import { findRoom } from "../../../../lib/vip/rooms";
+
+const room = findRoom("aquarius");
+---
+
+<Layout title="Aquarius | THE VIP" description="Snapshot-gated Aquarius tiers.">
+  <main class="min-h-screen bg-gradient-to-b from-[#0b0716] to-black text-white px-4 pt-20 pb-16">
+    <div class="mx-auto max-w-5xl space-y-6">
+      <a href="/labs/the-vip" class="text-xs text-white/60 hover:text-white/90">← Back to THE VIP</a>
+      <h1 class="text-3xl font-semibold">Aquarius</h1>
+      <p class="text-white/70 max-w-3xl">
+        Snapshot-driven airdrop tiers with delegated ICE track. Verifiers are wired but intentionally held for a later drop;
+        UI and routing are live so we can plug real proofs without changing UX.
+      </p>
+
+      {room && room.subRooms && (
+        <div class="grid gap-4 md:grid-cols-2">
+          {room.subRooms.map((sub) => (
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-2" id={sub.route.split("#")[1]}>
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-xs uppercase tracking-[0.2em] text-white/50">Tier</p>
+                  <h3 class="text-xl font-semibold text-white">{sub.name}</h3>
+                </div>
+                <span class="rounded-full border border-white/15 px-3 py-1 text-[11px] uppercase text-white/70">
+                  {sub.status === "enabled" ? "Live" : "Coming soon"}
+                </span>
+              </div>
+              <p class="text-white/60 text-sm">{sub.description}</p>
+              <p class="text-white/50 text-xs">Proof: {sub.qualifier.notes ?? "TBD"}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div class="rounded-2xl border border-dashed border-white/15 bg-white/5 p-4 text-sm text-white/60">
+        Aquarius Lounge and tiers will ship with DEX trade verifiers + multipliers. ICE delegate slot is plumbed for a contract-based check.
+      </div>
+    </div>
+  </main>
+</Layout>

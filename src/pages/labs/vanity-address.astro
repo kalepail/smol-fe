@@ -1,0 +1,65 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import BackLink from "../../components/labs/BackLink.astro";
+import StellarVanityAddressCore from "../../components/labs/StellarVanityAddressCore.svelte";
+---
+
+<Layout title="Smol Labs | Stellar Vanity Address">
+  <div class="min-h-screen bg-black text-[#9ae600] font-pixel p-4 pt-24">
+    <div class="max-w-4xl mx-auto space-y-8">
+      <BackLink href="/labs" label="Return to Lab" />
+      
+      <div class="border border-[#333] rounded-xl p-8 bg-[#111] relative overflow-hidden transition-all hover:border-[#9ae600]/30">
+        <!-- Background Glow -->
+        <div class="absolute -top-24 -right-24 w-64 h-64 bg-[#9ae600]/5 rounded-full blur-[100px] pointer-events-none"></div>
+        
+        <div class="flex items-center justify-between mb-8 pb-8 border-b border-[#333]">
+           <div>
+              <span class="text-xs text-[#555] uppercase tracking-widest">EXP-012</span>
+              <h1 class="text-4xl text-[#ff424c] mt-2 tracking-tighter shadow-glow">STELLAR VANITY</h1>
+              <p class="text-[8px] text-[#555] mt-2 uppercase tracking-[0.2em]">Address Brute-Force Engine // Soroban Salt Extractor</p>
+           </div>
+           <div class="text-right hidden md:block">
+              <span class="text-xs text-[#ff424c] animate-pulse">● EXPERIMENTAL</span>
+              <div class="text-[8px] text-[#333] mt-1">CONTAINMENT LEVEL: ALPHA</div>
+           </div>
+        </div>
+
+        <StellarVanityAddressCore client:visible />
+      </div>
+
+      <!-- Lab Log -->
+      <div class="bg-black/50 border border-[#1a1a1a] p-6 rounded-xl font-mono text-[10px] space-y-4">
+        <div class="text-[#555] uppercase tracking-widest border-b border-[#1a1a1a] pb-2">Technical Dossier</div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="space-y-4">
+                <p class="leading-relaxed">
+                    <span class="text-[#9ae600]">G-Address:</span> Stellar public keys are Ed25519 addresses encoded in Base32. The first character is always 'G'. This tool generates random seeds until the resulting public key matches your desired prefix.
+                </p>
+                <div class="bg-[#9ae600]/5 p-3 border-l-2 border-[#9ae600]">
+                    <span class="text-white">PROBABILITY MATRIX:</span><br/>
+                    1 char: 1 in 32<br/>
+                    2 char: 1 in 1,024<br/>
+                    3 char: 1 in 32,768<br/>
+                    4 char: 1 in 1,048,576
+                </div>
+            </div>
+            <div class="space-y-4">
+                <p class="leading-relaxed">
+                    <span class="text-[#ff424c]">C-Address:</span> Soroban Contract IDs are derived using a hash of the deployer's address and a 32-byte salt. By varying the salt, we can "pre-mine" a specific Contract ID.
+                </p>
+                <p class="text-[#444] italic">
+                    Note: This simulation uses a standard SHA-256 hash of (Deployer + Salt) to illustrate the concept. Real Soroban derivation involves XDR preimages and Env ID hashes.
+                </p>
+            </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .shadow-glow {
+    text-shadow: 0 0 20px rgba(255, 66, 76, 0.4);
+  }
+</style>

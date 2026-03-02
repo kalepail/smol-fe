@@ -1,0 +1,23 @@
+{
+  "name": "the-farm-noir",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "22"
+    },
+    "ghcr.io/devcontainers/features/rust:1": {
+      "version": "stable"
+    },
+    "ghcr.io/aztecprotocol/devcontainer-features/noir:1": {},
+    "ghcr.io/aztecprotocol/devcontainer-features/barretenberg:1": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "noir-lang.vscode-noir"
+      ]
+    }
+  },
+  "postCreateCommand": "bash -lc 'sudo apt-get update && sudo apt-get install -y jq git bash && noirup && bbup && nargo --version && bb --version'",
+  "remoteUser": "vscode"
+}

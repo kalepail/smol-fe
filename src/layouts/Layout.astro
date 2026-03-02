@@ -22,6 +22,7 @@ interface Props {
 	hideBottomBar?: boolean;
     schema?: any[]; // page-specific JSON-LD blocks
 	twitter_player?: string | null;
+	twitter_player_stream?: string | null;
 }
 
 const {
@@ -31,12 +32,26 @@ const {
 	image_url,
 	hideBottomBar = false,
     schema = [],
-	twitter_player = null
+	twitter_player = null,
+	twitter_player_stream = null
 } = Astro.props;
 
 const siteOrigin = "https://noot.smol.xyz";
 const canonical = buildCanonical(Astro.url, siteOrigin);
 const robots = robotsMetaForUrl(Astro.url);
+const addImageScale = (url: string, scale = "32") => {
+	try {
+		const parsed = new URL(url);
+		if (!parsed.searchParams.has("scale")) parsed.searchParams.set("scale", scale);
+		return parsed.toString();
+	} catch {
+		return url;
+	}
+};
+const socialImage = image_url ? addImageScale(image_url) : `${siteOrigin}/meta.png`;
+const socialImageAlt = title ? `Cover art for ${title}` : "Smol music cover art";
+const twitterCard = twitter_player ? "player" : "summary_large_image";
+const twitterPlayerStream = twitter_player_stream || song_url || null;
 
 let _kid = null
 let _cid = null
@@ -102,7 +117,20 @@ const fullSchema = [...siteSchema, ...schema];
 
 		{/* oEmbed discovery for Discord/social platforms */}
 		{twitter_player && (
-			<link rel="alternate" type="application/json+oembed" href={`${Astro.url.origin}/api/oembed?url=${encodeURIComponent(canonical)}`} title={title} />
+			<>
+				<link
+					rel="alternate"
+					type="application/json+oembed"
+					href={`${Astro.url.origin}/api/oembed?url=${encodeURIComponent(canonical)}&format=json`}
+					title={title}
+				/>
+				<link
+					rel="alternate"
+					type="text/xml+oembed"
+					href={`${Astro.url.origin}/api/oembed?url=${encodeURIComponent(canonical)}&format=xml`}
+					title={title}
+				/>
+			</>
 		)}
 
 		<meta property="og:title" content={title} />
@@ -110,9 +138,11 @@ const fullSchema = [...siteSchema, ...schema];
 		<meta property="og:type" content={twitter_player ? "video.other" : "music.song"} />
 		<meta property="og:url" content={canonical} />
 		<meta property="og:site_name" content="SMOL" />
-		<meta property="og:image" content={image_url ? `${image_url}?scale=32` : `${siteOrigin}/meta.png`} />
+		<meta property="og:locale" content="en_US" />
+		<meta property="og:image" content={socialImage} />
 		<meta property="og:image:width" content="1024" />
 		<meta property="og:image:height" content="1024" />
+		<meta property="og:image:alt" content={socialImageAlt} />
 		{song_url && (
 			<>
 				<meta property="og:audio" content={song_url} />
@@ -121,18 +151,27 @@ const fullSchema = [...siteSchema, ...schema];
 			</>
 		)}
 
-		<meta name="twitter:card" content={song_url ? "player" : "summary_large_image"} />
+		<meta name="twitter:card" content={twitterCard} />
 		<meta name="twitter:site" content="@smolxyz" />
+		<meta name="twitter:creator" content="@smolxyz" />
+		<meta name="twitter:domain" content={new URL(siteOrigin).hostname} />
 		<meta name="twitter:title" content={title} />
 		<meta name="twitter:description" content={description} />
-		<meta name="twitter:image" content={image_url ? `${image_url}?scale=32` : `${siteOrigin}/meta.png`} />
+		<meta name="twitter:image" content={socialImage} />
+		<meta name="twitter:image:alt" content={socialImageAlt} />
 		<meta name="twitter:url" content={canonical} />
 		
-		{song_url && (
+		{twitter_player && (
 			<>
-				<meta name="twitter:player" content={twitter_player || song_url} />
+				<meta name="twitter:player" content={twitter_player} />
 				<meta name="twitter:player:width" content="480" />
 				<meta name="twitter:player:height" content="480" />
+				{twitterPlayerStream && (
+					<>
+						<meta name="twitter:player:stream" content={twitterPlayerStream} />
+						<meta name="twitter:player:stream:content_type" content="audio/mpeg" />
+					</>
+				)}
 			</>
 		)}
 

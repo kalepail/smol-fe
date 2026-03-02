@@ -1,3 +1,11 @@
+<!--
+CONTRACT:
+- SSOT: [STATE_OF_WORLD.md | Subordinate]
+- AUDIENCE: Dev, Product
+- NATURE: Spec
+- LAST_HARDENED: 2026-02-19
+- VERIFICATION_METHOD: [Claim check]
+-->
 # Labs Swapper: Kale Forest Specification
 
 > UX/UI spec for the "Magical Kale Forest" swapper experience in `/labs/swapper`.

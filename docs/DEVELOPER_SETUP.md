@@ -3,7 +3,7 @@ CONTRACT:
 - SSOT: [STATE_OF_WORLD.md](STATE_OF_WORLD.md)
 - AUDIENCE: Dev
 - NATURE: Current
-- LAST_HARDENED: 2026-01-27
+- LAST_HARDENED: 2026-02-19
 - VERIFICATION_METHOD: [Link check | Claim check]
 -->
 # Smol Frontend - Developer Setup Guide
@@ -14,8 +14,8 @@ This guide covers setup steps for working with the **Smol-FE** codebase. All tec
 
 ## Prerequisites
 
-- **Node.js**: `22.21.1` (See [SSOT](STATE_OF_WORLD.md))
-- **pnpm**: `10.18.1` (`npm install -g pnpm`)
+- **Node.js**: `22.x` (See [SSOT](STATE_OF_WORLD.md))
+- **pnpm**: `10.x` (See [SSOT](STATE_OF_WORLD.md))
 - **mkcert**: Optional, for local HTTPS support.
 
 ---
@@ -54,10 +54,14 @@ Passkeys are domain-bound and require a secure context.
 This fork uses the **production API** by default. The `.env` file should contain:
 
 ```env
+# Base AI Music API
 PUBLIC_API_URL=https://api.smol.xyz
+
+# Labs/ZK Dungeon Relay
+PUBLIC_RELAYER_URL=https://api.kalefarm.xyz
 ```
 
-> **Note**: The official production backend is `https://api.smol.xyz`. Ensure you're using the correct API URL for your testing needs.
+> **Note**: The official production backend is `https://api.smol.xyz`. For Labs experiments like ZK Dungeon, we utilize the `https://api.kalefarm.xyz` relay for decentralized state syncing.
 
 ### Running the Correct Dev Server
 

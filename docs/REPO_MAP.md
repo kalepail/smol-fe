@@ -3,7 +3,7 @@ CONTRACT:
 - SSOT: [STATE_OF_WORLD.md | Subordinate]
 - AUDIENCE: [Dev | Agent]
 - NATURE: [Current]
-- LAST_HARDENED: 2026-01-27
+- LAST_HARDENED: 2026-02-19
 - VERIFICATION_METHOD: [Link check | Claim check | State trace]
 -->
 # Smol FE Repository Map
@@ -43,7 +43,7 @@ CONTRACT:
 ## Key Hotspots & Danger Zones
 1.  **Audio State** (`src/stores/audio.svelte.ts`):
     - Central playback logic. Modifications here affect Global Player, Radio, and Artist pages.
-2.  **Auth & Tipping** (Requires Ralph Loop):
+2.  **Auth & Tipping** (Requires Agent Loop):
     - **Passkey Kit**: Hard interaction with `passkey-kit` and `OpenZeppelin Relayer`.
     - **Relayer**: Configured via environment variables (~`RELAYER_URL`).
     - **Files**: `src/stores/user.svelte.ts`, [rpc.ts](../src/utils/rpc.ts)
