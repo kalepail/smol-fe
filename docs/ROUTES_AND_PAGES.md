@@ -3,7 +3,7 @@ CONTRACT:
 - SSOT: [STATE_OF_WORLD.md | Subordinate]
 - AUDIENCE: [Dev | Agent]
 - NATURE: [Current]
-- LAST_HARDENED: 2026-01-27
+- LAST_HARDENED: 2026-02-19
 - VERIFICATION_METHOD: [Link check | Claim check | State trace]
 -->
 # Routes and Pages

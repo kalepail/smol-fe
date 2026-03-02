@@ -52,6 +52,17 @@ function assertCAddressOnly(address, label) {
     }
 }
 
+function isPlaceholderAddress(address) {
+    if (!address) return true;
+    const normalized = String(address).trim();
+    return (
+        normalized === 'C_SMART_WALLET_ADDRESS' ||
+        normalized === 'C_ROUTER_CONTRACT_ID_OR_EMPTY' ||
+        normalized.includes('YOUR_') ||
+        normalized.includes('_OR_EMPTY')
+    );
+}
+
 async function main() {
     const args = process.argv.slice(2);
     const getArg = (name) => {
@@ -67,7 +78,7 @@ async function main() {
     const skipSponsor = hasFlag('--skip-sponsor');
     const turnstileToken = getArg('--turnstile-token') || null;
 
-    console.log("🕵️  Ralph Swapper Audit Harness v2");
+    console.log("🕵️  Swapper Audit Harness v2");
     console.log(`   Network: ${network}`);
     console.log(`   Direction: ${direction || 'NOT SPECIFIED'}`);
     console.log(`   Amount In: ${amountIn} stroops`);
@@ -101,7 +112,7 @@ async function main() {
 
         // Source Address (C-Address enforcement)
         let sourceAddress = config.smartAccount.cAddress;
-        if (!sourceAddress || sourceAddress.includes("TODO")) {
+        if (isPlaceholderAddress(sourceAddress)) {
             sourceAddress = config.aquarius.xlmAsset; // Fallback for testing
             console.log(`   ⚠️ Using fallback source: ${sourceAddress}`);
         }

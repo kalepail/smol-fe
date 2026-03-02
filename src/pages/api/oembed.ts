@@ -13,19 +13,32 @@ export const GET: APIRoute = async ({ url, request }) => {
         });
     }
 
-    // Parse the song ID from the URL
-    // Expected format: https://domain.com/{id} or https://domain.com/embed/{id}
-    const urlMatch = targetUrl.match(/\/([a-f0-9]{64})(?:\/|$)/i) ||
-        targetUrl.match(/\/embed\/([a-f0-9]{64})(?:\/|$)/i);
-
-    if (!urlMatch) {
+    let parsedTarget: URL;
+    try {
+        parsedTarget = new URL(targetUrl);
+    } catch {
         return new Response(JSON.stringify({ error: 'Invalid URL format' }), {
             status: 400,
             headers: { 'Content-Type': 'application/json' }
         });
     }
 
-    const songId = urlMatch[1];
+    // Parse the song ID from /{id} or /embed/{id}
+    const pathParts = parsedTarget.pathname.split('/').filter(Boolean);
+    const candidateId =
+        pathParts[0] === "embed"
+            ? pathParts[1]
+            : pathParts[0];
+    const songId = candidateId && /^[a-f0-9]{64}$/i.test(candidateId)
+        ? candidateId
+        : null;
+
+    if (!songId) {
+        return new Response(JSON.stringify({ error: 'Invalid URL format' }), {
+            status: 400,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
 
     // Fetch song data
     let title = "Smol Song";
@@ -65,13 +78,13 @@ export const GET: APIRoute = async ({ url, request }) => {
         author_name: author,
         author_url: `${origin}`,
         provider_name: "Smol",
-        provider_url: "https://smol.xyz",
+        provider_url: origin,
         thumbnail_url: thumbnailUrl,
         thumbnail_width: 480,
         thumbnail_height: 480,
         width: 480,
         height: 480,
-        html: `<iframe src="${embedUrl}" width="480" height="480" frameborder="0" allowfullscreen allow="autoplay; encrypted-media"></iframe>`
+        html: `<iframe src="${embedUrl}" width="480" height="480" frameborder="0" allowfullscreen allow="autoplay; encrypted-media; picture-in-picture"></iframe>`
     };
 
     if (format === 'xml') {
@@ -83,7 +96,7 @@ export const GET: APIRoute = async ({ url, request }) => {
     <title>${escapeXml(title)}</title>
     <author_name>${escapeXml(author)}</author_name>
     <provider_name>Smol</provider_name>
-    <provider_url>https://smol.xyz</provider_url>
+    <provider_url>${escapeXml(origin)}</provider_url>
     <thumbnail_url>${escapeXml(thumbnailUrl)}</thumbnail_url>
     <thumbnail_width>480</thumbnail_width>
     <thumbnail_height>480</thumbnail_height>
@@ -99,7 +112,8 @@ export const GET: APIRoute = async ({ url, request }) => {
     return new Response(JSON.stringify(oembedResponse), {
         headers: {
             'Content-Type': 'application/json',
-            'Cache-Control': 'public, max-age=3600'
+            'Cache-Control': 'public, max-age=3600',
+            'Access-Control-Allow-Origin': '*'
         }
     });
 };

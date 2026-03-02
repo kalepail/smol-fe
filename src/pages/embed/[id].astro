@@ -3,6 +3,7 @@ const { id } = Astro.params;
 
 const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
 const AUDIO_PROXY_URL = import.meta.env.PUBLIC_AUDIO_PROXY_URL;
+const SITE_URL = import.meta.env.PUBLIC_URL || "https://noot.smol.xyz";
 
 let title = "Song not found";
 let artist = "Smol";
@@ -53,6 +54,8 @@ if (id) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title} - {artist}</title>
+    <meta name="robots" content="noindex,nofollow,max-image-preview:large" />
+    <link rel="canonical" href={`${SITE_URL}/${id}`} />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -315,8 +318,8 @@ if (id) {
                 
                 <!-- Button bar -->
                 <div class="button-bar">
-                    <a href={`https://smol.xyz/${id}`} target="_blank" class="embed-btn">Listen</a>
-                    <a href="https://smol.xyz" target="_blank" class="embed-btn">smol.xyz</a>
+                    <a href={`${SITE_URL}/${id}`} target="_blank" rel="noopener noreferrer" class="embed-btn">Listen</a>
+                    <a href={SITE_URL} target="_blank" rel="noopener noreferrer" class="embed-btn">smol.xyz</a>
                 </div>
             </div>
             
@@ -326,7 +329,7 @@ if (id) {
             <audio id="audio" src={song_url} preload="metadata" crossorigin="anonymous"></audio>
 
             <script>
-                const audio = document.getElementById('audio');
+                const audio = document.getElementById('audio') as HTMLAudioElement | null;
                 const toggle = document.getElementById('toggle');
                 const overlay = document.getElementById('overlay-click');
                 const iconPlay = document.getElementById('icon-play');
@@ -337,6 +340,7 @@ if (id) {
                 let isLoading = false;
 
                 function updateState() {
+                    if (!iconPlay || !iconPause || !loading) return;
                     if (isLoading) {
                         iconPlay.classList.add('hidden');
                         iconPause.classList.add('hidden');
@@ -353,9 +357,11 @@ if (id) {
                 }
 
                 function togglePlay() {
+                    if (!audio) return;
+
                     if (audio.paused) {
                         const playPromise = audio.play();
-                        
+
                         if (audio.readyState < 3) {
                             isLoading = true;
                             updateState();
@@ -366,7 +372,7 @@ if (id) {
                                 .then(() => {
                                     // Started
                                 })
-                                .catch(error => {
+                                .catch((error: any) => {
                                     console.error("Playback failed:", error);
                                     isLoading = false;
                                     isPlaying = false;
@@ -426,7 +432,7 @@ if (id) {
                         isLoading = false;
                         updateState();
                     });
-                    
+
                     audio.addEventListener('ended', () => {
                         isPlaying = false;
                         audio.currentTime = 0;

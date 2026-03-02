@@ -3,7 +3,7 @@ CONTRACT:
 - SSOT: [STATE_OF_WORLD.md](STATE_OF_WORLD.md)
 - AUDIENCE: Dev
 - NATURE: Current
-- LAST_HARDENED: 2026-01-27
+- LAST_HARDENED: 2026-02-19
 - VERIFICATION_METHOD: [Link check | Claim check]
 -->
 # Testing Guide
@@ -11,8 +11,8 @@ CONTRACT:
 This guide details the verification gates required for any PR. All tests must pass before merging.
 
 ## 🧪 Prerequisite Health
-- **Node.js**: `22.21.1`
-- **pnpm**: `10.18.1`
+- **Node.js**: `22.x`
+- **pnpm**: `10.x`
 
 ## 🕹️ Core Test Suite
 

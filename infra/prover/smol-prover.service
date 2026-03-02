@@ -1,0 +1,24 @@
+[Unit]
+Description=SMOL ZK Dungeon Prover Service
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/smol-fe
+EnvironmentFile=/etc/smol-prover.env
+
+# Ensure `pnpm` is available (bootstrap installs it via corepack).
+ExecStart=/usr/bin/env node /opt/smol-fe/scripts/local-prover-server.mjs
+Restart=always
+RestartSec=2
+
+# Basic hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
+

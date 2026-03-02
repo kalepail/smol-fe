@@ -15,7 +15,8 @@ import {
 } from '../utils/transaction-helpers';
 import { account } from '../utils/passkey-kit';
 
-type SignableTransaction = Parameters<ReturnType<typeof account.get>['sign']>[0];
+// Fix: Unwrap Promise with Awaited to get the instance type
+type SignableTransaction = Parameters<Awaited<ReturnType<typeof account.get>>['sign']>[0];
 type GetFreshTokenCallback = () => Promise<string>;
 
 interface PurchaseBatchParams {

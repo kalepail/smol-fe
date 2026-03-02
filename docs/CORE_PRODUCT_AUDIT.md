@@ -3,7 +3,7 @@ CONTRACT:
 - SSOT: [STATE_OF_WORLD.md](STATE_OF_WORLD.md)
 - AUDIENCE: Dev, Product
 - NATURE: Audit / Backlog
-- LAST_HARDENED: 2026-01-27
+- LAST_HARDENED: 2026-02-19
 - VERIFICATION_METHOD: [Product Trace | State Trace]
 -->
 # Core Product UX Audit (Music Site)

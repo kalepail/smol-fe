@@ -14,6 +14,8 @@ export const publicKey = keypair.publicKey()
 import { RPC_URL, recordRpcSuccess, recordRpcFailure } from "./rpc";
 
 const rpcUrl = RPC_URL;
+// Fix: 'Server' is a value, but used as a type. Define the type from the class constructor.
+type Server = InstanceType<typeof Server>;
 export const rpc = rpcUrl ? new Server(rpcUrl) : (null as Server | null);
 
 export function getRpcServer(): Server {

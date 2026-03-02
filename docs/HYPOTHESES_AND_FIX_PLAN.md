@@ -1,3 +1,11 @@
+<!--
+CONTRACT:
+- SSOT: [STATE_OF_WORLD.md | Subordinate]
+- AUDIENCE: Dev
+- NATURE: Research
+- LAST_HARDENED: 2026-02-19
+- VERIFICATION_METHOD: [Manual Verify]
+-->
 # Hypotheses & Fix Plan
 
 ## Root Cause Analysis

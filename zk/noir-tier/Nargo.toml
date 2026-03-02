@@ -1,0 +1,7 @@
+[package]
+name = "the_farm_noir"
+type = "bin"
+authors = ["smol"]
+compiler_version = ">=1.0.0"
+
+[dependencies]

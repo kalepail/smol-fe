@@ -61,7 +61,7 @@ PUBLIC_SOROSWAP_API_KEY → Soroswap API access
 ## 8. Testing & Deployment 🚀
 - **Build**: `pnpm build`
 - **Lint**: `npx astro check` & `npx svelte-check`
-- **Verification**: Run the **Ralph Loop** pattern for any high-risk changes (Passkeys, TX flows).
+- **Verification**: Run the **Agent Loop** pattern for any high-risk changes (Passkeys, TX flows).
 - **Build**: `pnpm build`
 - **Local Dev**: `pnpm dev` (requires HTTPS for passkeys)
 - **Deployment**: PR to `kalepail/smol-fe:noot` branch for noot.smol.xyz

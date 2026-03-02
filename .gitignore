@@ -26,8 +26,16 @@ pnpm-debug.log*
 
 .wrangler/
 
+# Rust build artifacts
+**/target/
+
+# ZK build outputs
+zk/**/build/
+zk/circom-tier/artifacts/tier_proof.wasm
+
 # Large data files (exceed Cloudflare 25 MiB limit)
-data/all-smols.json!.agent/
+data/all-smols.json
+!.agent/
 
 test-results/
 playwright-report/
@@ -37,6 +45,25 @@ tldts-results*.txt
 usernames.txt
 verification-check.txt
 check-output.txt
+*.xdr.txt
+upload_cost.txt
+upload_farm_attestations.xdr.txt
+install_farm_attestations.xdr.txt
+gateway_logs.txt
+openclaw_help.txt
+openclaw_full_help.txt
+models.txt
+deployed-*-id.txt
+
+# RISC0 local build cache
+zk/**/.risc0_work/
 
 .agent/_reports/
+.tmp/
 
+browser_profile_v2/
+scripts/mixea_browser_profile_v2/
+scripts/mixea_browser_profile/
+scripts/mixea_browser_data/
+scripts/mixea_browser_data_bak/
+scripts/dk_browser_data/

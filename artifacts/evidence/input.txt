@@ -1,0 +1,9 @@
+file '01_landing.png'
+duration 15
+file '02_zkdungeon.png'
+duration 45
+file '03_code.png'
+duration 45
+file '04_end_card.png'
+duration 15
+file '04_end_card.png'

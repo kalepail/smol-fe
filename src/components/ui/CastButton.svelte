@@ -8,6 +8,16 @@
     }
 
     let { classNames = "", size = 20 }: Props = $props();
+    let lastRequestTs = 0;
+
+    function startCast(e: Event) {
+        e.preventDefault();
+        e.stopPropagation();
+        const now = Date.now();
+        if (now - lastRequestTs < 500) return;
+        lastRequestTs = now;
+        castService.requestSession();
+    }
 </script>
 
 {#if audioState.isCastAvailable}
@@ -15,15 +25,8 @@
         class="flex items-center justify-center transition-colors relative z-[9999] cursor-pointer {classNames} {audioState.isCasting
             ? 'text-[#4285F4]'
             : 'text-slate-400 hover:text-white'}"
-        onclick={(e) => {
-            e.stopPropagation();
-            castService.requestSession();
-        }}
-        ontouchend={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            castService.requestSession();
-        }}
+        onclick={startCast}
+        ontouchend={startCast}
         aria-label="Google Cast"
         title="Cast to device"
     >

@@ -1,21 +1,18 @@
-# Vibe Code of Ethics
+# Principles of High-Velocity Development
 
-## Principles
--   **Speed**: We move fast. We use AI. We accept that things will break.
--   **Autonomy**: You are smart. You have tools. You don't need permission to have a good idea.
--   **Kindness**: High velocity requires high trust. Trust requires kindness.
+## ⚡ Principles
+1.  **Velocity**: We prioritize speed and iteration. We use AI tools to accelerate building. We accept that broken code is a temporary state on the way to better code.
+2.  **Trust**: High velocity requires high autonomy. We trust contributors to make informed decisions using the provided tools and documentation.
+3.  **Kindness**: Radical autonomy depends on respect and kindness. We are a community of builders, not gatekeepers.
 
-## Collaboration
-We don't do committees. We do **syncs**.
--   **Remix Culture**: Fork it, improve it, merge it. Go for it.
--   **Default to Open**: Work in public. Share your half-baked ideas so we can bake them together.
+## 🛠️ Collaboration
+-   **No Committees**: We move through async consensus. We value "Remix Culture"—if you can make it better, fork it, improve it, and show us.
+-   **Default to Open**: We design and discuss in the open. Sharing incomplete work early leads to better final results.
+-   **Bikeshed-Free Zone**: We do not argue over trivialities. Focus on the core user experience and the integrity of the blockchain/ZK layers.
 
-## Anti-Patterns
--   Gatekeeping.
--   Bikeshedding (arguing over trivial details).
--   Being a buzzkill.
+## 🚫 Anti-Patterns
+-   Gatekeeping or credentialism.
+-   Arguing over default formatting.
+-   Disrespecting the "Fail-Closed" documentation policy.
 
-Let's build.
-
-## Addendum
-This code of ethics was vibe coded. If the vibe changes, we'll vibe a new vibe. Who's askin'? Fuggadabout it, I'm walkin' here!
+Let's build. 👋

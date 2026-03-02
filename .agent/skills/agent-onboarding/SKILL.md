@@ -9,9 +9,9 @@ description: Master skill for new agents joining the repo. Teaches how to read t
 - Read `AGENTS.md` in the root.
 - Read `docs/REPO_MAP.md` to understand the lay of the land.
 
-## 2. Check the Ralph Loop
-- Read `scripts/ralph/prd.json` to see what is PENDING/FAILING.
-- Read `scripts/ralph/progress.txt` to see what has been recently done.
+## 2. Check the Agent Loop
+- Read `scripts/agent/prd.json` to see what is PENDING/FAILING.
+- Read `scripts/agent/progress.txt` to see what has been recently done.
 
 ## 3. Work Habits
 - **One Priority at a Time**: Pick the highest failing priority from PRD.

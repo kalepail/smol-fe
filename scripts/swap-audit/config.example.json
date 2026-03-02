@@ -3,13 +3,13 @@
     "rpcUrl": "https://rpc.ankr.com/stellar_soroban",
     "horizonUrl": "https://horizon.stellar.org",
     "aquarius": {
-        "routerContractId": "TODO_FIND_ROUTER_IF_NEEDED",
+        "routerContractId": "C_ROUTER_CONTRACT_ID_OR_EMPTY",
         "poolContractId": "CDFNPMDIWKCTVCDP2K75RI5J4FIKLTSZBWBNLS4BQVT6AS67MRD5GV2V",
         "xlmAsset": "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA",
         "kaleTokenContractId": "CB23WRDQWGSP6YPMY4UV5C4OW5CBTXKYN3XEATG7KJEZCXMJBYEHOUOV"
     },
     "smartAccount": {
-        "cAddress": "C_TODO_YOUR_SMART_WALLET_ADDRESS",
+        "cAddress": "C_SMART_WALLET_ADDRESS",
         "provider": "passkeyKit",
         "passkeyKit": {
             "rpId": "noot.smol.xyz",
@@ -27,7 +27,7 @@
         "feeToken": "native"
     },
     "soroswap": {
-        "apiKey": "sk_4841707489b6c8a0ec4614bfa917be0b6518b0fd8b1f0cb08c0abe84de095b8f"
+        "apiKey": "ENV:SOROSWAP_API_KEY"
     },
     "xbull": {
         "baseUrl": "https://swap.apis.xbull.app",

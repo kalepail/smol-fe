@@ -1,0 +1,24 @@
+---
+import Layout from "../../../../layouts/Layout.astro";
+import VipApp from "../../../../components/vip/VipApp.svelte";
+import IntegrityStatus from "../../../../components/labs/IntegrityStatus.astro";
+---
+
+<Layout title="Commons | THE VIP" description="On-ledger account proof + encrypted chat.">
+  <main class="min-h-screen bg-gradient-to-b from-[#04130c] to-black text-white px-4 pt-20 pb-16">
+    <div class="mx-auto max-w-5xl space-y-6">
+      <a href="/labs/the-vip" class="text-xs text-white/60 hover:text-white/90">← Back to THE VIP</a>
+
+      <IntegrityStatus
+        title="Integrity Status (Commons)"
+        items={[
+          { label: "Eligibility", value: "Account exists on Horizon", tone: "good" },
+          { label: "Auth", value: "SEP-10 challenge signature (wallet signs tx)", tone: "good" },
+          { label: "E2EE", value: "WebCrypto (AES-GCM + ECDH P-256 + ECDSA)", tone: "good" },
+          { label: "Relay", value: "Labs-only in-memory HTTP relay (polling)", tone: "warn" },
+        ]}
+      />
+      <VipApp client:only="svelte" roomId="commons" />
+    </div>
+  </main>
+</Layout>

@@ -32,6 +32,14 @@ export async function clearUserAuth() {
 }
 
 /**
+ * Get the PasskeyKit instance directly (for custom transactions)
+ */
+export async function getPasskeyKit(): Promise<any> {
+  const { account } = await import("../utils/passkey-kit");
+  return account.get();
+}
+
+/**
  * FACTORY FRESH: Passkey Reconnection
  * @see https://deepwiki.com/repo/kalepail/smol-fe#silent-reconnect
  * 
@@ -47,7 +55,9 @@ export async function ensureWalletConnected(): Promise<void> {
       const { account } = await import("../utils/passkey-kit");
 
       const rpId = getSafeRpId(window.location.hostname);
-      const result = await (await account.get()).connectWallet({
+
+      const kit = await account.get();
+      const result = await kit.connectWallet({
         rpId,
         keyId,
         getContractId: async () => contractId,
@@ -63,4 +73,30 @@ export async function ensureWalletConnected(): Promise<void> {
       console.error('[userState] Failed to reconnect wallet:', error);
     }
   }
+}
+
+/**
+ * Force a fresh Passkey authentication prompt (e.g. for ZK identity commitment).
+ * Resets the internal singleton to bypass any cached session state.
+ */
+export async function forceReauthentication(): Promise<void> {
+  const { resetPasskeyKit, account } = await import("../utils/passkey-kit");
+  resetPasskeyKit(); // Nuke the singleton to force a fresh prompt
+
+  const contractId = userState.contractId;
+  const keyId = userState.keyId;
+  const rpId = getSafeRpId(window.location.hostname);
+
+  if (!contractId || !keyId) throw new Error("Cannot re-authenticate: Missing auth state");
+
+  console.log('[userState] Forcing re-authentication via PasskeyKit...');
+
+  const kit = await account.get(); // Gets a FRESH instance
+  await kit.connectWallet({
+    rpId,
+    keyId,
+    getContractId: async () => contractId,
+  });
+
+  console.log('[userState] Re-authentication (Identity Commitment) complete');
 }

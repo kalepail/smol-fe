@@ -1,6 +1,6 @@
 id: lab_stream_pay
 title: "StreamPay (EXP-005)"
-owner: "Ralph"
+owner: "team"
 status_color: RED
 readiness_score: 40
 risk_level: MEDIUM
