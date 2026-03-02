@@ -1,8 +1,10 @@
 import { Asset } from "@stellar/stellar-sdk/minimal";
 import { Client as SmolClient } from "smol-sdk";
 import { account } from "./passkey-kit";
-import { rpc } from "./base";
-import { getDomain } from "tldts";
+import { getLatestSequence } from "./base";
+import { getSafeRpId } from "./domains";
+
+type SignableTransaction = any;
 
 export const MINT_POLL_INTERVAL = 1000 * 6;
 export const MINT_POLL_TIMEOUT = 1000 * 60 * 5;
@@ -67,15 +69,16 @@ export async function createMintTransaction(options: MintOptions) {
         fee_rule: feeRule,
     });
 
-    const { sequence } = await rpc.getLatestLedger();
+    const sequence = await getLatestSequence();
 
-    at = await account.sign(at, {
-        rpId: getDomain(window.location.hostname) ?? undefined,
+    const signable = at as unknown as SignableTransaction;
+    const signed = await (await account.get()).sign(signable, {
+        rpId: getSafeRpId(window.location.hostname),
         keyId,
         expiration: sequence + 60,
     });
 
-    const xdrString = at.built?.toXDR();
+    const xdrString = signed.built?.toXDR();
 
     if (!xdrString) {
         throw new Error("Failed to build signed mint transaction");

@@ -7,6 +7,7 @@ export interface MixtapeSummary {
   trackCount: number;
   coverUrls: (string | null)[];
   updatedAt: string;
+  smolIds: string[];
 }
 
 export interface MixtapeSmolData {
@@ -15,6 +16,7 @@ export interface MixtapeSmolData {
   Address: string;
   Mint_Token?: string;
   Mint_Amm?: string;
+  Minted_By?: string;
   Song_1?: string;
   Tags?: string[];
 }
@@ -45,7 +47,23 @@ export interface SmolTrackData {
   } | null;
 }
 
-const API_URL = import.meta.env.PUBLIC_API_URL!;
+const API_URL = import.meta.env.PUBLIC_API_URL || 'https://api.smol.xyz';
+
+/**
+ * Get auth headers from smol_token cookie.
+ * This enables cross-origin authenticated requests (e.g., localhost -> api.smol.xyz)
+ * since cookies are domain-bound and won't be sent cross-origin.
+ */
+function getAuthHeaders(): Record<string, string> {
+  if (typeof document === 'undefined') return {};
+
+  const cookies = document.cookie.split('; ');
+  const tokenCookie = cookies.find(c => c.startsWith('smol_token='));
+  if (!tokenCookie) return {};
+
+  const token = tokenCookie.split('=')[1];
+  return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
 
 /**
  * Publish a new mixtape
@@ -55,6 +73,7 @@ export async function publishMixtape(draft: MixtapeDraft): Promise<{ id: string 
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...getAuthHeaders(),
     },
     credentials: 'include',
     body: JSON.stringify({
@@ -70,6 +89,33 @@ export async function publishMixtape(draft: MixtapeDraft): Promise<{ id: string 
 
   const data: { id: string } = await response.json();
   return data;
+}
+
+/**
+ * Update an existing mixtape
+ */
+export async function updateMixtape(id: string, draft: MixtapeDraft): Promise<{ id: string }> {
+  const response = await fetch(`${API_URL}/mixtapes/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+    },
+    credentials: 'include',
+    body: JSON.stringify({
+      title: draft.title || 'Untitled Mixtape',
+      desc: draft.description,
+      smols: draft.tracks.map((track) => track.id),
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to update mixtape: ${response.statusText}`);
+  }
+
+  // Backend returns { success: true }, but we return { id } for consistency with publish
+  await response.json();
+  return { id };
 }
 
 /**
@@ -110,6 +156,7 @@ export async function listMixtapes(): Promise<MixtapeSummary[]> {
         trackCount: mixtape.Smols.length,
         coverUrls,
         updatedAt: mixtape.Created_At,
+        smolIds: mixtape.Smols,
       };
     })
   );
@@ -161,15 +208,40 @@ export async function getMixtapeDetail(
     coverUrls.push(null);
   }
 
+  // Check for locally saved track order
+  const savedOrderJson = localStorage.getItem(`mixtape-order:${data.Id}`);
+  let orderedTracks = data.Smols;
+  if (savedOrderJson) {
+    try {
+      const savedOrder: string[] = JSON.parse(savedOrderJson);
+
+      // Reorder tracks based on saved order
+      const trackMap = new Map(data.Smols.map((t) => [t.Id, t]));
+      orderedTracks = savedOrder
+        .map((id) => trackMap.get(id))
+        .filter((t): t is MixtapeSmolData => t !== undefined);
+      // Add any tracks that weren't in the saved order (safety)
+      const savedSet = new Set(savedOrder);
+      for (const track of data.Smols) {
+        if (!savedSet.has(track.Id)) {
+          orderedTracks.push(track);
+        }
+      }
+    } catch (e) {
+      console.error('[MOCK] Failed to parse saved order:', e);
+    }
+  }
+
   return {
     id: data.Id,
     title: data.Title,
     description: data.Desc,
-    trackCount: data.Smols.length,
+    trackCount: orderedTracks.length,
     coverUrls,
     updatedAt: data.Created_At,
     creator: data.Address,
-    tracks: data.Smols,
+    tracks: orderedTracks,
+    smolIds: orderedTracks.map(t => t.Id),
   };
 }
 
@@ -210,9 +282,9 @@ export async function getSmolTrackData(smolId: string): Promise<SmolTrackData> {
         : null) ?? null,
     lyrics: kv_do?.lyrics
       ? {
-          title: kv_do.lyrics.title,
-          style: kv_do.lyrics.style,
-        }
+        title: kv_do.lyrics.title,
+        style: kv_do.lyrics.style,
+      }
       : null,
   };
 }

@@ -1,0 +1,193 @@
+[
+    {
+        "id": "lab_roulette",
+        "title": "Tag Roulette",
+        "badge": "EXP-001",
+        "status_color": "YELLOW",
+        "readiness_score": 75,
+        "last_reviewed": "2026-01-15",
+        "blast_radius": "LABS_ONLY",
+        "path": "experiments/roulette/experiment.yml",
+        "href": "/labs/roulette",
+        "description": "Spin the wheel of metadata. Select hashtags to uncover hidden tracks from the archives.",
+        "tags": [
+            "Music",
+            "Discovery"
+        ],
+        "isLocked": false
+    },
+    {
+        "id": "lab_quiz",
+        "title": "Blind Quiz",
+        "badge": "EXP-002",
+        "status_color": "YELLOW",
+        "readiness_score": 75,
+        "last_reviewed": "2026-01-15",
+        "blast_radius": "LABS_ONLY",
+        "path": "experiments/quiz/experiment.yml",
+        "href": "/labs/quiz",
+        "description": "Test your sonic knowledge. Listen to a snippet and guess the correct genre tags.",
+        "tags": [
+            "Game",
+            "Audio"
+        ],
+        "isLocked": false
+    },
+    {
+        "id": "lab_waveform",
+        "title": "Audio Recon",
+        "badge": "EXP-003",
+        "status_color": "YELLOW",
+        "readiness_score": 72,
+        "last_reviewed": "2026-01-15",
+        "blast_radius": "LABS_ONLY",
+        "path": "experiments/waveform/experiment.yml",
+        "href": "/labs/waveform",
+        "description": "Signal interception active. Correlate audio input with visual signatures.",
+        "tags": [
+            "Visuals",
+            "Puzzle"
+        ],
+        "isLocked": false
+    },
+    {
+        "id": "lab_swapper",
+        "title": "Swapper",
+        "badge": "BETA",
+        "status_color": "ORANGE",
+        "readiness_score": 68,
+        "last_reviewed": "2026-01-15",
+        "blast_radius": "PROD_GATED",
+        "path": "experiments/swapper/experiment.yml",
+        "href": "/labs/swapper",
+        "description": "Exchange tokens on the Kale Chain. Powered by Soroswap Aggregator.",
+        "tags": [
+            "DeFi",
+            "Tool"
+        ],
+        "isLocked": false
+    },
+    {
+        "id": "lab_kale_or_fail",
+        "title": "Kale or Fail",
+        "badge": "EXP-004",
+        "status_color": "ORANGE",
+        "readiness_score": 60,
+        "last_reviewed": "2026-01-15",
+        "blast_radius": "LABS_ONLY",
+        "path": "experiments/kale-or-fail/experiment.yml",
+        "href": "/labs/kale-or-fail",
+        "description": "Curate the airwaves. Swipe right to tip artists, swipe left to skip.",
+        "tags": [
+            "Game",
+            "Curator"
+        ],
+        "isLocked": false
+    },
+    {
+        "id": "lab_stream_pay",
+        "title": "StreamPay",
+        "badge": "EXP-005",
+        "status_color": "RED",
+        "readiness_score": 40,
+        "last_reviewed": "2026-01-15",
+        "blast_radius": "LABS_ONLY",
+        "path": "experiments/stream-pay/experiment.yml",
+        "href": "/labs/stream-pay",
+        "description": "Pay-Per-Second Audio Streaming Protocol. Continuous micro-transactions.",
+        "tags": [
+            "DeFi",
+            "Music"
+        ],
+        "isLocked": false
+    },
+    {
+        "id": "lab_smol_hero",
+        "title": "Smol Hero",
+        "badge": "EXP-006",
+        "status_color": "ORANGE",
+        "readiness_score": 85,
+        "last_reviewed": "2026-01-18",
+        "blast_radius": "LABS_ONLY",
+        "path": "experiments/smol-hero/experiment.yml",
+        "href": "/labs/smol-hero",
+        "description": "Real-time rhythm game with beat detection. Hit notes in sync with actual audio frequencies.",
+        "tags": [
+            "Game",
+            "Audio"
+        ],
+        "isLocked": false
+    },
+    {
+        "id": "lab_last_frame",
+        "title": "LastFrame",
+        "badge": "EXP-011",
+        "status_color": "GREEN",
+        "readiness_score": 100,
+        "last_reviewed": "2026-02-13",
+        "blast_radius": "LABS_ONLY",
+        "path": "experiments/lastframe/experiment.yml",
+        "href": "/labs/lastframe",
+        "description": "Instant last-frame capture for video loops and thumbnails.",
+        "tags": [
+            "Video",
+            "Tool",
+            "Local"
+        ],
+        "isLocked": false
+    },
+    {
+        "id": "lab_the_farm",
+        "title": "The Farm",
+        "badge": "ZK-001",
+        "status_color": "ORANGE",
+        "readiness_score": 70,
+        "last_reviewed": "2026-02-13",
+        "blast_radius": "LABS_ONLY",
+        "path": "experiments/the-farm/experiment.yml",
+        "href": "/labs/the-farm",
+        "description": "ZK Proof of Farm. Prove your KALE tier on-chain without revealing your balance. Smart Wallet Dreamboard.",
+        "tags": [
+            "ZK",
+            "Blockchain"
+        ],
+        "isLocked": false
+    },
+    {
+        "id": "lab_the_vip",
+        "title": "THE VIP",
+        "badge": "VIP-001",
+        "status_color": "ORANGE",
+        "readiness_score": 55,
+        "last_reviewed": "2026-02-13",
+        "blast_radius": "LABS_ONLY",
+        "path": "experiments/the-vip/experiment.yml",
+        "href": "/labs/the-vip",
+        "description": "Signature-gated, end-to-end encrypted chat for Stellar VIP cohorts (Labs relay).",
+        "tags": [
+            "Chat",
+            "E2EE",
+            "Stellar"
+        ],
+        "isLocked": false
+    }
+],
+    {
+        "id": "lab_vanity_address",
+        "title": "Stellar Vanity",
+        "badge": "EXP-012",
+        "status_color": "YELLOW",
+        "readiness_score": 50,
+        "last_reviewed": "2026-02-20",
+        "blast_radius": "LABS_ONLY",
+        "path": "experiments/vanity-address/experiment.yml",
+        "href": "/labs/vanity-address",
+        "description": "Brute-force the cosmos. Generate personalized G-addresses and explore vanity Contract IDs.",
+        "tags": [
+            "Stellar",
+            "Tool",
+            "Security"
+        ],
+        "isLocked": false
+    }
+]

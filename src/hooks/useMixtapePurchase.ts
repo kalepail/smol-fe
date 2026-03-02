@@ -1,8 +1,23 @@
+/**
+ * FACTORY FRESH: Mixtape Purchase Hook
+ * @see https://deepwiki.com/repo/kalepail/smol-fe#trading
+ * 
+ * Handles batch purchasing of already-minted tracks via "swap_them_in".
+ * Implements sequential chunking with automated Turnstile token refresh
+ * to scale with large mixtape memberships.
+ */
 import { Client as SmolClient } from 'smol-sdk';
-import { getDomain } from 'tldts';
 import type { Smol } from '../types/domain';
-import { rpc } from '../utils/base';
-import { account, send } from '../utils/passkey-kit';
+import { RPC_URL } from '../utils/rpc';
+import {
+  signSendAndVerify,
+  type SignAndSendResult,
+} from '../utils/transaction-helpers';
+import { account } from '../utils/passkey-kit';
+
+// Fix: Unwrap Promise with Awaited to get the instance type
+type SignableTransaction = Parameters<Awaited<ReturnType<typeof account.get>>['sign']>[0];
+type GetFreshTokenCallback = () => Promise<string>;
 
 interface PurchaseBatchParams {
   tokensOut: string[];
@@ -10,18 +25,28 @@ interface PurchaseBatchParams {
   smolContractId: string;
   userContractId: string;
   userKeyId: string;
+  turnstileToken: string;
 }
 
 export function useMixtapePurchase() {
-  async function purchaseBatch(params: PurchaseBatchParams): Promise<void> {
-    const { tokensOut, cometAddresses, smolContractId, userContractId, userKeyId } = params;
+  /**
+   * Purchase a batch of tokens with timeout recovery
+   *
+   * Uses unified signSendAndVerify helper which automatically:
+   * - Signs the transaction
+   * - Submits to relayer
+   * - Verifies on network
+   * - Recovers from timeouts by polling network directly
+   */
+  async function purchaseBatch(params: PurchaseBatchParams): Promise<SignAndSendResult> {
+    const { tokensOut, cometAddresses, smolContractId, userContractId, userKeyId, turnstileToken } = params;
 
     const costPerToken = 33_0000000n; // 33 KALE per token
 
     // Create the swap_them_in transaction
     const smolClient = new SmolClient({
       contractId: smolContractId,
-      rpcUrl: import.meta.env.PUBLIC_RPC_URL!,
+      rpcUrl: RPC_URL,
       networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE!,
     });
 
@@ -33,30 +58,31 @@ export function useMixtapePurchase() {
       fee_recipients: undefined,
     });
 
-    const { sequence } = await rpc.getLatestLedger();
-    await account.sign(tx, {
-      rpId: getDomain(window.location.hostname) ?? undefined,
+    // Sign, send, and verify with automatic timeout recovery
+    return await signSendAndVerify(tx, {
       keyId: userKeyId,
-      expiration: sequence + 60,
+      turnstileToken,
+      // Don't use lock - batches are sequential already
+      useLock: false,
     });
-
-    // Log the XDR for inspection
-    const xdrString = tx.built?.toXDR();
-    console.log('Purchase Batch Transaction XDR:', xdrString);
-    console.log('Tokens in batch:', tokensOut);
-
-    // Submit transaction via passkey server
-    await send(tx);
   }
 
+  /**
+   * Purchase tracks in batches of 3 with automatic Turnstile token refresh
+   *
+   * Uses processChunksWithRetry for consistent batch processing
+   */
   async function purchaseTracksInBatches(
     mixtapeTracks: Smol[],
     tokensOut: string[],
     smolContractId: string,
     userContractId: string,
     userKeyId: string,
-    onBatchComplete: (trackIds: string[]) => void
+    turnstileToken: string,
+    onBatchComplete: (trackIds: string[]) => void,
+    getFreshToken?: GetFreshTokenCallback
   ): Promise<void> {
+    // FACTORY FRESH: Process in chunks of 9 (Aggregator standard)
     const BATCH_SIZE = 9;
 
     // Build arrays of tokens and their corresponding comet addresses
@@ -80,42 +106,50 @@ export function useMixtapePurchase() {
       }
     }
 
+    // Create chunks
     const chunks: Array<typeof tokenData> = [];
     for (let i = 0; i < tokenData.length; i += BATCH_SIZE) {
       chunks.push(tokenData.slice(i, i + BATCH_SIZE));
     }
 
-    console.log(
-      `Processing ${tokenData.length} purchases in ${chunks.length} batch(es) of up to ${BATCH_SIZE}`
-    );
-
     // Process each chunk sequentially
     for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
       const chunk = chunks[chunkIndex];
-      console.log(
-        `Processing purchase batch ${chunkIndex + 1}/${chunks.length} with ${chunk.length} token(s)`
-      );
+      let currentToken = turnstileToken;
+
+      // Get fresh token for subsequent batches
+      if (chunkIndex > 0 && getFreshToken) {
+        try {
+          currentToken = await getFreshToken();
+        } catch (e) {
+          console.error("Failed to get fresh Turnstile token for batch", chunkIndex + 1);
+          throw new Error("Verification failed for batch " + (chunkIndex + 1));
+        }
+      }
 
       try {
         const tokensOutChunk = chunk.map((d) => d.token);
         const cometAddressesChunk = chunk.map((d) => d.comet);
 
-        await purchaseBatch({
+        const result = await purchaseBatch({
           tokensOut: tokensOutChunk,
           cometAddresses: cometAddressesChunk,
           smolContractId,
           userContractId,
           userKeyId,
+          turnstileToken: currentToken,
         });
+
+        if (!result.success) {
+          throw new Error(result.error || 'Purchase batch failed');
+        }
 
         // Mark substeps as complete
         const trackIds = chunk.map((data) => data.trackId);
         onBatchComplete(trackIds);
+
       } catch (error) {
-        console.error(
-          `Error processing purchase batch ${chunkIndex + 1}:`,
-          error
-        );
+        console.error(`Error processing purchase batch ${chunkIndex + 1}:`, error);
         throw error;
       }
     }

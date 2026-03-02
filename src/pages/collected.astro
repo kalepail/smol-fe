@@ -1,0 +1,8 @@
+---
+import Home from "../components/Home.svelte";
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Smol – Collected">
+	<Home endpoint="collected" client:only="svelte" />
+</Layout>

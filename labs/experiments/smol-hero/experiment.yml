@@ -1,0 +1,47 @@
+id: lab_smol_hero
+title: "Smol Hero"
+owner: "Smol Labs"
+status_color: GREEN
+readiness_score: 85
+risk_level: LOW
+blast_radius: LABS_ONLY
+env: LOCALNET
+feature_flag: "labs.smol_hero.enabled"
+last_reviewed: "2026-01-18"
+dependencies:
+  - "Web Audio API"
+  - "canvas-confetti"
+links:
+  spec: ""
+  pr: ""
+  docs: []
+definition_of_done:
+  - "Real-time beat detection using spectral flux analysis"
+  - "Multi-band frequency separation (bass/mid/treble)"
+  - "Accurate hit detection with timing windows"
+  - "Combo system and scoring"
+  - "Multiple difficulty modes"
+  - "Visual feedback and animations"
+  - "Track selection menu"
+  - "Results screen with statistics"
+notes: |
+  Advanced rhythm game experiment using real-time audio analysis.
+
+  Technical Features:
+  - Real-time onset detection using RMS energy analysis
+  - Three frequency bands: Bass (20-200Hz), Mid (200-2000Hz), Treble (2000+Hz)
+  - Adaptive note generation based on actual track audio
+  - Timing windows: Perfect (±50ms), Great (±100ms), OK (±150ms)
+  - Combo multiplier system
+  - Four difficulty modes affecting lane count and note density
+
+  Known Limitations:
+  - Desktop only (requires Web Audio API)
+  - iOS support limited (Web Audio disabled on mobile Safari)
+  - Performance varies based on track complexity
+
+  Future Enhancements:
+  - Calibration system for latency adjustment
+  - Leaderboard integration
+  - Custom beatmap editor
+  - Multiplayer mode

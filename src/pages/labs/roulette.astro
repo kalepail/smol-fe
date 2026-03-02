@@ -1,0 +1,42 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import TagRouletteCore from "../../components/labs/TagRouletteCore.svelte";
+
+// SIMPLIFIED: Moved data fetching to client-side to avoid Astro compiler WASM crash on Node 22
+const topTags: string[] = [];
+const allSmols: any[] = [];
+---
+
+<Layout title="Tag Roulette | Smol Labs">
+  <div class="min-h-screen bg-black text-[#9ae600] font-pixel p-4 relative overflow-hidden flex flex-col items-center justify-center">
+
+    <!-- Background -->
+    <div class="absolute inset-0 opacity-10 pointer-events-none">
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,theme('colors.lime.900')_0%,transparent_70%)] opacity-30"></div>
+    </div>
+    
+    <!-- Nav Back -->
+    <a href="/labs" class="absolute top-24 left-4 md:left-8 z-30 text-xs font-mono uppercase tracking-widest text-[#555] hover:text-[#9ae600] flex items-center gap-2 transition-colors">
+        <span>&larr; Return to Labs</span>
+    </a>
+
+    <!-- Container -->
+    <div class="relative z-20 w-full max-w-xl flex flex-col gap-8 items-center text-center">
+        
+        <h1 class="text-4xl md:text-6xl font-black tracking-tighter" style="image-rendering: pixelated; text-shadow: 4px 4px 0px #000;">
+            <span class="text-white">TAG</span><span class="text-[#ff424c]">ROULETTE</span>
+        </h1>
+        
+        <p class="text-xs md:text-sm font-mono text-[#555] uppercase tracking-widest max-w-sm">
+            Select a vibe. The system will retrieve a random artifact from the archives.
+        </p>
+
+        <!-- Svelte Interactive Component - loads data client-side -->
+        <div class="w-full bg-[#111] border-2 border-[#333] rounded-xl p-6 md:p-8 shadow-2xl">
+             <TagRouletteCore client:only="svelte" tags={topTags} smols={allSmols} fetchOnMount={true} />
+        </div>
+
+    </div>
+
+  </div>
+</Layout>

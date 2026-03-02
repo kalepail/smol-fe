@@ -1,0 +1,45 @@
+openapi: 3.0.0
+info:
+  title: Smol AI Music Public Data
+  description: Public readonly endpoints for accessing AI-generated music metadata from the Smol platform.
+  version: 1.0.0
+servers:
+  - url: https://noot.smol.xyz
+    description: Production Server
+
+paths:
+  /rss.xml:
+    get:
+      summary: Latest Songs Feed
+      description: Returns the 50 most recently generated songs in RSS 2.0 format.
+      responses:
+        '200':
+          description: RSS Feed XML
+          content:
+            application/xml:
+              schema:
+                type: string
+
+  /sitemap-songs.xml:
+    get:
+      summary: Deep Song Index
+      description: Returns a Sitemap of top 5000 songs for deep crawling.
+      responses:
+        '200':
+          description: Sitemap XML
+          content:
+            application/xml:
+              schema:
+                type: string
+                
+  /llms.txt:
+    get:
+      summary: LLM Context
+      description: Markdown summary of the site optimized for LLM context windows.
+      responses:
+        '200':
+          description: Markdown text
+          content:
+            text/plain:
+              schema:
+                type: string

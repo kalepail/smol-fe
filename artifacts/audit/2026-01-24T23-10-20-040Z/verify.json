@@ -1,0 +1,14 @@
+{
+  "timestamp": "2026-01-24T23:10:20.923Z",
+  "network": "mainnet",
+  "direction": "kale_to_xlm",
+  "amountIn": "10000000",
+  "provider": "soroswap",
+  "checks": {
+    "cAddressEnforcement": "PASSED",
+    "quoteReceived": true,
+    "txBuilt": true,
+    "simulationSuccess": false,
+    "sponsorReady": false
+  }
+}

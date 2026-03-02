@@ -1,13 +1,18 @@
-import { getDomain } from 'tldts';
-import { kale, account, send } from '../utils/passkey-kit';
-import { rpc } from '../utils/base';
-import { updateContractBalance } from '../stores/balance.svelte';
+import { kale } from '../utils/passkey-kit';
+import { signAndSend, type SignAndSendResult } from '../utils/transaction-helpers';
+import {
+  validateAddress,
+  validateAmount,
+  validateSufficientBalance,
+} from '../utils/transaction-validation';
+import { wrapError } from '../utils/errors';
 
 interface TransferParams {
   from: string;
   to: string;
   amount: bigint;
   keyId: string;
+  turnstileToken: string;
 }
 
 interface TransferValidation {
@@ -16,48 +21,68 @@ interface TransferValidation {
 }
 
 export function useKaleTransfer() {
+  /**
+   * Validate transfer parameters
+   *
+   * Uses centralized validation utilities for consistency
+   */
   function validateTransfer(
     destination: string,
     amount: bigint | null,
     currentBalance: bigint | null,
     userContractId: string
   ): TransferValidation {
-    if (!destination) {
-      return { isValid: false, error: 'Enter a destination address.' };
-    }
+    try {
+      // Validate destination address
+      validateAddress(destination, 'Destination');
 
-    if (destination === userContractId) {
-      return { isValid: false, error: 'You already control this address.' };
-    }
+      // Check if sending to self
+      if (destination === userContractId) {
+        return { isValid: false, error: 'You already control this address.' };
+      }
 
-    if (!amount) {
-      return { isValid: false, error: 'Enter a valid whole-number amount.' };
-    }
+      // Validate amount
+      validateAmount(amount, 'Transfer amount');
 
-    if (typeof currentBalance === 'bigint' && amount > currentBalance) {
-      return { isValid: false, error: 'Amount exceeds available balance.' };
-    }
+      // Validate sufficient balance
+      validateSufficientBalance(amount!, currentBalance, 'Transfer amount');
 
-    return { isValid: true };
+      return { isValid: true };
+
+    } catch (error) {
+      const wrappedError = wrapError(error);
+      return { isValid: false, error: wrappedError.getUserFriendlyMessage() };
+    }
   }
 
-  async function executeTransfer(params: TransferParams): Promise<void> {
-    let tx = await kale.transfer({
-      from: params.from,
-      to: params.to,
-      amount: params.amount,
-    });
+  /**
+   * Execute KALE transfer with unified sign-and-send pattern
+   *
+   * Uses transaction lock and balance update automatically
+   */
+  async function executeTransfer(params: TransferParams): Promise<SignAndSendResult> {
+    try {
+      // Build transfer transaction
+      const tx = await (await kale.get()).transfer({
+        from: params.from,
+        to: params.to,
+        amount: params.amount,
+      });
 
-    const { sequence } = await rpc.getLatestLedger();
-    tx = await account.sign(tx, {
-      rpId: getDomain(window.location.hostname) ?? undefined,
-      keyId: params.keyId,
-      expiration: sequence + 60,
-    });
+      // Sign and send with unified helper
+      // Automatically: acquires lock, signs, sends, updates balance, releases lock
+      return await signAndSend(tx, {
+        keyId: params.keyId,
+        turnstileToken: params.turnstileToken,
+        updateBalance: true,
+        contractId: params.from,
+        useLock: true, // Prevent concurrent transfers
+      });
 
-    await send(tx);
-
-    await updateContractBalance(params.from);
+    } catch (error) {
+      const wrappedError = wrapError(error, 'Transfer failed');
+      return { success: false, error: wrappedError.getUserFriendlyMessage() };
+    }
   }
 
   return {

@@ -16,6 +16,7 @@ export {
   resetDraft,
   clearDraft,
   loadDraft,
+  loadPublishedMixtape,
   touchMixtapeDraft,
   getSnapshotDraft,
   enterMixtapeMode,
@@ -23,4 +24,4 @@ export {
   toggleMixtapeMode,
   mixtapeDraft,
   mixtapeMode,
-} from './state.svelte';
+} from './state.svelte.ts';

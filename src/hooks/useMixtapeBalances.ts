@@ -40,7 +40,7 @@ export function useMixtapeBalances() {
     userContractId: string,
     onBalanceUpdated: (trackId: string, balance: bigint) => void
   ): Promise<void> {
-    console.log('Refreshing all balances with batching...');
+
 
     // Filter tracks that have mint tokens and build batch requests
     const batchRequests = mixtapeTracks
@@ -52,11 +52,11 @@ export function useMixtapeBalances() {
       }));
 
     if (batchRequests.length === 0) {
-      console.log('No tracks with mint tokens to refresh');
+
       return;
     }
 
-    console.log(`Fetching ${batchRequests.length} balances in batched call(s)...`);
+
 
     try {
       // Make batched RPC call(s) - automatically handles chunking if > 200
@@ -69,7 +69,7 @@ export function useMixtapeBalances() {
         }
       }
 
-      console.log('All balances refreshed via batch');
+
     } catch (error) {
       console.error('Error refreshing balances:', error);
       // Set all balances to 0 on error

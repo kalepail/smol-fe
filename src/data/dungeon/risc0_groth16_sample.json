@@ -1,0 +1,17 @@
+{
+  "system": "risc0_groth16_receipt",
+  "image_id_hex": "ff3134a404284900d02522fa076c0be6437ab4b8b5a7329e482065dc446e693b",
+  "claim_digest_hex": "acc8cf093babfc7e0aed3ffef9c4ef08ace7a98c2bf167c5cdc4b1b077c3edef",
+  "public_inputs_hex": [
+    "0000000000000000000000000000000041af18736dc9d7921c859fc95ac84da5",
+    "00000000000000000000000000000000561f8c992a424deb37ccdf4e19c0e7db",
+    "0000000000000000000000000000000008efc4f9fe3fed0a7efcab3b09cfc8ac",
+    "00000000000000000000000000000000efedc377b0b1c4cdc567f12b8ca9e7ac",
+    "04446e66d300eb7fb45c9726bb53c793dda407a62e9601618bb43c5c14657ac0"
+  ],
+  "proof": {
+    "pi_a_b64": "L8amZDLy1bLOuARgt7/Gnf0IzbPt/OMXbVCuZtrKujUQx4FFZih9gcQabZyTYl0XKou85zOlJirE4s930vMUOA==",
+    "pi_b_b64": "CnKpJ7IIFYapI299T8fcxgo0PUXDFWvVNPonFiaL9/IUdZnw0f0tQ93qQawTjEaiVWQ+Lv7NYwtyVFFLRFIMhi2r4U9il2JpK1MVGWg4hURLCxBPCOT4HlgRKgKDMcGCKd48DbZ6Wr/ylAG1rT/GufxHhsFKY6597XllwG9utQw=",
+    "pi_c_b64": "KaD6k/Gqdynrwasv3PD9R9CF1E4vguMnZBoZWOTosr8RVW6cnISzshfh5DSrFQR8/CjVuyXOygVpj96uLVcXCA=="
+  }
+}

@@ -1,0 +1,4 @@
+Error: OZ Quote Error: 403 - {"message":"Authorization header requires 'Credential' parameter. Authorization header requires 'Signature' parameter. Authorization header requires 'SignedHeaders' parameter. Authorization header requires existence of either a 'X-Amz-Date' or a 'Date' header. (Hashed with SHA-256 and encoded with Base64) Authorization=b1tS9AUNdnSalQgUBYs2KrIvQ8Hvs393+84jsfxZj/g="}
+    at OZRelayerProvider.getSponsoredQuote (file:///C:/Users/Jeff/Mixtape%20Auto/smol-fe/scripts/swap-audit/providers/oz-relayer.js:53:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (file:///C:/Users/Jeff/Mixtape%20Auto/smol-fe/scripts/swap-audit/audit.js:167:34)

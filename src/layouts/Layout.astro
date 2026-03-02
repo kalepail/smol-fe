@@ -2,22 +2,56 @@
 import { ClientRouter } from 'astro:transitions';
 import Header from '../components/Header.svelte'
 import MixtapeBuilderOverlay from '../components/mixtape/MixtapeBuilderOverlay.svelte'
+import MixtapeDropZone from '../components/mixtape/MixtapeDropZone.svelte'
 import BarAudioPlayer from '../components/audio/BarAudioPlayer.svelte'
+import GlobalVerification from '../components/GlobalVerification.svelte'
+import OnboardingGuard from '../components/onboarding/OnboardingGuard.svelte'
+import PasskeyReprompt from '../components/retention/PasskeyReprompt.svelte'
+import DynamicBackground from '../components/layout/DynamicBackground.svelte'
+import DebugPanel from '../components/dev/DebugPanel.svelte'
+import AppInitializer from '../components/AppInitializer.svelte'
+import Toast from '../components/ui/Toast.svelte'
 import '../styles/global.css'
+import { buildCanonical, robotsMetaForUrl, jsonLd } from '../lib/seo';
 
 interface Props {
 	title?: string;
 	description?: string;
 	song_url?: string | null;
 	image_url?: string | null;
+	hideBottomBar?: boolean;
+    schema?: any[]; // page-specific JSON-LD blocks
+	twitter_player?: string | null;
+	twitter_player_stream?: string | null;
 }
 
 const {
 	title,
-	description = "Smol art onchain",
-	song_url = "https://cdn2.aisonggenerator.io/491bb94b-79df-41bb-b09b-2d295f1dfd05.mp3",
+	description = "Create and collect AI music onchain. The best AI music generator for making full songs from text prompts. Own your music.",
+	song_url = null,
 	image_url,
+	hideBottomBar = false,
+    schema = [],
+	twitter_player = null,
+	twitter_player_stream = null
 } = Astro.props;
+
+const siteOrigin = "https://noot.smol.xyz";
+const canonical = buildCanonical(Astro.url, siteOrigin);
+const robots = robotsMetaForUrl(Astro.url);
+const addImageScale = (url: string, scale = "32") => {
+	try {
+		const parsed = new URL(url);
+		if (!parsed.searchParams.has("scale")) parsed.searchParams.set("scale", scale);
+		return parsed.toString();
+	} catch {
+		return url;
+	}
+};
+const socialImage = image_url ? addImageScale(image_url) : `${siteOrigin}/meta.png`;
+const socialImageAlt = title ? `Cover art for ${title}` : "Smol music cover art";
+const twitterCard = twitter_player ? "player" : "summary_large_image";
+const twitterPlayerStream = twitter_player_stream || song_url || null;
 
 let _kid = null
 let _cid = null
@@ -31,90 +65,245 @@ if (token) {
 	_cid = sub;
 }
 
-const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY;
+import { SMOL_IDENTITY, SMOL_WEBSITE } from '../utils/seo-schema';
+
+// Global structured data
+const siteSchema = [
+  SMOL_IDENTITY,
+  SMOL_WEBSITE,
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "@id": "https://noot.smol.xyz/#app",
+    "name": "Smol",
+    "url": "https://noot.smol.xyz",
+    "applicationCategory": "MultimediaApplication",
+    "operatingSystem": "Web",
+    "description": "Generate songs from text prompts and collect them onchain."
+  }
+];
+
+// Combine global schema with page-specific schema
+const fullSchema = [...siteSchema, ...schema];
 ---
 
 <!doctype html>
 <html lang="en">
 	<head>
 		<meta charset="utf-8">
-		<meta name="robots" content="index, follow" />
-		<meta name="viewport" content="width=device-width, initial-scale=1">
-		<link rel="apple-touch-icon" href={image_url ? image_url : "https://smol.xyz/favicon.png"} />
-		<link rel="icon" type="image/png" href={image_url ? image_url : "https://smol.xyz/favicon.png"} />
-		<meta name="generator" content={Astro.generator} />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+		<meta name="robots" content={robots} />
+		
+        <link rel="apple-touch-icon" href={image_url ? image_url : `${siteOrigin}/favicon.png`} />
+		<link rel="icon" type="image/png" href={image_url ? image_url : `${siteOrigin}/favicon.png`} />
+		
+        {image_url && (
+            <link rel="preload" as="image" href={image_url} />
+        )}
+
+        <meta name="generator" content={Astro.generator} />
 		<meta name="mobile-web-app-capable" content="yes">
+		<meta name="color-scheme" content="dark">
+		<meta name="theme-color" content="#020617">
 		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 		<meta name="apple-mobile-web-app-title" content={title}>
-		<meta name="theme-color" content="#9ae600">
 		<link rel="manifest" href="/manifest.json">
 		<ClientRouter />
 
-		{turnstileSiteKey && <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" is:inline></script>}
-
 		<title transition:animate="fade">{title}</title>
 		<meta name="description" content={description}>
-		<!-- <meta name="medium" content="audio"> -->
-		<link rel="canonical" href={Astro.url}>
+        <meta name="keywords" content="AI music generator, AI songs, create music with AI, onchain music, crypto music, text to song, AI mixtape, Suno AI alternative, Udio alternative, make AI music" />
+		<link rel="canonical" href={canonical}>
+
+		{/* oEmbed discovery for Discord/social platforms */}
+		{twitter_player && (
+			<>
+				<link
+					rel="alternate"
+					type="application/json+oembed"
+					href={`${Astro.url.origin}/api/oembed?url=${encodeURIComponent(canonical)}&format=json`}
+					title={title}
+				/>
+				<link
+					rel="alternate"
+					type="text/xml+oembed"
+					href={`${Astro.url.origin}/api/oembed?url=${encodeURIComponent(canonical)}&format=xml`}
+					title={title}
+				/>
+			</>
+		)}
 
 		<meta property="og:title" content={title} />
 		<meta property="og:description" content={description} />
-		<meta property="og:type" content="music.song" />
-		<meta property="og:url" content={Astro.url} />
-		<meta property="og:image" content={image_url ? `${image_url}?scale=16` : "https://smol.xyz/meta.png"} />
-		<!-- <meta property="og:image:width" content="1024">
-		<meta property="og:image:height" content="1024"> -->
-		<!-- <meta property="og:image:type" content="image/png"> -->
-		<meta property="og:audio" content={song_url} />
-		<meta property="og:audio:type" content="audio/mpeg">
+		<meta property="og:type" content={twitter_player ? "video.other" : "music.song"} />
+		<meta property="og:url" content={canonical} />
+		<meta property="og:site_name" content="SMOL" />
+		<meta property="og:locale" content="en_US" />
+		<meta property="og:image" content={socialImage} />
+		<meta property="og:image:width" content="1024" />
+		<meta property="og:image:height" content="1024" />
+		<meta property="og:image:alt" content={socialImageAlt} />
+		{song_url && (
+			<>
+				<meta property="og:audio" content={song_url} />
+				<meta property="og:audio:secure_url" content={song_url} />
+				<meta property="og:audio:type" content="audio/mpeg" />
+			</>
+		)}
 
-		<!-- <link rel="alternate" type="application/json+oembed" href="//embed//"> -->
-
-		<!-- <meta property="og:video" content="">
-		<meta property="og:video:secure_url" content="">
-		<meta property="og:video:type" content="video/mp4">
-		<meta property="og:video:width" content="1024">
-		<meta property="og:video:height" content="1024">
-		<meta property="og:type" content="video.other"> -->
-
-		<!-- <meta name="twitter:card" content="player" /> -->
-		<meta name="twitter:card" content="summary_large_image" />
-		<!-- <meta name="twitter:site" content="@smolxyz"> -->
+		<meta name="twitter:card" content={twitterCard} />
+		<meta name="twitter:site" content="@smolxyz" />
+		<meta name="twitter:creator" content="@smolxyz" />
+		<meta name="twitter:domain" content={new URL(siteOrigin).hostname} />
 		<meta name="twitter:title" content={title} />
 		<meta name="twitter:description" content={description} />
-		<meta name="twitter:image" content={image_url ? `${image_url}?scale=16` : "https://smol.xyz/meta.png"} />
-		<meta name="twitter:url" content={Astro.url} />
-		<!-- <meta name="twitter:player" content="//embed//"> -->
-		<!-- <meta name="twitter:player:stream" content={song_url}>
-		<meta name="twitter:player:width" content="760">
-		<meta name="twitter:player:height" content="240"> -->
+		<meta name="twitter:image" content={socialImage} />
+		<meta name="twitter:image:alt" content={socialImageAlt} />
+		<meta name="twitter:url" content={canonical} />
+		
+		{twitter_player && (
+			<>
+				<meta name="twitter:player" content={twitter_player} />
+				<meta name="twitter:player:width" content="480" />
+				<meta name="twitter:player:height" content="480" />
+				{twitterPlayerStream && (
+					<>
+						<meta name="twitter:player:stream" content={twitterPlayerStream} />
+						<meta name="twitter:player:stream:content_type" content="audio/mpeg" />
+					</>
+				)}
+			</>
+		)}
+
+		{/* Discord Video Embed - tricks Discord into showing iframe player */}
+		{twitter_player && (
+			<>
+				<meta property="og:video" content={twitter_player} />
+				<meta property="og:video:secure_url" content={twitter_player} />
+				<meta property="og:video:type" content="text/html" />
+				<meta property="og:video:width" content="480" />
+				<meta property="og:video:height" content="480" />
+			</>
+		)}
+
+        {fullSchema.map(block => (
+            <script type="application/ld+json" set:html={jsonLd(block)} />
+        ))}
+
+		<style is:global>
+			/* Nuclear CSS option: globally hide SmolResults loading cards */
+			[data-smol-loading] {
+				display: none !important;
+				visibility: hidden !important;
+				opacity: 0 !important;
+				pointer-events: none !important;
+			}
+
+			/* Hide scrollbars globally but keep functionality */
+			::-webkit-scrollbar {
+				display: none;
+			}
+			* {
+				scrollbar-width: none;  /* Firefox */
+				-ms-overflow-style: none;  /* IE and Edge */
+			}
+		</style>
 	</head>
-	<body class="bg-slate-950 text-white">
-		<Header {_kid} {_cid} client:only="svelte" transition:persist="header" />
-		<MixtapeBuilderOverlay client:only="svelte" transition:persist="mixtape-overlay" />
-		<BarAudioPlayer client:only="svelte" transition:persist="audio-player" />
+	<body class="bg-transparent text-white min-h-screen relative">
+		<!-- Google Cast SDK -->
+		<script is:inline src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+
+		<!-- GEO: AI Referrer Tracking -->
+		<script is:inline>
+			(function() {
+				if (typeof document === 'undefined') return;
+				try {
+					const referrer = document.referrer.toLowerCase();
+					const aiReferrers = {
+						'chatgpt.com': 'ChatGPT',
+						'chat.openai.com': 'ChatGPT',
+						'searchgpt.com': 'SearchGPT',
+						'perplexity.ai': 'Perplexity',
+						'claude.ai': 'Claude',
+						'deepseek.com': 'DeepSeek',
+						'chat.deepseek.com': 'DeepSeek',
+						'gemini.google.com': 'Gemini',
+						'bard.google.com': 'Gemini',
+						'bing.com/chat': 'Bing Copilot',
+						'copilot.microsoft.com': 'Microsoft Copilot',
+						'you.com': 'You.com AI',
+					};
+					for (const [domain, name] of Object.entries(aiReferrers)) {
+						if (referrer.includes(domain)) {
+							const aiVisits = JSON.parse(localStorage.getItem('smol_ai_visits') || '[]');
+							aiVisits.push({ source: name, timestamp: new Date().toISOString(), page: location.pathname, referrer: document.referrer });
+							if (aiVisits.length > 100) aiVisits.shift();
+							localStorage.setItem('smol_ai_visits', JSON.stringify(aiVisits));
+							console.log('[GEO] AI Referrer:', name);
+							break;
+						}
+					}
+				} catch (e) {}
+			})();
+		</script>
+
+		<script is:inline>
+			// Nuclear option: destroy SmolResults loading cards immediately and on all events
+			function destroyLoadingCards() {
+				const loadingCards = document.querySelectorAll('[data-smol-loading]');
+				loadingCards.forEach(card => {
+					card.style.display = 'none';
+					card.remove();
+				});
+			}
+
+			// Run immediately
+			destroyLoadingCards();
+
+			// Run on DOMContentLoaded
+			document.addEventListener('DOMContentLoaded', destroyLoadingCards);
+
+			// Run on Astro page load
+			document.addEventListener('astro:page-load', destroyLoadingCards);
+
+			// Run on Astro before swap
+			document.addEventListener('astro:before-swap', destroyLoadingCards);
+
+			// Run on Astro after swap
+			document.addEventListener('astro:after-swap', destroyLoadingCards);
+
+			// Observe for any new loading cards being added
+			const observer = new MutationObserver(destroyLoadingCards);
+			observer.observe(document.body || document.documentElement, {
+				childList: true,
+				subtree: true
+			});
+		</script>
+		<!-- Global Dynamic Background (Pixel Kale Field) -->
+		<DynamicBackground 
+			client:only="svelte" 
+			disableWeather={Astro.url.pathname.startsWith('/mixtapes') || Astro.url.pathname.startsWith('/kale')} 
+			hidden={Astro.url.pathname.startsWith('/kale')}
+		/>
+
+		<!-- App Initialization - validates environment and sets up global handlers -->
+		<AppInitializer client:load />
+
+		<Header _kid={_kid} _cid={_cid} client:load transition:persist="header" />
+		<GlobalVerification client:only="svelte" />
+		<OnboardingGuard client:only="svelte" isAuthenticatedServer={!!_cid} />
+		<PasskeyReprompt client:load />
+		
+		<BarAudioPlayer client:only="svelte" transition:persist="audio-player" hideBottomBar={hideBottomBar || Astro.url.pathname.startsWith('/labs')} />
+
+		<MixtapeBuilderOverlay client:load transition:persist="mixtape-builder" />
+		<MixtapeDropZone client:load transition:persist="mixtape-drop-zone" />
 		<slot />
 
-		{turnstileSiteKey && <div class="cf-turnstile"></div>}
+		<!-- Debug Panel (only shows in dev mode or with ?debug=true) -->
+		<DebugPanel client:only="svelte" />
 
-		{turnstileSiteKey && (
-			<script>
-				import { turnstileCallback } from "../stores/turnstile.svelte";
-
-				const sitekey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY;
-
-				turnstile.ready(() => {
-					turnstile.render(".cf-turnstile", {
-						appearance: "interaction-only",
-						sitekey,
-						'response-field': false,
-						// @ts-ignore
-						'feedback-enabled': false,
-						callback: (token: string) => turnstileCallback(token),
-						'error-callback': (error: any) => console.error(error),
-					});
-				});
-			</script>
-		)}
+		<!-- Toast Notifications -->
+		<Toast client:load transition:persist="toast" />
 	</body>
 </html>

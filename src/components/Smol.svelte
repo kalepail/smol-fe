@@ -1,16 +1,20 @@
 <script lang="ts">
-  import type { SmolDetailResponse } from '../types/domain';
-  import { onMount, onDestroy } from 'svelte';
-  import SmolGenerator from './smol/SmolGenerator.svelte';
-  import SmolDisplay from './smol/SmolDisplay.svelte';
-  import MintTradeModal from './MintTradeModal.svelte';
-  import { userState } from '../stores/user.svelte';
-  import { updateContractBalance } from '../stores/balance.svelte';
-  import { useSmolGeneration } from '../hooks/useSmolGeneration';
-  import { useSmolMinting } from '../hooks/useSmolMinting';
-  import { audioState } from '../stores/audio.svelte';
-  import { sac } from '../utils/passkey-kit';
-  import { getTokenBalance } from '../utils/balance';
+  import type { SmolDetailResponse } from "../types/domain";
+  import { onMount, onDestroy } from "svelte";
+  import SmolGenerator from "./smol/SmolGenerator.svelte";
+  import CreatorSplash from "./onboarding/CreatorSplash.svelte";
+  import SmolDisplay from "./smol/SmolDisplay.svelte";
+  import MintTradeModal from "./MintTradeModal.svelte";
+  import { userState } from "../stores/user.svelte.ts";
+  import { updateContractBalance } from "../stores/balance.svelte.ts";
+  import { useSmolGeneration } from "../hooks/useSmolGeneration";
+  import { useSmolMinting } from "../hooks/useSmolMinting";
+  import { audioState } from "../stores/audio.svelte.ts";
+  import { sac } from "../utils/passkey-kit";
+  import { getTokenBalance } from "../utils/balance";
+  import { RPC_URL } from "../utils/rpc";
+
+  const API_URL = import.meta.env.PUBLIC_API_URL || "https://api.smol.xyz";
 
   interface Props {
     id?: string | null;
@@ -22,10 +26,10 @@
   let data = $state<SmolDetailResponse | null>(null);
   let loading = $state(false);
   let error = $state<string | null>(null);
-  let d1 = $state<SmolDetailResponse['d1']>(undefined);
-  let kv_do = $state<SmolDetailResponse['kv_do']>(undefined);
+  let d1 = $state<SmolDetailResponse["d1"]>(undefined);
+  let kv_do = $state<SmolDetailResponse["kv_do"]>(undefined);
   let liked = $state<boolean | undefined>(undefined);
-  let prompt = $state('');
+  let prompt = $state("");
   let is_public = $state(true);
   let is_instrumental = $state(false);
   let best_song = $state<string | undefined>(undefined);
@@ -37,6 +41,7 @@
   let showTradeModal = $state(false);
   let tradeMintBalance = $state<bigint>(0n);
   let shouldRefreshBalance = $state(false);
+  let isGenerating = $state(false);
 
   // Hooks
   const generationHook = useSmolGeneration();
@@ -49,12 +54,13 @@
   const maxLength = $derived(is_instrumental ? 380 : 2280);
   const tradeSongId = $derived(id ?? d1?.Id ?? null);
   const tradeTitle = $derived(
-    kv_do?.lyrics?.title ?? kv_do?.description ?? d1?.Title ?? null
+    kv_do?.lyrics?.title ?? kv_do?.description ?? d1?.Title ?? null,
   );
   const tradeImageUrl = $derived(
-    tradeSongId
-      ? `${import.meta.env.PUBLIC_API_URL}/image/${tradeSongId}.png`
-      : null
+    tradeSongId ? `${API_URL}/image/${tradeSongId}.png` : null,
+  );
+  const tradeImageFallback = $derived(
+    kv_do?.image_base64 ? `data:image/png;base64,${kv_do.image_base64}` : null,
   );
 
   // Effects
@@ -96,19 +102,24 @@
 
     if (mintToken && contractId) {
       // Only fetch if values actually changed
-      if (mintToken !== lastFetchedMintToken || contractId !== lastFetchedUser) {
+      if (
+        mintToken !== lastFetchedMintToken ||
+        contractId !== lastFetchedUser
+      ) {
         lastFetchedMintToken = mintToken;
         lastFetchedUser = contractId;
 
-        const client = sac.getSACClient(mintToken);
-        getTokenBalance(client, contractId)
-          .then((balance) => {
-            tradeMintBalance = balance;
-          })
-          .catch((error) => {
-            console.error('Failed to fetch mint token balance:', error);
-            tradeMintBalance = 0n;
-          });
+        sac.get().then((kit) => {
+          const client = kit.getSACClient(mintToken);
+          getTokenBalance(client, contractId)
+            .then((balance) => {
+              tradeMintBalance = balance;
+            })
+            .catch((error) => {
+              console.error("Failed to fetch mint token balance:", error);
+              tradeMintBalance = 0n;
+            });
+        });
       }
     } else if (!mintToken) {
       tradeMintBalance = 0n;
@@ -126,12 +137,12 @@
     error = null;
 
     try {
-      const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/${smolId}`, {
-        credentials: 'include'
+      const response = await fetch(`${API_URL}/${smolId}`, {
+        credentials: "include",
       });
 
       if (!response.ok) {
-        throw new Error('Failed to load smol');
+        throw new Error("Failed to load smol");
       }
 
       data = await response.json();
@@ -139,16 +150,17 @@
       kv_do = data?.kv_do;
       liked = data?.liked;
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to load';
-      console.error('Failed to fetch smol data:', err);
+      error = err instanceof Error ? err.message : "Failed to load";
+      console.error("Failed to fetch smol data:", err);
     } finally {
       loading = false;
     }
   }
 
   $effect(() => {
-    // Only fetch if id actually changed
-    if (id && id !== lastFetchedId) {
+    // Only fetch if id actually changed and we're not currently generating
+    // During generation, the polling interval handles data fetching
+    if (id && id !== lastFetchedId && !isGenerating) {
       lastFetchedId = id;
       fetchSmolData(id);
     }
@@ -156,25 +168,26 @@
 
   onMount(async () => {
     switch (data?.wf?.status) {
-      case 'queued':
-      case 'running':
-      case 'paused':
-      case 'waiting':
-      case 'waitingForPause':
+      case "queued":
+      case "running":
+      case "paused":
+      case "waiting":
+      case "waitingForPause":
         interval = setInterval(getGen, 1000 * 6);
         break;
-      case 'errored':
-      case 'terminated':
-      case 'unknown':
+      case "errored":
+      case "terminated":
+      case "unknown":
         failed = true;
         break;
     }
 
     const urlParams = new URLSearchParams(window.location.search);
-    playlist = urlParams.get('playlist') || localStorage.getItem('smol:playlist');
+    playlist =
+      urlParams.get("playlist") || localStorage.getItem("smol:playlist");
 
     if (playlist) {
-      localStorage.setItem('smol:playlist', playlist);
+      localStorage.setItem("smol:playlist", playlist);
     }
   });
 
@@ -221,9 +234,9 @@
 
   function removePlaylist() {
     const url = new URL(window.location.href);
-    url.searchParams.delete('playlist');
-    history.replaceState({}, '', url.toString());
-    localStorage.removeItem('smol:playlist');
+    url.searchParams.delete("playlist");
+    history.replaceState({}, "", url.toString());
+    localStorage.removeItem("smol:playlist");
     playlist = null;
     location.reload();
   }
@@ -235,9 +248,9 @@
   }
 
   async function makeSongPublic() {
-    await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
-      method: 'PUT',
-      credentials: 'include',
+    await fetch(`${API_URL}/${id}`, {
+      method: "PUT",
+      credentials: "include",
     });
 
     if (d1) {
@@ -246,27 +259,31 @@
   }
 
   async function deleteSong() {
-    if (!confirm('Are you sure you want to delete this song?')) return;
+    if (!confirm("Are you sure you want to delete this song?")) return;
 
-    await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
-      method: 'DELETE',
-      credentials: 'include',
+    await fetch(`${API_URL}/${id}`, {
+      method: "DELETE",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
     });
 
-    history.replaceState({}, '', '/');
+    history.replaceState({}, "", "/");
     location.reload();
   }
 
   async function selectBestSong(song_id: string) {
-    await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}/${song_id}`, {
-      method: 'PUT',
-      credentials: 'include',
+    await fetch(`${API_URL}/${id}/${song_id}`, {
+      method: "PUT",
+      credentials: "include",
     });
   }
 
   async function postGen() {
     if (!prompt) return;
 
+    isGenerating = true;
     id = null;
     d1 = undefined;
     kv_do = undefined;
@@ -277,14 +294,20 @@
       interval = null;
     }
 
-    id = await generationHook.postGen(prompt, is_public, is_instrumental, playlist);
-    prompt = '';
+    id = await generationHook.postGen(
+      prompt,
+      is_public,
+      is_instrumental,
+      playlist,
+    );
+    prompt = "";
 
     interval = setInterval(getGen, 1000 * 6);
     await getGen();
   }
 
   async function retryGen() {
+    isGenerating = true;
     d1 = undefined;
     kv_do = undefined;
 
@@ -305,15 +328,15 @@
     if (!id || minting || minted) return;
 
     if (!userState.contractId || !userState.keyId) {
-      alert('Connect your wallet to mint');
+      alert("Connect your wallet to mint");
       return;
     }
 
-    const smolContractId = import.meta.env.PUBLIC_SMOL_CONTRACT_ID;
-
+    const smolContractId =
+      import.meta.env.PUBLIC_SMOL_CONTRACT_ID ||
+      "CBRNUVLGFM5OYWAGZVGU7CTMP2UJLKZCLFY2ANUCK5UGKND6BBAA5PLA";
     if (!smolContractId) {
-      console.error('Missing PUBLIC_SMOL_CONTRACT_ID env var');
-      alert('Minting is temporarily unavailable. Please try again later.');
+      alert("Minting is temporarily unavailable. Please try again later.");
       return;
     }
 
@@ -326,14 +349,15 @@
           contractId: userState.contractId,
           keyId: userState.keyId,
           smolContractId,
-          rpcUrl: import.meta.env.PUBLIC_RPC_URL as string,
-          networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE as string,
-          creatorAddress: d1?.Address || '',
+          rpcUrl: RPC_URL,
+          networkPassphrase: import.meta.env
+            .PUBLIC_NETWORK_PASSPHRASE as string,
+          creatorAddress: d1?.Address || "",
           kaleSacId: import.meta.env.PUBLIC_KALE_SAC_ID as string,
         },
         async () => {
           await getGen();
-        }
+        },
       );
     } catch (error) {
       console.error(error);
@@ -356,6 +380,7 @@
         clearInterval(interval);
         interval = null;
       }
+      isGenerating = false;
       if (generationHook.isFailed(res.wf.status)) {
         failed = true;
       }
@@ -364,6 +389,7 @@
     if (interval && d1) {
       clearInterval(interval);
       interval = null;
+      isGenerating = false;
     }
 
     return res;
@@ -395,13 +421,7 @@
   </div>
 {:else if !id}
   {#if !userState.contractId}
-    <div class="px-2 py-10 bg-slate-900">
-      <div class="flex flex-col items-center max-w-[1024px] mx-auto">
-        <h1 class="bg-rose-950 border border-rose-400 rounded px-2 py-1">
-          Login or Create New Account
-        </h1>
-      </div>
-    </div>
+    <CreatorSplash />
   {:else}
     <SmolGenerator
       bind:prompt
@@ -427,7 +447,7 @@
           <li>
             <div class="flex items-center gap-2">
               <button
-                class="text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1 disabled:opacity-50"
+                class="flex items-center font-pixel tracking-wider text-[10px] text-lime-500 bg-lime-500/20 border-2 border-lime-500 hover:bg-lime-500/30 rounded-none px-3 py-1.5 disabled:opacity-50"
                 onclick={retryGen}
                 disabled={!!id && !!interval}
               >
@@ -441,7 +461,7 @@
                   <button
                     type="button"
                     onclick={removePlaylist}
-                    class="ml-1.5 -mr-0.5 p-0.5 rounded-full hover:bg-black/20 text-black"
+                    class="ml-1.5 -mr-0.5 p-0.5 rounded-none hover:bg-black/20 text-black"
                     aria-label="Remove playlist"
                   >
                     <svg
@@ -494,6 +514,7 @@
     songId={tradeSongId}
     title={tradeTitle ?? undefined}
     imageUrl={tradeImageUrl ?? undefined}
+    fallbackImage={tradeImageFallback ?? undefined}
     on:close={handleTradeModalClose}
     on:complete={handleTradeModalComplete}
   />

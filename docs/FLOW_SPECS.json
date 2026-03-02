@@ -1,0 +1,34 @@
+[
+  {
+    "source": "docs/labs-swapper-kale-forest-spec.md",
+    "content": "```mermaid\r\nstateDiagram-v2\r\n    [*] --> unauthenticated\r\n    \r\n    unauthenticated --> authenticating: Click login/signup\r\n    authenticating --> authenticated: Passkey success\r\n    authenticating --> unauthenticated: Passkey failed/canceled\r\n    \r\n    authenticated --> loading_balances: Auto on mount\r\n    loading_balances --> idle: Balances loaded\r\n    loading_balances --> balance_error: RPC failed\r\n    balance_error --> loading_balances: Retry\r\n    \r\n    idle --> quoting: Amount entered\r\n    quoting --> simulated_ok: Simulation passes\r\n    quoting --> simulated_error: Simulation fails\r\n    \r\n    simulated_error --> quoting: Amount changed\r\n    simulated_error --> idle: Clear input\r\n    \r\n    simulated_ok --> awaiting_passkey: Click swap\r\n    awaiting_passkey --> submitting: Passkey signed\r\n    awaiting_passkey --> simulated_ok: Passkey canceled\r\n    \r\n    submitting --> pending_confirmation: TX submitted\r\n    pending_confirmation --> confirmed: TX in ledger\r\n    pending_confirmation --> failed: TX error\r\n    \r\n    confirmed --> idle: Acknowledge (balances refresh)\r\n    failed --> idle: Acknowledge\r\n```"
+  },
+  {
+    "source": "docs/passkey-relayer-mainnet.md",
+    "content": "```mermaid\r\nstateDiagram-v2\r\n    [*] --> idle\r\n    \r\n    idle --> loading_balances: User opens UI\r\n    loading_balances --> idle: Balances loaded\r\n    \r\n    idle --> quoting: User enters amount\r\n    quoting --> simulated_ok: Simulation passes\r\n    quoting --> simulated_error: Simulation fails\r\n    simulated_error --> idle: User dismisses error\r\n    \r\n    simulated_ok --> awaiting_passkey: User clicks confirm\r\n    awaiting_passkey --> submitting: Passkey signed\r\n    awaiting_passkey --> idle: User cancels passkey\r\n    \r\n    submitting --> pending_confirmation: TX submitted\r\n    pending_confirmation --> confirmed: TX in ledger\r\n    pending_confirmation --> failed: TX failed\r\n    \r\n    confirmed --> idle: User acknowledged\r\n    failed --> idle: User acknowledged\r\n```"
+  },
+  {
+    "source": "docs/passkey-relayer-runbook.md",
+    "content": "```mermaid\r\nstateDiagram-v2\r\n    [*] --> idle\r\n    \r\n    idle --> error_config: Config missing\r\n    error_config --> idle: User fixes .env\r\n    \r\n    idle --> error_network: RPC unreachable\r\n    error_network --> idle: Retry/switch RPC\r\n    \r\n    idle --> error_passkey: Passkey failed\r\n    error_passkey --> idle: User retries\r\n    \r\n    idle --> error_relayer: Relayer rejected\r\n    error_relayer --> idle: Fix and retry\r\n    \r\n    idle --> error_tx: TX failed on-chain\r\n    error_tx --> idle: Analyze and fix\r\n```"
+  },
+  {
+    "source": "docs/STATEDIAGRAM.md",
+    "content": "```mermaid\r\nstateDiagram-v2\r\n    [*] --> Onboarding: Unauthenticated\r\n    [*] --> Home: Authenticated (Auto-login)\r\n    \r\n    Onboarding --> Splash: Start\r\n    Splash --> PasskeyLogin: Click \"Get Started\"\r\n    PasskeyLogin --> Home: Success\r\n    \r\n    state Home {\r\n        [*] --> Discovery: Default\r\n        Discovery --> ArtistPage: Click Artist\r\n        Discovery --> Radio: Click Radio\r\n        Discovery --> Create: Click Create\r\n        Discovery --> Mixtapes: Click Mixtapes\r\n        Discovery --> Store: Click Store\r\n        Discovery --> Account: Click Profile/Amm\r\n    }\r\n    \r\n    ArtistPage --> Home: Back\r\n    Radio --> Home: Back\r\n    Create --> Home: Back\r\n    Mixtapes --> Home: Back\r\n    Store --> Home: Back\r\n    Account --> Home: Back\r\n```"
+  },
+  {
+    "source": "docs/STATEDIAGRAM.md",
+    "content": "```mermaid\r\nstateDiagram-v2\r\n    [*] --> Idle\r\n    \r\n    Idle --> Loading: Select Song\r\n    Loading --> Playing: Audio Loaded\r\n    Loading --> Idle: Error/Cancel\r\n    \r\n    Playing --> Paused: Toggle Pause\r\n    Paused --> Playing: Toggle Play\r\n    \r\n    Playing --> Playing: Next/Prev Song\r\n    Playing --> Idle: Stop/End (no repeat)\r\n    \r\n    state PlayerCore {\r\n        audioState: playingId, currentSong\r\n        audioElement: HTMLAudioElement\r\n    }\r\n```"
+  },
+  {
+    "source": "docs/STATEDIAGRAM.md",
+    "content": "```mermaid\r\nstateDiagram-v2\r\n    [*] --> Fetching: App Load\r\n    \r\n    Fetching --> LiveAPI: Network OK\r\n    Fetching --> SnapshotFallback: Network Error / API Empty\r\n    \r\n    LiveAPI --> Merging: Got Live Data\r\n    SnapshotFallback --> Merging: Load Local JSON\r\n    \r\n    Merging --> Hydration: Merge Fields (Tags, Address)\r\n    Hydration --> Ready: UI Updated\r\n    \r\n    state \"Snapshot\" as S {\r\n        \"public/data/GalacticSnapshot.json\": \"Pre-built Snapshot\"\r\n    }\r\n```"
+  },
+  {
+    "source": "docs/STATEDIAGRAM.md",
+    "content": "```mermaid\r\nstateDiagram-v2\r\n    [*] --> Unauthenticated\r\n    \r\n    Unauthenticated --> Authenticating: Click Login\r\n    Authenticating --> Authenticated: Passkey Success\r\n    Authenticating --> Unauthenticated: Cancel/Error\r\n    \r\n    Authenticated --> WalletConnecting: ensureWalletConnected()\r\n    WalletConnecting --> WalletConnected: Success\r\n    WalletConnecting --> Authenticated: Fail (Read-only)\r\n    \r\n    WalletConnected --> Unauthenticated: Logout\r\n```"
+  },
+  {
+    "source": "docs/STATEDIAGRAM.md",
+    "content": "```mermaid\r\nstateDiagram-v2\r\n    [*] --> Idle\r\n    \r\n    Idle --> LoadingBalance: updateContractBalance()\r\n    LoadingBalance --> BalanceReady: Success\r\n    \r\n    BalanceReady --> Tipping: Click \"Tip Artist\"\r\n    Tipping --> TransactionPending: Confirm Tip\r\n    TransactionPending --> Success: Confirmed\r\n    TransactionPending --> BalanceReady: Fail\r\n```"
+  }
+]

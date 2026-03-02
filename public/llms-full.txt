@@ -1,0 +1,397 @@
+# Smol — AI Music Generator (Full Index)
+# Comprehensive site map for LLM deep indexing
+
+## Platform Information
+
+### What is Smol?
+Smol is a decentralized AI music generation platform that combines cutting-edge text-to-music AI with Stellar blockchain technology. Users can:
+- Generate full songs from text prompts (lyrics and instrumentals)
+- Mint songs as NFTs on Stellar blockchain
+- Trade song tokens on built-in automated market maker (AMM)
+- Create and share mixtapes (curated playlists)
+- Collect music from other artists
+- Use passwordless authentication via WebAuthn (PasskeyKit)
+
+### How It Works
+1. **Create:** Enter a text prompt (up to 2,280 characters for songs with lyrics, 380 for instrumentals)
+2. **Generate:** AI creates 2 versions of your song (~6 minutes processing time)
+3. **Select:** Choose your favorite version
+4. **Mint:** Convert your song into an NFT on Stellar blockchain (optional)
+5. **Trade:** Buy/sell song tokens via built-in AMM
+6. **Collect:** Build your music collection and create mixtapes
+
+### Pricing & Limits
+- Song generation: Free (requires authentication)
+- NFT minting: Stellar network fees apply (minimal)
+- Trading: AMM fees apply (transparent pricing)
+- No subscription required
+- Public and private song options
+
+### Technical Stack
+- **Frontend:** Astro 5 (SSR) + Svelte 5
+- **Blockchain:** Stellar (Soroban smart contracts)
+- **Deployment:** Cloudflare Pages
+- **Authentication:** PasskeyKit (WebAuthn, no seed phrases)
+- **AI:** Text-to-music generation API
+- **Storage:** Distributed (KV, D1)
+
+## Core Routes
+
+### Homepage
+https://noot.smol.xyz/
+Main feed showing latest public AI-generated songs. Features:
+- Real-time music player
+- Like system
+- Leaderboard (trending and popular songs)
+- Filter by created/liked status
+- Infinite scroll
+
+### About Page
+https://noot.smol.xyz/about
+(Planned) Comprehensive information about:
+- What is Smol
+- How it works
+- Team and mission
+- Technology stack
+- Getting started guide
+- FAQ
+
+### Create Interface
+https://noot.smol.xyz/create
+Song generation interface. Features:
+- Text prompt input (up to 2,280 characters)
+- Instrumental mode toggle
+- Public/private visibility control
+- Dual-track generation preview
+- Real-time generation progress tracking
+- Automatic retry on failures
+- Playlist tagging
+
+### Browse by Tags
+https://noot.smol.xyz/tags
+Genre-based discovery. Popular tags include:
+- Jazz
+- Hip Hop
+- Electronic
+- Rock
+- Classical
+- Pop
+- Ambient
+- Lo-fi
+- Experimental
+- World Music
+
+### AI Radio
+https://noot.smol.xyz/radio
+Smart radio with advanced features:
+- Multi-tag fusion (combine multiple genres)
+- Weighted scoring algorithm
+- Order-based prioritization (tag order matters)
+- Lyric analysis integration
+- Deduplication logic (fresh tracks every spin)
+- Local fallback generation (when API rate-limited)
+- Adaptive vibe control
+
+### Mixtapes Index
+https://noot.smol.xyz/mixtapes
+Browse community-created mixtapes. Features:
+- Grid view of all public mixtapes
+- Preview first few songs
+- Creator information
+- Play entire mixtape in sequence
+
+### Mixtape Detail
+https://noot.smol.xyz/mixtapes/[id]
+Individual mixtape pages with:
+- Full tracklist
+- Drag-and-drop player
+- Creator attribution
+- Share functionality
+- Embedded audio player
+
+### Artist Discovery
+https://noot.smol.xyz/artists
+Discover creators on the platform.
+
+### Artist Profiles
+https://noot.smol.xyz/artist/[address]
+Individual artist pages showing:
+- **Discography:** All songs published by artist
+- **Minted:** Songs created AND minted on-chain
+- **Collection:** Songs minted from other creators
+- **Stats:** Published/collected badge counts
+- **Genres:** Top genres derived from artist's music
+- **Deep linking:** Play specific songs via ?play=[id] param
+
+### Individual Song Pages
+https://noot.smol.xyz/[song-id]
+Detailed song pages with:
+- Full audio player
+- Song metadata (title, description, tags, creation date)
+- Lyrics display
+- Album art
+- Mint status and token info
+- Trading interface (if minted)
+- Like/collect actions
+- Creator information
+- Share functionality (OpenGraph + Twitter audio cards)
+
+## User Account Pages (Private, Not Indexed)
+
+https://noot.smol.xyz/account
+User account management (requires authentication, disallowed in robots.txt).
+
+https://noot.smol.xyz/settings
+User settings (requires authentication, disallowed in robots.txt).
+
+https://noot.smol.xyz/created
+Songs created by authenticated user (requires authentication, disallowed in robots.txt).
+
+https://noot.smol.xyz/liked
+Songs liked by authenticated user (requires authentication, disallowed in robots.txt).
+
+https://noot.smol.xyz/collected
+Songs collected by authenticated user (requires authentication, disallowed in robots.txt).
+
+## Labs (Experimental Features)
+
+https://noot.smol.xyz/labs
+Index of experimental features.
+
+https://noot.smol.xyz/labs/smol-hero
+Rhythm game where you dodge obstacles to music. Features:
+- Lane-based gameplay
+- Dynamic difficulty
+- Miss detection
+- Score tracking
+- Background music integration
+
+https://noot.smol.xyz/labs/kale-or-fail
+Music knowledge quiz game.
+
+https://noot.smol.xyz/labs/quiz
+Interactive music quiz.
+
+https://noot.smol.xyz/labs/roulette
+Random song discovery roulette.
+
+https://noot.smol.xyz/labs/stream-pay
+Experimental micro-payment streaming feature.
+
+https://noot.smol.xyz/labs/swapper
+Token exchange interface for Stellar assets.
+
+https://noot.smol.xyz/labs/waveform
+Audio waveform visualization experiments.
+
+## Example Content (For Reference)
+
+### Example Song #1
+https://noot.smol.xyz/491bb94b-79df-41bb-b09b-2d295f1dfd05
+High-quality example of AI-generated song with full metadata.
+
+### Additional Song Examples
+Note: Dynamic song IDs follow UUID format. Songs include:
+- Full audio (MP3 format)
+- Cover art (PNG images)
+- Metadata (title, prompt, tags, creation date)
+- Lyrics (if generated with lyrics mode)
+- Schema.org MusicRecording structured data
+
+### Mixtape Examples
+Mixtapes use UUID format for IDs. Each includes:
+- Curated tracklist
+- Creator info
+- Public/private visibility
+- Schema.org MusicPlaylist structured data (planned)
+
+## API Documentation (For Developers)
+
+### REST API Endpoints
+Base URL: https://api.smol.xyz
+
+- GET /[song-id] — Song metadata and details
+- GET /song/[song-id].mp3 — Audio file streaming
+- GET /image/[song-id].png — Album art
+- POST /api — Song generation (authenticated)
+- GET /api/mixtapes — Mixtape list
+- POST /api/mixtapes — Create mixtape (authenticated)
+
+Note: API routes are disallowed in robots.txt for SEO but available for programmatic access.
+
+## Schema.org Structured Data
+
+### Global Schemas (All Pages)
+- Organization: Smol company information
+- WebSite: Site-level metadata with SearchAction
+- WebApplication: Platform categorization
+
+### Page-Specific Schemas
+- MusicRecording: Individual song pages
+- BreadcrumbList: Navigation breadcrumbs
+- MusicPlaylist: Mixtape pages (planned)
+- Person/MusicGroup: Artist pages (planned)
+- ItemList: Collection pages (planned)
+- FAQPage: FAQ sections (planned)
+- HowTo: Tutorial pages (planned)
+
+## External Links & Profiles
+
+https://github.com/Kalepail
+Open-source repositories and technical documentation.
+
+https://twitter.com/smolxyz
+Official Twitter account for updates, announcements, and community.
+
+## Technology & Blockchain
+
+### Stellar Blockchain Integration
+- **Network:** Stellar mainnet
+- **Smart Contracts:** Soroban platform
+- **Wallet:** PasskeyKit (WebAuthn-based, no seed phrases)
+- **NFT Standard:** Stellar native assets
+- **Trading:** Built-in AMM for song tokens
+
+### Smart Contract SDKs
+- smol-sdk: Main contract bindings (TypeScript)
+- comet-sdk: Supporting contract bindings (TypeScript)
+
+## SEO & Discoverability
+
+### Sitemap
+https://noot.smol.xyz/sitemap-index.xml
+Auto-generated sitemap including all public routes.
+
+### Robots.txt
+https://noot.smol.xyz/robots.txt
+Crawl rules:
+- Allow: /song/, /mixtape/, /tags/, /ai-music/, /prompts/, /onchain/, /artist/
+- Disallow: /api/, /auth/, /account/, /settings/, /create/, /admin/, tracking params
+
+### Canonical URLs
+All pages include canonical tags with tracking parameter normalization.
+
+### Open Graph & Social
+All song pages include:
+- og:audio tags for direct audio playback
+- og:image for rich previews
+- Twitter player cards for embedded audio
+
+## Competitors & Alternatives
+
+Smol is an alternative to:
+- **Suno AI:** AI music generator (centralized, no blockchain)
+- **Udio:** AI music generator (centralized, no blockchain)
+- **Other text-to-music tools:** Smol uniquely combines AI generation with onchain ownership
+
+Key differentiators:
+- ✅ NFT minting on Stellar blockchain
+- ✅ Built-in AMM for trading song tokens
+- ✅ Decentralized ownership model
+- ✅ PasskeyKit passwordless authentication
+- ✅ Mixtape creation and sharing
+- ✅ Open-source SDKs and smart contracts
+
+## Use Cases
+
+### For Music Creators
+- Generate original AI music from text prompts
+- Mint songs as NFTs for ownership and provenance
+- Build a discography of AI-created music
+- Monetize songs via AMM trading
+
+### For Music Collectors
+- Discover unique AI-generated music
+- Collect songs as NFTs
+- Support favorite artists by buying tokens
+- Create curated mixtapes
+
+### For Developers
+- Integrate Stellar music NFTs into apps
+- Build on open-source SDKs
+- Access music generation APIs
+- Create custom frontends
+
+### For Blockchain Enthusiasts
+- Explore Soroban smart contracts
+- Trade music tokens on AMM
+- Use WebAuthn-based wallets (no seed phrases)
+- Participate in onchain music economy
+
+## Getting Started Guide
+
+1. **Visit https://noot.smol.xyz/**
+2. **Browse existing songs** to hear examples
+3. **Create an account** using PasskeyKit (biometric authentication)
+4. **Navigate to /create** to generate your first song
+5. **Enter a text prompt** describing the music you want
+6. **Wait ~6 minutes** for AI to generate 2 versions
+7. **Select your favorite** and publish it (public or private)
+8. **Optionally mint as NFT** on Stellar blockchain
+9. **Create mixtapes** to organize your favorite songs
+10. **Trade tokens** via built-in AMM
+
+## FAQ (Frequently Asked Questions)
+
+### What is Smol?
+Smol is an AI music generation platform that lets you create full songs from text prompts and mint them as NFTs on Stellar blockchain.
+
+### How does song generation work?
+Enter a text prompt (up to 2,280 characters), and AI generates 2 versions of a full song with lyrics, music, and vocals. Choose your favorite to publish.
+
+### How much does it cost?
+Song generation is free (requires account). NFT minting requires minimal Stellar network fees. Trading has transparent AMM fees.
+
+### Do I need crypto knowledge?
+No. PasskeyKit uses biometric authentication (no seed phrases). The platform abstracts blockchain complexity.
+
+### Can I sell my music?
+Yes. Mint songs as NFTs, then trade tokens on the built-in AMM.
+
+### What genres are supported?
+All genres. The AI adapts to your prompt. Popular tags: Jazz, Hip Hop, Electronic, Rock, Classical, Pop, Ambient, Lo-fi.
+
+### Can I create instrumentals?
+Yes. Toggle instrumental mode to generate music without lyrics.
+
+### How long is each song?
+Songs are typically 2-3 minutes long.
+
+### Can I download my music?
+Yes. Audio files are accessible via API endpoints once generated.
+
+### Is my music private?
+You choose. Songs can be public (visible to all) or private (only you).
+
+## Content Freshness
+
+Songs are generated on-demand and continuously added by the community. The platform includes:
+- Real-time generation tracking
+- Automatic retry mechanisms
+- Fresh content deduplication (AI Radio)
+- Latest song feeds on homepage
+
+## Credits
+
+**noot.smol.xyz Design & Development:** noot.xlm (@tactical_noot / @kalepail on X)
+
+All features, UI/UX design, and platform enhancements on noot.smol.xyz beyond the base smol.xyz platform were designed and built by noot.xlm. This includes:
+- Enhanced music player and audio controls
+- AI Radio with multi-tag fusion
+- Labs experimental features (Smol Hero, quizzes, etc.)
+- Artist profile pages and discographies
+- Tag-based discovery and filtering
+- Overall platform user experience
+
+## Support & Community
+
+For issues, feature requests, or contributions:
+- GitHub: https://github.com/Kalepail
+- Twitter: https://twitter.com/smolxyz
+
+## Last Updated
+2026-01-19
+
+---
+
+End of Full Index

@@ -1,0 +1,20 @@
+id: lab_waveform
+title: "Audio Recon"
+owner: "Smol Labs"
+status_color: YELLOW
+readiness_score: 72
+risk_level: LOW
+blast_radius: LABS_ONLY
+env: LOCALNET
+feature_flag: "labs.waveform.enabled"
+last_reviewed: "2026-01-15"
+dependencies: []
+links:
+  spec: ""
+  pr: ""
+  docs: []
+definition_of_done:
+  - "Canvas visualization"
+  - "Input correlation"
+notes: |
+  Legacy experiment backfilled.

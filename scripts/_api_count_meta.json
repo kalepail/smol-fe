@@ -1,0 +1,10 @@
+{
+  "total_items_scanned": 1882,
+  "cbno_matched_items": 0,
+  "matched_addresses": {},
+  "created_at_min": null,
+  "created_at_max": null,
+  "pages_fetched": 38,
+  "items_missing_address_in_list": 1882,
+  "ended_with_hasMore_false": true
+}

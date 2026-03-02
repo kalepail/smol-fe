@@ -1,15 +1,23 @@
 {
   "name": "Smol",
   "short_name": "Smol",
-  "start_url": "/",
+  "start_url": "/?source=pwa",
   "display": "standalone",
   "background_color": "#020618",
   "theme_color": "#9ae600",
+  "orientation": "portrait-primary",
+  "description": "Smol - The Decentralized Mixtape Platform",
+  "categories": [
+    "music",
+    "entertainment",
+    "social"
+  ],
   "icons": [
     {
       "src": "/favicon.png",
       "sizes": "1024x1024",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

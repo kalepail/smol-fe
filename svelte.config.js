@@ -9,7 +9,6 @@ export default {
 			if (warning.code?.startsWith('a11y_')) return false;
 			return true;
 		},
-		runes: true,
 		experimental: {
 			async: true,
 		},

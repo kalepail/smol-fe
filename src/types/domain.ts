@@ -2,9 +2,29 @@
  * Core domain types for the Smol application
  */
 
+export interface SmolKV {
+  payload?: {
+    prompt?: string;
+    instrumental?: boolean;
+  };
+  description?: string;
+  image_base64?: string;
+  nsfw?: {
+    safe: boolean;
+    categories: string[];
+  };
+  lyrics?: {
+    title?: string;
+    style?: string[];
+    lyrics?: string;
+  };
+  songs?: SongData[];
+}
+
 export interface Smol {
   Id: string;
   Title: string;
+  Description?: string;
   Creator?: string;
   Username?: string;
   artist?: string;
@@ -12,16 +32,22 @@ export interface Smol {
   Song_1?: string;
   Liked?: boolean;
   Address?: string;
+  Plays?: number;
+  Views?: number;
   Mint_Token?: string;
   Mint_Amm?: string;
+  Minted_By?: string; // Wallet address of who minted/owns the token
+  Tags?: string[]; // Extracted styles/tags for visualization
   lyrics?: {
     title?: string;
     style?: string[];
     lyrics?: string;
   };
+  kv_do?: SmolKV;
   // Client-side only fields for UI state
   balance?: bigint;
   minting?: boolean;
+  Created_At?: string;
 }
 
 export interface MixtapeTrack {
@@ -32,11 +58,11 @@ export interface MixtapeTrack {
 }
 
 export interface MixtapeDraft {
-  draftId: string;
+  draftId?: string;
   title: string;
   description: string;
   tracks: MixtapeTrack[];
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface PublishedMixtape {
@@ -78,25 +104,9 @@ export interface SmolDetailResponse {
     Mint_Token?: string;
     Mint_Amm?: string;
     Instrumental?: number;
+    Created_At?: string;
   };
-  kv_do?: {
-    payload?: {
-      prompt?: string;
-      instrumental?: boolean;
-    };
-    description?: string;
-    nsfw?: {
-      safe: boolean;
-      categories: string[];
-    };
-    lyrics?: {
-      title?: string;
-      style?: string[];
-      lyrics?: string;
-    };
-    songs?: SongData[];
-    image?: boolean;
-  };
+  kv_do?: SmolKV;
   wf?: {
     status: 'queued' | 'running' | 'paused' | 'errored' | 'terminated' | 'complete' | 'waiting' | 'waitingForPause' | 'unknown';
   };

@@ -1,0 +1,40 @@
+{
+  "assetIn": "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA",
+  "assetOut": "CB23WRDQWGSP6YPMY4UV5C4OW5CBTXKYN3XEATG7KJEZCXMJBYEHOUOV",
+  "amountIn": "10000000",
+  "amountOut": 3012598638,
+  "otherAmountThreshold": 3012598638,
+  "priceImpactPct": "0.01",
+  "tradeType": "EXACT_IN",
+  "platform": "aggregator",
+  "rawTrade": {
+    "amountIn": "10000000",
+    "amountOutMin": "2861968707",
+    "distribution": [
+      {
+        "protocol_id": "aqua",
+        "path": [
+          "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA",
+          "CB23WRDQWGSP6YPMY4UV5C4OW5CBTXKYN3XEATG7KJEZCXMJBYEHOUOV"
+        ],
+        "parts": 10,
+        "is_exact_in": true,
+        "poolHashes": [
+          "msepzeI6wq2hEQXuqkLkPC6oMyygqo9B9Y1xYCdNcY4="
+        ]
+      }
+    ]
+  },
+  "routePlan": [
+    {
+      "swapInfo": {
+        "protocol": "aqua",
+        "path": [
+          "CAS3J7GYLGXMF6TDJBBYYSE3HQ6BBSMLNUQ34T6TZMYMW2EVH34XOWMA",
+          "CB23WRDQWGSP6YPMY4UV5C4OW5CBTXKYN3XEATG7KJEZCXMJBYEHOUOV"
+        ]
+      },
+      "percent": "100.00"
+    }
+  ]
+}

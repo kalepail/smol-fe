@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { mixtapeModeState, mixtapeDraftHasContent, exitMixtapeMode } from '../../stores/mixtape.svelte';
+  import { mixtapeModeState, mixtapeDraftHasContent, exitMixtapeMode } from '../../stores/mixtape.svelte.ts';
   import MixtapeBuilder from './builder/MixtapeBuilder.svelte';
 
   function handleKeydown(event: KeyboardEvent) {

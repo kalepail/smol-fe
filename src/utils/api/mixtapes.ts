@@ -22,7 +22,7 @@ type ApiMixtape = {
     Created_At: string;
 };
 
-const API_URL = import.meta.env.PUBLIC_API_URL!;
+const API_URL = import.meta.env.PUBLIC_API_URL || 'https://api.smol.xyz';
 
 export async function publishMixtape(draft: MixtapeDraft): Promise<MixtapeDetail> {
     const response = await fetch(`${API_URL}/mixtapes`, {
