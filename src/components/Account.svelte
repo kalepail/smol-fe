@@ -4,6 +4,7 @@
     import { rpc, truncate } from "../utils/base";
     import { userState } from "../stores/user.svelte";
     import { balanceState, updateContractBalance } from "../stores/balance.svelte";
+    import { logger } from "../utils/logger";
     import { getDomain } from "tldts";
 
     let to = $state("");
@@ -21,7 +22,7 @@
             kaleDecimals = Number(result);
             decimalsFactor = 10n ** BigInt(kaleDecimals);
         } catch (err) {
-            console.error("Failed to load KALE decimals", err);
+            logger.error("account", "Failed to load KALE decimals", err);
             kaleDecimals = 7;
             decimalsFactor = 10n ** 7n;
         }
@@ -119,7 +120,7 @@
             to = "";
             amount = "";
         } catch (err) {
-            console.error("Failed to send KALE", err);
+            logger.error("account", "Failed to send KALE", err);
             error = err instanceof Error ? err.message : "Transfer failed";
         } finally {
             submitting = false;

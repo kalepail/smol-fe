@@ -19,6 +19,7 @@
   import { useMixtapeDragDrop } from '../../../hooks/useMixtapeDragDrop';
   import MixtapeTrackList from './MixtapeTrackList.svelte';
   import MixtapeForm from './MixtapeForm.svelte';
+  import { logger } from '../../../utils/logger';
 
   let publishing = $state(false);
   let statusMessage = $state<string | null>(null);
@@ -89,7 +90,7 @@
         }, 400);
       }
     } catch (error) {
-      console.error(error);
+      logger.error('mixtape', error);
       showStatus(
         error instanceof Error ? error.message : 'Failed to publish mixtape. Please try again.',
         'error'

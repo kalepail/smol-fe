@@ -9,6 +9,7 @@
     togglePlayPause,
     playNextSong,
   } from '../../stores/audio.svelte';
+  import { logger } from '../../utils/logger';
 
   /**
    * Effect: Sync audio source with current song
@@ -52,7 +53,7 @@
       const playPromise = audio.play();
       if (playPromise !== undefined) {
         playPromise.catch((error) => {
-          console.error('Error playing audio:', error);
+          logger.error('audio', 'Error playing audio:', error);
           // Reset playing state on error
           audioState.playingId = null;
         });
@@ -126,7 +127,7 @@
       const playPromise = audioState.audioElement.play();
       if (playPromise !== undefined) {
         playPromise.catch((error) => {
-          console.error('Error playing audio on load:', error);
+          logger.error('audio', 'Error playing audio on load:', error);
           audioState.playingId = null;
         });
       }

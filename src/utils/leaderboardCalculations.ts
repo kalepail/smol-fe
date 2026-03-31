@@ -1,3 +1,5 @@
+import { logger } from './logger';
+
 interface SmolData {
   Id: string;
   Address: string;
@@ -46,7 +48,7 @@ export function calculateLeaderboard(
         viewCountsByAddress[smol.Address] = (viewCountsByAddress[smol.Address] || 0) + smol.Views;
       }
     } else {
-      console.warn('Smol object missing Address:', smol);
+      logger.warn('leaderboard', 'Smol object missing Address:', smol);
     }
   }
 

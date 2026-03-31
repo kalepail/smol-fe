@@ -1,4 +1,5 @@
 import type { Client as CometClient } from 'comet-sdk';
+import { logger } from '../utils/logger';
 
 const MAX_PRICE = 170141183460469231731687303715884105727n;
 
@@ -44,7 +45,7 @@ export function useTradeSimulation() {
       const [amountOut] = tx.result ?? [];
       return { amountOut: amountOut ?? null, nonce: localNonce };
     } catch (error) {
-      console.error('Simulation failed', error);
+      logger.error('trade', 'Simulation failed', error);
       throw error;
     }
   }

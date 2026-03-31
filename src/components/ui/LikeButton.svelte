@@ -3,6 +3,7 @@
     import Loader from "./Loader.svelte";
     import { userState } from "../../stores/user.svelte";
     import { toggleLike } from "../../utils/like";
+    import { logger } from "../../utils/logger";
 
     interface Props {
         smolId: string;
@@ -41,7 +42,7 @@
             localLiked = newLikedState;
             dispatch("likeChanged", { smolId, liked: newLikedState });
         } catch (error) {
-            console.error("Failed to toggle like:", error);
+            logger.error("likes", "Failed to toggle like:", error);
             alert(error instanceof Error ? error.message : "Failed to like/unlike");
         } finally {
             liking = false;

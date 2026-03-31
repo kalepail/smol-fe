@@ -4,6 +4,7 @@
 
 import { account } from '../utils/passkey-kit';
 import { getDomain } from 'tldts';
+import { logger } from '../utils/logger';
 
 export const userState = $state<{
   contractId: string | null;
@@ -65,9 +66,9 @@ export async function ensureWalletConnected(): Promise<void> {
         keyId: userState.keyId,
       });
       userState.walletConnected = true;
-      console.log('[userState] Wallet connected successfully');
+      logger.info('auth', 'Wallet connected successfully');
     } catch (error) {
-      console.error('[userState] Failed to connect wallet:', error);
+      logger.error('auth', 'Failed to connect wallet:', error);
       throw error;
     }
   }

@@ -12,6 +12,7 @@
   import AuthButtons from './AuthButtons.svelte';
   import UserBalance from './UserBalance.svelte';
   import MixtapeModeToggle from './MixtapeModeToggle.svelte';
+  import { logger } from '../../utils/logger';
 
   interface Props {
     initialKeyId: string | null;
@@ -49,11 +50,11 @@
 
         // User authenticated - connect wallet and fetch balance
         ensureWalletConnected().catch((error) => {
-          console.error('[UserMenu] Failed to connect wallet:', error);
+          logger.error('auth', 'Failed to connect wallet:', error);
         });
 
         updateContractBalance(initialContractId).catch((error) => {
-          console.error('[UserMenu] Failed to fetch balance:', error);
+          logger.error('auth', 'Failed to fetch balance:', error);
         });
       } else {
         // User logged out - reset balance

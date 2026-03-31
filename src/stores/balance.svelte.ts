@@ -1,4 +1,5 @@
 import { kale } from '../utils/passkey-kit';
+import { logger } from '../utils/logger';
 
 /**
  * Balance state using Svelte 5 runes
@@ -21,7 +22,7 @@ export async function updateContractBalance(address: string): Promise<void> {
     const { result } = await kale.balance({ id: address });
     balanceState.balance = result;
   } catch (error) {
-    console.error('Failed to update contract balance:', error);
+    logger.error('balance', 'Failed to update contract balance:', error);
     balanceState.balance = null;
   } finally {
     balanceState.loading = false;

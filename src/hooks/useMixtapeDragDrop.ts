@@ -1,5 +1,6 @@
 import type { MixtapeTrack } from '../types/domain';
 import { SHADOW_PLACEHOLDER_ITEM_ID } from 'svelte-dnd-action';
+import { logger } from '../utils/logger';
 
 export function useMixtapeDragDrop() {
   function handleExternalDragOver(
@@ -128,7 +129,7 @@ export function useMixtapeDragDrop() {
       updatedTracks.splice(insertIndex, 0, normalized);
       onTracksUpdate(updatedTracks);
     } catch (error) {
-      console.warn('Failed to parse dragged data', error);
+      logger.warn('mixtape', 'Failed to parse dragged data', error);
     }
   }
 

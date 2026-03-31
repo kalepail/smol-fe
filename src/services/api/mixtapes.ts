@@ -1,4 +1,5 @@
 import type { MixtapeDraft, SmolDetailResponse, SongData } from '../../types/domain';
+import { fetchWithTimeout, LONG_TIMEOUT, throwIfNotOk } from './fetch';
 
 export interface MixtapeSummary {
   id: string;
@@ -51,7 +52,8 @@ const API_URL = import.meta.env.PUBLIC_API_URL!;
  * Publish a new mixtape
  */
 export async function publishMixtape(draft: MixtapeDraft): Promise<{ id: string }> {
-  const response = await fetch(`${API_URL}/mixtapes`, {
+  const endpoint = `${API_URL}/mixtapes`;
+  const response = await fetchWithTimeout(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -62,11 +64,10 @@ export async function publishMixtape(draft: MixtapeDraft): Promise<{ id: string 
       desc: draft.description,
       smols: draft.tracks.map((track) => track.id),
     }),
+    timeout: LONG_TIMEOUT,
   });
 
-  if (!response.ok) {
-    throw new Error(`Failed to publish mixtape: ${response.statusText}`);
-  }
+  await throwIfNotOk(response, endpoint);
 
   const data: { id: string } = await response.json();
   return data;
@@ -76,13 +77,12 @@ export async function publishMixtape(draft: MixtapeDraft): Promise<{ id: string 
  * List all mixtapes
  */
 export async function listMixtapes(): Promise<MixtapeSummary[]> {
-  const response = await fetch(`${API_URL}/mixtapes`, {
+  const endpoint = `${API_URL}/mixtapes`;
+  const response = await fetchWithTimeout(endpoint, {
     credentials: 'include',
   });
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch mixtapes: ${response.statusText}`);
-  }
+  await throwIfNotOk(response, endpoint);
 
   const data: ApiMixtape[] = await response.json();
 
@@ -133,17 +133,17 @@ export async function getMixtapeDetail(
   id: string,
   signal?: AbortSignal
 ): Promise<MixtapeDetail | null> {
-  const response = await fetch(`${API_URL}/mixtapes/${id}`, {
+  const endpoint = `${API_URL}/mixtapes/${id}`;
+  const response = await fetchWithTimeout(endpoint, {
     credentials: 'include',
     signal,
   });
 
-  if (!response.ok) {
-    if (response.status === 404) {
-      return null;
-    }
-    throw new Error(`Failed to fetch mixtape detail: ${response.statusText}`);
+  if (response.status === 404) {
+    return null;
   }
+
+  await throwIfNotOk(response, endpoint);
 
   const data: ApiMixtapeDetail = await response.json();
 
@@ -174,45 +174,44 @@ export async function getMixtapeDetail(
 }
 
 /**
- * Get smol track data by ID
+ * Get smol track data by ID.
+ *
+ * Returns `null` when the request fails (network error, non-ok status, etc.)
+ * so callers can degrade gracefully instead of crashing.
  */
-export async function getSmolTrackData(smolId: string): Promise<SmolTrackData> {
-  const response = await fetch(`${API_URL}/${smolId}`);
+export async function getSmolTrackData(smolId: string): Promise<SmolTrackData | null> {
+  try {
+    const endpoint = `${API_URL}/${smolId}`;
+    const response = await fetchWithTimeout(endpoint);
 
-  if (!response.ok) {
+    await throwIfNotOk(response, endpoint);
+
+    const data: SmolDetailResponse = await response.json();
+    const d1 = data?.d1;
+    const kv_do = data?.kv_do;
+
+    const bestSong = d1?.Song_1;
+    const songs: SongData[] = kv_do?.songs || [];
+    const bestSongData = songs.find((s) => s.music_id === bestSong);
+
     return {
       id: smolId,
-      title: 'Failed to load',
-      creator: null,
-      coverUrl: null,
-      audioUrl: null,
-      lyrics: null,
+      title: kv_do?.lyrics?.title ?? kv_do?.description ?? d1?.Title ?? null,
+      creator: d1?.Address ?? null,
+      coverUrl: `${API_URL}/image/${smolId}.png` as string,
+      audioUrl: (bestSongData && bestSongData.status < 4
+        ? bestSongData.audio
+        : bestSongData?.music_id
+          ? `${API_URL}/song/${bestSongData.music_id}.mp3`
+          : null) ?? null,
+      lyrics: kv_do?.lyrics
+        ? {
+            title: kv_do.lyrics.title,
+            style: kv_do.lyrics.style,
+          }
+        : null,
     };
+  } catch {
+    return null;
   }
-
-  const data: SmolDetailResponse = await response.json();
-  const d1 = data?.d1;
-  const kv_do = data?.kv_do;
-
-  const bestSong = d1?.Song_1;
-  const songs: SongData[] = kv_do?.songs || [];
-  const bestSongData = songs.find((s) => s.music_id === bestSong);
-
-  return {
-    id: smolId,
-    title: kv_do?.lyrics?.title ?? kv_do?.description ?? d1?.Title ?? null,
-    creator: d1?.Address ?? null,
-    coverUrl: `${API_URL}/image/${smolId}.png` as string,
-    audioUrl: (bestSongData && bestSongData.status < 4
-      ? bestSongData.audio
-      : bestSongData?.music_id
-        ? `${API_URL}/song/${bestSongData.music_id}.mp3`
-        : null) ?? null,
-    lyrics: kv_do?.lyrics
-      ? {
-          title: kv_do.lyrics.title,
-          style: kv_do.lyrics.style,
-        }
-      : null,
-  };
 }

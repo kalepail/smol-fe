@@ -1,4 +1,5 @@
 import type { Smol } from '../../types/domain';
+import { fetchWithTimeout, throwIfNotOk } from './fetch';
 
 const API_URL = import.meta.env.PUBLIC_API_URL;
 
@@ -6,10 +7,9 @@ const API_URL = import.meta.env.PUBLIC_API_URL;
  * Fetch all smols
  */
 export async function fetchSmols(): Promise<Smol[]> {
-  const response = await fetch(`${API_URL}`);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch smols: ${response.statusText}`);
-  }
+  const endpoint = `${API_URL}`;
+  const response = await fetchWithTimeout(endpoint);
+  await throwIfNotOk(response, endpoint);
   return response.json();
 }
 
@@ -17,13 +17,12 @@ export async function fetchSmols(): Promise<Smol[]> {
  * Fetch liked smol IDs for the current user
  */
 export async function fetchLikedSmols(signal?: AbortSignal): Promise<string[]> {
-  const response = await fetch(`${API_URL}/likes`, {
+  const endpoint = `${API_URL}/likes`;
+  const response = await fetchWithTimeout(endpoint, {
     credentials: 'include',
     signal,
   });
-  if (!response.ok) {
-    return [];
-  }
+  await throwIfNotOk(response, endpoint);
   return response.json();
 }
 
@@ -31,7 +30,8 @@ export async function fetchLikedSmols(signal?: AbortSignal): Promise<string[]> {
  * Like a smol
  */
 export async function likeSmol(smolId: string): Promise<void> {
-  const response = await fetch(`${API_URL}/like`, {
+  const endpoint = `${API_URL}/like`;
+  const response = await fetchWithTimeout(endpoint, {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -40,16 +40,15 @@ export async function likeSmol(smolId: string): Promise<void> {
     body: JSON.stringify({ smol_id: smolId }),
   });
 
-  if (!response.ok) {
-    throw new Error(`Failed to like smol: ${response.statusText}`);
-  }
+  await throwIfNotOk(response, endpoint);
 }
 
 /**
  * Unlike a smol
  */
 export async function unlikeSmol(smolId: string): Promise<void> {
-  const response = await fetch(`${API_URL}/unlike`, {
+  const endpoint = `${API_URL}/unlike`;
+  const response = await fetchWithTimeout(endpoint, {
     method: 'POST',
     credentials: 'include',
     headers: {
@@ -58,7 +57,5 @@ export async function unlikeSmol(smolId: string): Promise<void> {
     body: JSON.stringify({ smol_id: smolId }),
   });
 
-  if (!response.ok) {
-    throw new Error(`Failed to unlike smol: ${response.statusText}`);
-  }
+  await throwIfNotOk(response, endpoint);
 }

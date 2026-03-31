@@ -9,6 +9,7 @@
   import { useVisibilityTracking } from '../../hooks/useVisibilityTracking';
   import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
   import { useGridMediaSession } from '../../hooks/useGridMediaSession';
+  import { logger } from '../../utils/logger';
 
   interface Props {
     playlist?: string | null;
@@ -67,9 +68,9 @@
       cursor = data.pagination?.nextCursor || null;
       hasMore = data.pagination?.hasMore || false;
 
-      // Fetch likes if user is authenticated
+      // Fetch likes if user is authenticated (non-critical — fall back to empty)
       if (userState.contractId) {
-        const likedIds = await fetchLikedSmols();
+        const likedIds = await fetchLikedSmols().catch(() => [] as string[]);
         likes = likedIds;
 
         // Apply liked state to results
@@ -80,7 +81,7 @@
       }
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load';
-      console.error('Failed to fetch initial data:', err);
+      logger.error('smol', 'Failed to fetch initial data:', err);
     } finally {
       loading = false;
     }
@@ -216,7 +217,7 @@
         hasMore = data.pagination?.hasMore || false;
       }
     } catch (error) {
-      console.error('Failed to load more smols:', error);
+      logger.error('smol', 'Failed to load more smols:', error);
     } finally {
       loadingMore = false;
     }

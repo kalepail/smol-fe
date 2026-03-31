@@ -3,14 +3,15 @@
   import { onMount, onDestroy } from 'svelte';
   import SmolGenerator from './smol/SmolGenerator.svelte';
   import SmolDisplay from './smol/SmolDisplay.svelte';
-  import MintTradeModal from './MintTradeModal.svelte';
+  import SmolRetryPanel from './smol/SmolRetryPanel.svelte';
+  import SmolTradeSection from './smol/SmolTradeSection.svelte';
+  import SimilarSmols from './search/SimilarSmols.svelte';
   import { userState } from '../stores/user.svelte';
   import { updateContractBalance } from '../stores/balance.svelte';
   import { useSmolGeneration } from '../hooks/useSmolGeneration';
   import { useSmolMinting } from '../hooks/useSmolMinting';
   import { audioState } from '../stores/audio.svelte';
-  import { sac } from '../utils/passkey-kit';
-  import { getTokenBalance } from '../utils/balance';
+  import { logger } from '../utils/logger';
 
   interface Props {
     id?: string | null;
@@ -30,13 +31,14 @@
   let is_instrumental = $state(false);
   let best_song = $state<string | undefined>(undefined);
   let audioElements = $state<HTMLAudioElement[]>([]);
-  let interval = $state<NodeJS.Timeout | null>(null);
+  let interval = $state<ReturnType<typeof setTimeout> | null>(null);
+  let pollDelay = $state(3000); // start at 3s, grows 1.5x, caps at 15s
+  let pollGeneration = 0; // nonce to prevent stale poll callbacks
   let failed = $state(false);
   let playlist = $state<string | null>(null);
   let minting = $state(false);
   let showTradeModal = $state(false);
   let tradeMintBalance = $state<bigint>(0n);
-  let shouldRefreshBalance = $state(false);
 
   // Hooks
   const generationHook = useSmolGeneration();
@@ -85,38 +87,6 @@
     wasMinted = minted;
   });
 
-  // Track last fetched values to prevent duplicate balance fetches
-  let lastFetchedMintToken = $state<string | null>(null);
-  let lastFetchedUser = $state<string | null>(null);
-
-  // Fetch mint balance when available
-  $effect(() => {
-    const mintToken = d1?.Mint_Token;
-    const contractId = userState.contractId;
-
-    if (mintToken && contractId) {
-      // Only fetch if values actually changed
-      if (mintToken !== lastFetchedMintToken || contractId !== lastFetchedUser) {
-        lastFetchedMintToken = mintToken;
-        lastFetchedUser = contractId;
-
-        const client = sac.getSACClient(mintToken);
-        getTokenBalance(client, contractId)
-          .then((balance) => {
-            tradeMintBalance = balance;
-          })
-          .catch((error) => {
-            console.error('Failed to fetch mint token balance:', error);
-            tradeMintBalance = 0n;
-          });
-      }
-    } else if (!mintToken) {
-      tradeMintBalance = 0n;
-      lastFetchedMintToken = null;
-      lastFetchedUser = null;
-    }
-  });
-
   // Track last fetched ID to prevent duplicate fetches
   let lastFetchedId = $state<string | null>(null);
 
@@ -140,7 +110,7 @@
       liked = data?.liked;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load';
-      console.error('Failed to fetch smol data:', err);
+      logger.error('smol', 'Failed to fetch smol data:', err);
     } finally {
       loading = false;
     }
@@ -161,7 +131,7 @@
       case 'paused':
       case 'waiting':
       case 'waitingForPause':
-        interval = setInterval(getGen, 1000 * 6);
+        startPolling();
         break;
       case 'errored':
       case 'terminated':
@@ -178,11 +148,36 @@
     }
   });
 
-  onDestroy(() => {
+  function scheduleNextPoll() {
+    const gen = pollGeneration;
+    interval = setTimeout(async () => {
+      await getGen();
+      // If a new polling cycle started (e.g. Retry), abandon this one
+      if (gen !== pollGeneration) return;
+      // getGen clears interval when polling should stop;
+      // if it's still set, schedule another with increased delay
+      if (interval !== null) {
+        pollDelay = Math.min(pollDelay * 1.5, 15000);
+        scheduleNextPoll();
+      }
+    }, pollDelay);
+  }
+
+  function startPolling() {
+    pollGeneration++;
+    pollDelay = 3000;
+    scheduleNextPoll();
+  }
+
+  function stopPolling() {
     if (interval) {
-      clearInterval(interval);
+      clearTimeout(interval);
       interval = null;
     }
+  }
+
+  onDestroy(() => {
+    stopPolling();
     mintingHook.clearMintPolling();
   });
 
@@ -272,15 +267,12 @@
     kv_do = undefined;
     failed = false;
 
-    if (interval) {
-      clearInterval(interval);
-      interval = null;
-    }
+    stopPolling();
 
     id = await generationHook.postGen(prompt, is_public, is_instrumental, playlist);
     prompt = '';
 
-    interval = setInterval(getGen, 1000 * 6);
+    startPolling();
     await getGen();
   }
 
@@ -288,16 +280,13 @@
     d1 = undefined;
     kv_do = undefined;
 
-    if (interval) {
-      clearInterval(interval);
-      interval = null;
-    }
+    stopPolling();
 
     if (!id) return;
 
     id = await generationHook.retryGen(id);
     failed = false;
-    interval = setInterval(getGen, 1000 * 6);
+    startPolling();
     await getGen();
   }
 
@@ -312,7 +301,7 @@
     const smolContractId = import.meta.env.PUBLIC_SMOL_CONTRACT_ID;
 
     if (!smolContractId) {
-      console.error('Missing PUBLIC_SMOL_CONTRACT_ID env var');
+      logger.error('smol', 'Missing PUBLIC_SMOL_CONTRACT_ID env var');
       alert('Minting is temporarily unavailable. Please try again later.');
       return;
     }
@@ -336,7 +325,7 @@
         }
       );
     } catch (error) {
-      console.error(error);
+      logger.error('smol', error);
       alert(error instanceof Error ? error.message : String(error));
       mintingHook.clearMintPolling();
       minting = false;
@@ -352,18 +341,14 @@
     best_song = d1?.Song_1;
 
     if (generationHook.shouldStopPolling(res?.wf?.status)) {
-      if (interval) {
-        clearInterval(interval);
-        interval = null;
-      }
+      stopPolling();
       if (generationHook.isFailed(res.wf.status)) {
         failed = true;
       }
     }
 
     if (interval && d1) {
-      clearInterval(interval);
-      interval = null;
+      stopPolling();
     }
 
     return res;
@@ -374,13 +359,7 @@
     showTradeModal = true;
   }
 
-  function handleTradeModalClose() {
-    showTradeModal = false;
-  }
-
-  function handleTradeModalComplete() {
-    showTradeModal = false;
-    shouldRefreshBalance = true;
+  function handleTradeComplete() {
     void getGen();
   }
 </script>
@@ -421,47 +400,12 @@
 
 {#if id}
   {#if failed}
-    <div class="px-2 py-10">
-      <div class="flex flex-col items-center max-w-[1024px] mx-auto">
-        <ul class="max-w-[512px] w-full [&>li]:mb-5">
-          <li>
-            <div class="flex items-center gap-2">
-              <button
-                class="text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1 disabled:opacity-50"
-                onclick={retryGen}
-                disabled={!!id && !!interval}
-              >
-                ⚡︎ Retry
-              </button>
-              {#if playlist}
-                <span
-                  class="flex items-center text-xs font-mono bg-lime-500 text-black px-2 py-1 rounded-full"
-                >
-                  {playlist}
-                  <button
-                    type="button"
-                    onclick={removePlaylist}
-                    class="ml-1.5 -mr-0.5 p-0.5 rounded-full hover:bg-black/20 text-black"
-                    aria-label="Remove playlist"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 16 16"
-                      fill="currentColor"
-                      class="size-3"
-                    >
-                      <path
-                        d="M2.22 2.22a.75.75 0 0 1 1.06 0L8 6.94l4.72-4.72a.75.75 0 0 1 1.06 1.06L9.06 8l4.72 4.72a.75.75 0 1 1-1.06 1.06L8 9.06l-4.72 4.72a.75.75 0 0 1-1.06-1.06L6.94 8 2.22 3.28a.75.75 0 0 1 0-1.06Z"
-                      />
-                    </svg>
-                  </button>
-                </span>
-              {/if}
-            </div>
-          </li>
-        </ul>
-      </div>
-    </div>
+    <SmolRetryPanel
+      isPolling={!!id && !!interval}
+      {playlist}
+      onRetry={retryGen}
+      onRemovePlaylist={removePlaylist}
+    />
   {/if}
 
   <SmolDisplay
@@ -485,16 +429,23 @@
     onOpenTradeModal={openTradeModal}
     onLikeChanged={(likedValue) => (liked = likedValue)}
   />
+
+  {#if d1?.Public === 1}
+    <SimilarSmols id={id} />
+  {/if}
 {/if}
 
-{#if showTradeModal && tradeReady && d1?.Mint_Amm && d1?.Mint_Token && tradeSongId}
-  <MintTradeModal
+{#if tradeReady && d1?.Mint_Amm && d1?.Mint_Token && tradeSongId}
+  <SmolTradeSection
+    bind:show={showTradeModal}
+    songId={tradeSongId}
     ammId={d1.Mint_Amm}
     mintTokenId={d1.Mint_Token}
-    songId={tradeSongId}
-    title={tradeTitle ?? undefined}
-    imageUrl={tradeImageUrl ?? undefined}
-    on:close={handleTradeModalClose}
-    on:complete={handleTradeModalComplete}
+    title={tradeTitle}
+    imageUrl={tradeImageUrl}
+    userContractId={userState.contractId}
+    bind:mintBalance={tradeMintBalance}
+    onClose={() => (showTradeModal = false)}
+    onComplete={handleTradeComplete}
   />
 {/if}

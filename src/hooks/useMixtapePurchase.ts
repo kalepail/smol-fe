@@ -2,6 +2,7 @@ import { Client as SmolClient } from 'smol-sdk';
 import { getDomain } from 'tldts';
 import type { Smol } from '../types/domain';
 import { rpc } from '../utils/base';
+import { logger } from '../utils/logger';
 import { account, send } from '../utils/passkey-kit';
 
 interface PurchaseBatchParams {
@@ -42,8 +43,8 @@ export function useMixtapePurchase() {
 
     // Log the XDR for inspection
     const xdrString = tx.built?.toXDR();
-    console.log('Purchase Batch Transaction XDR:', xdrString);
-    console.log('Tokens in batch:', tokensOut);
+    logger.info('purchase', 'Purchase Batch Transaction XDR:', xdrString);
+    logger.info('purchase', 'Tokens in batch:', tokensOut);
 
     // Submit transaction via passkey server
     await send(tx);
@@ -85,14 +86,16 @@ export function useMixtapePurchase() {
       chunks.push(tokenData.slice(i, i + BATCH_SIZE));
     }
 
-    console.log(
+    logger.info(
+      'purchase',
       `Processing ${tokenData.length} purchases in ${chunks.length} batch(es) of up to ${BATCH_SIZE}`
     );
 
     // Process each chunk sequentially
     for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
       const chunk = chunks[chunkIndex];
-      console.log(
+      logger.info(
+        'purchase',
         `Processing purchase batch ${chunkIndex + 1}/${chunks.length} with ${chunk.length} token(s)`
       );
 
@@ -112,7 +115,8 @@ export function useMixtapePurchase() {
         const trackIds = chunk.map((data) => data.trackId);
         onBatchComplete(trackIds);
       } catch (error) {
-        console.error(
+        logger.error(
+          'purchase',
           `Error processing purchase batch ${chunkIndex + 1}:`,
           error
         );

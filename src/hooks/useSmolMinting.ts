@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 import { createMintTransaction, submitMintTransaction, MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from '../utils/mint';
 
 interface MintParams {
@@ -42,7 +43,7 @@ export function useSmolMinting() {
 
       await onPollStatus();
     } catch (error) {
-      console.error(error);
+      logger.error('mint', error);
       clearMintPolling();
       throw error;
     }

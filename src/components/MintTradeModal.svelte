@@ -7,6 +7,7 @@
   import { userState } from '../stores/user.svelte';
   import { updateContractBalance } from '../stores/balance.svelte';
   import { kale, sac } from '../utils/passkey-kit';
+  import { logger } from '../utils/logger';
   import { Client as CometClient } from 'comet-sdk';
   import { useTradeSimulation } from '../hooks/useTradeSimulation';
   import { useTradeExecution } from '../hooks/useTradeExecution';
@@ -121,7 +122,7 @@
 
       recomputeLimits();
     } catch (error) {
-      console.error(error);
+      logger.error('trade', error);
       loadError =
         error instanceof Error ? error.message : 'Failed to load trading data.';
     } finally {
@@ -140,7 +141,7 @@
       userKaleBalance = kaleResult;
       userMintBalance = mintResult;
     } catch (error) {
-      console.error('Failed to refresh balances', error);
+      logger.error('trade', 'Failed to refresh balances', error);
     }
   }
 
@@ -155,7 +156,7 @@
           ammKaleBalance = result;
         })
         .catch((error) => {
-          console.error('Failed to refresh AMM balance', error);
+          logger.error('trade', 'Failed to refresh AMM balance', error);
         })
     );
 
@@ -170,7 +171,7 @@
             userMintBalance = mintResult;
           })
           .catch((error) => {
-            console.error('Failed to refresh user balances', error);
+            logger.error('trade', 'Failed to refresh user balances', error);
           })
       );
     }
@@ -248,7 +249,7 @@
 
       simulatedAmountOut = amountOut;
     } catch (error) {
-      console.error('Simulation failed', error);
+      logger.error('trade', 'Simulation failed', error);
       if (simulationHook.getCurrentNonce()) {
         simulationError =
           error instanceof Error ? error.message : 'Simulation failed.';
@@ -336,7 +337,7 @@
 
       close();
     } catch (error) {
-      console.error('Swap failed', error);
+      logger.error('trade', 'Swap failed', error);
       simulationError =
         error instanceof Error ? error.message : 'Swap request failed.';
     } finally {

@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
+    import { logger } from '../utils/logger';
 
     // Interface for individual song data expected via props
     interface SmolData {
@@ -54,7 +55,7 @@
             users = data.users || [];
         } catch (err) {
             error = err instanceof Error ? err.message : 'Failed to load';
-            console.error('Failed to fetch leaderboard:', err);
+            logger.error('leaderboard', 'Failed to fetch leaderboard:', err);
         } finally {
             loading = false;
         }
@@ -99,7 +100,7 @@
                     viewCountsByAddress[smol.Address] = (viewCountsByAddress[smol.Address] || 0) + smol.Views;
                 }
             } else {
-                console.warn("Smol object missing Address:", smol);
+                logger.warn("leaderboard", "Smol object missing Address:", smol);
             }
         }
 

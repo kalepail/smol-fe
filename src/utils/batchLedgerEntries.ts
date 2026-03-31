@@ -1,5 +1,6 @@
 import { Address, xdr } from '@stellar/stellar-sdk';
 import { rpc } from './base';
+import { logger } from './logger';
 
 /**
  * Represents a batch request for SAC token balances
@@ -108,7 +109,7 @@ export function parseBalanceFromLedgerEntry(entryData: xdr.LedgerEntryData): big
 
     return 0n;
   } catch (error) {
-    console.error('Error parsing balance from ledger entry:', error);
+    logger.error('balance', 'Error parsing balance from ledger entry:', error);
     return 0n;
   }
 }
@@ -165,7 +166,7 @@ export async function getBatchSACBalances(
   const cacheKey = createBatchCacheKey(requests);
   const existing = inflightRequests.get(cacheKey);
   if (existing) {
-    console.log('Deduplicating batch balance request');
+    logger.info('balance', 'Deduplicating batch balance request');
     return existing;
   }
 
@@ -209,7 +210,7 @@ export async function getBatchSACBalances(
 
       return results;
     } catch (error) {
-      console.error('Error fetching batch balances:', error);
+      logger.error('balance', 'Error fetching batch balances:', error);
 
       // Return error results for all requests
       return requests.map((req) => ({

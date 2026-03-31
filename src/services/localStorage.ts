@@ -2,6 +2,8 @@
  * LocalStorage service for client-side data persistence
  */
 
+import { logger } from '../utils/logger';
+
 const isBrowser = typeof window !== 'undefined';
 
 /**
@@ -16,7 +18,7 @@ export function getItem<T>(key: string): T | null {
 
     return JSON.parse(raw) as T;
   } catch (error) {
-    console.warn(`Failed to read from localStorage: ${key}`, error);
+    logger.warn('storage', `Failed to read from localStorage: ${key}`, error);
     return null;
   }
 }
@@ -30,7 +32,7 @@ export function setItem<T>(key: string, value: T): void {
   try {
     window.localStorage.setItem(key, JSON.stringify(value));
   } catch (error) {
-    console.warn(`Failed to write to localStorage: ${key}`, error);
+    logger.warn('storage', `Failed to write to localStorage: ${key}`, error);
   }
 }
 
@@ -43,7 +45,7 @@ export function removeItem(key: string): void {
   try {
     window.localStorage.removeItem(key);
   } catch (error) {
-    console.warn(`Failed to remove from localStorage: ${key}`, error);
+    logger.warn('storage', `Failed to remove from localStorage: ${key}`, error);
   }
 }
 
@@ -69,6 +71,6 @@ export function clear(): void {
   try {
     window.localStorage.clear();
   } catch (error) {
-    console.warn('Failed to clear localStorage', error);
+    logger.warn('storage', 'Failed to clear localStorage', error);
   }
 }

@@ -14,6 +14,7 @@
   import { MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from '../../utils/mint';
   import { getMixtapeDetail } from '../../services/api/mixtapes';
   import { fetchLikedSmols } from '../../services/api/smols';
+  import { logger } from '../../utils/logger';
 
   interface Props {
     id: string;
@@ -135,10 +136,10 @@
 
       mixtape = mixtapeData;
 
-      // Fetch liked tracks if authenticated
+      // Fetch liked tracks if authenticated (non-critical — fall back to empty)
       let likedTrackIds: string[] = [];
       if (userState.contractId) {
-        likedTrackIds = await fetchLikedSmols();
+        likedTrackIds = await fetchLikedSmols().catch(() => [] as string[]);
       }
 
       // Initialize tracks
@@ -172,7 +173,7 @@
       }
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load mixtape';
-      console.error('Failed to fetch mixtape data:', err);
+      logger.error('mixtape', 'Failed to fetch mixtape data:', err);
     } finally {
       loading = false;
     }
@@ -328,7 +329,7 @@
 
     const smolContractId = import.meta.env.PUBLIC_SMOL_CONTRACT_ID;
     if (!smolContractId) {
-      console.error('Missing PUBLIC_SMOL_CONTRACT_ID env var');
+      logger.error('mixtape', 'Missing PUBLIC_SMOL_CONTRACT_ID env var');
       alert('Purchasing is temporarily unavailable. Please try again later.');
       return;
     }
@@ -395,13 +396,13 @@
       }
 
       // Refresh balances after minting
-      console.log('Refreshing balances after minting...');
+      logger.info('mixtape', 'Refreshing balances after minting...');
       await balancesHook.refreshAllBalances(
         mixtapeTracks,
         userState.contractId,
         handleBalanceUpdated
       );
-      console.log('Balances refreshed');
+      logger.info('mixtape', 'Balances refreshed');
 
       // Build tokens array for swap_them_in
       const tokensOut: string[] = [];
@@ -415,7 +416,7 @@
         }
       }
 
-      console.log('Tracks to purchase:', tokensOut.length);
+      logger.info('mixtape', 'Tracks to purchase:', tokensOut.length);
 
       // Step 2: Purchase remaining tracks
       if (tokensOut.length > 0) {
@@ -456,7 +457,7 @@
         purchaseCompletedSteps = new Set();
       }, 2000);
     } catch (error) {
-      console.error('Purchase error:', error);
+      logger.error('mixtape', 'Purchase error:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorName = error instanceof Error ? error.name : '';
 

@@ -108,3 +108,20 @@ export interface SongData {
   audio?: string;
   status: number;
 }
+
+export interface SearchExplanation {
+  matchedFields: string[];
+  style?: string[];
+  mood?: string;
+  theme?: string;
+}
+
+export interface SearchResult extends Smol {
+  Created_At?: string;
+  score: number;
+  explanation?: SearchExplanation;
+}
+
+export interface SearchResponse {
+  results: SearchResult[];
+}

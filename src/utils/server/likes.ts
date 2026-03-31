@@ -3,6 +3,8 @@
  * This should only be called from Astro pages (.astro files)
  */
 
+import { logger } from '../logger';
+
 /**
  * Fetch liked track IDs for the authenticated user
  * @param cookieHeader - The Cookie header from Astro.request.headers
@@ -30,7 +32,7 @@ export async function fetchLikedTracksServerSide(
 
     return [];
   } catch (error) {
-    console.error('Failed to fetch likes server-side:', error);
+    logger.error('likes', 'Failed to fetch likes server-side:', error);
     return [];
   }
 }

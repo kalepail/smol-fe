@@ -4,6 +4,7 @@ import { getDomain } from 'tldts';
 import type { Smol } from '../types/domain';
 import type { MixtapeSmolData } from '../services/api/mixtapes';
 import { rpc } from '../utils/base';
+import { logger } from '../utils/logger';
 import { account } from '../utils/passkey-kit';
 import { MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from '../utils/mint';
 
@@ -74,7 +75,7 @@ export function useMixtapeMinting() {
         }
       }
     } catch (error) {
-      console.error(`Error polling mint status for ${trackId}:`, error);
+      logger.error('mint', `Error polling mint status for ${trackId}:`, error);
     }
   }
 
@@ -167,8 +168,9 @@ export function useMixtapeMinting() {
       throw new Error('Failed to build signed coin_them transaction');
     }
 
-    console.log('Batch Mint Transaction XDR:', xdrString);
-    console.log(
+    logger.info('mint', 'Batch Mint Transaction XDR:', xdrString);
+    logger.info(
+      'mint',
       'Tracks in batch:',
       tracksWithData.map(({ track }) => track.Id)
     );
@@ -240,7 +242,7 @@ export function useMixtapeMinting() {
       const track = mixtape.tracks.find((t) => t.Id === trackData.Id);
       if (!track) continue;
       if (!trackData?.Address) {
-        console.warn(`No creator address for track ${trackData.Id}`);
+        logger.warn('mint', `No creator address for track ${trackData.Id}`);
         continue;
       }
       tracksWithData.push({ track, trackData });
@@ -256,14 +258,16 @@ export function useMixtapeMinting() {
       chunks.push(tracksWithData.slice(i, i + CHUNK_SIZE));
     }
 
-    console.log(
+    logger.info(
+      'mint',
       `Processing ${tracksWithData.length} mints in ${chunks.length} batch(es) of up to ${CHUNK_SIZE}`
     );
 
     // Process each chunk sequentially
     for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
       const chunk = chunks[chunkIndex];
-      console.log(
+      logger.info(
+        'mint',
         `Processing batch ${chunkIndex + 1}/${chunks.length} with ${chunk.length} track(s)`
       );
 
@@ -279,7 +283,7 @@ export function useMixtapeMinting() {
           onMinted
         );
       } catch (error) {
-        console.error(`Error processing batch ${chunkIndex + 1}:`, error);
+        logger.error('mint', `Error processing batch ${chunkIndex + 1}:`, error);
         onBatchError(chunkIndex, error as Error);
         // Stop processing remaining batches
         throw error;
