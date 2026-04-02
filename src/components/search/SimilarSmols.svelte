@@ -12,7 +12,6 @@
 
   let { id }: Props = $props();
 
-  let refine = $state('');
   let results = $state<SearchResult[]>([]);
   let loading = $state(false);
   let loaded = $state(false);
@@ -48,7 +47,6 @@
       const [response, likedIds] = await Promise.all([
         searchSimilarSmols({
           id,
-          refine: refine.trim() || undefined,
           limit: 8,
         }),
         userState.contractId ? fetchLikedSmols().catch(() => [] as string[]) : Promise.resolve([]),
@@ -68,14 +66,8 @@
     }
   }
 
-  function handleSubmit(event: SubmitEvent) {
-    event.preventDefault();
-    void loadSimilar();
-  }
-
   $effect(() => {
     id;
-    refine = '';
     results = [];
     loading = false;
     loaded = false;
@@ -89,22 +81,6 @@
     <div class="mb-4">
       <h2 class="text-xl font-bold text-lime-400">More Like This</h2>
     </div>
-
-    <form class="mb-5 flex flex-col gap-3 sm:flex-row" onsubmit={handleSubmit}>
-      <input
-        class="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-white outline-none ring-0 placeholder:text-slate-500 focus:border-lime-400"
-        type="text"
-        bind:value={refine}
-        placeholder="Refine"
-      />
-      <button
-        class="rounded-lg bg-lime-400 px-4 py-2 font-semibold text-slate-950 transition hover:bg-lime-300 disabled:cursor-not-allowed disabled:opacity-60"
-        type="submit"
-        disabled={loading}
-      >
-        {loading ? 'Searching...' : 'Find More Like This'}
-      </button>
-    </form>
 
     {#if error}
       <div class="mb-4 rounded-lg border border-rose-500/40 bg-rose-950/30 px-4 py-3 text-rose-200">
