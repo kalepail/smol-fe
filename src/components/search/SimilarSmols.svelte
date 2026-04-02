@@ -1,10 +1,12 @@
 <script lang="ts">
+  import { onMount, onDestroy } from 'svelte';
   import SmolCard from '../smol/SmolCard.svelte';
   import type { MixtapeTrack, SearchResult } from '../../types/domain';
   import { searchSimilarSmols } from '../../services/api/search';
   import { fetchLikedSmols } from '../../services/api/smols';
   import { addTrack } from '../../stores/mixtape.svelte';
   import { userState } from '../../stores/user.svelte';
+  import { audioState, selectSong, registerSongNextCallback } from '../../stores/audio.svelte';
 
   interface Props {
     id: string;
@@ -74,9 +76,26 @@
     error = null;
     void loadSimilar();
   });
+
+  function songNext() {
+    if (results.length === 0) return;
+    const currentId = audioState.currentSong?.Id;
+    const currentIndex = results.findIndex((s) => s.Id === currentId);
+    // If the current song is the last one (or not found in the list), stop
+    if (currentIndex === -1 || currentIndex >= results.length - 1) return;
+    selectSong(results[currentIndex + 1]);
+  }
+
+  onMount(() => {
+    registerSongNextCallback(songNext);
+  });
+
+  onDestroy(() => {
+    registerSongNextCallback(null);
+  });
 </script>
 
-<section class="px-2 py-8">
+<section class="px-2 py-8 pb-24">
   <div class="max-w-[1024px] mx-auto">
     <div class="mb-4">
       <h2 class="text-xl font-bold text-lime-400">More Like This</h2>
