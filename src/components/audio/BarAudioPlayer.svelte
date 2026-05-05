@@ -86,16 +86,16 @@
     transition:fade={{ duration: 200 }}
   >
     <div class="flex items-center justify-between max-w-7xl mx-auto">
-      <div class="flex items-center gap-4 mr-4">
+      <a href={`/${audioState.currentSong.Id}`} class="flex items-center gap-4 mr-4 min-w-0">
         <img
           src={`${import.meta.env.PUBLIC_API_URL}/image/${audioState.currentSong.Id}.png`}
           alt={audioState.currentSong.Title}
-          class="w-12 h-12 rounded object-cover"
+          class="w-12 h-12 rounded object-cover shrink-0"
         />
-        <div>
-          <h3 class="text-white font-medium leading-5">{audioState.currentSong.Title}</h3>
+        <div class="min-w-0">
+          <h3 class="text-white font-medium leading-5 truncate">{audioState.currentSong.Title}</h3>
         </div>
-      </div>
+      </a>
 
       <div class="flex items-center gap-2">
         <LikeButton
