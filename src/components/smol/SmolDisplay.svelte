@@ -52,6 +52,9 @@
   const artistName = $derived(
     d1?.Creator ?? d1?.Username ?? d1?.artist ?? d1?.author ?? shortenAddress(d1?.Address)
   );
+  const hasStreamingSongs = $derived(
+    Boolean(interval && kv_do?.songs?.some((song) => song.audio && song.status < 4))
+  );
 </script>
 
 <div class="px-2 py-10">
@@ -197,7 +200,7 @@
       <li>
         <h1 class="flex items-center mb-2">
           Songs:
-          {#if interval && kv_do?.songs?.some((song) => song.audio)}
+          {#if hasStreamingSongs}
             <Loader classNames="size-7 ml-2" />
             <small class="ml-2 text-xs text-slate-400 font-normal">streaming...</small>
           {/if}
