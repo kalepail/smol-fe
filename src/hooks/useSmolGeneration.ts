@@ -59,10 +59,15 @@ export function useSmolGeneration() {
   }
 
   async function getGen(id: string) {
-    return fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`)
+    return fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
+      credentials: 'include',
+    })
       .then(async (res) => {
         if (res.ok) return res.json();
-        else throw await res.text();
+        const message = await res.text();
+        const error = new Error(message || 'Failed to load smol') as Error & { status?: number };
+        error.status = res.status;
+        throw error;
       });
   }
 

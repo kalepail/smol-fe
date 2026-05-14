@@ -35,6 +35,7 @@
   let pollDelay = $state(3000); // start at 3s, grows 1.5x, caps at 15s
   let pollGeneration = 0; // nonce to prevent stale poll callbacks
   let failed = $state(false);
+  let pendingCreatedId = $state<string | null>(null);
   let playlist = $state<string | null>(null);
   let minting = $state(false);
   let showTradeModal = $state(false);
@@ -91,6 +92,10 @@
   let lastFetchedId = $state<string | null>(null);
 
   // Fetch smol data when id changes
+  function isTransientCreatedSmol404(smolId: string, status?: number) {
+    return status === 404 && pendingCreatedId === smolId;
+  }
+
   async function fetchSmolData(smolId: string) {
     loading = true;
     error = null;
@@ -101,6 +106,9 @@
       });
 
       if (!response.ok) {
+        if (isTransientCreatedSmol404(smolId, response.status)) {
+          return;
+        }
         throw new Error('Failed to load smol');
       }
 
@@ -108,6 +116,7 @@
       d1 = data?.d1;
       kv_do = data?.kv_do;
       liked = data?.liked;
+      pendingCreatedId = null;
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load';
       logger.error('smol', 'Failed to fetch smol data:', err);
@@ -269,11 +278,21 @@
 
     stopPolling();
 
-    id = await generationHook.postGen(prompt, is_public, is_instrumental, playlist);
+    const newId = await generationHook.postGen(prompt, is_public, is_instrumental, playlist);
+    if (!newId) return;
+
+    pendingCreatedId = newId;
+    id = newId;
     prompt = '';
 
     startPolling();
-    await getGen();
+    try {
+      await getGen();
+    } catch (error) {
+      if (!isTransientCreatedSmol404(id, (error as Error & { status?: number }).status)) {
+        throw error;
+      }
+    }
   }
 
   async function retryGen() {
@@ -284,10 +303,20 @@
 
     if (!id) return;
 
-    id = await generationHook.retryGen(id);
+    const newId = await generationHook.retryGen(id);
+    if (!newId) return;
+
+    pendingCreatedId = newId;
+    id = newId;
     failed = false;
     startPolling();
-    await getGen();
+    try {
+      await getGen();
+    } catch (error) {
+      if (!isTransientCreatedSmol404(id, (error as Error & { status?: number }).status)) {
+        throw error;
+      }
+    }
   }
 
   async function triggerMint() {
@@ -335,10 +364,21 @@
   async function getGen() {
     if (!id) return;
 
-    const res = await generationHook.getGen(id);
+    let res;
+
+    try {
+      res = await generationHook.getGen(id);
+    } catch (error) {
+      if (isTransientCreatedSmol404(id, (error as Error & { status?: number }).status)) {
+        return;
+      }
+      throw error;
+    }
+
     d1 = res?.d1;
     kv_do = res?.kv_do;
     best_song = d1?.Song_1;
+    pendingCreatedId = null;
 
     if (generationHook.shouldStopPolling(res?.wf?.status)) {
       stopPolling();
