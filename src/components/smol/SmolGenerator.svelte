@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Loader from '../ui/Loader.svelte';
+
   interface Props {
     prompt: string;
     isPublic: boolean;
@@ -112,7 +114,12 @@
             class="flex items-center text-lime-500 bg-lime-500/20 ring ring-lime-500 hover:bg-lime-500/30 rounded px-2 py-1 disabled:opacity-50"
             disabled={isGenerating || !prompt}
           >
-            ⚡︎ Generate
+            {#if isGenerating}
+              <Loader classNames="w-4 h-4 mr-2" textColor="text-lime-500" />
+              Generating...
+            {:else}
+              ⚡︎ Generate
+            {/if}
           </button>
         </div>
       </div>

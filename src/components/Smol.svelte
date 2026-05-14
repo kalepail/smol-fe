@@ -36,6 +36,7 @@
   let interval = $state<ReturnType<typeof setTimeout> | null>(null);
   let pollDelay = $state(3000); // start at 3s, grows 1.5x, caps at 15s
   let pollGeneration = 0; // nonce to prevent stale poll callbacks
+  let submittingGeneration = $state(false);
   let failed = $state(false);
   let pendingCreatedId = $state<string | null>(null);
   let playlist = $state<string | null>(null);
@@ -288,29 +289,33 @@
   }
 
   async function postGen() {
-    if (!prompt) return;
+    if (!prompt || submittingGeneration) return;
 
     id = null;
     d1 = undefined;
     kv_do = undefined;
     failed = false;
+    submittingGeneration = true;
 
     stopPolling();
 
-    const newId = await generationHook.postGen(prompt, is_public, is_instrumental, playlist);
-    if (!newId) return;
-
-    pendingCreatedId = newId;
-    id = newId;
-    prompt = '';
-
-    startPolling();
     try {
+      const newId = await generationHook.postGen(prompt, is_public, is_instrumental, playlist);
+      if (!newId) return;
+
+      pendingCreatedId = newId;
+      id = newId;
+      prompt = '';
+
+      startPolling();
       await getGen();
-    } catch (error) {
-      if (!isTransientCreatedSmol404(id, (error as Error & { status?: number }).status)) {
-        throw error;
+    } catch (err) {
+      if (!id || !isTransientCreatedSmol404(id, (err as Error & { status?: number }).status)) {
+        error = err instanceof Error ? err.message : 'Failed to generate smol';
+        logger.error('smol', 'Failed to generate smol:', err);
       }
+    } finally {
+      submittingGeneration = false;
     }
   }
 
@@ -439,7 +444,7 @@
       bind:isPublic={is_public}
       bind:isInstrumental={is_instrumental}
       {playlist}
-      isGenerating={!!id && !!interval}
+      isGenerating={submittingGeneration || (!!id && !!interval)}
       {maxLength}
       onPromptChange={limitPromptLength}
       onPublicChange={() => limitPromptLength()}
