@@ -3,6 +3,7 @@
   import Loader from '../ui/Loader.svelte';
   import LikeButton from '../ui/LikeButton.svelte';
   import TokenBalancePill from '../ui/TokenBalancePill.svelte';
+  import { shortenAddress } from '../../utils/address';
 
   interface Props {
     id: string | null;
@@ -47,6 +48,10 @@
     onOpenTradeModal,
     onLikeChanged,
   }: Props = $props();
+
+  const artistName = $derived(
+    d1?.Creator ?? d1?.Username ?? d1?.artist ?? d1?.author ?? shortenAddress(d1?.Address)
+  );
 </script>
 
 <div class="px-2 py-10">
@@ -160,6 +165,18 @@
         <h1>Prompt:</h1>
         <p>{kv_do && kv_do?.payload?.prompt}</p>
       </li>
+
+      {#if d1?.Address}
+        <li>
+          <h1>Artist:</h1>
+          <a
+            class="break-all text-lime-400 hover:underline"
+            href={`/artists/${encodeURIComponent(d1.Address)}`}
+          >
+            {artistName}
+          </a>
+        </li>
+      {/if}
 
       {#if kv_do?.image}
         <li>

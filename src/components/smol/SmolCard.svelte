@@ -4,6 +4,7 @@
   import MiniAudioPlayer from '../audio/MiniAudioPlayer.svelte';
   import { audioState, selectSong, togglePlayPause } from '../../stores/audio.svelte';
   import { mixtapeModeState, mixtapeTrackIds } from '../../stores/mixtape.svelte';
+  import { shortenAddress } from '../../utils/address';
 
   interface Props {
     smol: Smol;
@@ -34,6 +35,12 @@
   }
 
   const isInMixtape = $derived(mixtapeTrackIds.current.has(smol.Id));
+  const creatorName = $derived(
+    smol.Creator ?? smol.Username ?? smol.artist ?? smol.author ?? shortenAddress(smol.Address)
+  );
+  const artistHref = $derived(
+    smol.Address ? `/artists/${encodeURIComponent(smol.Address)}` : null
+  );
 </script>
 
 <div
@@ -88,19 +95,31 @@
   </div>
 
   <div
-    class="flex items-center relative p-2 flex-1 overflow-hidden cursor-pointer"
+    class="flex min-h-16 items-center relative p-2 flex-1 overflow-hidden cursor-pointer"
     onclick={toggleSongSelection}
   >
-    <h1 class="relative z-1 leading-4 text-sm text-white">
-      {smol.Title}
-    </h1>
+    <div class="relative z-1 min-w-0 flex-1 pr-2">
+      <h1 class="break-words text-sm leading-4 text-white">
+        {smol.Title}
+      </h1>
+      {#if artistHref}
+        <a
+          class="mt-1 block max-w-full truncate text-[11px] leading-3 text-lime-300 hover:underline"
+          href={artistHref}
+          aria-label={`View artist ${creatorName}`}
+          onclick={(event) => event.stopPropagation()}
+        >
+          by {creatorName}
+        </a>
+      {/if}
+    </div>
     <img
       class="absolute inset-0 z-0 opacity-80 scale-y-[-1] w-full h-full blur-lg pointer-events-none"
       src={`${import.meta.env.PUBLIC_API_URL}/image/${smol.Id}.png`}
       alt={smol.Title}
       loading="lazy"
     />
-    <div class="relative z-2 pl-2 ml-auto">
+    <div class="relative z-2 ml-auto">
       <MiniAudioPlayer
         id={smol.Id}
         playing_id={audioState.playingId}

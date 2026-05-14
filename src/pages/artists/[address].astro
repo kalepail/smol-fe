@@ -1,0 +1,36 @@
+---
+import ArtistPage from "../../components/ArtistPage.svelte";
+import Layout from "../../layouts/Layout.astro";
+import { fetchArtistSmols } from "../../services/api/artists";
+import { ApiError } from "../../services/api/fetch";
+import type { ArtistProfile } from "../../types/api";
+import { shortenAddress } from "../../utils/address";
+
+const { address } = Astro.params;
+
+let artist: ArtistProfile | null = null;
+
+if (address) {
+	try {
+		const data = await fetchArtistSmols(address, {
+			limit: 100,
+			cookie: Astro.request.headers.get("cookie") ?? undefined,
+		});
+		artist = data.artist;
+	} catch (error) {
+		if (!(error instanceof ApiError && error.status === 404)) {
+			console.error("Failed to fetch artist meta data:", error);
+		}
+	}
+}
+
+const displayName = artist?.Username || shortenAddress(address);
+const title = displayName ? `Smol - ${displayName}` : "Smol - Artist";
+const description = displayName
+	? `Public smols by ${displayName}`
+	: "Public smols by artist";
+---
+
+<Layout {title} {description}>
+	<ArtistPage address={address ?? ""} {artist} client:only="svelte" />
+</Layout>

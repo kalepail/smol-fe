@@ -20,7 +20,8 @@ export class ApiError extends Error {
  */
 export async function throwIfNotOk(response: Response, endpoint: string): Promise<void> {
   if (response.ok) return;
-  const body = (await response.text().catch(() => '')) || response.statusText;
+  const fallback = response.statusText || `Request failed with status ${response.status}`;
+  const body = (await response.text().catch(() => '')) || fallback;
   throw new ApiError(response.status, body, endpoint);
 }
 
@@ -60,9 +61,8 @@ function rawFetch(
 /**
  * Fetch with an automatic AbortController timeout.
  *
- * GET requests to the same URL are deduplicated — if an identical GET is
- * already in-flight the existing promise is returned instead of firing a
- * second request.
+ * Simple public GET requests to the same URL are deduplicated.
+ * Auth/cookie-bearing requests are never deduplicated across callers.
  */
 export function fetchWithTimeout(
   input: RequestInfo | URL,
@@ -70,11 +70,14 @@ export function fetchWithTimeout(
 ): Promise<Response> {
   const method = (init?.method ?? 'GET').toUpperCase();
   const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+  const canDeduplicate =
+    method === 'GET' && !init?.signal && !init?.headers && !init?.credentials;
 
-  // Only deduplicate simple GET requests (no custom signal — those are caller-controlled)
-  if (method === 'GET' && !init?.signal) {
+  // Only deduplicate simple public GET requests. Auth/cookie-bearing requests
+  // can vary by caller even when the URL is identical.
+  if (canDeduplicate) {
     const existing = inflightGets.get(url);
-    if (existing) return existing;
+    if (existing) return existing.then((response) => response.clone());
 
     const promise = rawFetch(input, init).finally(() => {
       inflightGets.delete(url);
@@ -85,7 +88,7 @@ export function fetchWithTimeout(
     // Failsafe: remove the entry after 60s even if the promise never settles
     setTimeout(() => inflightGets.delete(url), 60_000);
 
-    return promise;
+    return promise.then((response) => response.clone());
   }
 
   return rawFetch(input, init);
