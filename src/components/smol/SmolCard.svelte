@@ -14,6 +14,7 @@
     onDragStart?: (event: DragEvent) => void;
     onDragEnd?: () => void;
     isDragging?: boolean;
+    showCreator?: boolean;
   }
 
   let {
@@ -23,7 +24,8 @@
     onAddToMixtape,
     onDragStart,
     onDragEnd,
-    isDragging = false
+    isDragging = false,
+    showCreator = true
   }: Props = $props();
 
   function toggleSongSelection() {
@@ -102,7 +104,7 @@
       <h1 class="break-words text-sm leading-4 text-white">
         {smol.Title}
       </h1>
-      {#if artistHref}
+      {#if showCreator && artistHref}
         <a
           class="mt-1 block max-w-full truncate text-[11px] leading-3 text-lime-300 hover:underline"
           href={artistHref}

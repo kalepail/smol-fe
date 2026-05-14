@@ -18,13 +18,15 @@
     endpoint?: string;
     emptyTitle?: string;
     emptyDescription?: string;
+    showCreators?: boolean;
   }
 
   let {
     playlist = null,
     endpoint = '',
     emptyTitle = 'No smols yet',
-    emptyDescription = ''
+    emptyDescription = '',
+    showCreators = true
   }: Props = $props();
 
   let results = $state<Smol[]>([]);
@@ -304,6 +306,7 @@
           onDragStart={(e) => handleDragStart(e, smol)}
           onDragEnd={handleDragEnd}
           isDragging={draggingId === smol.Id}
+          showCreator={showCreators}
         />
       </div>
     {/each}

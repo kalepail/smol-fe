@@ -26,4 +26,5 @@
   endpoint={artistEndpoint}
   emptyTitle={`No public smols from ${displayName} yet`}
   emptyDescription="Check back later."
+  showCreators={false}
 />
