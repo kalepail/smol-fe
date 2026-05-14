@@ -4,7 +4,6 @@
   import MiniAudioPlayer from '../audio/MiniAudioPlayer.svelte';
   import { audioState, selectSong, togglePlayPause } from '../../stores/audio.svelte';
   import { mixtapeModeState, mixtapeTrackIds } from '../../stores/mixtape.svelte';
-  import { shortenAddress } from '../../utils/address';
 
   interface Props {
     smol: Smol;
@@ -14,7 +13,6 @@
     onDragStart?: (event: DragEvent) => void;
     onDragEnd?: () => void;
     isDragging?: boolean;
-    showCreator?: boolean;
   }
 
   let {
@@ -24,8 +22,7 @@
     onAddToMixtape,
     onDragStart,
     onDragEnd,
-    isDragging = false,
-    showCreator = true
+    isDragging = false
   }: Props = $props();
 
   function toggleSongSelection() {
@@ -37,12 +34,6 @@
   }
 
   const isInMixtape = $derived(mixtapeTrackIds.current.has(smol.Id));
-  const creatorName = $derived(
-    smol.Creator ?? smol.Username ?? smol.artist ?? smol.author ?? shortenAddress(smol.Address)
-  );
-  const artistHref = $derived(
-    smol.Address ? `/artists/${encodeURIComponent(smol.Address)}` : null
-  );
 </script>
 
 <div
@@ -104,16 +95,6 @@
       <h1 class="break-words text-sm leading-4 text-white">
         {smol.Title}
       </h1>
-      {#if showCreator && artistHref}
-        <a
-          class="mt-1 block max-w-full truncate text-[11px] leading-3 text-lime-300 hover:underline"
-          href={artistHref}
-          aria-label={`View artist ${creatorName}`}
-          onclick={(event) => event.stopPropagation()}
-        >
-          by {creatorName}
-        </a>
-      {/if}
     </div>
     <img
       class="absolute inset-0 z-0 opacity-80 scale-y-[-1] w-full h-full blur-lg pointer-events-none"
