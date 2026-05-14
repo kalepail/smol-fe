@@ -6,19 +6,25 @@
   import { mixtapeDraftState, mixtapeModeState, addTrack } from '../../stores/mixtape.svelte';
   import { userState } from '../../stores/user.svelte';
   import { fetchLikedSmols } from '../../services/api/smols';
+  import { fetchWithTimeout, throwIfNotOk } from '../../services/api/fetch';
   import { useVisibilityTracking } from '../../hooks/useVisibilityTracking';
   import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
   import { useGridMediaSession } from '../../hooks/useGridMediaSession';
   import { logger } from '../../utils/logger';
+  import type { ArtistProfile, SmolListResponse } from '../../types/api';
 
   interface Props {
     playlist?: string | null;
     endpoint?: string;
+    emptyTitle?: string;
+    emptyDescription?: string;
   }
 
   let {
     playlist = null,
-    endpoint = ''
+    endpoint = '',
+    emptyTitle = 'No smols yet',
+    emptyDescription = ''
   }: Props = $props();
 
   let results = $state<Smol[]>([]);
@@ -30,11 +36,54 @@
   let draggingId = $state<string | null>(null);
   let visibleCards = $state<Record<string, boolean>>({});
   let loadingMore = $state(false);
+  let paginationError = $state<string | null>(null);
   let scrollTrigger = $state<HTMLDivElement | null>(null);
 
   const visibilityHook = useVisibilityTracking();
   const scrollHook = useInfiniteScroll();
   const mediaHook = useGridMediaSession();
+
+  function buildSmolListUrl(cursorValue?: string | null) {
+    const cleanEndpoint = endpoint.replace(/^\/+/, '');
+    const baseUrl = cleanEndpoint
+      ? `${import.meta.env.PUBLIC_API_URL}/${cleanEndpoint}`
+      : import.meta.env.PUBLIC_API_URL;
+    const url = new URL(baseUrl, window.location.origin);
+
+    url.searchParams.set('limit', '100');
+    if (cursorValue) {
+      url.searchParams.set('cursor', cursorValue);
+    }
+
+    return url;
+  }
+
+  function applyUsernames(smols: Smol[], users?: ArtistProfile[]) {
+    if (!users?.length) return smols;
+
+    const usersByAddress = new Map(users.map((user) => [user.Address, user]));
+    return smols.map((smol) => {
+      if (!smol.Address || smol.Username) return smol;
+      const user = usersByAddress.get(smol.Address);
+      return user ? { ...smol, Username: user.Username } : smol;
+    });
+  }
+
+  function readSmolList(data: SmolListResponse | Smol[]) {
+    if (Array.isArray(data)) {
+      return {
+        smols: data,
+        nextCursor: null,
+        hasMore: false
+      };
+    }
+
+    return {
+      smols: applyUsernames(data.smols || [], data.users),
+      nextCursor: data.pagination?.nextCursor || null,
+      hasMore: data.pagination?.hasMore || false
+    };
+  }
 
   const observeVisibility = visibilityHook.createVisibilityObserver(
     (id) => {
@@ -48,25 +97,17 @@
   async function fetchInitialData() {
     loading = true;
     error = null;
+    paginationError = null;
 
     try {
-      // Fetch smols
-      const baseUrl = endpoint
-        ? `${import.meta.env.PUBLIC_API_URL}/${endpoint}`
-        : import.meta.env.PUBLIC_API_URL;
-      const url = new URL(baseUrl, window.location.origin);
-      url.searchParams.set('limit', '100');
+      const url = buildSmolListUrl();
+      const response = await fetchWithTimeout(url, { credentials: 'include' });
+      await throwIfNotOk(response, url.toString());
 
-      const response = await fetch(url, { credentials: 'include' });
-
-      if (!response.ok) {
-        throw new Error('Failed to load smols');
-      }
-
-      const data = await response.json();
-      results = data.smols || [];
-      cursor = data.pagination?.nextCursor || null;
-      hasMore = data.pagination?.hasMore || false;
+      const data = readSmolList(await response.json());
+      results = data.smols;
+      cursor = data.nextCursor;
+      hasMore = data.hasMore;
 
       // Fetch likes if user is authenticated (non-critical — fall back to empty)
       if (userState.contractId) {
@@ -186,38 +227,38 @@
   }
 
   async function loadMore() {
-    if (loadingMore || !hasMore || !cursor) return;
+    if (loadingMore || !hasMore) return;
+
+    if (!cursor) {
+      paginationError = 'More smols are unavailable right now.';
+      hasMore = false;
+      return;
+    }
 
     loadingMore = true;
+    paginationError = null;
 
     try {
-      const baseUrl = endpoint
-        ? `${import.meta.env.PUBLIC_API_URL}/${endpoint}`
-        : import.meta.env.PUBLIC_API_URL;
-      const url = new URL(baseUrl, window.location.origin);
-      url.searchParams.set('limit', '100');
-      url.searchParams.set('cursor', cursor);
-
-      const response = await fetch(url, {
+      const url = buildSmolListUrl(cursor);
+      const response = await fetchWithTimeout(url, {
         credentials: 'include'
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        const newSmols = data.smols || [];
+      await throwIfNotOk(response, url.toString());
 
-        // Map likes to new smols
-        const smolsWithLikes = newSmols.map((smol: Smol) => ({
-          ...smol,
-          Liked: likes.some((id) => id === smol.Id)
-        }));
+      const data = readSmolList(await response.json());
+      const smolsWithLikes = data.smols.map((smol: Smol) => ({
+        ...smol,
+        Liked: likes.some((id) => id === smol.Id)
+      }));
 
-        results = [...results, ...smolsWithLikes];
-        cursor = data.pagination?.nextCursor || null;
-        hasMore = data.pagination?.hasMore || false;
-      }
-    } catch (error) {
-      logger.error('smol', 'Failed to load more smols:', error);
+      results = [...results, ...smolsWithLikes];
+      cursor = data.nextCursor;
+      hasMore = data.hasMore;
+    } catch (err) {
+      paginationError = err instanceof Error ? err.message : 'Failed to load more smols';
+      hasMore = false;
+      logger.error('smol', 'Failed to load more smols:', err);
     } finally {
       loadingMore = false;
     }
@@ -229,8 +270,25 @@
     <div class="text-lime-500">Loading...</div>
   </div>
 {:else if error}
-  <div class="flex justify-center items-center py-20">
-    <div class="text-red-500">{error}</div>
+  <div class="flex justify-center items-center px-2 py-20 text-center">
+    <div>
+      <div class="text-red-500">{error}</div>
+      <button
+        class="mt-4 rounded border border-lime-400 px-3 py-1 text-sm text-lime-300 hover:bg-lime-400/10"
+        onclick={fetchInitialData}
+      >
+        Retry
+      </button>
+    </div>
+  </div>
+{:else if results.length === 0}
+  <div class="flex justify-center px-2 py-20 text-center">
+    <div>
+      <h2 class="text-lg font-semibold text-white">{emptyTitle}</h2>
+      {#if emptyDescription}
+        <p class="mt-2 text-sm text-slate-400">{emptyDescription}</p>
+      {/if}
+    </div>
   </div>
 {:else}
   <div
@@ -252,7 +310,13 @@
   </div>
 {/if}
 
-{#if hasMore || loadingMore}
+{#if paginationError}
+  <div class="flex justify-center px-2 pb-20 text-center text-sm text-red-400">
+    {paginationError}
+  </div>
+{/if}
+
+{#if (hasMore && cursor) || loadingMore}
   <div bind:this={scrollTrigger} class="flex justify-center mb-20 py-8">
     {#if loadingMore}
       <div class="text-lime-500">Loading...</div>

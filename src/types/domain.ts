@@ -73,6 +73,9 @@ export interface SmolDetailResponse {
     Title: string;
     Address?: string;
     Creator?: string;
+    Username?: string;
+    artist?: string;
+    author?: string;
     Song_1?: string;
     Public?: number;
     Mint_Token?: string;

@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { logger } from '../utils/logger';
+    import { shortenAddress } from '../utils/address';
 
     // Interface for individual song data expected via props
     interface SmolData {
@@ -219,7 +220,14 @@
                                 {#each leaderboardData as entry, index (entry.address)}
                                     <tr class="hover:bg-slate-750 transition-colors duration-150">
                                         <td class="py-3 px-4 text-slate-300 whitespace-nowrap" style="width: 100px;">{index + 1}</td>
-                                        <td class="py-3 px-4 font-medium whitespace-nowrap" style="width: 140px;">{entry.username}</td>
+                                        <td class="py-3 px-4 font-medium whitespace-nowrap" style="width: 140px;">
+                                            <a
+                                                class="text-lime-300 hover:underline"
+                                                href={`/artists/${encodeURIComponent(entry.address)}`}
+                                            >
+                                                {entry.username || shortenAddress(entry.address)}
+                                            </a>
+                                        </td>
                                         <td class="py-3 px-4 text-right text-slate-300 whitespace-nowrap" style="width: 180px;">{entry.songCount.toLocaleString()}</td>
                                         <td class="py-3 px-4 text-right text-slate-300 whitespace-nowrap" style="width: 160px;">{entry.totalViews.toLocaleString()}</td>
                                         <td class="py-3 px-4 text-right text-slate-300 whitespace-nowrap" style="width: 160px;">{entry.totalPlays.toLocaleString()}</td>
