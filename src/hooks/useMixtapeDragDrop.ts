@@ -24,6 +24,7 @@ export function useMixtapeDragDrop() {
           title: '',
           coverUrl: null,
           creator: null,
+          public: 1,
         },
       ]);
       return true;
@@ -51,6 +52,7 @@ export function useMixtapeDragDrop() {
       title: '',
       coverUrl: null,
       creator: null,
+      public: 1,
     });
 
     onTracksUpdate(tracksWithShadow);
@@ -90,6 +92,10 @@ export function useMixtapeDragDrop() {
         track?: MixtapeTrack;
       };
       if (parsed?.type !== 'smol' || !parsed.track) return;
+      if (parsed.track.public === 0) {
+        onTracksUpdate(snapshotTracks);
+        return;
+      }
 
       const alreadyAdded = snapshotTracks.some(
         (track) => track.id === parsed.track?.id
@@ -104,6 +110,7 @@ export function useMixtapeDragDrop() {
         title: parsed.track.title ?? 'Untitled Smol',
         coverUrl: parsed.track.coverUrl ?? null,
         creator: parsed.track.creator ?? null,
+        public: parsed.track.public,
       };
 
       if (snapshotTracks.length === 0 || !tracksListEl) {

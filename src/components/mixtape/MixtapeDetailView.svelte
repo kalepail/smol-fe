@@ -152,6 +152,7 @@
           Song_1: track.Song_1,
           Mint_Token: track.Mint_Token,
           Mint_Amm: track.Mint_Amm,
+          Public: track.Public,
           Liked: isLiked,
           minting: false,
           balance: undefined,

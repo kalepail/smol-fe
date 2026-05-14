@@ -28,6 +28,7 @@ export function normalizeTrack(track: MixtapeTrack): MixtapeTrack {
     title: track.title ?? 'Untitled Smol',
     coverUrl: track.coverUrl ?? null,
     creator: track.creator ?? null,
+    public: track.public,
   };
 }
 
@@ -61,6 +62,10 @@ export function moveTrackInArray(tracks: MixtapeTrack[], fromIndex: number, toIn
 }
 
 export function insertTrackInArray(tracks: MixtapeTrack[], track: MixtapeTrack, index: number): MixtapeTrack[] | null {
+  if (track.public === 0) {
+    return null;
+  }
+
   if (tracks.some((existing) => existing.id === track.id)) {
     return null;
   }
@@ -74,6 +79,10 @@ export function insertTrackInArray(tracks: MixtapeTrack[], track: MixtapeTrack, 
 }
 
 export function addTrackToArray(tracks: MixtapeTrack[], track: MixtapeTrack): MixtapeTrack[] | null {
+  if (track.public === 0) {
+    return null;
+  }
+
   if (tracks.some((existing) => existing.id === track.id)) {
     return null;
   }

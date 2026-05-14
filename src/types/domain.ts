@@ -12,6 +12,7 @@ export interface Smol {
   Song_1?: string;
   Liked?: boolean;
   Address?: string;
+  Public?: number;
   Mint_Token?: string;
   Mint_Amm?: string;
   lyrics?: {
@@ -29,6 +30,7 @@ export interface MixtapeTrack {
   title: string;
   coverUrl: string | null;
   creator: string | null;
+  public?: number;
 }
 
 export interface MixtapeDraft {

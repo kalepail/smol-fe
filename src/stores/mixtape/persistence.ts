@@ -23,6 +23,7 @@ export function loadDraftFromStorage(): MixtapeDraft | null {
           title: typeof track.title === 'string' ? track.title : 'Untitled Smol',
           coverUrl: typeof track.coverUrl === 'string' ? track.coverUrl : null,
           creator: typeof track.creator === 'string' ? track.creator : null,
+          public: track.public === 0 || track.public === 1 ? track.public : undefined,
         }))
     : [];
 

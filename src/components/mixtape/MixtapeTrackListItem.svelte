@@ -30,6 +30,7 @@
 
     const positionLabel = index + 1;
     const isPlaceholder = track.id === SHADOW_PLACEHOLDER_ITEM_ID;
+    const isPrivate = track.public === 0;
 </script>
 
 <li
@@ -59,6 +60,11 @@
         <span class="font-semibold truncate">{track.title ?? "Loading..."}</span>
         {#if track.creator}
             <span class="text-xs text-slate-400 truncate">{track.creator}</span>
+        {/if}
+        {#if isPrivate}
+            <span class="mt-1 w-fit rounded bg-slate-700 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-slate-300">
+                Private
+            </span>
         {/if}
     </div>
 

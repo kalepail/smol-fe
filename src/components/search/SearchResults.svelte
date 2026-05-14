@@ -23,6 +23,7 @@
       title: smol.Title ?? 'Untitled Smol',
       creator: smol.Creator ?? smol.Username ?? smol.artist ?? smol.author ?? null,
       coverUrl: `${import.meta.env.PUBLIC_API_URL}/image/${smol.Id}.png`,
+      public: smol.Public,
     };
   }
 

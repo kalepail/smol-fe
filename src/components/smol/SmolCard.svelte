@@ -39,11 +39,15 @@
       title: smol.Title ?? 'Untitled Smol',
       creator: smol.Creator ?? smol.Username ?? smol.artist ?? smol.author ?? null,
       coverUrl: `${import.meta.env.PUBLIC_API_URL}/image/${smol.Id}.png`,
+      public: smol.Public,
     };
   }
 
   function handleDragStart(event: DragEvent) {
-    if (!mixtapeModeState.active) return;
+    if (!canAddToMixtape) {
+      event.preventDefault();
+      return;
+    }
 
     const payload = {
       type: 'smol' as const,
@@ -60,6 +64,8 @@
   }
 
   const isInMixtape = $derived(mixtapeTrackIds.current.has(smol.Id));
+  const isPublicSmol = $derived(smol.Public !== 0);
+  const canAddToMixtape = $derived(mixtapeModeState.active && isVisible && isPublicSmol);
 </script>
 
 <div
@@ -69,7 +75,7 @@
 >
   <div
     class="group relative"
-    draggable={mixtapeModeState.active && isVisible}
+    draggable={canAddToMixtape}
     ondragstart={handleDragStart}
     ondragend={onDragEnd}
   >
@@ -85,6 +91,10 @@
         <span
           class="absolute left-1.5 top-1.5 rounded-full bg-lime-400 px-2 py-1 text-xs font-semibold text-slate-950"
         >Added</span>
+      {:else if !isPublicSmol}
+        <span
+          class="absolute left-1.5 top-1.5 rounded-full bg-slate-950/70 px-2 py-1 text-xs text-slate-300 ring-1 ring-slate-500/60 backdrop-blur"
+        >Private</span>
       {:else}
         <button
           class="absolute left-1.5 top-1.5 rounded-full bg-slate-950/70 px-2 py-1 text-xs text-lime-300 ring-1 ring-lime-400/60 backdrop-blur hover:bg-slate-950/90"

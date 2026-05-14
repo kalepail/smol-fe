@@ -191,6 +191,7 @@
       title: smol.Title ?? 'Untitled Smol',
       creator: smol.Creator ?? smol.Username ?? smol.artist ?? smol.author ?? null,
       coverUrl: `${import.meta.env.PUBLIC_API_URL}/image/${smol.Id}.png`,
+      public: smol.Public,
     };
   }
 
@@ -199,7 +200,7 @@
   }
 
   function handleDragStart(event: DragEvent, smol: Smol) {
-    if (!mixtapeModeState.active) return;
+    if (!mixtapeModeState.active || smol.Public === 0) return;
 
     const payload = {
       type: 'smol' as const,
