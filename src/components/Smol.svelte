@@ -17,6 +17,8 @@
     id?: string | null;
   }
 
+  type WorkflowStatus = NonNullable<SmolDetailResponse['wf']>['status'];
+
   let { id = $bindable() }: Props = $props();
 
   // State
@@ -96,6 +98,36 @@
     return status === 404 && pendingCreatedId === smolId;
   }
 
+  function isActiveWorkflow(status?: WorkflowStatus) {
+    switch (status) {
+      case 'queued':
+      case 'running':
+      case 'paused':
+      case 'waiting':
+      case 'waitingForPause':
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  function hydrateGenerationState(response: SmolDetailResponse | null | undefined) {
+    const status = response?.wf?.status;
+
+    if (isActiveWorkflow(status)) {
+      failed = false;
+      if (!interval) {
+        startPolling();
+      }
+      return;
+    }
+
+    if (generationHook.shouldStopPolling(status)) {
+      stopPolling();
+      failed = generationHook.isFailed(status);
+    }
+  }
+
   async function fetchSmolData(smolId: string) {
     loading = true;
     error = null;
@@ -117,6 +149,7 @@
       kv_do = data?.kv_do;
       liked = data?.liked;
       pendingCreatedId = null;
+      hydrateGenerationState(data);
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load';
       logger.error('smol', 'Failed to fetch smol data:', err);
@@ -134,21 +167,6 @@
   });
 
   onMount(async () => {
-    switch (data?.wf?.status) {
-      case 'queued':
-      case 'running':
-      case 'paused':
-      case 'waiting':
-      case 'waitingForPause':
-        startPolling();
-        break;
-      case 'errored':
-      case 'terminated':
-      case 'unknown':
-        failed = true;
-        break;
-    }
-
     const urlParams = new URLSearchParams(window.location.search);
     playlist = urlParams.get('playlist') || localStorage.getItem('smol:playlist');
 
@@ -173,6 +191,7 @@
   }
 
   function startPolling() {
+    if (interval) return;
     pollGeneration++;
     pollDelay = 3000;
     scheduleNextPoll();
@@ -377,19 +396,12 @@
 
     d1 = res?.d1;
     kv_do = res?.kv_do;
+    liked = res?.liked;
+    data = res;
     best_song = d1?.Song_1;
     pendingCreatedId = null;
 
-    if (generationHook.shouldStopPolling(res?.wf?.status)) {
-      stopPolling();
-      if (generationHook.isFailed(res.wf.status)) {
-        failed = true;
-      }
-    }
-
-    if (interval && d1) {
-      stopPolling();
-    }
+    hydrateGenerationState(res);
 
     return res;
   }
