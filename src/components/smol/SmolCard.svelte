@@ -33,6 +33,32 @@
     }
   }
 
+  function buildTrackPayload(): MixtapeTrack {
+    return {
+      id: smol.Id,
+      title: smol.Title ?? 'Untitled Smol',
+      creator: smol.Creator ?? smol.Username ?? smol.artist ?? smol.author ?? null,
+      coverUrl: `${import.meta.env.PUBLIC_API_URL}/image/${smol.Id}.png`,
+    };
+  }
+
+  function handleDragStart(event: DragEvent) {
+    if (!mixtapeModeState.active) return;
+
+    const payload = {
+      type: 'smol' as const,
+      track: buildTrackPayload(),
+    };
+
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'copy';
+      event.dataTransfer.setData('application/json', JSON.stringify(payload));
+      event.dataTransfer.setData('text/plain', payload.track.title);
+    }
+
+    onDragStart?.(event);
+  }
+
   const isInMixtape = $derived(mixtapeTrackIds.current.has(smol.Id));
 </script>
 
@@ -44,7 +70,7 @@
   <div
     class="group relative"
     draggable={mixtapeModeState.active && isVisible}
-    ondragstart={onDragStart}
+    ondragstart={handleDragStart}
     ondragend={onDragEnd}
   >
     <img
