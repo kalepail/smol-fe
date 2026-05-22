@@ -3,7 +3,6 @@ import { getDomain } from 'tldts';
 import type { Smol } from '../types/domain';
 import { rpc } from '../utils/base';
 import { logger } from '../utils/logger';
-import { account, send } from '../utils/passkey-kit';
 
 interface PurchaseBatchParams {
   tokensOut: string[];
@@ -35,6 +34,7 @@ export function useMixtapePurchase() {
     });
 
     const { sequence } = await rpc.getLatestLedger();
+    const { account, send } = await import('../utils/passkey-kit');
     await account.sign(tx, {
       rpId: getDomain(window.location.hostname) ?? undefined,
       keyId: userKeyId,

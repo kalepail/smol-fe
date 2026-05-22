@@ -1,4 +1,3 @@
-import { kale } from '../utils/passkey-kit';
 import { logger } from '../utils/logger';
 
 /**
@@ -19,6 +18,7 @@ export const balanceState = $state<{
 export async function updateContractBalance(address: string): Promise<void> {
   balanceState.loading = true;
   try {
+    const { kale } = await import('../utils/passkey-kit');
     const { result } = await kale.balance({ id: address });
     balanceState.balance = result;
   } catch (error) {

@@ -11,7 +11,7 @@
     kv_do?: SmolDetailResponse['kv_do'];
     liked?: boolean;
     bestSong?: string;
-    interval: NodeJS.Timeout | null;
+    showGenerationLoader: boolean;
     minting: boolean;
     minted: boolean;
     tradeReady: boolean;
@@ -33,7 +33,7 @@
     kv_do,
     liked,
     bestSong = $bindable(),
-    interval,
+    showGenerationLoader,
     minting,
     minted,
     tradeReady,
@@ -53,7 +53,7 @@
     d1?.Creator ?? d1?.Username ?? d1?.artist ?? d1?.author ?? shortenAddress(d1?.Address)
   );
   const hasStreamingSongs = $derived(
-    Boolean(interval && kv_do?.songs?.some((song) => song.audio && song.status < 4))
+    Boolean(kv_do?.songs?.some((song) => song.audio && song.status < 4))
   );
 </script>
 
@@ -158,7 +158,7 @@
             {/if}
           {/if}
 
-          {#if interval}
+          {#if showGenerationLoader}
             <Loader classNames="size-7 ml-2" />
           {/if}
         </div>
@@ -244,7 +244,7 @@
               {/if}
             </div>
           {/each}
-        {:else if interval}
+        {:else if showGenerationLoader}
           <Loader />
         {/if}
       </li>

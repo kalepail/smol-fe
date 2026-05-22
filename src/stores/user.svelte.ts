@@ -2,7 +2,6 @@
  * User authentication state using Svelte 5 runes
  */
 
-import { account } from '../utils/passkey-kit';
 import { getDomain } from 'tldts';
 import { logger } from '../utils/logger';
 
@@ -60,6 +59,7 @@ export async function ensureWalletConnected(): Promise<void> {
   // Only connect if we have auth credentials and haven't connected yet
   if (userState.contractId && userState.keyId && !userState.walletConnected) {
     try {
+      const { account } = await import('../utils/passkey-kit');
       const rpId = getDomain(window.location.hostname) ?? undefined;
       await account.connectWallet({
         rpId,

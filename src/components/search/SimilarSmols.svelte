@@ -55,9 +55,10 @@
         userState.contractId ? fetchLikedSmols().catch(() => [] as string[]) : Promise.resolve([]),
       ]);
 
+      const likedIdSet = new Set(likedIds);
       results = (response.results ?? []).map((smol) => ({
         ...smol,
-        Liked: likedIds.some((likedId) => likedId === smol.Id),
+        Liked: likedIdSet.has(smol.Id),
       }));
       loaded = true;
     } catch (err) {

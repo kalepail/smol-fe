@@ -127,24 +127,25 @@
     error = null;
 
     try {
-      // Fetch mixtape
-      const mixtapeData = await getMixtapeDetail(mixtapeId);
+      const detailPromise = getMixtapeDetail(mixtapeId);
+      const likedTrackIdsPromise = userState.contractId
+        ? fetchLikedSmols().catch(() => [] as string[])
+        : Promise.resolve([]);
+      const [mixtapeData, likedTrackIds] = await Promise.all([
+        detailPromise,
+        likedTrackIdsPromise,
+      ]);
 
       if (!mixtapeData) {
         throw new Error('Mixtape not found');
       }
 
       mixtape = mixtapeData;
-
-      // Fetch liked tracks if authenticated (non-critical — fall back to empty)
-      let likedTrackIds: string[] = [];
-      if (userState.contractId) {
-        likedTrackIds = await fetchLikedSmols().catch(() => [] as string[]);
-      }
+      const likedTrackIdSet = new Set(likedTrackIds);
 
       // Initialize tracks
       mixtapeTracks = mixtapeData.tracks.map((track) => {
-        const isLiked = likedTrackIds.includes(track.Id);
+        const isLiked = likedTrackIdSet.has(track.Id);
         return {
           Id: track.Id,
           Title: track.Title,

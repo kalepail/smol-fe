@@ -101,7 +101,12 @@
 
     try {
       const url = buildSmolListUrl();
-      const response = await fetchWithTimeout(url, { credentials: 'include' });
+      const listPromise = fetchWithTimeout(url, { credentials: 'include' });
+      const likedPromise = userState.contractId
+        ? fetchLikedSmols().catch(() => [] as string[])
+        : Promise.resolve([]);
+
+      const [response, likedIds] = await Promise.all([listPromise, likedPromise]);
       await throwIfNotOk(response, url.toString());
 
       const data = readSmolList(await response.json());
@@ -109,15 +114,12 @@
       cursor = data.nextCursor;
       hasMore = data.hasMore;
 
-      // Fetch likes if user is authenticated (non-critical — fall back to empty)
-      if (userState.contractId) {
-        const likedIds = await fetchLikedSmols().catch(() => [] as string[]);
-        likes = likedIds;
-
-        // Apply liked state to results
+      likes = likedIds;
+      if (likedIds.length > 0) {
+        const likedIdSet = new Set(likedIds);
         results = results.map((smol) => ({
           ...smol,
-          Liked: likedIds.some((id) => id === smol.Id),
+          Liked: likedIdSet.has(smol.Id),
         }));
       }
     } catch (err) {
@@ -248,9 +250,10 @@
       await throwIfNotOk(response, url.toString());
 
       const data = readSmolList(await response.json());
+      const likedIdSet = new Set(likes);
       const smolsWithLikes = data.smols.map((smol: Smol) => ({
         ...smol,
-        Liked: likes.some((id) => id === smol.Id)
+        Liked: likedIdSet.has(smol.Id),
       }));
 
       results = [...results, ...smolsWithLikes];

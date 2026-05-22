@@ -1,5 +1,4 @@
 import { getDomain } from 'tldts';
-import { kale, account, send } from '../utils/passkey-kit';
 import { rpc } from '../utils/base';
 import { updateContractBalance } from '../stores/balance.svelte';
 
@@ -42,6 +41,7 @@ export function useKaleTransfer() {
   }
 
   async function executeTransfer(params: TransferParams): Promise<void> {
+    const { kale, account, send } = await import('../utils/passkey-kit');
     let tx = await kale.transfer({
       from: params.from,
       to: params.to,

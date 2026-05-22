@@ -5,7 +5,6 @@ import type { Smol } from '../types/domain';
 import type { MixtapeSmolData } from '../services/api/mixtapes';
 import { rpc } from '../utils/base';
 import { logger } from '../utils/logger';
-import { account } from '../utils/passkey-kit';
 import { MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from '../utils/mint';
 
 interface MintingState {
@@ -156,6 +155,7 @@ export function useMixtapeMinting() {
     });
 
     const { sequence } = await rpc.getLatestLedger();
+    const { account } = await import('../utils/passkey-kit');
     at = await account.sign(at, {
       rpId: getDomain(window.location.hostname) ?? undefined,
       keyId: userKeyId,

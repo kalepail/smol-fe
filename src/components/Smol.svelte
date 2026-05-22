@@ -62,6 +62,13 @@
       ? `${import.meta.env.PUBLIC_API_URL}/image/${tradeSongId}.png`
       : null
   );
+  const hasSongSnapshots = $derived(Boolean(kv_do?.songs?.length));
+  const hasIncompleteSongs = $derived(
+    Boolean(kv_do?.songs?.some((song) => !song.audio || song.status < 4))
+  );
+  const showGenerationLoader = $derived(
+    Boolean(interval && (!hasSongSnapshots || hasIncompleteSongs))
+  );
 
   // Effects
   $effect(() => {
@@ -472,7 +479,7 @@
     {kv_do}
     {liked}
     bind:bestSong={best_song}
-    {interval}
+    {showGenerationLoader}
     {minting}
     {minted}
     {tradeReady}

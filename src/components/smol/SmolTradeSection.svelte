@@ -1,6 +1,4 @@
 <script lang="ts">
-  import MintTradeModal from '../MintTradeModal.svelte';
-  import { sac } from '../../utils/passkey-kit';
   import { getTokenBalance } from '../../utils/balance';
   import { logger } from '../../utils/logger';
 
@@ -33,6 +31,7 @@
   // Track last fetched values to prevent duplicate balance fetches
   let lastFetchedMintToken = $state<string | null>(null);
   let lastFetchedUser = $state<string | null>(null);
+  let TradeModal = $state<typeof import('../MintTradeModal.svelte').default | null>(null);
 
   // Fetch mint balance when token/user change
   $effect(() => {
@@ -44,9 +43,10 @@
         lastFetchedMintToken = token;
         lastFetchedUser = user;
 
-        const client = sac.getSACClient(token);
-        getTokenBalance(client, user)
+        import('../../utils/passkey-kit')
+          .then(({ sac }) => getTokenBalance(sac.getSACClient(token), user))
           .then((balance) => {
+            if (token !== lastFetchedMintToken || user !== lastFetchedUser) return;
             mintBalance = balance;
           })
           .catch((error) => {
@@ -61,6 +61,18 @@
     }
   });
 
+  $effect(() => {
+    if (!show || TradeModal) return;
+
+    import('../MintTradeModal.svelte')
+      .then((module) => {
+        TradeModal = module.default;
+      })
+      .catch((error) => {
+        logger.error('trade', 'Failed to load trade modal:', error);
+      });
+  });
+
   function handleClose() {
     show = false;
     onClose();
@@ -72,8 +84,8 @@
   }
 </script>
 
-{#if show}
-  <MintTradeModal
+{#if show && TradeModal}
+  <TradeModal
     {ammId}
     {mintTokenId}
     {songId}

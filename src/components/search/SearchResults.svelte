@@ -72,9 +72,10 @@
       ]);
 
       likes = likedIds;
+      const likedIdSet = new Set(likedIds);
       results = (searchResponse.results ?? []).map((smol) => ({
         ...smol,
-        Liked: likedIds.some((id) => id === smol.Id),
+        Liked: likedIdSet.has(smol.Id),
       }));
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load search results';

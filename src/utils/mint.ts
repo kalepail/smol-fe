@@ -1,6 +1,5 @@
 import { Asset } from "@stellar/stellar-sdk/minimal";
 import { Client as SmolClient } from "smol-sdk";
-import { account } from "./passkey-kit";
 import { rpc } from "./base";
 import { getDomain } from "tldts";
 
@@ -68,6 +67,7 @@ export async function createMintTransaction(options: MintOptions) {
     });
 
     const { sequence } = await rpc.getLatestLedger();
+    const { account } = await import("./passkey-kit");
 
     at = await account.sign(at, {
         rpId: getDomain(window.location.hostname) ?? undefined,

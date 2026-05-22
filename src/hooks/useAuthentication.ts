@@ -1,6 +1,5 @@
 import Cookies from 'js-cookie';
 import { getDomain } from 'tldts';
-import { account, send } from '../utils/passkey-kit';
 import { setUserAuth, clearUserAuth, userState } from '../stores/user.svelte';
 
 interface ConnectResult {
@@ -15,6 +14,7 @@ interface CreateResult extends ConnectResult {
 
 export function useAuthentication() {
   async function login() {
+    const { account } = await import('../utils/passkey-kit');
     const rpId = getDomain(window.location.hostname);
     const {
       rawResponse,
@@ -54,6 +54,7 @@ export function useAuthentication() {
   }
 
   async function signUp(username: string) {
+    const { account, send } = await import('../utils/passkey-kit');
     const rpId = getDomain(window.location.hostname);
     const {
       rawResponse,
