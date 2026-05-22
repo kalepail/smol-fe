@@ -1,6 +1,9 @@
 <script lang="ts">
+  import type { SmolDetailResponse } from '../../types/domain';
+
   interface Props {
     isPolling: boolean;
+    failure?: NonNullable<SmolDetailResponse['kv_do']>['failure'];
     playlist: string | null;
     onRetry: () => void;
     onRemovePlaylist: () => void;
@@ -8,6 +11,7 @@
 
   let {
     isPolling,
+    failure,
     playlist,
     onRetry,
     onRemovePlaylist,
@@ -17,6 +21,13 @@
 <div class="px-2 py-10">
   <div class="flex flex-col items-center max-w-[1024px] mx-auto">
     <ul class="max-w-[512px] w-full [&>li]:mb-5">
+      {#if failure}
+        <li class="rounded border border-amber-400 bg-amber-400/10 p-3 text-amber-100">
+          <h1 class="font-bold text-amber-300">{failure.title}</h1>
+          <p class="mt-1 text-sm">{failure.message}</p>
+        </li>
+      {/if}
+
       <li>
         <div class="flex items-center gap-2">
           <button

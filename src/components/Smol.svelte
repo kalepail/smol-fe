@@ -459,6 +459,7 @@
   {#if failed}
     <SmolRetryPanel
       isPolling={!!id && !!interval}
+      failure={kv_do?.failure}
       {playlist}
       onRetry={retryGen}
       onRemovePlaylist={removePlaylist}

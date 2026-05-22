@@ -101,6 +101,12 @@ export interface SmolDetailResponse {
     };
     songs?: SongData[];
     image?: boolean;
+    failure?: {
+      code: 'content_policy' | 'generation_timeout' | 'provider_unavailable' | 'generation_failed' | 'terminated';
+      title: string;
+      message: string;
+      retryable: boolean;
+    };
   };
   wf?: {
     status: 'queued' | 'running' | 'paused' | 'errored' | 'terminated' | 'complete' | 'waiting' | 'waitingForPause' | 'unknown';
