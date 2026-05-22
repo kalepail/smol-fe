@@ -121,8 +121,11 @@
 
   function hydrateGenerationState(response: SmolDetailResponse | null | undefined) {
     const status = response?.wf?.status;
+    const songs = response?.kv_do?.songs ?? [];
+    const songsArePlaybackReady =
+      songs.length > 0 && songs.every((song) => song.audio && song.status >= 4);
 
-    if (isActiveWorkflow(status)) {
+    if (isActiveWorkflow(status) && !songsArePlaybackReady) {
       failed = false;
       if (!interval) {
         startPolling();
@@ -130,7 +133,7 @@
       return;
     }
 
-    if (generationHook.shouldStopPolling(status)) {
+    if (songsArePlaybackReady || generationHook.shouldStopPolling(status)) {
       stopPolling();
       failed = generationHook.isFailed(status);
     }
