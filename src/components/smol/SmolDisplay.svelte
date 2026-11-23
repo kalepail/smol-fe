@@ -153,10 +153,20 @@
     return playable[0];
   });
 
-  const isPrimaryPlaying = $derived(
+  // Track whichever take of THIS song is currently active in the player so Take 2 stays pauseable from hero & lyrics drawer (S2).
+  const activeSongTrack = $derived.by(() => {
+    const currentKey = player.track?.key;
+    if (currentKey) {
+      const matched = takes.find((t) => t !== null && t.key === currentKey);
+      if (matched) return matched;
+    }
+    return primaryTrack;
+  });
+
+  const isSongPlaying = $derived(
     Boolean(
-      primaryTrack &&
-        player.track?.key === primaryTrack.key &&
+      activeSongTrack &&
+        player.track?.key === activeSongTrack.key &&
         (player.status === 'playing' || player.status === 'loading')
     )
   );
@@ -165,7 +175,6 @@
   const rawLyrics = $derived(kv_do?.lyrics?.lyrics?.trim() ?? '');
   const hasLyrics = $derived(!isInstrumental && rawLyrics.length > 0);
 
-  // Deduplicate style tags (case-insensitive, preserving original casing) so duplicate provider tags never throw each_key_duplicate.
   const styleTags = $derived.by(() => {
     const raw = kv_do?.lyrics?.style ?? [];
     const seen = new Set<string>();
@@ -189,11 +198,15 @@
   const canAddToMixtape = $derived(
     Boolean(userState.contractId && isPublished && !isPrivate && !isRestricted)
   );
-  const canCollect = $derived(
-    !failed && !showGenerationLoader && !isRestricted && (isPublished || minted)
+  // D5: Private unminted songs require publishing first (owners get a "Publish to mint" card; visitors don't see Mint on private songs).
+  const showCollectibleSection = $derived(
+    !failed &&
+      !showGenerationLoader &&
+      !isRestricted &&
+      (minted || (isPublished && (!isPrivate || isOwner)))
   );
   const showActionRow = $derived(
-    Boolean(primaryTrack || hasLyrics || isPublished)
+    Boolean(activeSongTrack || hasLyrics || isPublished)
   );
   const playlistTag = $derived(d1?.Playlist ?? kv_do?.payload?.playlist ?? null);
 
@@ -217,8 +230,8 @@
   }
 
   function handlePrimaryPlay() {
-    if (!primaryTrack) return;
-    playTake(primaryTrack);
+    if (!activeSongTrack) return;
+    playTake(activeSongTrack);
   }
 
   function handleLikeChanged(nextLiked: boolean) {
@@ -273,12 +286,57 @@
   }
 </script>
 
-<article class="app-container py-6 sm:py-8">
+<article class="app-container space-y-5 py-6 sm:py-8">
+  <!-- Status banners above the grid (matches MixtapeHeader; avoids wedging banners between cover and title on mobile) -->
+  {#if showOwnerPrivateBanner}
+    <div
+      role="status"
+      class="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-control)] bg-surface-1 px-4 py-3 ring-1 ring-inset ring-line"
+    >
+      <div class="flex min-w-0 items-center gap-2.5 text-sm text-ink-2">
+        <Icon name="lock" size={16} class="shrink-0 text-ink-3" />
+        <span>Private · Hidden from feeds and search. Anyone with the link can listen.</span>
+      </div>
+      <Button
+        variant="secondary"
+        size="sm"
+        class="min-h-11 shrink-0"
+        onclick={onMakeSongPublic}
+      >
+        <Icon name="globe" size={15} />
+        <span>Publish to feed</span>
+      </Button>
+    </div>
+  {/if}
+
+  {#if isUnsafe}
+    <div
+      role="status"
+      class="flex items-start gap-2.5 rounded-[var(--radius-control)] bg-danger/15 px-4 py-3 text-sm text-danger ring-1 ring-inset ring-danger/35"
+    >
+      <Icon name="warning" size={18} class="mt-0.5 shrink-0" />
+      <span>
+        Flagged for sensitive content{kv_do?.nsfw?.categories?.length ? ` (${kv_do.nsfw.categories.join(', ')})` : ''}. Kept private from public feeds and cannot be published or minted.
+      </span>
+    </div>
+  {:else if isSafetyUnknown}
+    <div
+      role="status"
+      class="flex items-start gap-2.5 rounded-[var(--radius-control)] bg-warning/15 px-4 py-3 text-sm text-warning ring-1 ring-inset ring-warning/35"
+    >
+      <Icon name="info" size={18} class="mt-0.5 shrink-0" />
+      <span>
+        Safety check didn't complete. Kept private from public feeds.
+      </span>
+    </div>
+  {/if}
+
+  <!-- D6: Two-column grid starts at md (224px cover matching MixtapeHeader), expands to 320px left rail with Details under cover at lg -->
   <div
-    class="grid grid-cols-1 gap-6 lg:grid-cols-[320px_minmax(0,1fr)] lg:grid-rows-[auto_1fr] lg:items-start lg:gap-x-10 lg:gap-y-5"
+    class="grid grid-cols-1 gap-6 md:grid-cols-[224px_minmax(0,1fr)] md:grid-rows-[auto_1fr] md:items-start md:gap-x-7 md:gap-y-5 lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-x-10"
   >
-    <!-- Cover art (top-left on desktop, compact centered hero on mobile) -->
-    <div class="mx-auto w-full max-w-[min(240px,30dvh)] lg:col-start-1 lg:row-start-1 lg:mx-0 lg:max-w-none">
+    <!-- Cover art -->
+    <div class="mx-auto w-full max-w-[min(240px,30dvh)] md:col-start-1 md:row-start-1 md:mx-0 md:max-w-none">
       {#if hasCoverArt}
         <CoverArt
           id={id}
@@ -309,53 +367,8 @@
       {/if}
     </div>
 
-    <!-- Main column (right on desktop spanning both rows; second on mobile) -->
-    <div class="min-w-0 space-y-5 lg:col-start-2 lg:row-start-1 lg:row-span-2">
-      <!-- Owner private banner (matches MixtapeHeader's ownerBanner pattern) -->
-      {#if showOwnerPrivateBanner}
-        <div
-          role="status"
-          class="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-control)] bg-surface-1 px-4 py-3 ring-1 ring-inset ring-line"
-        >
-          <div class="flex min-w-0 items-center gap-2.5 text-sm text-ink-2">
-            <Icon name="lock" size={16} class="shrink-0 text-ink-3" />
-            <span>Private · Hidden from feeds and search. Anyone with the link can listen.</span>
-          </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            class="min-h-11 shrink-0"
-            onclick={onMakeSongPublic}
-          >
-            <Icon name="globe" size={15} />
-            <span>Publish to feed</span>
-          </Button>
-        </div>
-      {/if}
-
-      <!-- Safety notices (cover art stays visible as-is) -->
-      {#if isUnsafe}
-        <div
-          role="status"
-          class="flex items-start gap-2.5 rounded-[var(--radius-control)] bg-danger/15 px-4 py-3 text-sm text-danger ring-1 ring-inset ring-danger/35"
-        >
-          <Icon name="warning" size={18} class="mt-0.5 shrink-0" />
-          <span>
-            Flagged for sensitive content{kv_do?.nsfw?.categories?.length ? ` (${kv_do.nsfw.categories.join(', ')})` : ''}. Kept private from public feeds and cannot be published or minted.
-          </span>
-        </div>
-      {:else if isSafetyUnknown}
-        <div
-          role="status"
-          class="flex items-start gap-2.5 rounded-[var(--radius-control)] bg-warning/15 px-4 py-3 text-sm text-warning ring-1 ring-inset ring-warning/35"
-        >
-          <Icon name="info" size={18} class="mt-0.5 shrink-0" />
-          <span>
-            Safety check didn't complete. Kept private from public feeds.
-          </span>
-        </div>
-      {/if}
-
+    <!-- Main column -->
+    <div class="min-w-0 space-y-5 md:col-start-2 md:row-start-1 lg:row-span-2">
       <!-- Hero header -->
       <header class="space-y-2.5">
         <h1 class="[overflow-wrap:anywhere] text-2xl font-semibold tracking-tight text-ink-1 sm:text-3xl lg:text-4xl">
@@ -380,16 +393,11 @@
           {#if isInstrumental}
             <Chip tone="neutral">Instrumental</Chip>
           {/if}
-          {#if isPrivate && !showOwnerPrivateBanner}
+          {#if isPrivate && !showOwnerPrivateBanner && !isRestricted}
             <Chip tone="neutral">Private</Chip>
           {/if}
           {#if showGenerationLoader}
             <Chip tone="accent">Generating</Chip>
-          {/if}
-          {#if isUnsafe}
-            <Chip tone="danger">Flagged</Chip>
-          {:else if isSafetyUnknown}
-            <Chip tone="warning">Safety unverified</Chip>
           {/if}
         </div>
 
@@ -401,17 +409,17 @@
         {/if}
       </header>
 
-      <!-- Lifecycle-aware action row (single clean row at 390px: Share folds into More below sm) -->
+      <!-- S1: Single-row action bar down to 320px (Add to mixtape & Share live in More below sm; Lyrics label hides below 360px) -->
       {#if showActionRow}
-        <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
-          {#if primaryTrack}
+        <div class="flex flex-wrap items-center gap-1.5 sm:gap-2" data-song-actions>
+          {#if activeSongTrack}
             <Button
               variant="primary"
               disabled={!player.ready}
               onclick={handlePrimaryPlay}
-              class="min-w-[104px] rounded-full px-4 sm:min-w-[136px] sm:px-6"
+              class="min-w-[96px] rounded-full px-4 min-[360px]:min-w-[104px] sm:min-w-[136px] sm:px-6"
             >
-              {#if isPrimaryPlaying}
+              {#if isSongPlaying}
                 <Icon name="pause" size={18} />
                 <span>Pause</span>
               {:else}
@@ -425,11 +433,12 @@
             <Button
               variant="secondary"
               size="md"
-              class="rounded-full px-3.5 sm:px-4"
+              title="Lyrics"
+              class="min-w-11 rounded-full px-3 min-[360px]:px-3.5 sm:px-4"
               onclick={() => (lyricsOpen = true)}
             >
               <Icon name="lyrics" size={18} />
-              <span>Lyrics</span>
+              <span class="sr-only min-[360px]:not-sr-only">Lyrics</span>
             </Button>
           {/if}
 
@@ -443,17 +452,19 @@
           {/if}
 
           {#if canAddToMixtape}
-            <IconButton
-              label={isInMixtape ? 'In mixtape draft' : 'Add to mixtape'}
-              variant="surface"
-              onclick={handleAddToMixtape}
-            >
-              <Icon
-                name={isInMixtape ? 'check' : 'plus-circle'}
-                size={20}
-                class={isInMixtape ? 'text-accent' : ''}
-              />
-            </IconButton>
+            <div class="hidden sm:inline-flex">
+              <IconButton
+                label={isInMixtape ? 'In mixtape draft' : 'Add to mixtape'}
+                variant="surface"
+                onclick={handleAddToMixtape}
+              >
+                <Icon
+                  name={isInMixtape ? 'check' : 'plus-circle'}
+                  size={20}
+                  class={isInMixtape ? 'text-accent' : ''}
+                />
+              </IconButton>
+            </div>
           {/if}
 
           {#if isPublished && !isRestricted}
@@ -505,8 +516,8 @@
         />
       {/if}
 
-      <!-- Collectible / Mint & Trade surface (kept prominent below Takes, omitted while generating/failed/restricted) -->
-      {#if canCollect}
+      <!-- Collectible / Mint & Trade surface (D5: private unminted songs require publishing first) -->
+      {#if showCollectibleSection}
         <section
           aria-label="Collectible"
           class="flex flex-wrap items-center justify-between gap-4 rounded-[var(--radius-control)] bg-surface-1 p-4 ring-1 ring-inset ring-line"
@@ -523,6 +534,11 @@
                   ? 'Buy or sell this song token with KALE.'
                   : 'Mint confirmed on Stellar — market indexing…'}
               </p>
+            {:else if isPrivate}
+              <h2 class="text-sm font-semibold text-ink-1">Publish to mint</h2>
+              <p class="mt-1 text-xs text-ink-2">
+                Publish this song to the feed before minting it as a collectible for 100 KALE.
+              </p>
             {:else}
               <h2 class="text-sm font-semibold text-ink-1">Make it a collectible</h2>
               <p class="mt-1 text-xs text-ink-2">
@@ -537,6 +553,11 @@
             <Button variant="secondary" onclick={onOpenTradeModal}>
               <span>Trade</span>
             </Button>
+          {:else if !minted && isPrivate}
+            <Button variant="secondary" onclick={onMakeSongPublic}>
+              <Icon name="globe" size={15} />
+              <span>Publish to feed</span>
+            </Button>
           {:else if !minted}
             <Button
               variant="secondary"
@@ -550,7 +571,7 @@
         </section>
       {/if}
 
-      <!-- Prompt & Style tags -->
+      <!-- Prompt & Style tags (S5a: hide Remix prompt while generating) -->
       {#if kv_do?.payload?.prompt || styleTags.length > 0}
         <section class="space-y-3 border-t border-line pt-5">
           {#if kv_do?.payload?.prompt}
@@ -566,7 +587,7 @@
                   <Icon name="copy" size={15} />
                   <span>Copy</span>
                 </Button>
-                {#if !failed}
+                {#if !failed && !showGenerationLoader}
                   <Button variant="secondary" size="sm" class="min-h-11" onclick={handleRemixPrompt}>
                     <Icon name="sparkles" size={15} />
                     <span>Remix prompt</span>
@@ -608,17 +629,16 @@
         </section>
       {/if}
 
-      <!-- Compact Lyrics preview card at the bottom of the song column (opens full Lyrics drawer) -->
+      <!-- D3: Minimal Lyrics preview card (lines + single "Show all N lines" control when truncated) -->
       {#if hasLyrics}
         <LyricsPreviewCard
           {rawLyrics}
           onOpen={() => (lyricsOpen = true)}
-          onCopy={() => void copyText(rawLyrics, 'Lyrics')}
         />
       {/if}
     </div>
 
-    <!-- Details panel (directly under Cover Art on desktop; compact disclosure on mobile) -->
+    <!-- Details panel (disclosure spanning width below lg; docked directly under Cover Art at lg+) -->
     <SongDetailsPanel
       {id}
       description={kv_do?.description ?? null}
@@ -629,12 +649,12 @@
       nsfw={kv_do?.nsfw ?? null}
       {playlistTag}
       onCopyId={() => id && void copyText(id, 'Song ID')}
-      class="lg:col-start-1 lg:row-start-2"
+      class="md:col-span-2 lg:col-span-1 lg:col-start-1 lg:row-start-2"
     />
   </div>
 </article>
 
-<!-- Focused Spotify/Apple Music-style Lyrics drawer / sheet -->
+<!-- Focused Lyrics drawer / sheet -->
 {#if hasLyrics}
   <LyricsSheet
     open={lyricsOpen}
@@ -643,8 +663,8 @@
     coverId={hasCoverArt ? id : null}
     {rawLyrics}
     isGenerating={showGenerationLoader}
-    {primaryTrack}
-    {isPrimaryPlaying}
+    activeTrack={activeSongTrack}
+    isPlaying={isSongPlaying}
     playerReady={player.ready}
     onPlayToggle={handlePrimaryPlay}
     onCopy={() => void copyText(rawLyrics, 'Lyrics')}
@@ -666,6 +686,24 @@
       >
         <Icon name={d1?.Public ? 'lock' : 'globe'} size={18} class="text-ink-2" />
         <span>{d1?.Public ? 'Make private' : 'Publish to feed'}</span>
+      </button>
+    {/if}
+
+    {#if canAddToMixtape}
+      <button
+        type="button"
+        onclick={() => {
+          moreOpen = false;
+          handleAddToMixtape();
+        }}
+        class="focus-ring flex min-h-12 w-full items-center gap-3 px-4 text-left text-sm font-medium text-ink-1 hover:bg-white/5"
+      >
+        <Icon
+          name={isInMixtape ? 'check' : 'plus-circle'}
+          size={18}
+          class={isInMixtape ? 'text-accent' : 'text-ink-2'}
+        />
+        <span>{isInMixtape ? 'Remove from mixtape' : 'Add to mixtape'}</span>
       </button>
     {/if}
 
@@ -695,7 +733,7 @@
       </button>
     {/if}
 
-    {#if kv_do?.payload?.prompt}
+    {#if kv_do?.payload?.prompt && !showGenerationLoader}
       <button
         type="button"
         onclick={() => {

@@ -6,10 +6,9 @@
   interface Props {
     rawLyrics: string;
     onOpen: () => void;
-    onCopy: () => void;
   }
 
-  let { rawLyrics, onOpen, onCopy }: Props = $props();
+  let { rawLyrics, onOpen }: Props = $props();
 
   const nonEmptyLines = $derived(
     rawLyrics
@@ -32,35 +31,16 @@
   aria-labelledby="song-lyrics-heading"
   class="rounded-[var(--radius-control)] bg-surface-1 p-4 ring-1 ring-inset ring-line sm:p-5"
 >
-  <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-    <div class="flex items-baseline gap-2">
-      <h2 id="song-lyrics-heading" class="text-base font-semibold text-ink-1">
-        Lyrics
-      </h2>
-      <span class="tabular text-xs text-ink-3">
-        {contentLineCount} {contentLineCount === 1 ? 'line' : 'lines'}
-      </span>
-    </div>
-
-    <div class="flex items-center gap-1">
-      <Button variant="ghost" size="sm" class="min-h-11" onclick={onCopy}>
-        <Icon name="copy" size={15} />
-        <span>Copy</span>
-      </Button>
-      <Button variant="secondary" size="sm" class="min-h-11" onclick={onOpen}>
-        <Icon name="lyrics" size={15} />
-        <span>Read lyrics</span>
-      </Button>
-    </div>
+  <div class="mb-3 flex items-baseline gap-2">
+    <h2 id="song-lyrics-heading" class="text-base font-semibold text-ink-1">
+      Lyrics
+    </h2>
+    <span class="tabular text-xs text-ink-3">
+      {contentLineCount} {contentLineCount === 1 ? 'line' : 'lines'}
+    </span>
   </div>
 
-  <!-- Non-focusable pointer shortcut; keyboard users use the single "Read lyrics" button above. -->
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div
-    onclick={onOpen}
-    class="group relative cursor-pointer rounded-[calc(var(--radius-control)-2px)]"
-  >
+  <div class="relative">
     <div class="max-w-[65ch] space-y-1 text-sm leading-relaxed sm:text-base">
       {#each previewLines as line, index (index)}
         {#if isLyricSectionTag(line)}
@@ -68,7 +48,7 @@
             {line.slice(1, -1)}
           </p>
         {:else}
-          <p class="truncate text-ink-1/90 transition-colors group-hover:text-ink-1">
+          <p class="truncate text-ink-1/90">
             {line}
           </p>
         {/if}
@@ -82,4 +62,13 @@
       ></div>
     {/if}
   </div>
+
+  {#if hasMoreLines}
+    <div class="mt-2">
+      <Button variant="ghost" size="sm" class="-ml-3 min-h-11 text-ink-1" onclick={onOpen}>
+        <span>Show all {contentLineCount} lines</span>
+        <Icon name="chevron-right" size={16} />
+      </Button>
+    </div>
+  {/if}
 </section>

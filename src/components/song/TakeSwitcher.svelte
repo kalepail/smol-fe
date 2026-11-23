@@ -91,7 +91,7 @@
         <Loader classNames="size-4" textColor="text-accent" />
         <span class="font-medium">{stageLabel}</span>
       </div>
-      <span class="text-xs text-ink-3">Safe to leave this page</span>
+      <span class="text-xs text-ink-3">{expected === 1 ? 'Usually under a minute' : 'Usually 2–6 min'} · Safe to leave</span>
     </div>
 
     <ol class="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -117,7 +117,7 @@
       {/each}
     </ol>
 
-    <div class={`grid gap-2.5 ${slotCount > 1 ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
+    <div class={`grid gap-2.5 ${slotCount > 1 ? 'lg:grid-cols-2' : 'grid-cols-1'}`}>
       {#each Array.from({ length: slotCount }) as _, index (index)}
         {@const track = takes[index] ?? null}
         {@const song = songs[index]}
@@ -159,7 +159,7 @@
       <span class="tabular text-xs text-ink-3">{songs.length} takes</span>
     </div>
 
-    <div class="grid gap-2.5 sm:grid-cols-2">
+    <div class="grid gap-2.5 lg:grid-cols-2">
       {#each takes as track, index (songs[index]?.music_id ?? index)}
         {@const song = songs[index]}
         {@const isMain = Boolean(song && bestSong === song.music_id)}
@@ -179,7 +179,7 @@
             {/if}
             <div class="min-w-0">
               <div class="flex items-center gap-2">
-                <span class="text-sm font-medium text-ink-1">Take {index + 1}</span>
+                <span class="whitespace-nowrap text-sm font-medium text-ink-1">Take {index + 1}</span>
                 {#if isMain}
                   <Chip tone="accent">Main</Chip>
                 {/if}
@@ -194,7 +194,7 @@
             <Button
               variant="ghost"
               size="sm"
-              class="min-h-11"
+              class="min-h-11 shrink-0"
               disabled={savingBest}
               onclick={() => onSelectBestSong(song.music_id)}
             >

@@ -32,6 +32,8 @@
     children,
   }: Props = $props();
 
+  const sheetId = $props.id();
+    const titleId = `${sheetId}-title`;
   let dialogEl = $state<HTMLDialogElement | null>(null);
   let backdropEl = $state<HTMLDivElement | null>(null);
   let pointerDownOnBackdrop = false;
@@ -43,6 +45,12 @@
     xl: 'sm:max-w-4xl',
   };
 
+  const backdropClass = $derived(
+    placement === 'right'
+      ? 'backdrop:bg-black/70 sm:backdrop:bg-black/40'
+      : 'backdrop:bg-black/70 backdrop:backdrop-blur-xs'
+  );
+
   const containerClass = $derived(
     placement === 'right'
       ? 'flex h-full w-full items-end justify-center sm:items-stretch sm:justify-end sm:p-0'
@@ -52,12 +60,12 @@
   const panelClass = $derived.by(() => {
     if (placement === 'right') {
       return fullHeight
-        ? 'h-dvh pt-[env(safe-area-inset-top,0px)] sm:h-dvh sm:max-h-none sm:pt-0 sm:rounded-l-[var(--radius-sheet)] sm:rounded-r-none'
-        : 'max-h-[90dvh] rounded-t-[var(--radius-sheet)] sm:h-dvh sm:max-h-none sm:rounded-l-[var(--radius-sheet)] sm:rounded-r-none';
+        ? 'sheet-panel-right h-dvh pt-[env(safe-area-inset-top,0px)] sm:h-dvh sm:max-h-none sm:pt-0 sm:rounded-l-[var(--radius-sheet)] sm:rounded-r-none'
+        : 'sheet-panel-right max-h-[90dvh] rounded-t-[var(--radius-sheet)] sm:h-dvh sm:max-h-none sm:rounded-l-[var(--radius-sheet)] sm:rounded-r-none';
     }
     return fullHeight
-      ? 'h-dvh pt-[env(safe-area-inset-top,0px)] sm:h-auto sm:max-h-[90dvh] sm:pt-0 sm:rounded-[var(--radius-sheet)]'
-      : 'max-h-[90dvh] rounded-t-[var(--radius-sheet)] sm:rounded-[var(--radius-sheet)]';
+      ? 'sheet-panel-center h-dvh pt-[env(safe-area-inset-top,0px)] sm:h-auto sm:max-h-[90dvh] sm:pt-0 sm:rounded-[var(--radius-sheet)]'
+      : 'sheet-panel-center max-h-[90dvh] rounded-t-[var(--radius-sheet)] sm:rounded-[var(--radius-sheet)]';
   });
 
   $effect(() => {
@@ -110,10 +118,11 @@
 
 <dialog
   bind:this={dialogEl}
+  aria-labelledby={title ? titleId : undefined}
   oncancel={handleCancel}
   onpointerdown={handlePointerDown}
   onclick={handleBackdropClick}
-  class="sheet-dialog fixed inset-0 m-0 h-dvh w-screen max-h-none max-w-none bg-transparent p-0 text-ink-1 backdrop:bg-black/70 backdrop:backdrop-blur-xs"
+  class={`sheet-dialog fixed inset-0 m-0 h-dvh w-screen max-h-none max-w-none bg-transparent p-0 text-ink-1 ${backdropClass}`}
 >
   {#if open}
     <div bind:this={backdropEl} class={containerClass}>
@@ -130,7 +139,7 @@
           <div class="flex shrink-0 items-center justify-between gap-3 border-b border-line py-3 pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] sm:px-5">
             <div class="min-w-0 flex-1">
               {#if title}
-                <h2 class="truncate text-lg font-semibold text-ink-1">{title}</h2>
+                <h2 id={titleId} class="truncate text-lg font-semibold text-ink-1">{title}</h2>
               {/if}
               {#if subtitle}
                 <p class="mt-0.5 truncate text-sm text-ink-2">{subtitle}</p>
@@ -166,5 +175,29 @@
 <style>
   .sheet-dialog:not([open]) {
     display: none;
+  }
+
+  @keyframes sheet-enter-up {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes sheet-enter-right {
+    from { opacity: 0; transform: translateX(24px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .sheet-panel-center {
+    animation: sheet-enter-up 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .sheet-panel-right {
+    animation: sheet-enter-up 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @media (min-width: 640px) {
+    .sheet-panel-right {
+      animation: sheet-enter-right 180ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
   }
 </style>

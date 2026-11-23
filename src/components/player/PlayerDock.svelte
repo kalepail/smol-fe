@@ -9,6 +9,12 @@
 
   let element: HTMLAudioElement;
   let sheetOpen = $state(false);
+  let openWithLyrics = $state(false);
+
+  function openSheet(withLyrics = false) {
+    openWithLyrics = withLyrics;
+    sheetOpen = true;
+  }
   let NowPlayingSheetComp = $state<typeof import('./NowPlayingSheet.svelte').default | null>(null);
   let scrub = $state<{ key: string; seconds: number } | null>(null);
 
@@ -56,7 +62,7 @@
       <div class="flex min-w-0 flex-1 items-center gap-3">
         <button
           type="button"
-          onclick={() => (sheetOpen = true)}
+          onclick={() => openSheet(false)}
           aria-label={`Open now playing for ${track.title}`}
           class="focus-ring flex min-w-0 flex-1 items-center gap-3 rounded-[var(--radius-media)] text-left lg:flex-initial"
         >
@@ -170,10 +176,13 @@
         {/if}
       </div>
 
-      <!-- Desktop right: status + expand -->
-      <div class="hidden items-center justify-end gap-2 lg:flex">
-        <IconButton label="Expand player" onclick={() => (sheetOpen = true)}>
+      <!-- Desktop right: Lyrics shortcut + Expand player -->
+      <div class="hidden items-center justify-end gap-1 lg:flex">
+        <IconButton label="Lyrics" onclick={() => openSheet(true)}>
           <Icon name="lyrics" size={18} />
+        </IconButton>
+        <IconButton label="Expand player" onclick={() => openSheet(false)}>
+          <Icon name="arrow-up" size={18} />
         </IconButton>
       </div>
     </div>
@@ -200,7 +209,7 @@
 {/if}
 
 {#if NowPlayingSheetComp}
-  <NowPlayingSheetComp open={sheetOpen} onClose={() => (sheetOpen = false)} />
+  <NowPlayingSheetComp open={sheetOpen} initialLyricsOpen={openWithLyrics} onClose={() => { sheetOpen = false; openWithLyrics = false; }} />
 {/if}
 
 <!-- Single persistent audio element for the entire application -->

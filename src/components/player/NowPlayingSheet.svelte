@@ -15,17 +15,20 @@
 
   interface Props {
     open: boolean;
+    initialLyricsOpen?: boolean;
     onClose: () => void;
   }
 
-  let { open, onClose }: Props = $props();
+  let { open, initialLyricsOpen = false, onClose }: Props = $props();
 
   let scrub = $state<{ key: string; seconds: number } | null>(null);
   let lyricsExpanded = $state(false);
   let lyricsText = $state<string | null>(null);
   let lyricsIsInstrumental = $state(false);
   let lyricsLoading = $state(false);
+  let lyricsError = $state(false);
   let loadedLyricsSmolId = $state<string | null>(null);
+  let lyricsCardEl = $state<HTMLDivElement | null>(null);
 
   const track = $derived(player.track);
   const position = $derived(track && scrub?.key === track.key ? scrub.seconds : player.currentTime);
@@ -44,6 +47,7 @@
       lyricsExpanded = false;
       lyricsText = null;
       lyricsIsInstrumental = false;
+      lyricsError = false;
       loadedLyricsSmolId = null;
     }
   });
@@ -55,27 +59,58 @@
     return `${minutes}:${remainder}`;
   }
 
+  async function fetchLyricsForCurrentTrack() {
+    if (!track) return;
+    const smolId = track.smolId;
+    lyricsLoading = true;
+    lyricsError = false;
+    try {
+      const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/${smolId}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        lyricsError = true;
+        return;
+      }
+      const data = await response.json();
+      if (player.track?.smolId !== smolId) return;
+      const instrumental = Boolean(data?.kv_do?.payload?.instrumental || data?.d1?.Instrumental);
+      lyricsIsInstrumental = instrumental;
+      lyricsText = instrumental ? null : (data?.kv_do?.lyrics?.lyrics?.trim() || null);
+      loadedLyricsSmolId = smolId;
+    } catch {
+      if (player.track?.smolId === smolId) lyricsError = true;
+    } finally {
+      lyricsLoading = false;
+    }
+  }
+
+  $effect(() => {
+    if (open && initialLyricsOpen && track) {
+      lyricsExpanded = true;
+      if (loadedLyricsSmolId !== track.smolId && !lyricsLoading) {
+        void fetchLyricsForCurrentTrack();
+      }
+      queueMicrotask(() => {
+        lyricsCardEl?.scrollIntoView({ behavior: 'auto', block: 'nearest' });
+      });
+    }
+  });
+
   async function toggleLyrics() {
     if (!track) return;
     lyricsExpanded = !lyricsExpanded;
-    if (!lyricsExpanded || loadedLyricsSmolId === track.smolId) return;
+    if (!lyricsExpanded || (loadedLyricsSmolId === track.smolId && !lyricsError)) return;
+    await fetchLyricsForCurrentTrack();
+  }
 
-    lyricsLoading = true;
+  async function copyLyrics() {
+    if (!lyricsText) return;
     try {
-      const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/${track.smolId}`, {
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const instrumental = Boolean(data?.kv_do?.payload?.instrumental || data?.d1?.Instrumental);
-        lyricsIsInstrumental = instrumental;
-        lyricsText = instrumental ? null : (data?.kv_do?.lyrics?.lyrics?.trim() || null);
-      }
-      loadedLyricsSmolId = track.smolId;
+      await navigator.clipboard.writeText(lyricsText);
+      toast.success('Lyrics copied.');
     } catch {
-      lyricsText = null;
-    } finally {
-      lyricsLoading = false;
+      toast.error('Could not copy lyrics.');
     }
   }
 
@@ -274,7 +309,7 @@
 
       <!-- Expandable static lyrics card -->
       {#if lyricsExpanded}
-        <div class="rounded-[var(--radius-control)] bg-surface-1 p-4 ring-1 ring-inset ring-line">
+        <div bind:this={lyricsCardEl} class="rounded-[var(--radius-control)] bg-surface-1 p-4 ring-1 ring-inset ring-line">
           <div class="mb-2 flex items-center justify-between">
             <h3 class="text-sm font-semibold text-ink-1">Lyrics</h3>
             {#if lyricsText}
@@ -282,11 +317,7 @@
                 variant="ghost"
                 size="sm"
                 class="min-h-11"
-                onclick={async () => {
-                  if (!lyricsText) return;
-                  await navigator.clipboard.writeText(lyricsText);
-                  toast.success('Lyrics copied.');
-                }}
+                onclick={copyLyrics}
               >
                 <Icon name="copy" size={14} />
                 <span>Copy</span>
@@ -296,6 +327,13 @@
           {#if lyricsLoading}
             <div class="flex justify-center py-6">
               <Loader classNames="size-5" textColor="text-ink-2" />
+            </div>
+          {:else if lyricsError}
+            <div class="flex items-center justify-between gap-3 text-sm text-ink-2">
+              <span>Could not load lyrics.</span>
+              <Button variant="secondary" size="sm" class="min-h-11" onclick={() => void fetchLyricsForCurrentTrack()}>
+                Try again
+              </Button>
             </div>
           {:else if lyricsText}
             <div class="max-w-[65ch]">

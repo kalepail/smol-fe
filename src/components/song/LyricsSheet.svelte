@@ -14,8 +14,8 @@
     coverId?: string | null;
     rawLyrics: string;
     isGenerating?: boolean;
-    primaryTrack: Track | null;
-    isPrimaryPlaying: boolean;
+    activeTrack: Track | null;
+    isPlaying: boolean;
     playerReady: boolean;
     onPlayToggle: () => void;
     onCopy: () => void;
@@ -29,8 +29,8 @@
     coverId = null,
     rawLyrics,
     isGenerating = false,
-    primaryTrack,
-    isPrimaryPlaying,
+    activeTrack,
+    isPlaying,
     playerReady,
     onPlayToggle,
     onCopy,
@@ -43,7 +43,6 @@
 <Sheet
   {open}
   title="Lyrics"
-  subtitle={title}
   placement="right"
   fullHeight
   maxWidth="md"
@@ -85,7 +84,7 @@
   </div>
 
   {#snippet footer()}
-    {#if primaryTrack}
+    {#if activeTrack}
       <div class="flex items-center justify-between gap-3">
         <div class="flex min-w-0 items-center gap-3">
           <div class="size-10 shrink-0">
@@ -106,8 +105,8 @@
           onclick={onPlayToggle}
           class="min-h-11 shrink-0 rounded-full px-4"
         >
-          <Icon name={isPrimaryPlaying ? 'pause' : 'play'} size={16} />
-          <span>{isPrimaryPlaying ? 'Pause' : 'Play'}</span>
+          <Icon name={isPlaying ? 'pause' : 'play'} size={16} />
+          <span>{isPlaying ? 'Pause' : 'Play'}</span>
         </Button>
       </div>
     {/if}

@@ -40,6 +40,7 @@
 
   let loading = $state(false);
   let error = $state<string | null>(null);
+  let errorStatus = $state<number | null>(null);
   let d1 = $state<SmolDetailResponse['d1']>(undefined);
   let kv_do = $state<SmolDetailResponse['kv_do']>(undefined);
   let liked = $state<boolean | undefined>(undefined);
@@ -208,6 +209,7 @@
   async function fetchSmolData(smolId: string) {
     loading = true;
     error = null;
+    errorStatus = null;
 
     try {
       const response = await fetchWithTimeout(`${import.meta.env.PUBLIC_API_URL}/${smolId}`, {
@@ -218,6 +220,7 @@
         if (isTransientCreatedSmol404(smolId, response.status)) {
           return;
         }
+        errorStatus = response.status;
         if (response.status === 404) {
           throw new Error('This song could not be found.');
         }
@@ -608,11 +611,11 @@
   <div class="app-container py-16">
     <StateFeedback
       kind="error"
-      title="Could not load song"
+      title={errorStatus === 404 ? 'Song not found' : 'Could not load song'}
       message={error}
-      actionLabel={id ? 'Try again' : 'Browse songs'}
-      actionHref={id ? undefined : '/'}
-      onAction={id ? () => void fetchSmolData(id!) : undefined}
+      actionLabel={errorStatus === 404 || !id ? 'Browse songs' : 'Try again'}
+      actionHref={errorStatus === 404 || !id ? '/' : undefined}
+      onAction={errorStatus === 404 || !id ? undefined : () => void fetchSmolData(id!)}
     />
   </div>
 {:else if !id}

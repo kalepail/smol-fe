@@ -30,10 +30,29 @@
   let { mixtape, coverUrls, playback, ownerBanner, ownerChip, ownerActions, collectSlot }: Props = $props();
 
   let descriptionExpanded = $state(false);
+  let descClamped = $state(false);
+  let descEl = $state<HTMLParagraphElement | null>(null);
 
   $effect(() => {
     mixtape.id;
+    mixtape.description;
     descriptionExpanded = false;
+  });
+
+  $effect(() => {
+    const el = descEl;
+    if (!el || !mixtape.description || descriptionExpanded) return;
+
+    const measure = () => {
+      if (el.clientHeight === 0) return;
+      descClamped = el.scrollHeight > el.clientHeight + 2;
+    };
+    measure();
+
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
   });
 
   async function handleShare() {
@@ -63,7 +82,7 @@
 
     <div class="flex min-w-0 flex-col gap-4">
       <div class="space-y-1.5">
-        <h1 class="text-2xl font-semibold tracking-tight text-ink-1 sm:text-3xl lg:text-4xl">
+        <h1 class="[overflow-wrap:anywhere] text-2xl font-semibold tracking-tight text-ink-1 sm:text-3xl lg:text-4xl">
           {mixtape.title}
         </h1>
         <p class="tabular flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-ink-2">
@@ -84,11 +103,12 @@
         </p>
         {#if mixtape.description}
           <p
-            class={`max-w-[65ch] text-sm leading-relaxed text-ink-2 ${descriptionExpanded ? '' : 'line-clamp-2 sm:line-clamp-3'}`}
+            bind:this={descEl}
+            class={`max-w-[65ch] [overflow-wrap:anywhere] text-sm leading-relaxed text-ink-2 ${descriptionExpanded ? '' : 'line-clamp-2 sm:line-clamp-3'}`}
           >
             {mixtape.description}
           </p>
-          {#if mixtape.description.length > 120}
+          {#if descClamped || descriptionExpanded}
             <button
               type="button"
               aria-expanded={descriptionExpanded}

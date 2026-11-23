@@ -57,12 +57,15 @@
 
   const isSafetyUnknown = $derived(Boolean(nsfw?.unknown));
   const isUnsafe = $derived(Boolean(nsfw && nsfw.safe === false && !nsfw.unknown));
+  const showSafetyRow = $derived(isUnsafe || isSafetyUnknown);
   const showPlays = $derived(typeof plays === 'number' && plays > 0);
   const formattedPlays = $derived(showPlays ? plays!.toLocaleString() : null);
 
+  // Lead mobile summary with plays and visibility; omit model chip already shown in header.
   const summaryParts = $derived.by(() => {
-    const parts = [providerLabel, isPrivate ? 'Private' : 'Public'];
+    const parts: string[] = [];
     if (formattedPlays) parts.push(`${formattedPlays} ${plays === 1 ? 'play' : 'plays'}`);
+    parts.push(isPrivate ? 'Private' : 'Public');
     if (isUnsafe) parts.push('Flagged');
     else if (isSafetyUnknown) parts.push('Unverified');
     return parts.join(' · ');
@@ -73,7 +76,6 @@
   aria-labelledby="song-details-heading"
   class={`rounded-[var(--radius-control)] bg-surface-1/75 ring-1 ring-inset ring-line ${className}`}
 >
-  <!-- Mobile (< lg): compact 44px disclosure keeps "More like this" prominent; Desktop (lg+): always expanded -->
   <div class="flex items-center justify-between gap-2 px-4 py-1 lg:px-4 lg:pt-4 lg:pb-0">
     <h2 id="song-details-heading" class="hidden text-sm font-semibold text-ink-1 lg:block">
       Details
@@ -146,19 +148,11 @@
         </div>
       {/if}
 
-      {#if nsfw}
+      {#if showSafetyRow}
         <div>
           <dt class="text-xs text-ink-3">Safety</dt>
-          <dd
-            class={`mt-0.5 ${
-              isUnsafe
-                ? 'font-medium text-danger'
-                : isSafetyUnknown
-                  ? 'font-medium text-warning'
-                  : 'text-ink-1'
-            }`}
-          >
-            {isUnsafe ? 'Flagged' : isSafetyUnknown ? 'Unverified' : 'Safe'}
+          <dd class={`mt-0.5 font-medium ${isUnsafe ? 'text-danger' : 'text-warning'}`}>
+            {isUnsafe ? 'Flagged' : 'Unverified'}
           </dd>
         </div>
       {/if}
