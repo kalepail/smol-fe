@@ -3,7 +3,8 @@
   import { navigate } from 'astro:transitions/client';
   import { userState } from '../../stores/user.svelte';
   import {
-    mixtapeDraftState,
+    mixtapeActive,
+    mixtapeEditState,
     mixtapeDraftHasContent,
     mixtapeSheetState,
     openMixtapeSheet,
@@ -45,8 +46,11 @@
   });
 
   const isAuthenticated = $derived(Boolean(userState.contractId));
-  const draftCount = $derived(mixtapeDraftState.tracks.length);
-  const hasActiveDraft = $derived(mixtapeDraftHasContent.current || mixtapeSheetState.browsingDraft);
+  const draftCount = $derived(mixtapeActive.current.tracks.length);
+  const isEditingMixtape = $derived(mixtapeEditState.session !== null);
+  const hasActiveDraft = $derived(
+    isEditingMixtape || mixtapeDraftHasContent.current || mixtapeSheetState.browsingDraft
+  );
 
   function syncFromLocation() {
     if (typeof window === 'undefined') return;
@@ -210,7 +214,7 @@
             onclick={handleOpenMixtape}
           >
             <Icon name="mixtapes" size={16} />
-            <span>{hasActiveDraft ? 'Mixtape draft' : 'New mixtape'}</span>
+            <span>{isEditingMixtape ? 'Editing mixtape' : hasActiveDraft ? 'Mixtape draft' : 'New mixtape'}</span>
             {#if draftCount > 0}
               <span class="tabular rounded-full bg-black/25 px-1.5 text-xs">{draftCount}</span>
             {/if}

@@ -1,13 +1,38 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import MixtapesIndex from '../../components/mixtape/MixtapesIndex.svelte';
-import { toMixtapeSummaries, type ApiMixtape } from '../../services/api/mixtapes';
-import { serverApiFetch } from '../../services/api/server';
+import {
+  toMixtapeSummaries,
+  toOwnedMixtape,
+  type ApiMixtape,
+  type ApiOwnedMixtape,
+} from '../../services/api/mixtapes';
+import { serverApiFetch, sessionSubject } from '../../services/api/server';
 
-const data = await serverApiFetch<ApiMixtape[]>(Astro, '/mixtapes');
-const initialMixtapes = Array.isArray(data) ? toMixtapeSummaries(data) : null;
+// `All` = what the public sees (WYSIWYG). `Yours` = the owner's listed + hidden mixtapes.
+const owner = sessionSubject(Astro);
+const initialView = Astro.url.searchParams.get('view') === 'yours' ? 'yours' : 'all';
+
+let initialMixtapes = null;
+let initialMine = null;
+if (initialView === 'yours' && owner) {
+  const mine = await serverApiFetch<ApiOwnedMixtape[]>(Astro, '/mixtapes/mine');
+  initialMine = Array.isArray(mine) ? mine.map(toOwnedMixtape) : null;
+} else if (initialView === 'all') {
+  const data = await serverApiFetch<ApiMixtape[]>(Astro, '/mixtapes');
+  initialMixtapes = Array.isArray(data) ? toMixtapeSummaries(data) : null;
+}
+if (initialView === 'yours') {
+  Astro.response.headers.set('Cache-Control', 'private, no-store');
+}
 ---
 
-<Layout title="Mixtapes">
-  <MixtapesIndex {initialMixtapes} client:load />
+<Layout title={initialView === 'yours' ? 'Your mixtapes' : 'Mixtapes'}>
+  <MixtapesIndex
+    {initialMixtapes}
+    {initialView}
+    {initialMine}
+    initialMineOwner={owner}
+    client:load
+  />
 </Layout>

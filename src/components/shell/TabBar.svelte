@@ -2,6 +2,7 @@
   import { userState } from '../../stores/user.svelte';
   import {
     mixtapeDraftState,
+    mixtapeEditState,
     mixtapeDraftHasContent,
     mixtapeSheetState,
     openMixtapeSheet,
@@ -22,12 +23,19 @@
   const currentPath = useCurrentPath();
   const path = $derived(currentPath.path);
   const isAuthenticated = $derived(Boolean(userState.contractId));
-  const draftCount = $derived(mixtapeDraftState.tracks.length);
+  // Mini-bar follows the active session: an open edit wins over the parked create draft.
+  const editSession = $derived(mixtapeEditState.session);
+  const draftCount = $derived((editSession ?? mixtapeDraftState).tracks.length);
+  const createCount = $derived(mixtapeDraftState.tracks.length);
   const hasDraft = $derived(mixtapeDraftHasContent.current);
   const showDraftPill = $derived(
-    isAuthenticated && (hasDraft || mixtapeSheetState.browsingDraft) && !mixtapeSheetState.open
+    isAuthenticated && (hasDraft || editSession !== null || mixtapeSheetState.browsingDraft) && !mixtapeSheetState.open
   );
-  const draftLabel = $derived(mixtapeDraftState.title.trim() || 'Mixtape draft');
+  const draftLabel = $derived(
+    editSession
+      ? `Editing "${editSession.title.trim() || 'Untitled mixtape'}"`
+      : mixtapeDraftState.title.trim() || 'Mixtape draft'
+  );
   const hasReady = $derived(generationsState.readyIds.length > 0);
 
   let AccountSheetComp = $state<typeof import('./AccountSheet.svelte').default | null>(null);
@@ -133,12 +141,12 @@
     >
       <span class="relative flex h-6 items-center justify-center">
         <Icon name={isMixtapes ? 'mixtapes-solid' : 'mixtapes'} size={20} />
-        {#if draftCount > 0}
+        {#if createCount > 0}
           <span
-            aria-label={`${draftCount} tracks in mixtape draft`}
+            aria-label={`${createCount} tracks in mixtape draft`}
             class="tabular absolute -right-2.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-on-accent"
           >
-            {draftCount}
+            {createCount}
           </span>
         {/if}
       </span>
@@ -172,7 +180,11 @@
   <button
     type="button"
     onclick={() => openMixtapeSheet('builder')}
-    aria-label={draftCount > 0 ? `Open mixtape draft (${draftCount})` : 'Open mixtape draft'}
+    aria-label={editSession
+      ? `Continue editing ${editSession.title.trim() || 'mixtape'} (${draftCount})`
+      : draftCount > 0
+        ? `Open mixtape draft (${draftCount})`
+        : 'Open mixtape draft'}
     class="draft-floating-pill focus-ring fixed right-[max(0.75rem,env(safe-area-inset-right,0px))] z-30 inline-flex min-h-11 max-w-[calc(100vw-1.5rem)] items-center gap-2 rounded-full bg-surface-2/95 pl-3.5 pr-3 text-xs font-medium text-ink-1 ring-1 ring-inset ring-accent/45 backdrop-blur-lg hover:bg-surface-3 lg:hidden"
   >
     <span class="size-2 shrink-0 rounded-full bg-accent" aria-hidden="true"></span>

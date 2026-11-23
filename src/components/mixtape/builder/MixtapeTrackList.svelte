@@ -13,6 +13,8 @@
     tracks: MixtapeTrack[];
     trackIssues?: Record<string, TrackIssueKind>;
     announcement?: string;
+    /** Edit mode: ids in the published version (others get a "New" tag). */
+    baselineIds?: Set<string> | null;
     onReorder: (fromIndex: number, toIndex: number) => void;
     onMove: (index: number, direction: 'up' | 'down') => void;
     onRemove: (index: number) => void;
@@ -23,6 +25,7 @@
     tracks,
     trackIssues = {},
     announcement = '',
+    baselineIds = null,
     onReorder,
     onMove,
     onRemove,
@@ -160,6 +163,7 @@
           total={tracks.length}
           isDragging={draggingTrackId === track.id}
           issue={trackIssues[track.id]}
+          isNew={Boolean(baselineIds && !baselineIds.has(track.id))}
           onStartDrag={(event) => startHandleDrag(event, track.id)}
           onMove={(direction) => onMove(index, direction)}
           onRemove={() => onRemove(index)}

@@ -1,6 +1,8 @@
 export interface ConfirmOptions {
   title: string;
   message: string;
+  /** Optional reassurance line rendered under the message with an info icon. */
+  note?: string;
   confirmLabel?: string;
   cancelLabel?: string;
   destructive?: boolean;

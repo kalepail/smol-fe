@@ -2,6 +2,7 @@
   import { confirmState, resolveConfirm } from '../../stores/confirm.svelte';
   import Sheet from './Sheet.svelte';
   import Button from './Button.svelte';
+  import Icon from './Icon.svelte';
 </script>
 
 <Sheet
@@ -13,6 +14,12 @@
   <p class="text-sm leading-relaxed text-ink-2">
     {confirmState.options?.message ?? ''}
   </p>
+  {#if confirmState.options?.note}
+    <p class="mt-3 flex gap-2 rounded-[var(--radius-control)] bg-surface-2 px-3 py-2.5 text-sm leading-relaxed text-ink-2 ring-1 ring-inset ring-line">
+      <Icon name="info" size={18} class="mt-0.5 text-ink-2" />
+      <span>{confirmState.options.note}</span>
+    </p>
+  {/if}
 
   {#snippet footer()}
     <div class="flex items-center justify-end gap-2">

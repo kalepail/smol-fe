@@ -12,6 +12,8 @@
     total: number;
     isDragging?: boolean;
     issue?: TrackIssueKind;
+    /** Edit mode: this song is not in the published version yet. */
+    isNew?: boolean;
     onStartDrag: (event: PointerEvent) => void;
     onMove: (direction: 'up' | 'down') => void;
     onRemove: () => void;
@@ -23,6 +25,7 @@
     total,
     isDragging = false,
     issue,
+    isNew = false,
     onStartDrag,
     onMove,
     onRemove,
@@ -70,8 +73,13 @@
     <CoverArt src={track.coverUrl} alt="" scale={4} class="size-11 shrink-0" />
 
     <div class="flex min-w-0 flex-1 flex-col">
-      <span class="truncate text-sm font-medium text-ink-1">
-        {track.title ?? 'Untitled track'}
+      <span class="flex min-w-0 items-center gap-1.5">
+        <span class="truncate text-sm font-medium text-ink-1">
+          {track.title ?? 'Untitled track'}
+        </span>
+        {#if isNew}
+          <span class="shrink-0 rounded-full bg-accent/15 px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide text-accent">New</span>
+        {/if}
       </span>
       {#if track.creator}
         <span class="truncate text-xs text-ink-2">{track.creator}</span>

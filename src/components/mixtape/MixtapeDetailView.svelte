@@ -12,9 +12,21 @@
   import { toTrack, trackKey } from '../../utils/track';
   import { userState } from '../../stores/user.svelte';
   import { createCollectController } from '../../stores/mixtapeCollect.svelte';
-  import { getMixtapeDetail } from '../../services/api/mixtapes';
+  import { fetchMixtapeDetail } from '../../services/api/mixtapes';
   import { fetchLikedSmols } from '../../services/api/smols';
   import { logger } from '../../utils/logger';
+  // Creator (owner-management) surface — Report 24. Mounted ONLY through the
+  // header's ownerBanner / ownerChip / ownerActions slots; collectSlot (t488's
+  // collector system) is untouched.
+  import { navigate } from 'astro:transitions/client';
+  import MixtapeOwnerCallout from './MixtapeOwnerCallout.svelte';
+  import MixtapeOwnerMenu from './MixtapeOwnerMenu.svelte';
+  import MixtapeMergeSheet, { type MergeSource } from './MixtapeMergeSheet.svelte';
+  import Button from '../ui/Button.svelte';
+  import Icon from '../ui/Icon.svelte';
+  import { toast } from '../../stores/toast.svelte';
+  import { findOwnedMixtape, loadMyMixtapes, mixtapeChangeSignal, myMixtapesState } from '../../stores/myMixtapes.svelte';
+  import { deleteMixtapeWithUndo, openMixtapeEditor } from '../../services/mixtapeActions';
 
   interface Props {
     id: string;
@@ -102,12 +114,24 @@
 
   let lastFetchedMixtapeId = $state<string | null>(null);
 
-  async function fetchMixtapeData(mixtapeId: string, seed: MixtapeDetail | null) {
-    loading = true;
+  async function loadDetail(mixtapeId: string, fresh: boolean, quiet = false): Promise<MixtapeDetail | null> {
+    const result = await fetchMixtapeDetail(mixtapeId, { fresh });
+    // A quiet refresh (after an owner action) never navigates: the action that merged
+    // or deleted this mixtape already decides where the owner goes next.
+    if (result.kind === 'merged' && !quiet) {
+      // Merged mixtapes keep their link: follow it to the mixtape that now holds the songs.
+      void navigate(`/mixtapes/${encodeURIComponent(result.mergedInto)}?merged=1`, { history: 'replace' });
+      return null;
+    }
+    return result.kind === 'found' ? result.detail : null;
+  }
+
+  async function fetchMixtapeData(mixtapeId: string, seed: MixtapeDetail | null, options: { quiet?: boolean; fresh?: boolean } = {}) {
+    if (!options.quiet) loading = true;
     error = null;
 
     try {
-      const detailPromise = seed ?? getMixtapeDetail(mixtapeId);
+      const detailPromise = seed ?? loadDetail(mixtapeId, options.fresh === true, options.quiet === true);
       const likedTrackIdsPromise = userState.contractId
         ? fetchLikedSmols().catch(() => [] as string[])
         : Promise.resolve([]);
@@ -117,6 +141,7 @@
       ]);
 
       if (!mixtapeData) {
+        if (options.quiet) return;
         mixtape = null;
         return;
       }
@@ -159,6 +184,81 @@
     }
   });
 
+  // ---------------------------------------------------------------------------
+  // Owner surface (creator only)
+  // ---------------------------------------------------------------------------
+
+  const isOwner = $derived(Boolean(mixtape && userState.contractId && userState.contractId === mixtape.creator));
+  const isHidden = $derived(mixtape?.visibility === 'owner');
+  const ownerList = $derived(
+    isOwner && myMixtapesState.status === 'ready' && myMixtapesState.owner === userState.contractId ? myMixtapesState.items : []
+  );
+  const relatedOwned = $derived(isOwner ? findOwnedMixtape(mixtape?.relatedMixtapeId) ?? null : null);
+  const otherOwned = $derived(ownerList.filter((item) => item.id !== mixtape?.id));
+
+  let mergeSource = $state<MergeSource | null>(null);
+  let mergeTargetId = $state<string | null>(null);
+
+  $effect(() => {
+    if (isOwner) void loadMyMixtapes();
+  });
+
+  // Refresh after an owner write to THIS mixtape (save from the builder, restore, merge target).
+  let seenChangeVersion = mixtapeChangeSignal.version;
+  $effect(() => {
+    const version = mixtapeChangeSignal.version;
+    if (version === seenChangeVersion) return;
+    seenChangeVersion = version;
+    if (mixtapeChangeSignal.ids.includes(id)) {
+      untrack(() => void fetchMixtapeData(id, null, { quiet: true, fresh: true }));
+    }
+  });
+
+  // `?merged=1` arrives from the SSR 307 / client redirect of a merged mixtape link.
+  $effect(() => {
+    if (typeof window === 'undefined' || !mixtape) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('merged') !== '1') return;
+    url.searchParams.delete('merged');
+    history.replaceState(history.state, '', `${url.pathname}${url.search}${url.hash}`);
+    untrack(() =>
+      toast.info(`That mixtape was merged into "${mixtape?.title ?? 'this one'}", so we opened it here.`, { tag: 'mixtape-lifecycle' })
+    );
+  });
+
+  function ownerEdit(view: 'builder' | 'picker' = 'builder') {
+    if (!mixtape) return;
+    void openMixtapeEditor(mixtape.id, { view });
+  }
+
+  function ownerMerge(targetId: string | null) {
+    if (!mixtape) return;
+    mergeTargetId = targetId;
+    mergeSource = {
+      id: mixtape.id,
+      title: mixtape.title,
+      trackIds: mixtape.tracks.map((track) => track.Id),
+      coverUrls: mixtape.coverUrls,
+    };
+  }
+
+  function ownerDelete() {
+    if (!mixtape) return;
+    void deleteMixtapeWithUndo(
+      { id: mixtape.id, title: mixtape.title, hiddenReason: mixtape.hiddenReason ?? null },
+      { navigateTo: '/mixtapes?view=yours' }
+    );
+  }
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href.split('?')[0]);
+      toast.success('Link copied.', { tag: 'mixtape-lifecycle' });
+    } catch {
+      toast.error('Couldn’t copy the link.', { tag: 'mixtape-lifecycle' });
+    }
+  }
+
   function handleLikeChanged(index: number, liked: boolean) {
     const track = mixtapeTracks[index];
     if (!track) return;
@@ -168,6 +268,60 @@
 </script>
 
 <svelte:window onkeydown={handleKeyboard} />
+
+{#snippet ownerBanner()}
+  {#if mixtape}
+    <MixtapeOwnerCallout
+      {mixtape}
+      match={relatedOwned}
+      onEdit={() => ownerEdit('builder')}
+      onAddSongs={() => ownerEdit('picker')}
+      onMerge={(targetId) => ownerMerge(targetId)}
+      onDelete={ownerDelete}
+    />
+  {/if}
+{/snippet}
+
+{#snippet ownerChip()}
+  {#if isHidden}
+    <span
+      class="inline-flex items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning ring-1 ring-inset ring-warning/30"
+      data-owner-status="hidden"
+    >
+      <Icon name="eye-off" size={12} />
+      Hidden
+    </span>
+  {:else}
+    <span
+      class="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium text-ink-2 ring-1 ring-inset ring-line"
+      title="Listed on the Mixtapes page. Anyone can find and play it."
+      data-owner-status="listed"
+    >
+      <Icon name="globe" size={12} />
+      Listed
+    </span>
+  {/if}
+{/snippet}
+
+{#snippet ownerActions()}
+  {#if mixtape}
+    <Button variant="secondary" class="rounded-full" onclick={() => ownerEdit('builder')}>
+      <Icon name="pencil" size={16} />
+      <span>Edit</span>
+    </Button>
+    <MixtapeOwnerMenu
+      label={`More actions for ${mixtape.title}`}
+      align="right"
+      items={[
+        ...(otherOwned.length > 0
+          ? [{ label: 'Merge into another mixtape', icon: 'merge' as const, onSelect: () => ownerMerge(mixtape?.relatedMixtapeId ?? null) }]
+          : []),
+        { label: 'Copy link', icon: 'copy' as const, onSelect: () => void copyLink() },
+        { label: 'Delete mixtape', icon: 'trash' as const, tone: 'danger' as const, onSelect: ownerDelete },
+      ]}
+    />
+  {/if}
+{/snippet}
 
 <section class="app-container py-6 sm:py-8">
   {#if loading}
@@ -199,6 +353,9 @@
         {mixtape}
         {coverUrls}
         playback={{ isPlaying, canPlay, onToggle: togglePlayback }}
+        ownerBanner={isOwner && isHidden ? ownerBanner : undefined}
+        ownerChip={isOwner && mixtape.visibility ? ownerChip : undefined}
+        ownerActions={isOwner ? ownerActions : undefined}
       >
         {#snippet collectSlot()}
           {#if collect.summary.total > 0}
@@ -229,4 +386,18 @@
 
 {#if mixtape}
   <MixtapeCollectSheet controller={collect} mixtapeTitle={mixtape.title} />
+{/if}
+
+{#if isOwner}
+  <MixtapeMergeSheet
+    open={mergeSource !== null}
+    source={mergeSource}
+    candidates={ownerList}
+    initialTargetId={mergeTargetId}
+    navigateToTarget
+    onClose={() => {
+      mergeSource = null;
+      mergeTargetId = null;
+    }}
+  />
 {/if}

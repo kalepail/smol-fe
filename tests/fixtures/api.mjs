@@ -2,6 +2,7 @@ import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 import { collectMixtapes, collectSongs } from './collect.mjs';
+import * as ownerMixtapes from './ownerMixtapes.mjs';
 
 function crc32(buf) {
   let c = 0xffffffff;
@@ -117,6 +118,7 @@ const secondMixtape = {
 };
 
 const list = { smols: tracks, users: [artist], pagination: { hasMore: false, nextCursor: null } };
+ownerMixtapes.registerCatalog(tracks);
 
 const smol2Take = loadJson('smol-2take.json');
 const smol1Take = loadJson('smol-1take.json');
@@ -232,12 +234,32 @@ createServer(async (req, res) => {
 
   if (path === '/__mutations') {
     res.writeHead(200, { ...headers, 'Content-Type': 'application/json' })
-      .end(JSON.stringify({ lastCreateBody, lastRetryBody, swapCalls, playBeacons }));
+      .end(JSON.stringify({
+        lastCreateBody,
+        lastRetryBody,
+        swapCalls,
+        playBeacons,
+        lastMixtapeBody: ownerMixtapes.lastMixtapeBody,
+        ownerMutations: ownerMixtapes.mutationLog,
+      }));
     return;
   }
 
-  if (req.method === 'POST' && path === '/mixtapes') {
-    res.writeHead(200, { ...headers, 'Content-Type': 'application/json' }).end(JSON.stringify({ id: 'fixture-mixtape' }));
+  if (path.startsWith('/__owner/')) {
+    res.writeHead(200, { ...headers, 'Content-Type': 'application/json' })
+      .end(JSON.stringify(ownerMixtapes.snapshotCohort(path.slice('/__owner/'.length))));
+    return;
+  }
+
+  // Owner lifecycle (GET /mixtapes/mine, /mixtapes/mx-*, PUT/DELETE/restore/merge, POST /mixtapes).
+  if (path === '/mixtapes' && req.method === 'GET') {
+    const staticList = routes.get('/mixtapes');
+    requests.set(path, (requests.get(path) ?? 0) + 1);
+    res.writeHead(200, { ...headers, 'Content-Type': 'application/json' })
+      .end(JSON.stringify([...staticList, ...ownerMixtapes.publicDemoRows()]));
+    return;
+  }
+  if (path.startsWith('/mixtapes') && (await ownerMixtapes.handleOwnerRoute(req, res, path, headers))) {
     return;
   }
 
@@ -284,4 +306,4 @@ createServer(async (req, res) => {
   const data = routes.get(path);
   res.writeHead(data === undefined ? 404 : 200, { ...headers, 'Content-Type': 'application/json' })
     .end(JSON.stringify(data ?? {}));
-}).listen(4329, '127.0.0.1');
+}).listen(Number(process.env.FIXTURE_API_PORT ?? 4329), '127.0.0.1');

@@ -94,3 +94,31 @@ export function addTrackToArray(
 export function removeTrackFromArray(tracks: MixtapeTrack[], id: string): MixtapeTrack[] {
   return tracks.filter((track) => track.id !== id);
 }
+
+/**
+ * Edit slot (Report 24 §4): a published mixtape opened in the builder. Shares
+ * the MixtapeDraft shape so every builder op (add/remove/move/setMeta) works on
+ * `active = edit ?? create` unchanged.
+ */
+export interface MixtapeEditSession extends MixtapeDraft {
+  kind: 'edit';
+  mixtapeId: string;
+  creator: string;
+  createdAt: string;
+  /** Server revision the edit started from (sent as `expectedRevision`). */
+  revision: number;
+  baseline: { title: string; description: string; trackIds: string[] };
+  baselineVisibility: 'public' | 'owner' | null;
+  baselineHiddenReason: string | null;
+  /** Stored songs that are no longer public; they are dropped when the edit is saved. */
+  privateTrackCount: number;
+  /** Started from the create draft via "Edit X instead": saving consumes that draft. */
+  fromDraft: boolean;
+}
+
+export function isEditSessionDirty(session: MixtapeEditSession): boolean {
+  const { baseline } = session;
+  if (session.title !== baseline.title || session.description !== baseline.description) return true;
+  if (session.tracks.length !== baseline.trackIds.length) return true;
+  return session.tracks.some((track, index) => track.id !== baseline.trackIds[index]);
+}
