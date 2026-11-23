@@ -1,7 +1,7 @@
 import { Asset } from '@stellar/stellar-sdk/minimal';
 import { Client as SmolClient } from 'smol-sdk';
 import { signWithPasskey } from './passkeySign';
-import { SMOL_ISSUER } from './smolChainIdentity';
+import { SMOL_ISSUER } from './smolIdentity';
 export { MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from './mintConstants';
 
 export interface MintOptions {

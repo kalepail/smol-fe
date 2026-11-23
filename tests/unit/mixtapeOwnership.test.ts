@@ -9,6 +9,8 @@ import {
   describeCollectCard,
   describeTrackPill,
   flowKind,
+  acknowledgeSteps,
+  isAcknowledgeable,
   kaleGuard,
   nextRunnableStep,
   pendingByTrack,
@@ -297,14 +299,39 @@ test('#1 an uncertain buy stays locked through Start over and is never re-planne
   assert.equal(restoreFlow(serializeFlow([cancelled], NOW), NOW + 60 * 60_000), null);
 });
 
-test('#1 reconciliation: owned → done; signature expired & not held → expired (retryable); else locked', () => {
+test('#1/#2 reconciliation: owned → done; expired without receipt → unconfirmed (never "not charged")', () => {
   const step = buyStep({ status: 'failed', failure: 'uncertain', since: NOW, expiresAtLedger: 1_000 });
   assert.equal(reconcileStep(step, { ok: true, ownedAll: true, latestLedger: 999, now: NOW }).status, 'done');
   assert.equal(reconcileStep(step, { ok: true, ownedAll: false, latestLedger: 999, now: NOW }), step, 'may still land');
   assert.equal(reconcileStep(step, { ok: false, ownedAll: false, latestLedger: 5_000, now: NOW }), step, 'failed read never unlocks');
   const expired = reconcileStep(step, { ok: true, ownedAll: false, latestLedger: 1_001, now: NOW });
-  assert.equal(expired.failure, 'expired');
-  assert.equal(nextRunnableStep([expired])?.id, 'buy-1');
+  assert.equal(expired.failure, 'unconfirmed');
+  assert.equal(nextRunnableStep([expired]), null, 'an unconfirmed step is never auto-retried');
+  assert.equal(pendingByTrack([expired]).get('t1'), 'locked', 'its songs stay locked until acknowledged');
+  assert.equal(isAcknowledgeable(expired, NOW), true);
+  assert.equal(isAcknowledgeable(step, NOW), false, 'unexpired uncertain step is not acknowledgeable');
+  assert.deepEqual(acknowledgeSteps([expired], NOW), []);
+});
+
+test('#2 the card is honest about an unconfirmed step and offers explicit recovery', () => {
+  const unconfirmed = buyStep({ status: 'failed', failure: 'unconfirmed', since: NOW, expiresAtLedger: 1_000 });
+  const pending = pendingByTrack([unconfirmed]);
+  const s = scenario(many(2, { kind: 'available' }), { pending, steps: [unconfirmed] });
+  assert.equal(s.page.state, 'S9');
+  assert.doesNotMatch(s.card.subline, /Nothing else was charged/);
+  assert.equal(s.card.subline, 'Previous request timed out or expired. Check your holdings before starting a new purchase.');
+  assert.equal(s.card.primary.action, 'acknowledge');
+  assert.equal(s.card.primary.label, 'Acknowledge & start new purchase');
+});
+
+test('#2 a legacy V1 uncertain record without since/expiry is recoverable by acknowledgement', () => {
+  const legacy = buyStep({ status: 'failed', failure: 'uncertain' });
+  assert.equal(isAcknowledgeable(legacy, NOW), true);
+  assert.equal(reconcileStep(legacy, { ok: true, ownedAll: false, latestLedger: 10, now: NOW }), legacy, 'never auto-claimed');
+  const restored = restoreFlow(serializeFlow([legacy], NOW - 24 * 60 * 60_000), NOW)!;
+  assert.equal(restored.length, 1, 'still locked a day later until acknowledged');
+  const s = scenario(many(2, { kind: 'available' }), { pending: pendingByTrack(restored), steps: restored });
+  assert.equal(s.card.primary.action, 'acknowledge');
 });
 
 test('#1 a 5xx / transport error after submission is uncertain; only definite 4xx is clean', () => {

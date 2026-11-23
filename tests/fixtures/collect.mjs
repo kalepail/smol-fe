@@ -122,5 +122,5 @@ function songDetail(track) {
 }
 
 export const collectSongs = Object.fromEntries(
-  [crosswiredSong, unindexedSong, legacyTrack].map((t) => [`/${t.Id}`, songDetail(t)])
+  [crosswiredSong, unindexedSong, legacyTrack, badExecTrack].map((t) => [`/${t.Id}`, songDetail(t)])
 );

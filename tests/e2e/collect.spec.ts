@@ -267,13 +267,88 @@ test.describe('Report 34 regressions @390', () => {
     await expect(page.getByRole('button', { name: /Buy all 8/ })).toHaveCount(0);
   });
 
-  test('#1 once the signature has expired unowned, the step is reconciled as not charged', async ({ page, context }) => {
+  test('#2 expired without a receipt: honest copy + explicit Acknowledge & start new purchase', async ({ page, context }) => {
     await signIn(context);
     await seedFlow(context, 'collect-minted', mintedSteps('failed', { failure: 'uncertain', expiresAtLedger: 100 }));
+    await installStellarMock(page, () => ({ minted: mintedIds, balances: ownedBalances(mintedIds.slice(0, 7)), kale: KALE(1_000) }));
+    await page.goto('/mixtapes/collect-minted');
+    await expect(card(page).getByText('Previous request timed out or expired. Check your holdings before starting a new purchase.')).toBeVisible({ timeout: 10_000 });
+    await expect(card(page)).not.toContainText('Nothing else was charged');
+    await expect(page.getByRole('button', { name: /^(Continue|Buy|Complete)/ })).toHaveCount(0);
+    await card(page).getByRole('button', { name: 'Acknowledge & start new purchase' }).click();
+    // Explicit, fresh new purchase: only the eighth (still unheld) song, from a fresh read.
+    await expect(page.locator('dialog[open]').getByRole('button', { name: 'Collect for 33 KALE' })).toBeEnabled({ timeout: 10_000 });
+  });
+
+  test('#2 a legacy V1 uncertain record (no since/expiry) is recoverable, never auto-claimed', async ({ page, context }) => {
+    await signIn(context);
+    await context.addInitScript(
+      ([key, value]) => localStorage.setItem(key, value),
+      [
+        `smol:collect:v1:${COLLECTOR}:collect-minted`,
+        JSON.stringify({
+          v: 1,
+          updatedAt: Date.now() - 24 * 60 * 60_000,
+          steps: [{ id: 'buy-1', kind: 'buy', trackIds: mintedIds, titles: [], costStroops: KALE(264).toString(), status: 'failed', failure: 'uncertain' }],
+        }),
+      ] as const
+    );
     await installStellarMock(page, () => ({ minted: mintedIds, balances: {}, kale: KALE(1_000) }));
     await page.goto('/mixtapes/collect-minted');
-    await expect(card(page).getByRole('button', { name: 'Continue · 1 approval left' })).toBeVisible({ timeout: 10_000 });
-    await expect(card(page)).toContainText('Nothing else was charged');
+    await expect(card(page).getByRole('button', { name: 'Acknowledge & start new purchase' })).toBeVisible({ timeout: 10_000 });
+    await expect(card(page)).not.toContainText('Nothing else was charged');
+  });
+
+  test('#1 multi-tab: tab B cannot sign while tab A holds an uncertain/submitted lock', async ({ context }) => {
+    await signIn(context);
+    const scenario = () => ({ minted: mintedIds, balances: {}, kale: KALE(1_000) });
+    const tabA = await context.newPage();
+    const tabB = await context.newPage();
+    await installStellarMock(tabA, scenario);
+    const statsB = await installStellarMock(tabB, scenario);
+    await tabA.goto('/mixtapes/collect-minted');
+    await tabB.goto('/mixtapes/collect-minted');
+    await card(tabB).getByRole('button', { name: 'Buy all 8 · 264 KALE' }).click({ timeout: 10_000 });
+    const sheetB = tabB.locator('dialog[open]');
+    await expect(sheetB.getByRole('button', { name: 'Collect for 264 KALE' })).toBeEnabled();
+
+    // Tab A is mid-collect: it holds the cross-tab lock (passkey prompt open).
+    const lockName = `smol-collect:${COLLECTOR}:collect-minted`;
+    await tabA.evaluate((name) => {
+      (window as unknown as { __release: () => void }).__release = () => {};
+      void navigator.locks.request(name, () => new Promise<void>((resolve) => {
+        (window as unknown as { __release: () => void }).__release = resolve;
+      }));
+    }, lockName);
+
+    // Tab B clicks Collect: it must wait for A's lock, not sign.
+    await sheetB.getByRole('button', { name: 'Collect for 264 KALE' }).click();
+    await tabB.waitForTimeout(500);
+    expect(statsB.simulateTransaction, 'B never builds while A holds the lock').toBe(0);
+
+    // A's relay response is lost: it persists an uncertain step for all 8 songs, then releases.
+    await tabA.evaluate(
+      ([key, value]) => {
+        localStorage.setItem(key, value);
+        (window as unknown as { __release: () => void }).__release();
+      },
+      [
+        `smol:collect:v1:${COLLECTOR}:collect-minted`,
+        JSON.stringify({
+          v: 1,
+          updatedAt: Date.now(),
+          steps: [{ id: 'buy-1', kind: 'buy', trackIds: mintedIds, titles: [], costStroops: KALE(264).toString(), status: 'failed', failure: 'uncertain', since: Date.now(), expiresAtLedger: 99_999_999 }],
+        }),
+      ] as const
+    );
+
+    // B re-reads shared progress inside the lock and refuses to sign or overwrite it.
+    await expect(sheetB.getByText(/isn't confirmed yet, so nothing new was signed|in progress or unconfirmed/)).toBeVisible({ timeout: 10_000 });
+    expect(statsB.simulateTransaction, 'no duplicate buy was assembled in B').toBe(0);
+    const stored = await tabB.evaluate((key) => localStorage.getItem(key), `smol:collect:v1:${COLLECTOR}:collect-minted`);
+    expect(JSON.parse(stored!).steps[0].failure, "A's lock survives").toBe('uncertain');
+    await expect(card(tabB)).not.toContainText('Nothing else was charged');
+    await expect(tabB.getByRole('button', { name: 'Buy all 8 · 264 KALE' })).toHaveCount(0);
   });
 
   test('#2 song page trades the canonical market, never the cross-wired D1 pool', async ({ page }) => {
@@ -304,6 +379,28 @@ test.describe('Report 34 regressions @390', () => {
     const sheet = page.locator('dialog[open]');
     await expect(sheet.getByText("We couldn't verify this song's market, so trading is paused.")).toBeVisible({ timeout: 10_000 });
     expect(stats.contracts.has(derive(mixedIds[1]).pool)).toBe(false);
+  });
+
+  test('#4 an unaudited pool executable can never be traded from the song sheet', async ({ page, context }) => {
+    await signIn(context);
+    const stats = await installStellarMock(page, () => ({ minted: [badExecTrack.Id], badExec: [badExecTrack.Id], balances: {}, kale: KALE(1_000) }));
+    await page.goto(`/${badExecTrack.Id}?trade=1`);
+    const sheet = page.locator('dialog[open]');
+    await expect(sheet.getByRole('button', { name: 'Unsupported pool contract version' })).toBeDisabled({ timeout: 10_000 });
+    await expect(sheet.getByRole('button', { name: /^Buy SMOL|^Sell SMOL/ })).toHaveCount(0);
+    expect(stats.simulateTransaction).toBe(0);
+  });
+
+  test('#5 after verifying an unindexed on-chain mint, the page shows Trade, never Mint', async ({ page }) => {
+    await installStellarMock(page, () => ({ minted: [unindexedSong.Id], balances: {}, kale: 0n }));
+    await page.goto(`/${unindexedSong.Id}?trade=1`);
+    const sheet = page.locator('dialog[open]');
+    await expect(sheet.getByRole('button', { name: 'Sign in to trade' })).toBeVisible({ timeout: 10_000 });
+    await sheet.getByRole('button', { name: 'Close' }).click();
+    await expect(page.locator('dialog[open]')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Trade', exact: true })).toBeVisible();
+    await expect(page.getByText('Mint for 100 KALE', { exact: false })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Mint/ })).toHaveCount(0);
   });
 
   test('#3/#8/#11 legacy id, unaudited pool and addressless rows are unavailable and cost 0', async ({ page, context }) => {
@@ -381,12 +478,12 @@ for (const width of [320, 390] as const) {
   test.describe(`#12 zero layout shift @${width}`, () => {
     test.use({ viewport: { width, height: 740 }, isMobile: true, hasTouch: true });
 
-    for (const target of ['S3', 'S8'] as const) {
-      test(`S6 → ${target}: card height and CTA position hold`, async ({ page, context }) => {
+    for (const [target, owned] of [['S3', 4], ['S8', 4], ['S8', 0]] as const) {
+      test(`S6 → ${target} (${owned} owned): card height and CTA position hold`, async ({ page, context }) => {
         await signIn(context);
         await installStellarMock(page, () => ({
           minted: mixedIds.slice(0, 9),
-          balances: ownedBalances(mixedIds.slice(0, 4)),
+          balances: ownedBalances(mixedIds.slice(0, owned)),
           kale: target === 'S8' ? KALE(120) : KALE(1_000),
           delayMs: 1_500,
         }));
@@ -400,7 +497,7 @@ for (const width of [320, 390] as const) {
         expect(Math.abs(cardAfter!.height - cardBefore!.height), 'card height').toBeLessThanOrEqual(1);
         expect(Math.abs(ctaAfter!.y - ctaBefore!.y), 'CTA position').toBeLessThanOrEqual(1);
         await assertNoHorizontalOverflow(page);
-        if (width === 320) await capture(page, `${target}-after-S6-320`);
+        if (width === 320) await capture(page, `${target}-after-S6-${owned}owned-320`);
       });
     }
   });

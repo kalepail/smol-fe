@@ -42,7 +42,12 @@ export interface CometTradeSnapshot {
   unindexed: boolean;
   kaleRecord: CometRecord;
   mintRecord: CometRecord;
-  /** null when the pool executable isn't audited: quotes fall back to simulation. */
+  /**
+   * Pool executable is the audited Comet hash. When false the sheet shows
+   * "Unsupported pool contract version" and never quotes or executes a swap.
+   */
+  auditedPool: boolean;
+  /** null when the fee config is unreadable: quotes fall back to simulation. */
   feeConfig: (CometFeeConfig & { trackedToken: string }) | null;
   /** null = not requested (signed out). Errors throw. */
   userKale: bigint | null;
@@ -127,6 +132,7 @@ export async function readCometTradeSnapshot(input: {
     mintToken: identity.sac,
     d1Mismatch,
     unindexed: !input.d1Token && !input.d1Amm,
+    auditedPool: verdict.auditedPool,
     kaleRecord,
     mintRecord,
     feeConfig,

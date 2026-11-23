@@ -16,7 +16,8 @@ import { buildMintFeeRule } from '../utils/mint';
 import { signWithPasskey } from '../utils/passkeySign';
 import { pollUntilSettled, type SettlementRead } from '../utils/pollLoop';
 import { getSignatureExpiration } from '../utils/rpcTip';
-import { SMOL_ISSUER, readMixtapeChainSnapshot } from '../utils/smolChainIdentity';
+import { readMixtapeChainSnapshot } from '../utils/smolChainIdentity';
+import { CANONICAL_SMOL_ID, SMOL_ISSUER } from '../utils/smolIdentity';
 
 export class CollectRequestError extends Error {
   readonly status: number;
@@ -56,7 +57,9 @@ export async function submitMintBatch(params: {
   const salts: Buffer[] = [];
   const fee_rules: ReturnType<typeof buildMintFeeRule>[] = [];
   for (const track of tracks) {
-    const padded = track.id.padStart(64, '0');
+    // Only canonical 64-hex ids are mintable: short ids alias each other's salt.
+    if (!CANONICAL_SMOL_ID.test(track.id)) throw new Error(`Non-canonical smol id: ${track.id}`);
+    const padded = track.id;
     const salt = Buffer.from(padded, 'hex');
     if (salt.length !== 32 || !track.creator) {
       throw new Error(`Invalid smol for minting: ${track.id}`);

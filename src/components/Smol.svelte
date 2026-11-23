@@ -68,10 +68,12 @@
   const detail = $derived<SmolDetailResponse>({ d1, kv_do, liked });
   const activeProvider = $derived(providerOf(detail));
   const requestedProvider = $derived(requestedProviderOf(detail));
-  const minted = $derived(Boolean(d1?.Mint_Token || d1?.Mint_Amm));
-  // Minted on chain but not yet indexed in D1 (found via the ?trade=1 deep link).
-  let onChainMarket = $state(false);
-  const tradeReady = $derived(Boolean(id && ((d1?.Mint_Amm && d1?.Mint_Token) || onChainMarket)));
+  // Canonical market verified on chain (deep-link check or the trade sheet). An
+  // unindexed on-chain mint is still minted: never offer a second Mint for it.
+  let verifiedMarket = $state<{ songId: string; sac: string; pool: string } | null>(null);
+  const chainVerified = $derived(Boolean(verifiedMarket && verifiedMarket.songId === id));
+  const minted = $derived(Boolean(d1?.Mint_Token || d1?.Mint_Amm || chainVerified));
+  const tradeReady = $derived(Boolean(id && ((d1?.Mint_Amm && d1?.Mint_Token) || chainVerified)));
   const isOwner = $derived(Boolean(d1?.Address && d1.Address === userState.contractId));
   const tradeSongId = $derived(id ?? d1?.Id ?? null);
   const tradeTitle = $derived(
@@ -111,8 +113,9 @@
       .then(({ readMixtapeChainSnapshot }) => readMixtapeChainSnapshot({ tracks: [{ id: songId }] }))
       .then((snapshot) => {
         if (songId !== id) return;
-        if (snapshot.tracks.get(songId)?.facts.status === 'minted') {
-          onChainMarket = true;
+        const facts = snapshot.tracks.get(songId)?.facts;
+        if (facts?.status === 'minted') {
+          verifiedMarket = { songId, sac: facts.sac, pool: facts.pool };
           showTradeModal = true;
         }
       })
@@ -633,6 +636,9 @@
     songId={tradeSongId}
     ammId={d1?.Mint_Amm ?? ''}
     mintTokenId={d1?.Mint_Token ?? ''}
+    onVerified={(market) => {
+      if (tradeSongId) verifiedMarket = { songId: tradeSongId, ...market };
+    }}
     title={tradeTitle}
     imageUrl={tradeImageUrl}
     bind:mintBalance={tradeMintBalance}

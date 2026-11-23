@@ -53,7 +53,8 @@
   data-collect-state={page.state}
   class="flex w-full flex-col gap-3 rounded-[var(--radius-control)] bg-surface-1 p-4 ring-1 ring-inset ring-line"
 >
-  <div class="flex min-h-6 items-start justify-between gap-2">
+  <!-- Two heading lines reserved below 360px, where long titles wrap (C-17). -->
+  <div class="flex min-h-10 items-start justify-between gap-2 min-[360px]:min-h-6">
     <h2
       id="collect-title"
       aria-live="polite"

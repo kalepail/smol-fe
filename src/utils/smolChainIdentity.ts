@@ -13,7 +13,6 @@
  * never re-mints a song someone else just minted (C-15), and never treats an
  * RPC error as "you own 0" (C-02).
  */
-import { Address, Asset, StrKey, hash, xdr } from '@stellar/stellar-sdk/minimal';
 import {
   createCometRecordsLedgerKey,
   createContractInstanceLedgerKey,
@@ -24,50 +23,12 @@ import {
   type LedgerEntryRead,
 } from './batchLedgerEntries';
 import { interpretIdentity, type SmolIdentity } from './ledgerReads';
+import { deriveSmolIdentity, findIdentityCollisions } from './smolIdentity';
 import { logger } from './logger';
 import type { ChainFacts, Holding } from './mixtapeOwnership';
 
-export const SMOL_ISSUER = 'GBVJZCVQIKK7SL2K6NL4BO6ZYNXAGNVBTAQDDNOIJ5VPP3IXCSE2SMOL';
-
 export type { SmolIdentity } from './ledgerReads';
-
-const HEX_ID = /^[0-9a-fA-F]{1,64}$/;
-const identityCache = new Map<string, SmolIdentity | null>();
-
-export function deriveSmolIdentity(
-  id: string,
-  opts: { factory?: string; networkPassphrase?: string } = {}
-): SmolIdentity | null {
-  const factory = opts.factory ?? import.meta.env.PUBLIC_SMOL_CONTRACT_ID;
-  const network = opts.networkPassphrase ?? import.meta.env.PUBLIC_NETWORK_PASSPHRASE;
-  if (!factory || !network || !HEX_ID.test(id)) return null;
-  const cacheKey = `${network}|${factory}|${id}`;
-  if (identityCache.has(cacheKey)) return identityCache.get(cacheKey) ?? null;
-
-  let identity: SmolIdentity | null = null;
-  try {
-    const padded = id.padStart(64, '0');
-    const assetCode = padded.slice(0, 12);
-    const sac = new Asset(assetCode, SMOL_ISSUER).contractId(network);
-    const preimage = xdr.HashIdPreimage.envelopeTypeContractId(
-      new xdr.HashIdPreimageContractId({
-        networkId: hash(Buffer.from(network)),
-        contractIdPreimage: xdr.ContractIdPreimage.contractIdPreimageFromAddress(
-          new xdr.ContractIdPreimageFromAddress({
-            address: new Address(factory).toScAddress(),
-            salt: Buffer.from(padded, 'hex'),
-          })
-        ),
-      })
-    );
-    const pool = StrKey.encodeContract(hash(preimage.toXDR()));
-    identity = { id, padded, assetCode, sac, pool };
-  } catch (error) {
-    logger.warn('identity', `Could not derive identity for ${id}`, error);
-  }
-  identityCache.set(cacheKey, identity);
-  return identity;
-}
+export { SMOL_ISSUER, deriveSmolIdentity, findIdentityCollisions } from './smolIdentity';
 
 export interface IdentityKeys {
   sacInstance: string;
@@ -124,8 +85,13 @@ export async function readMixtapeChainSnapshot(input: {
   const keys: string[] = [];
   const plans: { track: SnapshotTrackInput; identity: SmolIdentity | null; keys?: IdentityKeys; balanceKey?: string; keyError?: boolean }[] = [];
 
+  // Ambiguous aliases (shared SAC or pool across distinct ids) stay unresolved.
+  const derived = input.tracks.map((t) => deriveSmolIdentity(t.id)).filter((i): i is SmolIdentity => i !== null);
+  const colliding = findIdentityCollisions(derived);
+  if (colliding.size) logger.warn('identity', `Ambiguous song identities: ${[...colliding].join(', ')}`);
+
   for (const track of input.tracks) {
-    const identity = deriveSmolIdentity(track.id);
+    const identity = colliding.has(track.id) ? null : deriveSmolIdentity(track.id);
     const plan: (typeof plans)[number] = { track, identity };
     if (identity) {
       try {

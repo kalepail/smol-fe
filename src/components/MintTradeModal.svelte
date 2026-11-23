@@ -35,6 +35,7 @@
     imageUrl?: string;
     onClose: () => void;
     onComplete: (updatedMintBalance?: bigint) => void;
+    onVerified?: (market: { sac: string; pool: string }) => void;
   }
 
   let {
@@ -46,6 +47,7 @@
     imageUrl,
     onClose,
     onComplete,
+    onVerified,
   }: Props = $props();
 
   let loading = $state(true);
@@ -78,6 +80,9 @@
   let maxSellAmount = $state<bigint>(0n);
 
   let currentContractId = $derived(userState.contractId);
+  // Report 31: only the audited Comet executable may be quoted or traded.
+  const unsupportedPool = $derived(snapshot !== null && !snapshot.auditedPool);
+  const UNSUPPORTED_POOL_COPY = 'Unsupported pool contract version';
   let currentKeyId = $derived(userState.keyId);
 
   const simulationHook = useTradeSimulation();
@@ -123,6 +128,7 @@
         networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE!,
       });
       applySnapshot(next);
+      onVerified?.({ sac: next.mintToken, pool: next.pool });
     } catch (error) {
       logger.error('trade', error);
       loadError = error instanceof Error ? error.message : 'Failed to load trading data.';
@@ -198,6 +204,11 @@
 
     lastSimulatedMode = mode;
 
+    if (unsupportedPool) {
+      simulationError = `${UNSUPPORTED_POOL_COPY}. Trading is paused for this song.`;
+      return;
+    }
+
     // Exact local quote from the ledger snapshot (zero RPC). Falls back to a
     // simulation only for pool versions the local math doesn't support.
     if (snapshot) {
@@ -261,7 +272,7 @@
   }
 
   async function executeSwap() {
-    if (!cometClient) return;
+    if (!cometClient || !snapshot || unsupportedPool) return;
     if (!currentContractId || !currentKeyId) {
       openAuthSheet('signin', 'Sign in to trade song tokens.');
       return;
@@ -372,6 +383,17 @@
       <div class="rounded-[var(--radius-control)] bg-danger/15 p-4 text-sm text-danger ring-1 ring-inset ring-danger/35">
         {loadError}
       </div>
+    {:else if unsupportedPool}
+      <div
+        role="alert"
+        class="flex items-start gap-2.5 rounded-[var(--radius-control)] bg-warning/10 p-4 text-sm text-ink-1 ring-1 ring-inset ring-warning/35"
+      >
+        <span class="mt-0.5 font-semibold text-warning" aria-hidden="true">!</span>
+        <div>
+          <p class="font-medium">{UNSUPPORTED_POOL_COPY}</p>
+          <p class="mt-0.5 text-xs text-ink-2">This song's market runs contract code SMOL hasn't verified, so trading is paused.</p>
+        </div>
+      </div>
     {:else}
       <TradeForm
         {mode}
@@ -408,7 +430,9 @@
 
   {#snippet footer()}
     {#if !loading && !loadError}
-      {#if !currentContractId}
+      {#if unsupportedPool}
+        <Button variant="secondary" fullWidth disabled>{UNSUPPORTED_POOL_COPY}</Button>
+      {:else if !currentContractId}
         <Button
           variant="primary"
           fullWidth

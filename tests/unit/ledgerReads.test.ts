@@ -9,6 +9,7 @@ import {
   parseCometRecords,
 } from '../../src/utils/ledgerParsers.ts';
 import {
+  createArchiveCapability,
   interpretIdentity,
   knownBalance,
   toBalanceResult,
@@ -123,4 +124,21 @@ test('#5 absent pool means unminted ONLY on an archive-aware reader', () => {
   assert.equal(blind.facts.status, 'error', 'archive-blind / unverified reader: unknown, never "unminted"');
   const failed = interpretIdentity(identity, { sacInstance: { state: 'error', error: 'x' }, poolInstance: missing(true), poolRecords: missing(true) }, opts);
   assert.equal(failed.facts.status, 'error');
+});
+
+test('#3 archive capability needs POSITIVE evidence (TTL 0), never an absent TTL field', async () => {
+  const cap = createArchiveCapability({ probe: () => Promise.reject(new Error('getVersionInfo unavailable')) });
+  const req = { tokenContractId: SAC, holderAddress: KALE };
+  const omitted = async () => knownBalance(toBalanceResult(req, missing(await cap.isAware())));
+  assert.equal(await omitted(), null, 'unverified reader: omitted balance is unknown');
+  cap.observe(undefined); // a live entry whose optional TTL field is absent
+  assert.equal(await omitted(), null, 'still unknown: an absent TTL is not archive evidence');
+  cap.observe(66_000_000); // a normal live TTL
+  assert.equal(await omitted(), null);
+  cap.observe(0); // explicit archived TTL placeholder
+  assert.equal(await omitted(), 0n, 'positive evidence: omission now means absent');
+
+  const probed = createArchiveCapability({ probe: async () => true });
+  assert.equal(await probed.isAware(), true);
+  assert.equal(await createArchiveCapability({ override: '0', probe: async () => true }).isAware(), false);
 });

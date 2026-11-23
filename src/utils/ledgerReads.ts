@@ -140,3 +140,35 @@ export function interpretIdentity(
     records,
   };
 }
+
+/**
+ * Reader capability: may an omitted persistent entry be read as "absent"?
+ * Evidence, in order: explicit override → positive observation of an archived
+ * entry (an explicit `liveUntilLedgerSeq === 0`; an ABSENT field proves
+ * nothing) → the probe (RPC protocol ≥ 23 serves the hot archive). A failed
+ * probe means unverified ⇒ not archive-aware, and is retried next time.
+ */
+export function createArchiveCapability(opts: { override?: string; probe: () => Promise<boolean> }) {
+  let probed: Promise<boolean> | null = null;
+  let observed = false;
+  return {
+    isAware(): Promise<boolean> {
+      if (opts.override === '1') return Promise.resolve(true);
+      if (opts.override === '0') return Promise.resolve(false);
+      if (observed) return Promise.resolve(true);
+      probed ??= opts.probe().catch(() => {
+        probed = null;
+        return false;
+      });
+      return probed;
+    },
+    observe(liveUntilLedgerSeq: number | undefined): void {
+      if (liveUntilLedgerSeq === 0) observed = true;
+    },
+  };
+}
+
+/** Archived only on explicit evidence: TTL 0, or a TTL already in the past. */
+export function isArchivedEntry(liveUntilLedgerSeq: number | undefined, latestLedger: number): boolean {
+  return liveUntilLedgerSeq === 0 || (liveUntilLedgerSeq !== undefined && liveUntilLedgerSeq < latestLedger);
+}

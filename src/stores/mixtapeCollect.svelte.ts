@@ -34,6 +34,7 @@ import {
   restoreFlow,
   serializeFlow,
   stepsForStartOver,
+  acknowledgeSteps,
   stepsFromPlan,
   summarizeMixtape,
   type CardAction,
@@ -257,8 +258,40 @@ export function createCollectController(opts: {
     persist();
   }
 
+  /**
+   * Shared progress for this wallet + mixtape as other tabs last wrote it.
+   * `live` keeps in-flight statuses as written (another tab may be signing);
+   * inside the cross-tab lock nobody else can be signing, so in-flight statuses
+   * left behind by a closed tab are normalised like a reload.
+   */
+  function readSharedSteps(live: boolean): FlowStep[] | null {
+    const key = storageKey();
+    return key ? restoreFlow(readStorage(key), Date.now(), { live }) : null;
+  }
+
+  /** Read-modify-write against the freshest shared progress (never clobbers another tab). */
   function patchStep(id: string, patch: Partial<FlowStep>) {
-    setSteps(steps.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+    const shared = readSharedSteps(true);
+    const base = shared && shared.some((s) => s.id === id) ? shared : steps;
+    setSteps(base.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  }
+
+  /**
+   * Serialize every progress-mutating action (approve, start over, acknowledge)
+   * across tabs for this wallet + mixtape. Inside the lock the shared progress is
+   * re-read before anything is written or signed, so a second tab can never
+   * overwrite another tab's submitted/uncertain lock or submit a duplicate buy.
+   */
+  async function withCollectLock<T>(fn: () => Promise<T>): Promise<T> {
+    const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
+    const name = `smol-collect:${userState.contractId ?? ''}:${opts.getMixtapeId()}`;
+    const run = async () => {
+      const shared = readSharedSteps(false);
+      steps = shared ?? [];
+      return fn();
+    };
+    // Fallback (no Web Locks): the in-lock re-read above still applies.
+    return locks?.request ? (locks.request(name, { mode: 'exclusive' }, run) as Promise<T>) : run();
   }
 
   function resetContext() {
@@ -317,6 +350,18 @@ export function createCollectController(opts: {
       generation++;
       pollAbort?.abort();
     };
+  });
+
+  // Another tab wrote progress for this wallet + mixtape: reflect it at once
+  // (its submitted/uncertain locks exclude those songs from our plan).
+  $effect(() => {
+    const onStorage = (event: StorageEvent) => {
+      const key = storageKey();
+      if (!key || event.key !== key) return;
+      steps = (event.newValue ? restoreFlow(event.newValue, Date.now(), { live: true }) : null) ?? [];
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   });
 
   // -------------------------------------------------------------------------
@@ -481,6 +526,9 @@ export function createCollectController(opts: {
       case 'startOver':
         startOver();
         break;
+      case 'acknowledge':
+        acknowledge();
+        break;
       case 'openSheet':
         view = 'progress';
         sheetOpen = true;
@@ -517,14 +565,33 @@ export function createCollectController(opts: {
 
   function startOver() {
     // Submitted / unsettled steps keep their lock: their songs can't be re-signed
-    // until a fresh chain read reconciles them (owned, or signature expired).
-    setSteps(stepsForStartOver(steps));
-    notices = [];
-    doneSummary = null;
-    selection = null;
-    void refresh().then(async () => {
+    // until a fresh chain read reconciles them or the user acknowledges them.
+    void withCollectLock(async () => {
+      setSteps(stepsForStartOver(steps));
+      notices = [];
+      doneSummary = null;
+      selection = null;
+      await refresh();
       await reconcileLocked();
       view = steps.length ? 'progress' : 'review';
+      sheetOpen = true;
+    });
+  }
+
+  /**
+   * Explicit recovery for unsettled steps whose outcome can't be confirmed
+   * (signature expired without a receipt, or a legacy record without expiry).
+   * We never claim they weren't charged: the user checks holdings and chooses
+   * to start a NEW purchase from a fresh read.
+   */
+  function acknowledge() {
+    void withCollectLock(async () => {
+      setSteps(acknowledgeSteps(steps, Date.now()));
+      notices = [];
+      doneSummary = null;
+      selection = null;
+      await refresh();
+      view = 'review';
       sheetOpen = true;
     });
   }
@@ -543,17 +610,51 @@ export function createCollectController(opts: {
       return;
     }
     const gen = generation;
-    if (kind === 'done') setSteps([]);
+    // What the user confirmed: the plan's exact songs (re-checked inside the lock).
+    const confirmed = planKey(plan);
+    approving = true;
+    try {
+      await withCollectLock(() => approveNextLocked(holder, keyId, gen, confirmed));
+    } finally {
+      if (gen === generation) approving = false;
+    }
+  }
+
+  function planKey(p: typeof plan): string {
+    return p ? p.steps.map((x) => `${x.kind}:${x.trackIds.join(',')}`).join('|') : '';
+  }
+
+  async function approveNextLocked(holder: string, keyId: string, gen: number, confirmed: string): Promise<void> {
+    if (gen !== generation) return;
+    if (flowKind(steps) === 'done') setSteps([]);
 
     let step = nextRunnableStep(steps);
     if (!step) {
       // Unsettled outcomes are re-checked, never re-signed.
       if (steps.some((s) => s.status === 'failed')) {
         await reconcileLocked();
+        if (steps.some(isLocked)) {
+          notices = [
+            ...notices,
+            {
+              tone: 'warning',
+              text: "An earlier purchase for this mixtape isn't confirmed yet, so nothing new was signed. Its songs won't be charged again.",
+            },
+          ];
+          view = 'progress';
+        }
         return;
       }
       const p = plan;
       if (!p || p.steps.length === 0) return;
+      if (planKey(p) !== confirmed) {
+        // Shared progress changed under us (another tab submitted): re-confirm.
+        notices = [
+          ...notices,
+          { tone: 'warning', text: 'Another purchase for this mixtape is in progress or unconfirmed. Review the updated total before collecting.' },
+        ];
+        return;
+      }
       if (kaleGuard(kale, p.costStroops) !== 'ok') return;
       const suffix = steps.length ? `-${Date.now().toString(36)}` : '';
       const added = stepsFromPlan(p, titles).map((s) => ({ ...s, id: `${s.id}${suffix}` }));
@@ -563,7 +664,6 @@ export function createCollectController(opts: {
       step = added[0];
     }
 
-    approving = true;
     const resumeStatus = step.status;
     patchStep(step.id, { status: 'signing', failure: undefined });
     try {
@@ -716,8 +816,6 @@ export function createCollectController(opts: {
         phase: was === 'submitting' ? 'submitting' : 'signing',
       });
       patchStep(step.id, { status: failure === 'cancelled' ? 'cancelled' : 'failed', failure });
-    } finally {
-      if (gen === generation) approving = false;
     }
   }
 
@@ -967,6 +1065,7 @@ export function createCollectController(opts: {
     selectAffordable,
     approveNext,
     startOver,
+    acknowledge,
     closeSheet,
   };
 }

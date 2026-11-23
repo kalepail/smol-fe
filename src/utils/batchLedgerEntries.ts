@@ -15,6 +15,14 @@
 import { Address, xdr } from '@stellar/stellar-sdk/minimal';
 import { rpc } from './base';
 import { logger } from './logger';
+import {
+  createArchiveCapability,
+  isArchivedEntry,
+  toBalanceResult,
+  type BalanceBatchRequest,
+  type BalanceBatchResult,
+  type LedgerEntryRead,
+} from './ledgerReads';
 
 export {
   contractWasmHash,
@@ -71,23 +79,17 @@ export function createCometRecordsLedgerKey(poolId: string): string {
 // evicted entries, so their omissions are treated as unknown.
 // ---------------------------------------------------------------------------
 
-let capability: Promise<boolean> | null = null;
-let observedArchivedEntry = false;
+const capability = createArchiveCapability({
+  override: import.meta.env.PUBLIC_RPC_ARCHIVE_AWARE,
+  probe: () =>
+    rpc.getVersionInfo().then((info) => Number(info.protocolVersion) >= 23).catch((error) => {
+      logger.warn('rpc', 'Could not verify reader archive capability', error);
+      throw error;
+    }),
+});
 
 export function getReaderArchiveAware(): Promise<boolean> {
-  const override = import.meta.env.PUBLIC_RPC_ARCHIVE_AWARE;
-  if (override === '1') return Promise.resolve(true);
-  if (override === '0') return Promise.resolve(false);
-  if (observedArchivedEntry) return Promise.resolve(true);
-  capability ??= rpc
-    .getVersionInfo()
-    .then((info) => Number(info.protocolVersion) >= 23)
-    .catch((error) => {
-      logger.warn('rpc', 'Could not verify reader archive capability', error);
-      capability = null; // retry on the next read; unverified ⇒ not archive-aware
-      return false;
-    });
-  return capability;
+  return capability.isAware();
 }
 
 const inflight = new Map<string, Promise<LedgerEntryRead>>();
@@ -115,8 +117,8 @@ async function fetchChunk(keys: string[], resolvers: Map<string, (r: LedgerEntry
         continue;
       }
       const liveUntil = entry.liveUntilLedgerSeq;
-      const archived = !liveUntil || liveUntil < latestLedger;
-      if (archived) observedArchivedEntry = true;
+      const archived = isArchivedEntry(liveUntil, latestLedger);
+      capability.observe(liveUntil);
       resolvers.get(key)?.({
         state: 'found',
         val: entry.val,
@@ -185,7 +187,6 @@ export async function readLedgerEntries(keys: string[]): Promise<Map<string, Led
 
 export type { BalanceBatchRequest, BalanceBatchResult } from './ledgerReads';
 export { knownBalance, toBalanceResult } from './ledgerReads';
-import { toBalanceResult, type BalanceBatchRequest, type BalanceBatchResult, type LedgerEntryRead } from './ledgerReads';
 
 export async function getBatchSACBalances(requests: BalanceBatchRequest[]): Promise<BalanceBatchResult[]> {
   if (requests.length === 0) return [];

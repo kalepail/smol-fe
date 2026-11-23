@@ -11,6 +11,8 @@
     mintBalance: bigint;
     onClose: () => void;
     onComplete: () => void;
+    /** The sheet verified this song's canonical on-chain market. */
+    onVerified?: (market: { sac: string; pool: string }) => void;
   }
 
   let {
@@ -23,6 +25,7 @@
     mintBalance = $bindable(),
     onClose,
     onComplete,
+    onVerified,
   }: Props = $props();
 
   let TradeModal = $state<typeof import('../MintTradeModal.svelte').default | null>(null);
@@ -64,5 +67,6 @@
     imageUrl={imageUrl ?? undefined}
     onClose={handleClose}
     onComplete={handleComplete}
+    {onVerified}
   />
 {/if}

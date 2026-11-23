@@ -433,8 +433,12 @@ export type StepFailure =
   | 'rejected'
   | 'timeout'
   | 'uncertain'
-  /** Reconciled: its signature expired on chain and it never landed. Safe to retry. */
-  | 'expired'
+  /**
+   * Signature expired with no receipt or workflow outcome. It can no longer
+   * land, but whether it was charged is UNKNOWN: never claim "not charged";
+   * the user must acknowledge before starting a new purchase.
+   */
+  | 'unconfirmed'
   | 'auth'
   | 'network'
   | 'unknown';
@@ -459,7 +463,26 @@ export type FlowKind = 'idle' | 'running' | 'paused' | 'done';
 
 /** Outcomes that may have been charged and are not yet reconciled. */
 export function isUnsettledFailure(step: FlowStep): boolean {
-  return step.status === 'failed' && (step.failure === 'uncertain' || step.failure === 'timeout');
+  return (
+    step.status === 'failed' &&
+    (step.failure === 'uncertain' || step.failure === 'timeout' || step.failure === 'unconfirmed')
+  );
+}
+
+/**
+ * The user may explicitly acknowledge this unsettled step and start a NEW
+ * purchase: its signature has expired (`unconfirmed`), or it is a legacy record
+ * with no expiry ledger that is older than the lock bound (or has no time at all).
+ */
+export function isAcknowledgeable(step: FlowStep, now: number): boolean {
+  if (!isUnsettledFailure(step)) return false;
+  if (step.failure === 'unconfirmed') return true;
+  return step.expiresAtLedger === undefined && (step.since === undefined || now - step.since > LOCK_MAX_MS);
+}
+
+/** Drop acknowledged steps (explicit user action). Their songs become plannable again. */
+export function acknowledgeSteps(steps: FlowStep[], now: number): FlowStep[] {
+  return steps.filter((s) => !isAcknowledgeable(s, now));
 }
 
 /** Submitted (or possibly submitted) steps: their songs are locked against re-signing. */
@@ -507,8 +530,10 @@ export const LOCK_MAX_MS = 30 * 60 * 1000;
  * Reconcile one submitted/unsettled step against a FRESH, successful chain read.
  * - every song now held → done;
  * - the signature's expiration ledger has passed (or the wall-clock bound for
- *   legacy records) and the songs still aren't held → `expired`: it can never
- *   land, so it was not charged and may be retried;
+ *   records without one) and the songs aren't all held → `unconfirmed`: it can
+ *   no longer land, but without a receipt we can't say whether it was charged
+ *   (e.g. bought, then a token was transferred away). It stays locked until the
+ *   user acknowledges it;
  * - otherwise unchanged (still locked).
  */
 export function reconcileStep(
@@ -521,7 +546,7 @@ export function reconcileStep(
     step.expiresAtLedger !== undefined
       ? read.latestLedger !== null && read.latestLedger > step.expiresAtLedger
       : step.since !== undefined && read.now - step.since > LOCK_MAX_MS;
-  return expired ? { ...step, status: 'failed', failure: 'expired' } : step;
+  return expired ? { ...step, status: 'failed', failure: 'unconfirmed' } : step;
 }
 
 /**
@@ -599,7 +624,11 @@ export function serializeFlow(steps: FlowStep[], now: number): string {
  * locked until a fresh chain read reconciles them (owned → done, signature
  * expired → `expired`), so the UI never repeats a paid action on a guess.
  */
-export function restoreFlow(raw: string | null, now: number): FlowStep[] | null {
+export function restoreFlow(
+  raw: string | null,
+  now: number,
+  opts: { live?: boolean } = {}
+): FlowStep[] | null {
   if (!raw) return null;
   try {
     const data = JSON.parse(raw);
@@ -620,6 +649,8 @@ export function restoreFlow(raw: string | null, now: number): FlowStep[] | null 
         expiresAtLedger: typeof s.expiresAtLedger === 'number' ? s.expiresAtLedger : undefined,
         workflowIds: Array.isArray(s.workflowIds) ? (s.workflowIds as unknown[]).map(String) : undefined,
       };
+      // Live view of another tab's progress: keep its in-flight statuses as written.
+      if (opts.live) return base;
       if (status === 'signing') return { ...base, status: 'cancelled', failure: 'cancelled' };
       if (status === 'submitting' || status === 'confirming') {
         // Mints resolve from the chain poll; buys resolve from one balance re-read.
@@ -656,6 +687,9 @@ export function formatStroops(stroops: bigint): string {
 
 const plural = (n: number, one: string, many = `${one}s`) => (n === 1 ? one : many);
 
+export const UNCONFIRMED_COPY =
+  'Previous request timed out or expired. Check your holdings before starting a new purchase.';
+
 export const MINT_OWNS_COPY = 'Minting makes you the owner right away. No second purchase.';
 
 export type CardAction =
@@ -669,6 +703,7 @@ export type CardAction =
   | 'affordable'
   | 'startOver'
   | 'openSheet'
+  | 'acknowledge'
   | 'none';
 
 export interface CardCopy {
@@ -706,14 +741,27 @@ export function describeCollectCard(input: {
   steps: FlowStep[];
   checkFailures?: number;
   affordable?: { count: number; costKale: number; mints: number } | null;
+  now?: number;
 }): CardCopy {
   const { page, summary: s, plan, kale, steps } = input;
+  const now = input.now ?? Date.now();
 
   // Overlays first: they change the CTA, not the base phase.
   if (page.overlay === 'S9') {
     const done = steps.filter((x) => x.status === 'done').length;
     const left = runnableCount(steps);
     const unsettled = steps.filter(isUnsettledFailure).length;
+    if (left === 0 && steps.some((x) => isAcknowledgeable(x, now))) {
+      // Honest, neutral: we can't tell whether the expired request was charged.
+      return {
+        title: 'Collecting paused',
+        tone: 'paused',
+        subline: UNCONFIRMED_COPY,
+        primary: { label: 'Acknowledge & start new purchase', action: 'acknowledge', kind: 'primary' },
+        secondary: { label: 'See your songs', action: 'holdings' },
+        showExplainer: false,
+      };
+    }
     return {
       title: 'Collecting paused',
       tone: 'paused',
@@ -990,8 +1038,8 @@ export function describeStepFailure(failure: StepFailure | undefined, title?: st
   switch (failure) {
     case 'cancelled':
       return "Cancelled. You weren't charged for this step.";
-    case 'expired':
-      return "This step didn't go through. You weren't charged.";
+    case 'unconfirmed':
+      return UNCONFIRMED_COPY;
     case 'poolTooSmall':
       return `${title ? `“${title}”` : "A song"}'s market is too small to buy ${BUY_COST_KALE} KALE at once right now.`;
     case 'mintCollision':

@@ -8,6 +8,7 @@
     describeStepFailure,
     formatKale,
     formatStroops,
+    isAcknowledgeable,
     isRunnable,
     kaleGuard,
     nextRunnableStep,
@@ -101,6 +102,9 @@
       return { label: `Approve step ${stepIndex} of ${c.steps.length}`, disabled: false };
     }
     if (confirmingOnly) return { label: 'Minting on Stellar…', disabled: true };
+    if (c.steps.some((s) => isAcknowledgeable(s, Date.now()))) {
+      return { label: 'Acknowledge & start new purchase', disabled: false };
+    }
     if (c.steps.some((s) => s.status === 'failed')) return { label: 'Check again', disabled: false };
     return { label: 'Done', disabled: false };
   });
@@ -423,7 +427,9 @@
                 ? c.closeSheet()
                 : progressPrimary.label === 'Check balance again'
                   ? c.refreshKale()
-                  : c.approveNext()}
+                  : progressPrimary.label === 'Acknowledge & start new purchase'
+                    ? c.acknowledge()
+                    : c.approveNext()}
           >
             {progressPrimary.label}
           </Button>
