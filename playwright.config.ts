@@ -31,6 +31,7 @@ export default defineConfig({
         PUBLIC_API_URL: api,
         PUBLIC_RPC_URL: 'https://127.0.0.1:4329',
         SMOL_E2E: '1',
+        PUBLIC_E2E_SEAMS: '1',
       },
     },
   ],

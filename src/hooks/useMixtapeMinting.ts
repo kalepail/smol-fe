@@ -18,6 +18,7 @@ import { pollUntilSettled, type SettlementRead } from '../utils/pollLoop';
 import { getSignatureExpiration } from '../utils/rpcTip';
 import { readMixtapeChainSnapshot } from '../utils/smolChainIdentity';
 import { CANONICAL_SMOL_ID, SMOL_ISSUER } from '../utils/smolIdentity';
+import { e2eSeams } from '../utils/collectSeams';
 
 export class CollectRequestError extends Error {
   readonly status: number;
@@ -44,10 +45,15 @@ export async function submitMintBatch(params: {
   tracks: MintBatchTrack[];
   userContractId: string;
   userKeyId: string;
-  /** Fires once the passkey signature is done (UI: Approve → Sending) with its expiry ledger. */
-  onSigned?: (info: { expiresAtLedger: number }) => void;
+  /**
+   * Pre-relay guard, called after the passkey returns and BEFORE POST /mint. It
+   * must prove this attempt still owns the step and durably record
+   * `submitting`; if it throws, the signed payload is discarded, never sent.
+   */
+  onBeforeSubmit: (info: { expiresAtLedger: number }) => void | Promise<void>;
 }): Promise<MintBatchResult> {
-  const { tracks, userContractId, userKeyId, onSigned } = params;
+  const { tracks, userContractId, userKeyId, onBeforeSubmit } = params;
+  const seam = e2eSeams()?.mint;
   const smolContractId = import.meta.env.PUBLIC_SMOL_CONTRACT_ID;
   const kaleSacId = import.meta.env.PUBLIC_KALE_SAC_ID;
   if (!smolContractId || !kaleSacId) throw new Error('Minting is not configured');
@@ -75,10 +81,19 @@ export async function submitMintBatch(params: {
     networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE!,
   });
 
-  const tx = await smolClient.coin_them({ user: userContractId, asset_bytes, salts, fee_rules });
-  const expiration = await getSignatureExpiration();
-  await signWithPasskey(tx, { keyId: userKeyId, expiration });
-  onSigned?.({ expiresAtLedger: expiration });
+  const assemble = () => smolClient.coin_them({ user: userContractId, asset_bytes, salts, fee_rules });
+  const tx = (seam?.assemble ? await seam.assemble() : await assemble()) as Awaited<ReturnType<typeof assemble>>;
+  const expiration = seam?.expiration ? await seam.expiration() : await getSignatureExpiration();
+  if (seam?.sign) await seam.sign();
+  else await signWithPasskey(tx, { keyId: userKeyId, expiration });
+
+  // No POST /mint unless this tab still owns the attempt AND `submitting` is saved.
+  await onBeforeSubmit({ expiresAtLedger: expiration });
+
+  if (seam?.relay) {
+    await seam.relay(tracks.map((t) => t.id));
+    return { acceptedIds: tracks.map((t) => t.id), alreadyMintedIds: [], workflowIds: [] };
+  }
   const xdr = tx.built?.toXDR();
   if (!xdr) throw new Error('Failed to build signed coin_them transaction');
 

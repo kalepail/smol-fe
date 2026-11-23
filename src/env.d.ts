@@ -17,6 +17,8 @@ interface ImportMetaEnv {
   readonly PUBLIC_MINT_STATUS?: string;
   // '1' / '0' to assert getLedgerEntries archive capability; unset → getVersionInfo (protocol ≥ 23).
   readonly PUBLIC_RPC_ARCHIVE_AWARE?: string;
+  // E2E only (Playwright dev server): enables src/utils/collectSeams.ts boundary substitutes.
+  readonly PUBLIC_E2E_SEAMS?: string;
 }
 
 interface ImportMeta {

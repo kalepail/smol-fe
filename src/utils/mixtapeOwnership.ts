@@ -460,6 +460,110 @@ export interface FlowStep {
   /** Tab currently signing this step, and until when that claim is valid. */
   ownerTabId?: string;
   leaseExpiresAt?: number;
+  /** Unique id of this signing attempt (a takeover gets a new one). */
+  attemptId?: string;
+}
+
+/** Serialized Units (Report 31): strict non-empty unsigned decimal digits only. */
+export function parseUnits(value: unknown): bigint | null {
+  return typeof value === 'string' && /^\d+$/.test(value) ? BigInt(value) : null;
+}
+
+/**
+ * Parse the optional `POST /chain/snapshot` body (Report 31). Every serialized
+ * amount must be strict Units (`parseUnits`): `BigInt(" ")` is 0n, so a
+ * malformed amount anywhere makes the whole snapshot untrusted (null → the
+ * caller falls back to ledger reads). Never a known 0n from a bad string.
+ */
+export function parseServerSnapshot(
+  body: unknown,
+  kaleSac: string,
+  now: number
+): { tracks: Map<string, { facts: ChainFacts; holding: Holding }>; kale: { status: 'known'; balance: bigint } | { status: 'error' }; errors: number } | null {
+  const b = body as {
+    kale?: { state?: unknown; amount?: unknown };
+    tracks?: unknown;
+  } | null;
+  if (!b || typeof b !== 'object' || !Array.isArray(b.tracks)) return null;
+  const tracks = new Map<string, { facts: ChainFacts; holding: Holding }>();
+  let errors = 0;
+  for (const raw of b.tracks as Record<string, unknown>[]) {
+    if (!raw || typeof raw.id !== 'string') return null;
+    let facts: ChainFacts;
+    if (raw.mint === 'verified' && typeof raw.sac === 'string' && typeof raw.pool === 'string') {
+      let kaleReserve: bigint | undefined;
+      const reserve = Array.isArray(raw.reserves)
+        ? (raw.reserves as { token?: unknown; balance?: unknown }[]).find((r) => r?.token === kaleSac)
+        : undefined;
+      if (reserve) {
+        const parsed = parseUnits(reserve.balance);
+        if (parsed === null) return null;
+        kaleReserve = parsed;
+      }
+      facts = { status: 'minted', sac: raw.sac, pool: raw.pool, kaleReserve };
+    } else if (raw.mint === 'unminted') {
+      facts = { status: 'unminted' };
+    } else {
+      facts = { status: 'unresolved' };
+    }
+    const balance = raw.balance as { state?: unknown; amount?: unknown } | undefined;
+    let holding: Holding;
+    if (balance?.state === 'known') {
+      const amount = parseUnits(balance.amount);
+      if (amount === null) return null;
+      holding = { status: 'known', balance: amount, checkedAt: now };
+    } else if (facts.status === 'unminted') {
+      holding = { status: 'known', balance: 0n, checkedAt: now };
+    } else {
+      holding = { status: 'error', message: 'Unknown' };
+    }
+    if (holding.status === 'error' && facts.status === 'minted') errors++;
+    tracks.set(raw.id, { facts, holding });
+  }
+  let kale: { status: 'known'; balance: bigint } | { status: 'error' } = { status: 'error' };
+  if (b.kale?.state === 'known') {
+    const amount = parseUnits(b.kale.amount);
+    if (amount === null) return null;
+    kale = { status: 'known', balance: amount };
+  }
+  return { tracks, kale, errors };
+}
+
+/**
+ * Pre-relay ownership proof: the shared record must still show THIS attempt
+ * signing in THIS tab, and the claim must be live (or the cross-tab lock still
+ * held). Anything else means another tab took over: never relay, never write.
+ */
+export function ownsSigningClaim(
+  shared: FlowStep[] | null,
+  claim: { stepId: string; tabId: string; attemptId: string; now: number; holdsLock: boolean }
+): boolean {
+  const step = shared?.find((s) => s.id === claim.stepId);
+  if (!step || step.status !== 'signing') return false;
+  if (step.ownerTabId !== claim.tabId || step.attemptId !== claim.attemptId) return false;
+  return claim.holdsLock || (step.leaseExpiresAt ?? 0) > claim.now;
+}
+
+/** Another tab's signing claim whose lease ran out is a cancelled step (recoverable). */
+export function expireForeignClaims(steps: FlowStep[], tabId: string, now: number): FlowStep[] {
+  let changed = false;
+  const next = steps.map((s) => {
+    if (s.status === 'signing' && s.ownerTabId !== tabId && (s.leaseExpiresAt ?? 0) <= now) {
+      changed = true;
+      return { ...s, status: 'cancelled' as const, failure: 'cancelled' as const, ownerTabId: undefined, leaseExpiresAt: undefined, attemptId: undefined };
+    }
+    return s;
+  });
+  return changed ? next : steps;
+}
+
+/** Earliest lease expiry among other tabs' live signing claims (for a one-shot recheck). */
+export function nextForeignClaimExpiry(steps: FlowStep[], tabId: string, now: number): number | null {
+  const times = steps
+    .filter((s) => s.status === 'signing' && s.ownerTabId !== undefined && s.ownerTabId !== tabId)
+    .map((s) => s.leaseExpiresAt ?? 0)
+    .filter((t) => t > now);
+  return times.length ? Math.min(...times) : null;
 }
 
 /** A signing claim is refreshed while the passkey prompt is open. */
@@ -667,6 +771,7 @@ export function restoreFlow(
         workflowIds: Array.isArray(s.workflowIds) ? (s.workflowIds as unknown[]).map(String) : undefined,
         ownerTabId: typeof s.ownerTabId === 'string' ? s.ownerTabId : undefined,
         leaseExpiresAt: typeof s.leaseExpiresAt === 'number' ? s.leaseExpiresAt : undefined,
+        attemptId: typeof s.attemptId === 'string' ? s.attemptId : undefined,
       };
       // V1 records from 8e9ebc6 wrote `failed/expired` without a receipt: we can't
       // know whether they were charged, so they require explicit acknowledgement.

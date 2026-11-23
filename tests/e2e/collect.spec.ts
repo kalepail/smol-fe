@@ -79,7 +79,8 @@ for (const vp of VIEWPORTS) {
     test('S0 signed out: minted counts, sign-in CTA, zero chain reads', async ({ page }) => {
       const stats = await installStellarMock(page, () => ({ minted: [], balances: {}, kale: 0n }));
       await page.goto('/mixtapes/collect-mixed');
-      await expect(card(page).getByRole('heading')).toHaveText('12 songs · 9 minted');
+      // First test against a cold dev server: allow route compilation.
+      await expect(card(page).getByRole('heading')).toHaveText('12 songs · 9 minted', { timeout: 15_000 });
       await expect(card(page).getByRole('button', { name: 'Sign in to collect' })).toBeVisible();
       await expect(page.getByText('9/12 minted')).toBeVisible();
       await assertNoHorizontalOverflow(page);
@@ -490,6 +491,152 @@ test.describe('Report 34 regressions @390', () => {
     await sheet.getByRole('button', { name: 'Close' }).click();
     await expect(page.getByRole('button', { name: 'Trade', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Mint', exact: true })).toHaveCount(0);
+  });
+
+  test('Pass4 #1 QuotaExceededError on ONLY the post-passkey "submitting" write → 0 relay calls', async ({ page, context }) => {
+    await signIn(context);
+    await context.addInitScript(() => {
+      const w = window as unknown as { __relays: string[][]; __smolCollectSeams: unknown };
+      w.__relays = [];
+      w.__smolCollectSeams = {
+        buy: {
+          assemble: async () => ({}),
+          expiration: async () => 66_000_000,
+          sign: async () => {},
+          relay: async (ids: string[]) => {
+            w.__relays.push(ids);
+          },
+        },
+      };
+      const original = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (key: string, value: string) {
+        if (key.startsWith('smol:collect:') && value.includes('"status":"submitting"')) {
+          throw new DOMException('Quota exceeded', 'QuotaExceededError');
+        }
+        return original.call(this, key, value);
+      };
+    });
+    await installStellarMock(page, () => ({ minted: mintedIds, balances: {}, kale: KALE(1_000) }));
+    await page.goto('/mixtapes/collect-minted');
+    await card(page).getByRole('button', { name: 'Buy all 8 · 264 KALE' }).click({ timeout: 10_000 });
+    const sheet = page.locator('dialog[open]');
+    await sheet.getByRole('button', { name: 'Collect for 264 KALE' }).click();
+    await expect(sheet.getByText(/nothing was sent and you weren't charged/).first()).toBeVisible({ timeout: 10_000 });
+    expect(await page.evaluate(() => (window as unknown as { __relays: string[][] }).__relays.length), '0 relay calls').toBe(0);
+  });
+
+  test('Pass4 #2 lease takeover: the stale signer relays nothing and leaves B\'s record intact', async ({ context }) => {
+    await signIn(context);
+    await context.addInitScript(() => {
+      Object.defineProperty(Navigator.prototype, 'locks', { get: () => undefined, configurable: true });
+      const w = window as unknown as { __relays: string[][]; __releasePasskey: () => void; __smolCollectSeams: unknown };
+      w.__relays = [];
+      w.__smolCollectSeams = {
+        buy: {
+          assemble: async () => ({}),
+          expiration: async () => 66_000_000,
+          // A is held at its passkey prompt until the test releases it.
+          sign: () => new Promise<void>((resolve) => (w.__releasePasskey = resolve)),
+          relay: async (ids: string[]) => {
+            w.__relays.push(ids);
+          },
+        },
+      };
+    });
+    const tabA = await context.newPage();
+    const tabB = await context.newPage();
+    await installStellarMock(tabA, () => ({ minted: mintedIds, balances: {}, kale: KALE(1_000) }));
+    await installStellarMock(tabB, () => ({ minted: mintedIds, balances: {}, kale: KALE(1_000) }));
+    await tabA.goto('/mixtapes/collect-minted');
+    await card(tabA).getByRole('button', { name: 'Buy all 8 · 264 KALE' }).click({ timeout: 10_000 });
+    await tabA.locator('dialog[open]').getByRole('button', { name: 'Collect for 264 KALE' }).click();
+    await expect.poll(() => tabA.evaluate(() => typeof (window as unknown as { __releasePasskey?: unknown }).__releasePasskey)).toBe('function');
+
+    // A's lease expires; B takes over the same step, relays, and loses its response.
+    const flowKey = `smol:collect:v1:${COLLECTOR}:collect-minted`;
+    await tabB.goto('/mixtapes/collect-minted');
+    const recordB = await tabB.evaluate(
+      ([flowKey, leaseKey]) => {
+        const flow = JSON.parse(localStorage.getItem(flowKey)!);
+        flow.updatedAt = Date.now();
+        flow.steps = flow.steps.map((s: Record<string, unknown>) => ({
+          ...s,
+          status: 'failed',
+          failure: 'uncertain',
+          ownerTabId: 'tab-B',
+          attemptId: 'b-1',
+          since: Date.now(),
+          expiresAtLedger: 99_999_999,
+        }));
+        localStorage.setItem(leaseKey, JSON.stringify({ owner: 'tab-B', expiresAt: Date.now() + 60_000 }));
+        const value = JSON.stringify(flow);
+        localStorage.setItem(flowKey, value);
+        return value;
+      },
+      [flowKey, `smol:collect-lock:v1:${COLLECTOR}:collect-minted`] as const
+    );
+
+    // A's original passkey completes after the takeover.
+    await tabA.evaluate(() => (window as unknown as { __releasePasskey: () => void }).__releasePasskey());
+    await expect(tabA.locator('dialog[open]').getByText('Another tab took over this purchase, so this tab sent nothing. Check the step below.')).toBeVisible({ timeout: 10_000 });
+    expect(await tabA.evaluate(() => (window as unknown as { __relays: string[][] }).__relays.length), 'A relays nothing').toBe(0);
+    await tabA.waitForTimeout(300);
+    expect(await tabA.evaluate((key) => localStorage.getItem(key), flowKey), "B's recorded outcome is untouched").toBe(recordB);
+  });
+
+  test('Pass4 #3 a malformed server-snapshot amount (" ") never becomes a known 0', async ({ page, context }) => {
+    await signIn(context);
+    await context.addInitScript(() => {
+      (window as unknown as { __smolCollectSeams: unknown }).__smolCollectSeams = { serverSnapshot: true };
+    });
+    let snapshotCalls = 0;
+    await page.route('http://127.0.0.1:4329/chain/snapshot', async (route) => {
+      const headers = {
+        'access-control-allow-origin': 'http://127.0.0.1:4328',
+        'access-control-allow-credentials': 'true',
+        'access-control-allow-headers': 'Content-Type',
+        'access-control-allow-methods': 'POST, OPTIONS',
+      };
+      if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+      snapshotCalls++;
+      await route.fulfill({
+        headers,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          kale: { state: 'known', amount: '10000000000' },
+          tracks: mintedTracks.map((t) => ({
+            id: t.Id,
+            sac: derive(t.Id).sac,
+            pool: derive(t.Id).pool,
+            mint: 'verified',
+            balance: { state: 'known', amount: ' ' },
+          })),
+        }),
+      });
+    });
+    // On the ledger the wallet holds 17 stroops of every song.
+    await installStellarMock(page, () => ({ minted: mintedIds, balances: Object.fromEntries(mintedIds.map((id) => [id, 17n])), kale: KALE(1_000) }));
+    await page.goto('/mixtapes/collect-minted');
+    await expect(card(page).getByRole('heading')).toHaveText('You own this mixtape', { timeout: 10_000 });
+    expect(snapshotCalls).toBeGreaterThan(0);
+    await expect(page.getByRole('button', { name: /Buy all 8|Collect for/ })).toHaveCount(0);
+  });
+
+  test('Pass4 #4 a waiting tab recovers when another tab\'s signing claim expires (no reload)', async ({ page, context }) => {
+    await signIn(context);
+    const base = Date.now();
+    await page.clock.install({ time: base });
+    await seedFlow(context, 'collect-minted', [
+      { id: 'buy-1', kind: 'buy', trackIds: mintedIds, titles: [], costStroops: KALE(264).toString(), status: 'signing', ownerTabId: 'tab-A', attemptId: 'a-1', leaseExpiresAt: base + 20_000 },
+    ]);
+    await installStellarMock(page, () => ({ minted: mintedIds, balances: {}, kale: KALE(1_000) }));
+    await page.goto('/mixtapes/collect-minted');
+    await card(page).getByRole('button', { name: /Collecting…/ }).click({ timeout: 10_000 });
+    const sheet = page.locator('dialog[open]');
+    await expect(sheet.getByRole('button', { name: 'Waiting for passkey…' })).toBeDisabled();
+    await page.clock.fastForward(25_000); // past tab A's leaseExpiresAt
+    await expect(sheet.getByRole('button', { name: /^Continue/ })).toBeEnabled({ timeout: 5_000 });
+    await expect(sheet.getByRole('button', { name: 'Waiting for passkey…' })).toHaveCount(0);
   });
 
   test('#4 an unaudited pool executable can never be traded from the song sheet', async ({ page, context }) => {

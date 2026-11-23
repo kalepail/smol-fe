@@ -36,6 +36,10 @@ import {
   stepsForStartOver,
   acknowledgeSteps,
   isSigningElsewhere,
+  ownsSigningClaim,
+  expireForeignClaims,
+  nextForeignClaimExpiry,
+  parseServerSnapshot,
   SIGNING_LEASE_MS,
   stepsFromPlan,
   summarizeMixtape,
@@ -51,6 +55,7 @@ import {
 import { fitsMaxIn } from '../utils/cometQuote';
 import { BUY_COST_KALE, BUY_COST_STROOPS, MINT_COST_KALE, MINT_COST_STROOPS } from '../utils/mixtapePricing';
 import { logger } from '../utils/logger';
+import { e2eSeams } from '../utils/collectSeams';
 import { userState } from './user.svelte';
 import { setKnownKaleBalance } from './balance.svelte';
 import { openAuthSheet } from './authSheet.svelte';
@@ -75,7 +80,7 @@ type SnapshotResult = {
 
 /** Optional server snapshot (Report 31 `POST /chain/snapshot`), else null. */
 async function readServerSnapshot(mixtapeId: string, signal?: AbortSignal): Promise<SnapshotResult | null> {
-  if (import.meta.env.PUBLIC_CHAIN_SNAPSHOT !== '1') return null;
+  if (import.meta.env.PUBLIC_CHAIN_SNAPSHOT !== '1' && !e2eSeams()?.serverSnapshot) return null;
   try {
     const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/chain/snapshot`, {
       method: 'POST',
@@ -86,45 +91,10 @@ async function readServerSnapshot(mixtapeId: string, signal?: AbortSignal): Prom
       signal,
     });
     if (!response.ok) return null;
-    const body = (await response.json()) as {
-      kale?: { state: string; amount?: string };
-      tracks?: {
-        id: string;
-        sac: string | null;
-        pool: string | null;
-        mint: 'verified' | 'unminted' | 'unresolved';
-        balance?: { state: string; amount?: string };
-        reserves?: { token: string; balance: string }[];
-      }[];
-    };
-    const kaleSac = import.meta.env.PUBLIC_KALE_SAC_ID;
-    const now = Date.now();
-    const tracks = new Map<string, { facts: ChainFacts; holding: Holding }>();
-    let errors = 0;
-    for (const t of body.tracks ?? []) {
-      let facts: ChainFacts;
-      if (t.mint === 'verified' && t.sac && t.pool) {
-        const reserve = t.reserves?.find((r) => r.token === kaleSac)?.balance;
-        facts = { status: 'minted', sac: t.sac, pool: t.pool, kaleReserve: reserve ? BigInt(reserve) : undefined };
-      } else if (t.mint === 'unminted') {
-        facts = { status: 'unminted' };
-      } else {
-        facts = { status: 'unresolved' };
-      }
-      const holding: Holding =
-        t.balance?.state === 'known' && t.balance.amount !== undefined
-          ? { status: 'known', balance: BigInt(t.balance.amount), checkedAt: now }
-          : facts.status === 'unminted'
-            ? { status: 'known', balance: 0n, checkedAt: now }
-            : { status: 'error', message: 'Unknown' };
-      if (holding.status === 'error' && facts.status === 'minted') errors++;
-      tracks.set(t.id, { facts, holding });
-    }
-    const kale: SnapshotResult['kale'] =
-      body.kale?.state === 'known' && body.kale.amount !== undefined
-        ? { status: 'known', balance: BigInt(body.kale.amount) }
-        : { status: 'error' };
-    return { latestLedger: null, tracks, kale, errors };
+    const body = (await response.json()) as unknown;
+    const parsed = parseServerSnapshot(body, import.meta.env.PUBLIC_KALE_SAC_ID, Date.now());
+    if (!parsed) logger.warn('collect', 'Malformed server snapshot; using ledger reads');
+    return parsed ? { latestLedger: null, ...parsed } : null;
   } catch (error) {
     if (signal?.aborted) throw error;
     logger.warn('collect', 'Server snapshot unavailable; using ledger reads', error);
@@ -215,6 +185,24 @@ async function acquireStorageLease(key: string): Promise<StorageLease | 'busy' |
       if (read()?.owner === TAB_ID) writeStorage(key, null);
     },
   };
+}
+
+/** Thrown by the pre-relay guard: the signed payload is discarded, never relayed. */
+class SubmitGuardError extends Error {
+  readonly reason: 'stale' | 'unsaved';
+  constructor(reason: 'stale' | 'unsaved') {
+    super(reason === 'stale' ? 'Signing claim taken over by another tab' : 'Could not save submitting state');
+    this.name = 'SubmitGuardError';
+    this.reason = reason;
+  }
+}
+
+function newAttemptId(): string {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return `att-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;
+  }
 }
 
 type ConfirmIntent =
@@ -341,6 +329,7 @@ export function createCollectController(opts: {
    * overwrite another tab's submitted/uncertain lock or submit a duplicate buy.
    */
   let activeLease: StorageLease | null = null;
+  let holdingWebLock = false;
 
   async function withCollectLock<T>(fn: () => Promise<T>): Promise<T | undefined> {
     const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
@@ -350,7 +339,16 @@ export function createCollectController(opts: {
       steps = shared ?? [];
       return fn();
     };
-    if (locks?.request) return locks.request(name, { mode: 'exclusive' }, run) as Promise<T>;
+    if (locks?.request) {
+      return locks.request(name, { mode: 'exclusive' }, async () => {
+        holdingWebLock = true;
+        try {
+          return await run();
+        } finally {
+          holdingWebLock = false;
+        }
+      }) as Promise<T>;
+    }
 
     // No Web Locks: require the storage lease, else fail closed (nothing is signed).
     const lease = await acquireStorageLease(`smol:collect-lock:v1:${userState.contractId ?? ''}:${opts.getMixtapeId()}`);
@@ -377,11 +375,13 @@ export function createCollectController(opts: {
   }
 
   /** Durable-save failure before a signature: abort, never sign unrecorded. */
-  function abortUnsaved(stepId: string, revertTo: FlowStep['status']) {
+  function abortUnsaved(stepId: string, revertTo: FlowStep['status'], afterPasskey = false) {
     steps = steps.map((s) =>
       s.id === stepId ? { ...s, status: revertTo, ownerTabId: undefined, leaseExpiresAt: undefined } : s
     );
-    const text = "Couldn't save your progress in this browser, so nothing was signed. Free up browser storage and try again.";
+    const text = afterPasskey
+      ? "Couldn't save your progress in this browser, so nothing was sent and you weren't charged. Free up browser storage and try again."
+      : "Couldn't save your progress in this browser, so nothing was signed. Free up browser storage and try again.";
     notices = [...notices, { tone: 'warning', text }];
     toast.error(text, { tag: TOAST_TAG });
   }
@@ -442,6 +442,33 @@ export function createCollectController(opts: {
       generation++;
       pollAbort?.abort();
     };
+  });
+
+  /**
+   * Another tab's signing claim expired (tab closed or frozen mid-passkey):
+   * show its step as cancelled so this tab can offer Continue without a reload.
+   * View-only (no write); the next locked action re-reads and persists.
+   */
+  function recheckForeignClaims() {
+    if (approving) return;
+    const base = readSharedSteps(true) ?? steps;
+    const next = expireForeignClaims(base, TAB_ID, Date.now());
+    if (next !== steps) steps = next;
+  }
+
+  $effect(() => {
+    const expiry = nextForeignClaimExpiry(steps, TAB_ID, Date.now());
+    if (expiry === null) return;
+    const timer = setTimeout(() => recheckForeignClaims(), Math.max(0, expiry - Date.now()) + 100);
+    return () => clearTimeout(timer);
+  });
+
+  $effect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') recheckForeignClaims();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   });
 
   // Another tab wrote progress for this wallet + mixtape: reflect it at once
@@ -622,6 +649,7 @@ export function createCollectController(opts: {
         acknowledge();
         break;
       case 'openSheet':
+        recheckForeignClaims();
         view = 'progress';
         sheetOpen = true;
         break;
@@ -631,6 +659,7 @@ export function createCollectController(opts: {
   }
 
   function openView(next: CollectSheetView) {
+    recheckForeignClaims();
     view = next;
     sheetOpen = true;
   }
@@ -785,12 +814,14 @@ export function createCollectController(opts: {
     }
 
     const resumeStatus = step.status;
-    // Claim the step for THIS tab and persist the claim before any signature.
+    // Claim the step for THIS tab + attempt and persist the claim before any signature.
+    const attemptId = newAttemptId();
     if (
       !patchStep(step.id, {
         status: 'signing',
         failure: undefined,
         ownerTabId: TAB_ID,
+        attemptId,
         leaseExpiresAt: Date.now() + SIGNING_LEASE_MS,
       })
     ) {
@@ -798,10 +829,13 @@ export function createCollectController(opts: {
       return;
     }
     const signingStepId = step.id;
+    const ownsAttempt = () => {
+      const mine = readSharedSteps(true)?.find((s) => s.id === signingStepId);
+      return mine?.status === 'signing' && mine.ownerTabId === TAB_ID && mine.attemptId === attemptId;
+    };
+    // Heartbeat: only ever refreshes OUR claim; never resurrects a taken-over step.
     const leaseTimer = setInterval(() => {
-      if (steps.find((s) => s.id === signingStepId)?.status === 'signing') {
-        patchStep(signingStepId, { leaseExpiresAt: Date.now() + SIGNING_LEASE_MS });
-      }
+      if (ownsAttempt()) patchStep(signingStepId, { leaseExpiresAt: Date.now() + SIGNING_LEASE_MS });
     }, SIGNING_LEASE_MS / 4);
     try {
       // Pre-flight (C-15, freshness): re-read exactly this step's songs + KALE.
@@ -897,8 +931,25 @@ export function createCollectController(opts: {
         return;
       }
 
-      const onSigned = ({ expiresAtLedger }: { expiresAtLedger: number }) => {
-        if (gen === generation) patchStep(step.id, { status: 'submitting', since: Date.now(), expiresAtLedger });
+      /**
+       * Pre-relay guard (after the passkey returns, before relay / POST /mint):
+       * (a) the shared record must still show THIS tab + attempt signing, with a
+       *     live claim or the cross-tab lock still held — else another tab took
+       *     over: throw without writing anything;
+       * (b) `submitting` must be durably saved — else throw.
+       * Either throw discards the signed payload locally; it is never relayed.
+       */
+      const onBeforeSubmit = ({ expiresAtLedger }: { expiresAtLedger: number }) => {
+        if (gen !== generation) throw new SubmitGuardError('stale');
+        const shared = readSharedSteps(true);
+        const holdsLock = holdingWebLock || Boolean(activeLease?.stillHeld());
+        if (!ownsSigningClaim(shared, { stepId: step.id, tabId: TAB_ID, attemptId, now: Date.now(), holdsLock })) {
+          throw new SubmitGuardError('stale');
+        }
+        const next = shared!.map((s) =>
+          s.id === step.id ? { ...s, status: 'submitting' as const, since: Date.now(), expiresAtLedger } : s
+        );
+        if (!setSteps(next)) throw new SubmitGuardError('unsaved');
       };
 
       if (current.kind === 'mint') {
@@ -906,7 +957,7 @@ export function createCollectController(opts: {
         const mintTracks = stepTracks
           .filter((t) => keep.includes(t.id))
           .map((t) => ({ id: t.id, creator: t.address ?? '' }));
-        const result = await submitMintBatch({ tracks: mintTracks, userContractId: holder, userKeyId: keyId, onSigned });
+        const result = await submitMintBatch({ tracks: mintTracks, userContractId: holder, userKeyId: keyId, onBeforeSubmit });
         if (gen !== generation) return;
         const accepted = keep.filter((id) => result.acceptedIds.includes(id));
         if (result.alreadyMintedIds.length) {
@@ -938,13 +989,23 @@ export function createCollectController(opts: {
           if (identity.mint !== 'minted') throw new Error('Buy target is not minted');
           return { id, sac: identity.sac, pool: identity.pool };
         });
-        await submitBuyBatch({ tracks: buyTracks, userContractId: holder, userKeyId: keyId, onSigned });
+        await submitBuyBatch({ tracks: buyTracks, userContractId: holder, userKeyId: keyId, onBeforeSubmit });
         if (gen !== generation) return;
         patchStep(step.id, { status: 'confirming' });
         void confirmBuy(step.id, keep);
       }
     } catch (error) {
       if (gen !== generation) return;
+      if (error instanceof SubmitGuardError) {
+        if (error.reason === 'stale') {
+          // Another tab owns this step now: leave its record untouched, show it.
+          steps = readSharedSteps(true) ?? [];
+          requireReconfirm('Another tab took over this purchase, so this tab sent nothing. Check the step below.');
+        } else {
+          abortUnsaved(step.id, resumeStatus, true);
+        }
+        return;
+      }
       logger.error('collect', `Step ${step.id} failed`, error);
       const was = steps.find((s) => s.id === step.id)?.status;
       // Only a step that never left the device (or a definite 4xx refusal) is
@@ -960,6 +1021,7 @@ export function createCollectController(opts: {
         failure,
         ownerTabId: undefined,
         leaseExpiresAt: undefined,
+        attemptId: undefined,
       });
     } finally {
       clearInterval(leaseTimer);

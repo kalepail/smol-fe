@@ -10,8 +10,13 @@ import {
   describeTrackPill,
   flowKind,
   acknowledgeSteps,
+  expireForeignClaims,
   isAcknowledgeable,
   isSigningElsewhere,
+  nextForeignClaimExpiry,
+  ownsSigningClaim,
+  parseServerSnapshot,
+  parseUnits,
   kaleGuard,
   nextRunnableStep,
   pendingByTrack,
@@ -417,4 +422,40 @@ test('#2 another tab\'s live signing claim is never downgraded to cancelled on r
   assert.equal(nextRunnableStep(inB), null);
   assert.equal(restoreFlow(raw, NOW + 31_000, { tabId: 'tab-B' })![0].status, 'cancelled', 'expired lease');
   assert.equal(restoreFlow(raw, NOW)![0].status, 'cancelled', 'no tab context = interrupted reload');
+});
+
+test('Pass4 #3 serialized Units are strict: " " / "" / "-1" / "1e3" never become 0n', () => {
+  assert.equal(parseUnits('0'), 0n);
+  assert.equal(parseUnits('170000000'), 170_000_000n);
+  for (const bad of [' ', '', '-1', '1e3', '0x10', ' 5', '5 ', 1, null, undefined]) assert.equal(parseUnits(bad), null, String(bad));
+  const body = (amount: string) => ({
+    kale: { state: 'known', amount: '10000000000' },
+    tracks: [{ id: 't1', sac: 'CSAC', pool: 'CPOOL', mint: 'verified', balance: { state: 'known', amount } }],
+  });
+  assert.equal(parseServerSnapshot(body(' '), 'CKALE', NOW), null, 'malformed → fall back to ledger reads');
+  assert.equal(parseServerSnapshot({ ...body('17'), kale: { state: 'known', amount: ' ' } }, 'CKALE', NOW), null);
+  const ok = parseServerSnapshot(body('17'), 'CKALE', NOW)!;
+  assert.deepEqual(ok.tracks.get('t1')!.holding, { status: 'known', balance: 17n, checkedAt: NOW });
+});
+
+test('Pass4 #1/#2 only the attempt that still owns a live claim may relay', () => {
+  const claim = { stepId: 'buy-1', tabId: 'tab-A', attemptId: 'a1', now: NOW, holdsLock: false };
+  const mine = buyStep({ status: 'signing', ownerTabId: 'tab-A', attemptId: 'a1', leaseExpiresAt: NOW + 1 });
+  assert.equal(ownsSigningClaim([mine], claim), true);
+  assert.equal(ownsSigningClaim([{ ...mine, leaseExpiresAt: NOW - 1 }], claim), false, 'expired lease, no lock');
+  assert.equal(ownsSigningClaim([{ ...mine, leaseExpiresAt: NOW - 1 }], { ...claim, holdsLock: true }), true, 'Web Lock still held');
+  assert.equal(ownsSigningClaim([{ ...mine, ownerTabId: 'tab-B', attemptId: 'b1' }], claim), false, 'taken over');
+  assert.equal(ownsSigningClaim([{ ...mine, attemptId: 'a2' }], claim), false, 'a newer attempt');
+  assert.equal(ownsSigningClaim([{ ...mine, status: 'failed', failure: 'uncertain' }], claim), false, "B's outcome");
+  assert.equal(ownsSigningClaim(null, claim), false, 'unreadable shared record');
+});
+
+test('Pass4 #4 an expired foreign signing claim becomes recoverable (Continue)', () => {
+  const foreign = buyStep({ status: 'signing', ownerTabId: 'tab-A', attemptId: 'a1', leaseExpiresAt: NOW + 5_000 });
+  assert.equal(nextForeignClaimExpiry([foreign], 'tab-B', NOW), NOW + 5_000);
+  assert.equal(expireForeignClaims([foreign], 'tab-B', NOW)[0].status, 'signing', 'still live');
+  const after = expireForeignClaims([foreign], 'tab-B', NOW + 5_000);
+  assert.equal(after[0].status, 'cancelled');
+  assert.equal(nextRunnableStep(after)?.id, 'buy-1');
+  assert.equal(expireForeignClaims([foreign], 'tab-A', NOW + 9_000)[0].status, 'signing', 'own claim untouched');
 });
