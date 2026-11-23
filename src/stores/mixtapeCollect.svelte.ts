@@ -36,6 +36,7 @@ import {
   stepsForStartOver,
   acknowledgeSteps,
   mintPollTargets,
+  mintPollKey,
   isSigningElsewhere,
   ownsSigningClaim,
   expireForeignClaims,
@@ -244,6 +245,7 @@ export function createCollectController(opts: {
   let generation = 0;
   let resumeIntent = false;
   let pollAbort: AbortController | null = null;
+  let mintPollKeyActive = '';
   let refreshPromise: Promise<void> | null = null;
   let refreshAgain = false;
   const settledMintIds = new Set<string>();
@@ -343,6 +345,8 @@ export function createCollectController(opts: {
     expiredSigningOnly?: boolean;
     trackKey?: string;
     workflowKey?: string;
+    /** When set, the stored signature-expiry ledger must be identical. */
+    expiresAtLedger?: { value: number | undefined };
   };
 
   const workflowKeyOf = (s: FlowStep) => (s.workflowIds ?? []).join(',');
@@ -375,7 +379,8 @@ export function createCollectController(opts: {
       !guard.statuses.includes(stored.status) ||
       (guard.expiredSigningOnly && stored.status === 'signing' && (stored.leaseExpiresAt ?? 0) > Date.now()) ||
       (guard.trackKey !== undefined && stored.trackIds.join(',') !== guard.trackKey) ||
-      (guard.workflowKey !== undefined && workflowKeyOf(stored) !== guard.workflowKey)
+      (guard.workflowKey !== undefined && workflowKeyOf(stored) !== guard.workflowKey) ||
+      (guard.expiresAtLedger !== undefined && stored.expiresAtLedger !== guard.expiresAtLedger.value)
     ) {
       steps = shared;
       return 'lost';
@@ -555,6 +560,10 @@ export function createCollectController(opts: {
       const key = storageKey();
       if (!key || event.key !== key) return;
       steps = (event.newValue ? restoreFlow(event.newValue, Date.now(), { live: true, tabId: TAB_ID }) : null) ?? [];
+      // Another tab changed what a mint poll should watch (e.g. persisted the
+      // receipt / workflow id of an attempt we observe): restart from raw.
+      const watching = mintPollKey(mintPollTargets(steps));
+      if (watching !== mintPollKeyActive && (watching || mintPollKeyActive)) startMintPolling();
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
@@ -1171,35 +1180,26 @@ export function createCollectController(opts: {
     if (!holder) return;
     // ONE raw persisted snapshot drives both the request and the write guards.
     const targets = mintPollTargets(readSharedSteps(true) ?? []);
+    mintPollKeyActive = mintPollKey(targets);
     const ids = targets.flatMap((t) => t.trackIds).filter((id) => !settledMintIds.has(id));
     pollAbort?.abort();
-    if (ids.length === 0) return;
+    if (ids.length === 0) {
+      // Every song already read as settled (e.g. a receipt arrived after our
+      // chain read): close the steps out against this fresh snapshot.
+      if (targets.length) void settleMints(guardsFor(targets));
+      return;
+    }
     const controller = new AbortController();
     pollAbort = controller;
     const gen = generation;
     const since = Math.min(...targets.map((t) => t.since ?? Date.now()));
-    const guards = new Map<string, { guard: StepGuard; trackIds: string[]; hasWorkflow: boolean }>(
-      targets.map((t) => [
-        t.stepId,
-        {
-          guard: {
-            attemptId: t.attemptId,
-            owner: { id: t.ownerTabId },
-            statuses: ['submitting', 'confirming'],
-            trackKey: t.trackIds.join(','),
-            workflowKey: t.workflowIds.join(','),
-          },
-          trackIds: t.trackIds,
-          hasWorkflow: t.workflowIds.length > 0,
-        },
-      ])
-    );
+    const guards = guardsFor(targets);
     void (async () => {
       try {
         const { pollMintSettlement } = await import('../hooks/useMixtapeMinting');
         const { remaining } = await pollMintSettlement({
           ids,
-          workflowIds: targets.flatMap((t) => t.workflowIds),
+          targets: targets.map((t) => ({ workflowIds: t.workflowIds, trackIds: t.trackIds })),
           // No workflow id yet (POST /mint response pending): settle from chain only.
           chainOnlyIds: targets.filter((t) => t.workflowIds.length === 0).flatMap((t) => t.trackIds),
           holder,
@@ -1233,14 +1233,40 @@ export function createCollectController(opts: {
   }
 
   /** ONE batched post-settlement refresh, then close out settled mint steps. */
-  async function settleMints(guards: Map<string, { guard: StepGuard; trackIds: string[]; hasWorkflow: boolean }>) {
+  type MintGuards = Map<string, { guard: StepGuard; trackIds: string[]; hasWorkflow: boolean }>;
+
+  /** Guards for mint-poll targets, from the SAME raw snapshot as the request. */
+  function guardsFor(targets: ReturnType<typeof mintPollTargets>): MintGuards {
+    return new Map(
+      targets.map((t) => [
+        t.stepId,
+        {
+          guard: {
+            attemptId: t.attemptId,
+            owner: { id: t.ownerTabId },
+            statuses: ['submitting', 'confirming'],
+            trackKey: t.trackIds.join(','),
+            workflowKey: t.workflowIds.join(','),
+          },
+          trackIds: t.trackIds,
+          hasWorkflow: t.workflowIds.length > 0,
+        },
+      ])
+    );
+  }
+
+  async function settleMints(guards: MintGuards) {
     const ready = [...guards].filter(([, g]) => g.trackIds.every((id) => settledMintIds.has(id)));
     if (ready.length === 0) return;
     await refresh({ markLoading: false });
+    let changedUnderUs = false;
     for (const [stepId, { guard }] of ready) {
-      writeIfStill(stepId, guard, patchIn(stepId, { status: 'done' }));
+      if (writeIfStill(stepId, guard, patchIn(stepId, { status: 'done' })) === 'lost') changedUnderUs = true;
     }
     finishIfDone();
+    // The record moved on (e.g. another tab persisted the receipt): re-poll from
+    // a fresh raw snapshot instead of leaving the step on Confirming.
+    if (changedUnderUs) startMintPolling();
   }
 
   function resumeConfirming() {
@@ -1259,12 +1285,14 @@ export function createCollectController(opts: {
    */
   async function reconcileLocked() {
     const holder = userState.contractId;
-    const locked = steps.filter(isLocked);
-    if (!holder || locked.length === 0) return;
+    if (!holder) return;
+    // ONE raw persisted snapshot supplies BOTH the decision inputs (kind,
+    // tracks, status, expiry) and the exact write guard (attempt, owner, raw
+    // status, expiry). Memory is never paired with a fresher record.
+    const raw = (readSharedSteps(true) ?? []).filter(isLocked);
+    if (raw.length === 0) return;
     const gen = generation;
-    const ids = [...new Set(locked.flatMap((s) => s.trackIds))];
-    // Raw guards captured BEFORE the read: a record changed meanwhile is left alone.
-    const guards = new Map(locked.map((st) => [st.id, captureGuard(st.id) ?? NO_MATCH] as const));
+    const ids = [...new Set(raw.flatMap((s) => s.trackIds))];
     let latestLedger: number | null = null;
     let readIds = new Set<string>();
     try {
@@ -1284,24 +1312,28 @@ export function createCollectController(opts: {
       return;
     }
     const now = Date.now();
-    for (const step of locked) {
-      // Confirming buys are owned by confirmBuy; confirming mints by the poll.
-      if (step.status === 'confirming' || step.status === 'submitting') {
-        const ownedAll = step.trackIds.every((id) => {
-          const h = holdings.get(id);
-          return h?.status === 'known' && h.balance > 0n;
-        });
-        if (!ownedAll) continue;
-      }
-      const ok = step.trackIds.every((id) => readIds.has(id));
+    for (const step of raw) {
       const ownedAll = step.trackIds.every((id) => {
         const h = holdings.get(id);
         return h?.status === 'known' && h.balance > 0n;
       });
+      // In-flight steps only ever settle to done here (confirmBuy / poll own the rest).
+      if ((step.status === 'confirming' || step.status === 'submitting') && !ownedAll) continue;
+      const ok = step.trackIds.every((id) => readIds.has(id));
       const next = reconcileStep(step, { ok, ownedAll, latestLedger, now });
-      if (next !== step) {
-        writeIfStill(step.id, guards.get(step.id) ?? NO_MATCH, patchIn(step.id, { status: next.status, failure: next.failure }));
-      }
+      if (next === step) continue;
+      writeIfStill(
+        step.id,
+        {
+          attemptId: step.attemptId,
+          owner: { id: step.ownerTabId },
+          statuses: [step.status],
+          trackKey: step.trackIds.join(','),
+          workflowKey: workflowKeyOf(step),
+          expiresAtLedger: { value: step.expiresAtLedger },
+        },
+        patchIn(step.id, { status: next.status, failure: next.failure })
+      );
     }
     finishIfDone();
   }

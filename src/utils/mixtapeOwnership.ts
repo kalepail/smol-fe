@@ -572,6 +572,37 @@ export function mintPollTargets(rawSteps: FlowStep[]): MintPollTarget[] {
     }));
 }
 
+/**
+ * Strict per-step attribution of `POST /mint/status` batches: a batch counts
+ * only if its workflow id belongs to exactly one polled step that owns that
+ * workflow AND its song ids equal that step's songs. Cross-wired, partial or
+ * receiptless matches are ignored (the chain decides those).
+ */
+export function attributeMintStatus(
+  batches: { workflowId?: unknown; phase?: unknown; ids?: unknown }[],
+  targets: { workflowIds: string[]; trackIds: string[] }[]
+): Map<string, 'settled' | 'failed'> {
+  const out = new Map<string, 'settled' | 'failed'>();
+  const sameSet = (a: string[], b: string[]) =>
+    a.length === b.length && a.every((x) => b.includes(x)) && new Set(a).size === a.length;
+  for (const batch of batches) {
+    const { workflowId, phase, ids } = batch;
+    if (typeof workflowId !== 'string' || !Array.isArray(ids) || !ids.every((x) => typeof x === 'string')) continue;
+    if (phase !== 'persisted' && phase !== 'confirmed' && phase !== 'failed') continue;
+    const owners = targets.filter((t) => t.workflowIds.length > 0 && t.workflowIds.includes(workflowId));
+    if (owners.length !== 1 || !sameSet(ids as string[], owners[0].trackIds)) continue;
+    for (const id of ids as string[]) out.set(id, phase === 'failed' ? 'failed' : 'settled');
+  }
+  return out;
+}
+
+/** Stable identity of what a mint poll is watching (restart when it changes). */
+export function mintPollKey(targets: MintPollTarget[]): string {
+  return targets
+    .map((t) => [t.stepId, t.attemptId ?? '', t.ownerTabId ?? '', t.trackIds.join(','), t.workflowIds.join(',')].join('|'))
+    .join(';');
+}
+
 /** Another tab's signing claim whose lease ran out is a cancelled step (recoverable). */
 export function expireForeignClaims(steps: FlowStep[], tabId: string, now: number): FlowStep[] {
   let changed = false;

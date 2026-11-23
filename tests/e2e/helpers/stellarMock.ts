@@ -20,6 +20,8 @@ export interface ChainScenario {
   badExec?: string[];
   /** Encode the holder's KALE amount as u64 (malformed, must never read as a balance). */
   kaleMalformed?: boolean;
+  /** Ledger tip reported by getLedgerEntries / getHealth. Default 65,635,400. */
+  latestLedger?: number;
 }
 
 export const AUDITED_COMET_HASH = '61e1fc5401a7b22418c2bd3bc5bd2c07241e4dae098c587c89f3f666aca12e37';
@@ -88,7 +90,7 @@ export async function installStellarMock(page: Page, getScenario: () => ChainSce
       await route.fulfill({
         headers: cors,
         contentType: 'application/json',
-        body: JSON.stringify({ jsonrpc: '2.0', id: body.id, result: { status: 'healthy', latestLedger: 65_635_400, oldestLedger: 2, ledgerRetentionWindow: 0 } }),
+        body: JSON.stringify({ jsonrpc: '2.0', id: body.id, result: { status: 'healthy', latestLedger: scenario.latestLedger ?? 65_635_400, oldestLedger: 2, ledgerRetentionWindow: 0 } }),
       });
       return;
     }
@@ -168,7 +170,7 @@ export async function installStellarMock(page: Page, getScenario: () => ChainSce
     await route.fulfill({
       headers: cors,
       contentType: 'application/json',
-      body: JSON.stringify({ jsonrpc: '2.0', id: body.id, result: { entries, latestLedger: 65_635_400 } }),
+      body: JSON.stringify({ jsonrpc: '2.0', id: body.id, result: { entries, latestLedger: scenario.latestLedger ?? 65_635_400 } }),
     });
   });
 

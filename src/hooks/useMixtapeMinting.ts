@@ -19,6 +19,7 @@ import { getSignatureExpiration } from '../utils/rpcTip';
 import { readMixtapeChainSnapshot } from '../utils/smolChainIdentity';
 import { CANONICAL_SMOL_ID, SMOL_ISSUER } from '../utils/smolIdentity';
 import { e2eSeams } from '../utils/collectSeams';
+import { attributeMintStatus } from '../utils/mixtapeOwnership';
 
 export class CollectRequestError extends Error {
   readonly status: number;
@@ -132,11 +133,14 @@ let mintStatusUnsupported = false;
 const mintStatusEnabled = () =>
   !mintStatusUnsupported && (import.meta.env.PUBLIC_MINT_STATUS === '1' || Boolean(e2eSeams()?.mintStatus));
 
+type MintTarget = { workflowIds: string[]; trackIds: string[] };
+
 async function readMintStatus(
   ids: string[],
-  workflowIds: string[],
+  targets: MintTarget[],
   signal: AbortSignal
 ): Promise<SettlementRead | null> {
+  const workflowIds = targets.flatMap((t) => t.workflowIds);
   if (!mintStatusEnabled()) return null;
   if (workflowIds.length === 0) return new Map(); // nothing this poll may ask about
   try {
@@ -156,17 +160,8 @@ async function readMintStatus(
     if (!response.ok) return null;
     const body = (await response.json()) as { batches?: { phase?: string; ids?: string[] }[] };
     if (!Array.isArray(body?.batches)) return null;
-    const out: SettlementRead = new Map();
-    const requested = new Set(workflowIds);
-    for (const batch of body.batches as { workflowId?: string; phase?: string; ids?: string[] }[]) {
-      // Only outcomes for workflows this poll asked about (never another attempt's).
-      if (!batch.workflowId || !requested.has(batch.workflowId)) continue;
-      const phase = batch.phase;
-      if (phase === 'persisted' || phase === 'confirmed' || phase === 'failed') {
-        for (const id of batch.ids ?? []) out.set(id, phase === 'failed' ? 'failed' : 'settled');
-      }
-    }
-    return out;
+    // Per-step attribution: workflow AND exact songs must match one polled step.
+    return attributeMintStatus(body.batches, targets.filter((t) => t.trackIds.some((id) => ids.includes(id))));
   } catch (error) {
     if (signal.aborted) throw error;
     return null; // transport blip: use the chain this tick
@@ -188,7 +183,8 @@ async function readChainSettlement(ids: string[], holder: string): Promise<Settl
 /** Poll until every id settles, the signal aborts, or `deadline` passes. */
 export function pollMintSettlement(params: {
   ids: string[];
-  workflowIds?: string[];
+  /** Per-step request: each step's own workflow ids and songs. */
+  targets?: MintTarget[];
   /** Ids whose attempt has no workflow id yet: settled from the chain only. */
   chainOnlyIds?: string[];
   holder: string;
@@ -205,9 +201,11 @@ export function pollMintSettlement(params: {
     onFailed: params.onFailed,
     onTickError: (error) => logger.warn('mint', 'Mint status tick failed; retrying', error),
     read: async (ids, signal) => {
-      const status = await readMintStatus(ids, params.workflowIds ?? [], signal);
+      const status = await readMintStatus(ids, params.targets ?? [], signal);
       if (status === null) return readChainSettlement(ids, params.holder);
       const chainOnly = ids.filter((id) => params.chainOnlyIds?.includes(id));
+      // Receiptless ids never take an HTTP-derived outcome; the chain decides.
+      for (const id of chainOnly) status.delete(id);
       if (chainOnly.length) {
         for (const [id, value] of await readChainSettlement(chainOnly, params.holder)) status.set(id, value);
       }

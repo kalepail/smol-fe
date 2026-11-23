@@ -838,6 +838,88 @@ test.describe('Report 34 regressions @390', () => {
     expect(await page.evaluate((k) => localStorage.getItem(k), flowKey), "A's failure never touches B").toBe(recordB);
   });
 
+  test('Pass8 #1 a delayed observer never applies an OLD expiry to a NEWER uncertain buy', async ({ page, context }) => {
+    await signIn(context);
+    const flowKey = `smol:collect:v1:${COLLECTOR}:collect-minted`;
+    // A's buy lost its relay response; its signature expires at ledger 65,635,500.
+    await seedFlow(context, 'collect-minted', [
+      { id: 'buy-1', kind: 'buy', trackIds: mintedIds, titles: mintedTracks.map((t) => t.Title), costStroops: KALE(264).toString(), status: 'failed', failure: 'uncertain', since: Date.now(), ownerTabId: 'tab-A', attemptId: 'a-1', expiresAtLedger: 65_635_500 },
+    ]);
+    let delay = 3_000;
+    await installStellarMock(page, () => ({ minted: mintedIds, balances: {}, kale: KALE(1_000), latestLedger: 65_635_501, delayMs: delay }));
+    await page.goto('/mixtapes/collect-minted');
+    // Observer mounted with A in memory; its first ledger read is held (3s).
+    await expect(card(page)).toBeVisible({ timeout: 10_000 });
+    // At 65,635,501 B acknowledged A, bought again and also lost the response:
+    // a newer attempt whose signature is valid until 65,635,700.
+    const recordB = await page.evaluate((key) => {
+      const flow = JSON.parse(localStorage.getItem(key)!);
+      flow.updatedAt = Date.now();
+      flow.steps = flow.steps.map((s: Record<string, unknown>) => ({ ...s, ownerTabId: 'tab-B', attemptId: 'b-1', expiresAtLedger: 65_635_700, since: Date.now() }));
+      const value = JSON.stringify(flow);
+      localStorage.setItem(key, value);
+      return value;
+    }, flowKey);
+    delay = 0; // the held read completes → hydrate → reconcile
+    await page.waitForTimeout(5_000);
+    expect(await page.evaluate((k) => localStorage.getItem(k), flowKey), 'B stays uncertain (NOT unconfirmed)').toBe(recordB);
+
+    // Through reload: B's still-valid lock offers neither acknowledgement nor a second buy.
+    await page.reload();
+    await expect(card(page).getByRole('heading')).toHaveText('Collecting paused', { timeout: 10_000 });
+    await expect(page.getByRole('button', { name: /Acknowledge|^Continue|Buy all 8|Collect for/ })).toHaveCount(0);
+    expect(await page.evaluate((k) => localStorage.getItem(k), flowKey)).toBe(recordB);
+  });
+
+  test('Pass8 #2 an observer picks up a mint receipt persisted by another tab and settles without reload', async ({ context }) => {
+    await signIn(context);
+    await context.addInitScript(() => {
+      (window as unknown as { __smolCollectSeams: unknown }).__smolCollectSeams = { mintStatus: true };
+    });
+    const flowKey = `smol:collect:v1:${COLLECTOR}:collect-mixed`;
+    const mintIds = mixedIds.slice(9);
+    // Signer tab S submitted a 3-song mint retry; its receipt (workflow id) is pending.
+    await seedFlow(context, 'collect-mixed', [
+      { id: 'mint-1', kind: 'mint', trackIds: mintIds, titles: mixedTracks.slice(9).map((t) => t.Title), costStroops: KALE(300).toString(), status: 'submitting', since: Date.now(), ownerTabId: 'tab-S', attemptId: 'r-1', expiresAtLedger: 99_999_999 },
+    ]);
+    const cors = {
+      'access-control-allow-origin': 'http://127.0.0.1:4328',
+      'access-control-allow-credentials': 'true',
+      'access-control-allow-headers': 'Content-Type',
+      'access-control-allow-methods': 'POST, OPTIONS',
+    };
+    await context.route('http://127.0.0.1:4329/mint/status', async (route) => {
+      if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+      const body = route.request().postData() ?? '';
+      const batches = body.includes('wf-2') ? [{ workflowId: 'wf-2', phase: 'persisted', ids: mintIds }] : [];
+      await route.fulfill({ headers: cors, contentType: 'application/json', body: JSON.stringify({ batches }) });
+    });
+    let scenario: ChainScenario = { minted: mixedIds.slice(0, 9), balances: ownedBalances(mixedIds.slice(0, 9)), kale: KALE(1_000) };
+    const observer = await context.newPage();
+    await installStellarMock(observer, () => scenario);
+    await observer.goto('/mixtapes/collect-mixed');
+    // Hydrated and polling chain-only for the receiptless retry (≥ 1 tick done).
+    await expect(card(observer).getByText('Minting 3 on Stellar…')).toBeVisible({ timeout: 10_000 });
+    await observer.waitForTimeout(2_500);
+
+    // The receipt arrives in the signer tab (another page → a real 'storage' event in the observer),
+    // and the mint settles on chain.
+    scenario = { minted: mixedIds, balances: ownedBalances(mixedIds), kale: KALE(1_000) };
+    const signer = await context.newPage();
+    await signer.goto('/');
+    await signer.evaluate((key) => {
+      const flow = JSON.parse(localStorage.getItem(key)!);
+      flow.updatedAt = Date.now();
+      flow.steps = flow.steps.map((s: Record<string, unknown>) => ({ ...s, status: 'confirming', workflowIds: ['wf-2'] }));
+      localStorage.setItem(key, JSON.stringify(flow));
+    }, flowKey);
+    await signer.close();
+
+    // No reload: the observer re-polls with the new workflow and closes the step.
+    await expect(card(observer).getByRole('heading')).toHaveText('You own this mixtape', { timeout: 20_000 });
+    expect(await observer.evaluate((k) => localStorage.getItem(k), flowKey), 'progress cleared once done').toBeNull();
+  });
+
   test('Pass6 #3 reload mid-relay (persisted "submitting") settles to owned once the ledger confirms', async ({ page, context }) => {
     await signIn(context);
     await seedFlow(context, 'collect-minted', [

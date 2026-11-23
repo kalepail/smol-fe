@@ -12,6 +12,7 @@ import {
   acknowledgeSteps,
   expireForeignClaims,
   isAcknowledgeable,
+  attributeMintStatus,
   isSigningElsewhere,
   mintPollTargets,
   nextForeignClaimExpiry,
@@ -473,4 +474,27 @@ test('Pass7 #2 mint-poll request and guard come from ONE raw record', () => {
     ['mint-2', 'c-1', 'tab-C', ''],
   ]);
   assert.deepEqual(targets[1].workflowIds, [], 'a pending retry without a workflow id is chain-only');
+});
+
+test('Pass8 #3 /mint/status batches need BOTH the step\'s workflow and its exact songs', () => {
+  const targets = [
+    { workflowIds: ['wf-1'], trackIds: ['s1', 's2'] },
+    { workflowIds: ['wf-2'], trackIds: ['s3'] },
+    { workflowIds: [], trackIds: ['s4'] }, // receiptless: chain only
+  ];
+  const ok = attributeMintStatus([{ workflowId: 'wf-1', phase: 'confirmed', ids: ['s2', 's1'] }], targets);
+  assert.deepEqual([...ok], [['s2', 'settled'], ['s1', 'settled']]);
+  // wf-1 paired with the OTHER step's song → ignored.
+  assert.equal(attributeMintStatus([{ workflowId: 'wf-1', phase: 'failed', ids: ['s3'] }], targets).size, 0);
+  // wf-2 paired with a receiptless song → ignored (never "done" without chain proof).
+  assert.equal(attributeMintStatus([{ workflowId: 'wf-2', phase: 'confirmed', ids: ['s4'] }], targets).size, 0);
+  // Partial / extra ids, unknown workflow, bad phase → ignored.
+  assert.equal(attributeMintStatus([{ workflowId: 'wf-1', phase: 'confirmed', ids: ['s1'] }], targets).size, 0);
+  assert.equal(attributeMintStatus([{ workflowId: 'wf-1', phase: 'confirmed', ids: ['s1', 's2', 's3'] }], targets).size, 0);
+  assert.equal(attributeMintStatus([{ workflowId: 'wf-9', phase: 'failed', ids: ['s1', 's2'] }], targets).size, 0);
+  assert.equal(attributeMintStatus([{ workflowId: 'wf-1', phase: 'queued', ids: ['s1', 's2'] }], targets).size, 0);
+  // A workflow claimed by two steps is ambiguous → ignored.
+  assert.equal(attributeMintStatus([{ workflowId: 'wf-x', phase: 'failed', ids: ['s1', 's2'] }], [
+    { workflowIds: ['wf-x'], trackIds: ['s1', 's2'] }, { workflowIds: ['wf-x'], trackIds: ['s3'] },
+  ]).size, 0);
 });
