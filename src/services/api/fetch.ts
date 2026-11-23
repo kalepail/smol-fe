@@ -29,7 +29,7 @@ const DEFAULT_TIMEOUT = 30_000;
 const LONG_TIMEOUT = 60_000;
 
 // In-flight GET request deduplication
-const inflightGets = new Map<string, Promise<Response>>();
+const inflightGets = import.meta.env.SSR ? null : new Map<string, Promise<Response>>();
 
 function rawFetch(
   input: RequestInfo | URL,
@@ -68,14 +68,9 @@ export function fetchWithTimeout(
   input: RequestInfo | URL,
   init?: RequestInit & { timeout?: number }
 ): Promise<Response> {
-  const method = (init?.method ?? 'GET').toUpperCase();
-  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-  const canDeduplicate =
-    method === 'GET' && !init?.signal && !init?.headers && !init?.credentials;
-
-  // Only deduplicate simple public GET requests. Auth/cookie-bearing requests
-  // can vary by caller even when the URL is identical.
-  if (canDeduplicate) {
+  // Request objects can carry their own method, credentials and headers.
+  if (inflightGets && !init && (typeof input === 'string' || input instanceof URL)) {
+    const url = typeof input === 'string' ? input : input.href;
     const existing = inflightGets.get(url);
     if (existing) return existing.then((response) => response.clone());
 
@@ -84,9 +79,6 @@ export function fetchWithTimeout(
     });
 
     inflightGets.set(url, promise);
-
-    // Failsafe: remove the entry after 60s even if the promise never settles
-    setTimeout(() => inflightGets.delete(url), 60_000);
 
     return promise.then((response) => response.clone());
   }

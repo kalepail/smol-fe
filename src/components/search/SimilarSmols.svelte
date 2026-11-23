@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { playSmolQueue, setTrackLiked } from '../../stores/audio.svelte';
+  import { toMixtapeTrack } from '../../utils/track';
   import SmolCard from '../smol/SmolCard.svelte';
-  import type { MixtapeTrack, SearchResult } from '../../types/domain';
+  import type { SearchResult } from '../../types/domain';
   import { searchSimilarSmols } from '../../services/api/search';
   import { fetchLikedSmols } from '../../services/api/smols';
   import { addTrack } from '../../stores/mixtape.svelte';
   import { userState } from '../../stores/user.svelte';
-  import { audioState, selectSong, registerSongNextCallback } from '../../stores/audio.svelte';
 
   interface Props {
     id: string;
@@ -19,21 +19,12 @@
   let loaded = $state(false);
   let error = $state<string | null>(null);
 
-  function buildTrackPayload(smol: SearchResult): MixtapeTrack {
-    return {
-      id: smol.Id,
-      title: smol.Title ?? 'Untitled Smol',
-      creator: smol.Creator ?? smol.Username ?? smol.artist ?? smol.author ?? null,
-      coverUrl: `${import.meta.env.PUBLIC_API_URL}/image/${smol.Id}.png`,
-      public: smol.Public,
-    };
-  }
-
   function addToMixtape(smol: SearchResult) {
-    addTrack(buildTrackPayload(smol));
+    addTrack(toMixtapeTrack(smol));
   }
 
   function handleLikeChanged(smol: SearchResult, liked: boolean) {
+    setTrackLiked(smol.Id, liked);
     const foundSmol = results.find((item) => item.Id === smol.Id);
     if (foundSmol) {
       foundSmol.Liked = liked;
@@ -78,23 +69,6 @@
     error = null;
     void loadSimilar();
   });
-
-  function songNext() {
-    if (results.length === 0) return;
-    const currentId = audioState.currentSong?.Id;
-    const currentIndex = results.findIndex((s) => s.Id === currentId);
-    // If the current song is the last one (or not found in the list), stop
-    if (currentIndex === -1 || currentIndex >= results.length - 1) return;
-    selectSong(results[currentIndex + 1]);
-  }
-
-  onMount(() => {
-    registerSongNextCallback(songNext);
-  });
-
-  onDestroy(() => {
-    registerSongNextCallback(null);
-  });
 </script>
 
 <section class="px-2 py-8 pb-24">
@@ -118,6 +92,7 @@
         {#each results as smol (smol.Id)}
           <SmolCard
             smol={smol}
+            onPlay={() => playSmolQueue(results, smol)}
             isVisible={true}
             onLikeChanged={(liked) => handleLikeChanged(smol, liked)}
             onAddToMixtape={() => addToMixtape(smol)}

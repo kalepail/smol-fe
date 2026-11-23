@@ -1,13 +1,14 @@
 <script lang="ts">
-  import type { Smol, MixtapeTrack } from '../../types/domain';
+  import type { Smol } from '../../types/domain';
   import LikeButton from '../ui/LikeButton.svelte';
   import MiniAudioPlayer from '../audio/MiniAudioPlayer.svelte';
-  import { audioState, selectSong, togglePlayPause } from '../../stores/audio.svelte';
+  import { toMixtapeTrack, trackKey } from '../../utils/track';
   import { mixtapeModeState, mixtapeTrackIds } from '../../stores/mixtape.svelte';
 
   interface Props {
     smol: Smol;
     isVisible: boolean;
+    onPlay: () => void;
     onLikeChanged: (liked: boolean) => void;
     onAddToMixtape: () => void;
     onDragStart?: (event: DragEvent) => void;
@@ -18,30 +19,13 @@
   let {
     smol,
     isVisible,
+    onPlay,
     onLikeChanged,
     onAddToMixtape,
     onDragStart,
     onDragEnd,
     isDragging = false
   }: Props = $props();
-
-  function toggleSongSelection() {
-    if (audioState.currentSong?.Id === smol.Id) {
-      togglePlayPause();
-    } else {
-      selectSong(smol);
-    }
-  }
-
-  function buildTrackPayload(): MixtapeTrack {
-    return {
-      id: smol.Id,
-      title: smol.Title ?? 'Untitled Smol',
-      creator: smol.Creator ?? smol.Username ?? smol.artist ?? smol.author ?? null,
-      coverUrl: `${import.meta.env.PUBLIC_API_URL}/image/${smol.Id}.png`,
-      public: smol.Public,
-    };
-  }
 
   function handleDragStart(event: DragEvent) {
     if (!canAddToMixtape) {
@@ -51,7 +35,7 @@
 
     const payload = {
       type: 'smol' as const,
-      track: buildTrackPayload(),
+      track: toMixtapeTrack(smol),
     };
 
     if (event.dataTransfer) {
@@ -125,7 +109,7 @@
 
   <div
     class="flex min-h-16 items-center relative p-2 flex-1 overflow-hidden cursor-pointer"
-    onclick={toggleSongSelection}
+    onclick={onPlay}
   >
     <div class="relative z-1 min-w-0 flex-1 pr-2">
       <h1 class="break-words text-sm leading-4 text-white">
@@ -138,14 +122,10 @@
       alt={smol.Title}
       loading="lazy"
     />
-    <div class="relative z-2 ml-auto">
-      <MiniAudioPlayer
-        id={smol.Id}
-        playing_id={audioState.playingId}
-        songToggle={toggleSongSelection}
-        songNext={() => {}}
-        progress={audioState.currentSong?.Id === smol.Id ? audioState.progress : 0}
-      />
-    </div>
+    {#if smol.Song_1}
+      <div class="relative z-2 ml-auto">
+        <MiniAudioPlayer trackKey={trackKey(smol.Id, smol.Song_1)} onToggle={onPlay} label={smol.Title} />
+      </div>
+    {/if}
   </div>
 </div>

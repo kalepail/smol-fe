@@ -1,0 +1,7 @@
+{
+  "name": "smol-fe-next",
+  "pages_build_output_dir": "./dist",
+  "compatibility_date": "2025-09-25",
+  "compatibility_flags": ["nodejs_compat"],
+  "services": [{ "binding": "SMOL_API", "service": "smol-workflow" }]
+}

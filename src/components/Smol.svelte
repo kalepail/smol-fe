@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { SmolDetailResponse } from '../types/domain';
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, untrack } from 'svelte';
   import SmolGenerator from './smol/SmolGenerator.svelte';
   import SmolDisplay from './smol/SmolDisplay.svelte';
   import SmolRetryPanel from './smol/SmolRetryPanel.svelte';
@@ -10,19 +10,18 @@
   import { updateContractBalance } from '../stores/balance.svelte';
   import { useSmolGeneration } from '../hooks/useSmolGeneration';
   import { useSmolMinting } from '../hooks/useSmolMinting';
-  import { audioState } from '../stores/audio.svelte';
   import { logger } from '../utils/logger';
 
   interface Props {
     id?: string | null;
+    initialData?: SmolDetailResponse | null;
   }
 
   type WorkflowStatus = NonNullable<SmolDetailResponse['wf']>['status'];
 
-  let { id = $bindable() }: Props = $props();
+  let { id = $bindable(), initialData = null }: Props = $props();
 
   // State
-  let data = $state<SmolDetailResponse | null>(null);
   let loading = $state(false);
   let error = $state<string | null>(null);
   let d1 = $state<SmolDetailResponse['d1']>(undefined);
@@ -32,7 +31,6 @@
   let is_public = $state(true);
   let is_instrumental = $state(false);
   let best_song = $state<string | undefined>(undefined);
-  let audioElements = $state<HTMLAudioElement[]>([]);
   let interval = $state<ReturnType<typeof setTimeout> | null>(null);
   let pollDelay = $state(3000); // start at 3s, grows 1.5x, caps at 15s
   let pollGeneration = 0; // nonce to prevent stale poll callbacks
@@ -51,7 +49,7 @@
   // Derived
   const minted = $derived(Boolean(d1?.Mint_Token || d1?.Mint_Amm));
   const tradeReady = $derived(Boolean(id && d1?.Mint_Amm && d1?.Mint_Token));
-  const isOwner = $derived(d1?.Address === userState.contractId);
+  const isOwner = $derived(Boolean(d1?.Address && d1.Address === userState.contractId));
   const maxLength = $derived(is_instrumental ? 380 : 2280);
   const tradeSongId = $derived(id ?? d1?.Id ?? null);
   const tradeTitle = $derived(
@@ -64,7 +62,7 @@
   );
   const hasSongSnapshots = $derived(Boolean(kv_do?.songs?.length));
   const hasIncompleteSongs = $derived(
-    Boolean(kv_do?.songs?.some((song) => !song.audio || song.status < 4))
+    Boolean(kv_do?.songs?.some((song) => !song.music_id || song.status < 4))
   );
   const showGenerationLoader = $derived(
     Boolean(interval && (!hasSongSnapshots || hasIncompleteSongs))
@@ -123,7 +121,7 @@
     const status = response?.wf?.status;
     const songs = response?.kv_do?.songs ?? [];
     const songsArePlaybackReady =
-      songs.length > 0 && songs.every((song) => song.audio && song.status >= 4);
+      songs.length > 0 && songs.every((song) => song.music_id && song.status >= 4);
 
     if (isActiveWorkflow(status) && !songsArePlaybackReady) {
       failed = false;
@@ -137,6 +135,15 @@
       stopPolling();
       failed = generationHook.isFailed(status);
     }
+  }
+
+  function applySmolData(response: SmolDetailResponse) {
+    d1 = response.d1;
+    kv_do = response.kv_do;
+    liked = response.liked;
+    best_song = d1?.Song_1;
+    pendingCreatedId = null;
+    hydrateGenerationState(response);
   }
 
   async function fetchSmolData(smolId: string) {
@@ -155,12 +162,7 @@
         throw new Error('Failed to load smol');
       }
 
-      data = await response.json();
-      d1 = data?.d1;
-      kv_do = data?.kv_do;
-      liked = data?.liked;
-      pendingCreatedId = null;
-      hydrateGenerationState(data);
+      applySmolData(await response.json());
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load';
       logger.error('smol', 'Failed to fetch smol data:', err);
@@ -172,8 +174,13 @@
   $effect(() => {
     // Only fetch if id actually changed
     if (id && id !== lastFetchedId) {
-      lastFetchedId = id;
-      fetchSmolData(id);
+      const smolId = id;
+      const seed = lastFetchedId === null ? initialData : null;
+      lastFetchedId = smolId;
+      untrack(() => {
+        if (seed) applySmolData(seed);
+        else void fetchSmolData(smolId);
+      });
     }
   });
 
@@ -218,39 +225,6 @@
   onDestroy(() => {
     stopPolling();
     mintingHook.clearMintPolling();
-  });
-
-  function playAudio(index: number) {
-    // Pause and clear global audio player if it's playing
-    if (audioState.audioElement && !audioState.audioElement.paused) {
-      audioState.audioElement.pause();
-    }
-    audioState.playingId = null;
-    audioState.currentSong = null;
-
-    // Pause all local audio elements except the one being played
-    audioElements.forEach((audio, i) => {
-      if (i !== index) {
-        audio.pause();
-      } else {
-        audio.play();
-      }
-    });
-  }
-
-  // Effect: Pause local audio elements when global player starts playing
-  $effect(() => {
-    const globalPlayingId = audioState.playingId;
-    const globalAudio = audioState.audioElement;
-
-    if (globalPlayingId && globalAudio && !globalAudio.paused) {
-      // Global player is playing, pause all local audio elements
-      audioElements.forEach((audio) => {
-        if (!audio.paused) {
-          audio.pause();
-        }
-      });
-    }
   });
 
   function removePlaylist() {
@@ -409,14 +383,7 @@
       throw error;
     }
 
-    d1 = res?.d1;
-    kv_do = res?.kv_do;
-    liked = res?.liked;
-    data = res;
-    best_song = d1?.Song_1;
-    pendingCreatedId = null;
-
-    hydrateGenerationState(res);
+    applySmolData(res);
 
     return res;
   }
@@ -488,11 +455,9 @@
     {tradeReady}
     {tradeMintBalance}
     {isOwner}
-    bind:audioElements
     onMakeSongPublic={makeSongPublic}
     onDeleteSong={deleteSong}
     onSelectBestSong={selectBestSong}
-    onPlayAudio={playAudio}
     onTriggerMint={triggerMint}
     onOpenTradeModal={openTradeModal}
     onLikeChanged={(likedValue) => (liked = likedValue)}

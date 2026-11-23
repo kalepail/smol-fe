@@ -1,21 +1,22 @@
 <script lang="ts">
-  import { onMount, onDestroy, untrack } from 'svelte';
-  import type { Smol, MixtapeTrack } from '../../types/domain';
+  import { onMount } from 'svelte';
+  import type { Smol } from '../../types/domain';
   import SmolCard from './SmolCard.svelte';
-  import { audioState, selectSong, registerSongNextCallback } from '../../stores/audio.svelte';
+  import { playSmolQueue, setTrackLiked } from '../../stores/audio.svelte';
   import { mixtapeDraftState, mixtapeModeState, addTrack } from '../../stores/mixtape.svelte';
   import { userState } from '../../stores/user.svelte';
   import { fetchLikedSmols } from '../../services/api/smols';
   import { fetchWithTimeout, throwIfNotOk } from '../../services/api/fetch';
   import { useVisibilityTracking } from '../../hooks/useVisibilityTracking';
   import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
-  import { useGridMediaSession } from '../../hooks/useGridMediaSession';
+  import { toMixtapeTrack } from '../../utils/track';
   import { logger } from '../../utils/logger';
   import type { ArtistProfile, SmolListResponse } from '../../types/api';
 
   interface Props {
     playlist?: string | null;
     endpoint?: string;
+    initialData?: SmolListResponse | null;
     emptyTitle?: string;
     emptyDescription?: string;
   }
@@ -23,6 +24,7 @@
   let {
     playlist = null,
     endpoint = '',
+    initialData = null,
     emptyTitle = 'No smols yet',
     emptyDescription = ''
   }: Props = $props();
@@ -41,7 +43,6 @@
 
   const visibilityHook = useVisibilityTracking();
   const scrollHook = useInfiniteScroll();
-  const mediaHook = useGridMediaSession();
 
   function buildSmolListUrl(cursorValue?: string | null) {
     const cleanEndpoint = endpoint.replace(/^\/+/, '');
@@ -94,22 +95,23 @@
     }
   );
 
-  async function fetchInitialData() {
+  async function fetchInitialData(seed: SmolListResponse | null = null) {
     loading = true;
     error = null;
     paginationError = null;
 
     try {
       const url = buildSmolListUrl();
-      const listPromise = fetchWithTimeout(url, { credentials: 'include' });
+      const listPromise = seed ?? fetchWithTimeout(url, { credentials: 'include' }).then(async (response) => {
+        await throwIfNotOk(response, url.toString());
+        return response.json();
+      });
       const likedPromise = userState.contractId
         ? fetchLikedSmols().catch(() => [] as string[])
         : Promise.resolve([]);
 
-      const [response, likedIds] = await Promise.all([listPromise, likedPromise]);
-      await throwIfNotOk(response, url.toString());
-
-      const data = readSmolList(await response.json());
+      const [list, likedIds] = await Promise.all([listPromise, likedPromise]);
+      const data = readSmolList(list);
       results = data.smols;
       cursor = data.nextCursor;
       hasMore = data.hasMore;
@@ -131,33 +133,8 @@
   }
 
   onMount(() => {
-    fetchInitialData();
-
-    // Register the songNext callback for this page
-    registerSongNextCallback(songNext);
-
-    const cleanupMedia = mediaHook.setupMediaSessionHandlers(
-      () => {
-        const previous = mediaHook.findPreviousSong(results, audioState.currentSong?.Id);
-        if (previous) selectSong(previous);
-      },
-      () => {
-        songNext();
-      }
-    );
-
-    if (playlist) {
-      localStorage.setItem('smol:playlist', playlist);
-    }
-
-    return () => {
-      cleanupMedia();
-    };
-  });
-
-  onDestroy(() => {
-    // Unregister the callback when this component is destroyed
-    registerSongNextCallback(null);
+    void fetchInitialData(initialData);
+    if (playlist) localStorage.setItem('smol:playlist', playlist);
   });
 
   // Infinite scroll observer - set up when scrollTrigger is available
@@ -177,28 +154,8 @@
     };
   });
 
-  $effect(() => {
-    const song = audioState.currentSong;
-    mediaHook.updateMediaMetadata(song, import.meta.env.PUBLIC_API_URL);
-  });
-
-  function songNext() {
-    const next = mediaHook.findNextSong(results, audioState.currentSong?.Id);
-    if (next) selectSong(next);
-  }
-
-  function buildTrackPayload(smol: Smol): MixtapeTrack {
-    return {
-      id: smol.Id,
-      title: smol.Title ?? 'Untitled Smol',
-      creator: smol.Creator ?? smol.Username ?? smol.artist ?? smol.author ?? null,
-      coverUrl: `${import.meta.env.PUBLIC_API_URL}/image/${smol.Id}.png`,
-      public: smol.Public,
-    };
-  }
-
   function addToMixtape(smol: Smol) {
-    addTrack(buildTrackPayload(smol));
+    addTrack(toMixtapeTrack(smol));
   }
 
   function handleDragStart(event: DragEvent, smol: Smol) {
@@ -206,7 +163,7 @@
 
     const payload = {
       type: 'smol' as const,
-      track: buildTrackPayload(smol),
+      track: toMixtapeTrack(smol),
     };
 
     draggingId = smol.Id;
@@ -223,6 +180,7 @@
   }
 
   function handleLikeChanged(smol: Smol, liked: boolean) {
+    setTrackLiked(smol.Id, liked);
     const foundSmol = results.find((s) => s.Id === smol.Id);
     if (foundSmol) {
       foundSmol.Liked = liked;
@@ -279,7 +237,7 @@
       <div class="text-red-500">{error}</div>
       <button
         class="mt-4 rounded border border-lime-400 px-3 py-1 text-sm text-lime-300 hover:bg-lime-400/10"
-        onclick={fetchInitialData}
+        onclick={() => fetchInitialData()}
       >
         Retry
       </button>
@@ -302,6 +260,7 @@
       <div use:observeVisibility={smol.Id}>
         <SmolCard
           {smol}
+          onPlay={() => playSmolQueue(results, smol, { wrap: true, album: playlist ?? undefined })}
           isVisible={!!visibleCards[smol.Id]}
           onLikeChanged={(liked) => handleLikeChanged(smol, liked)}
           onAddToMixtape={() => addToMixtape(smol)}

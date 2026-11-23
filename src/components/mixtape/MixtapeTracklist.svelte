@@ -5,14 +5,14 @@
   import MiniAudioPlayer from '../audio/MiniAudioPlayer.svelte';
   import LikeButton from '../ui/LikeButton.svelte';
   import TokenBalancePill from '../ui/TokenBalancePill.svelte';
-  import { audioState } from '../../stores/audio.svelte';
+  import { player } from '../../stores/audio.svelte';
+  import { trackKey } from '../../utils/track';
 
   interface Props {
     mixtape: MixtapeDetail;
     mixtapeTracks: Smol[];
     loadingTracks: Set<string>;
     onTrackClick: (index: number) => void;
-    onPlayNext: () => void;
     onLikeChanged: (index: number, liked: boolean) => void;
   }
 
@@ -21,7 +21,6 @@
     mixtapeTracks,
     loadingTracks,
     onTrackClick,
-    onPlayNext,
     onLikeChanged
   }: Props = $props();
 
@@ -53,9 +52,8 @@
       {#each mixtape.tracks as track, index (track.Id)}
         {@const smolTrack = mixtapeTracks[index]}
         {@const isLoading = loadingTracks.has(track.Id)}
-        {@const isCurrentTrack = audioState.currentSong?.Id === track.Id}
-        {@const isCurrentlyPlaying =
-          isCurrentTrack && audioState.playingId === track.Id}
+        {@const key = smolTrack?.Song_1 ? trackKey(track.Id, smolTrack.Song_1) : null}
+        {@const isCurrentTrack = !!key && player.track?.key === key}
         {@const isMinted = Boolean(
           smolTrack?.Mint_Token && smolTrack?.Mint_Amm
         )}
@@ -151,17 +149,9 @@
 
             <div class="flex items-center justify-between gap-2 md:hidden">
               <div class="flex items-center gap-2">
-                {#if mixtapeTracks[index]?.Song_1}
+                {#if key}
                   <div class="relative z-2" onclick={(e) => e.stopPropagation()}>
-                    <MiniAudioPlayer
-                      id={track.Id}
-                      playing_id={audioState.playingId}
-                      songToggle={() => onTrackClick(index)}
-                      songNext={onPlayNext}
-                      progress={audioState.currentSong?.Id === track.Id
-                        ? audioState.progress
-                        : 0}
-                    />
+                    <MiniAudioPlayer trackKey={key} onToggle={() => onTrackClick(index)} label={smolTrack.Title} />
                   </div>
                 {/if}
 
@@ -182,17 +172,9 @@
           </div>
 
           <div class="hidden md:flex items-center gap-2">
-            {#if mixtapeTracks[index]?.Song_1}
+            {#if key}
               <div class="relative z-2" onclick={(e) => e.stopPropagation()}>
-                <MiniAudioPlayer
-                  id={track.Id}
-                  playing_id={audioState.playingId}
-                  songToggle={() => onTrackClick(index)}
-                  songNext={onPlayNext}
-                  progress={audioState.currentSong?.Id === track.Id
-                    ? audioState.progress
-                    : 0}
-                />
+                <MiniAudioPlayer trackKey={key} onToggle={() => onTrackClick(index)} label={smolTrack.Title} />
               </div>
             {/if}
 

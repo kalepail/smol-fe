@@ -118,7 +118,7 @@ export async function listMixtapes(): Promise<MixtapeSummary[]> {
   return mixtapes;
 }
 
-interface ApiMixtapeDetail {
+export interface ApiMixtapeDetail {
   Id: string;
   Title: string;
   Desc: string;
@@ -146,8 +146,10 @@ export async function getMixtapeDetail(
 
   await throwIfNotOk(response, endpoint);
 
-  const data: ApiMixtapeDetail = await response.json();
+  return toMixtapeDetail(await response.json());
+}
 
+export function toMixtapeDetail(data: ApiMixtapeDetail): MixtapeDetail {
   // Generate cover URLs from the first 4 tracks
   const coverUrls: (string | null)[] = [];
   for (let i = 0; i < Math.min(4, data.Smols.length); i++) {

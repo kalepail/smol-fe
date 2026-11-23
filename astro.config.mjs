@@ -11,7 +11,11 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills';
 export default defineConfig({
   output: 'server',
   integrations: [svelte()],
-  adapter: cloudflare(),
+  adapter: cloudflare({
+    imageService: 'passthrough',
+    // Astro dev uses PUBLIC_API_URL. Wrangler Pages supplies deployed bindings.
+    platformProxy: { enabled: false },
+  }),
   server: {
     host: 'app.smol.xyz'
   },
@@ -30,7 +34,7 @@ export default defineConfig({
       nodePolyfills({
         include: ['buffer']
       }),
-      mkcert(),
+      ...(process.env.SMOL_E2E ? [] : [mkcert()]),
       tailwindcss()
     ],
   },

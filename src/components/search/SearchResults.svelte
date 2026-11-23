@@ -1,13 +1,13 @@
 <script lang="ts">
-  import { onDestroy, onMount } from 'svelte';
+  import { playSmolQueue, setTrackLiked } from '../../stores/audio.svelte';
+  import { toMixtapeTrack } from '../../utils/track';
+  import { onMount } from 'svelte';
   import SmolCard from '../smol/SmolCard.svelte';
-  import type { MixtapeTrack, SearchResult } from '../../types/domain';
+  import type { SearchResult } from '../../types/domain';
   import { searchSmols } from '../../services/api/search';
   import { fetchLikedSmols } from '../../services/api/smols';
   import { userState } from '../../stores/user.svelte';
-  import { audioState, registerSongNextCallback, selectSong } from '../../stores/audio.svelte';
   import { addTrack } from '../../stores/mixtape.svelte';
-  import { useGridMediaSession } from '../../hooks/useGridMediaSession';
 
   let results = $state<SearchResult[]>([]);
   let loading = $state(true);
@@ -15,33 +15,16 @@
   let query = $state('');
   let likes = $state<string[]>([]);
 
-  const mediaHook = useGridMediaSession();
-
-  function buildTrackPayload(smol: SearchResult): MixtapeTrack {
-    return {
-      id: smol.Id,
-      title: smol.Title ?? 'Untitled Smol',
-      creator: smol.Creator ?? smol.Username ?? smol.artist ?? smol.author ?? null,
-      coverUrl: `${import.meta.env.PUBLIC_API_URL}/image/${smol.Id}.png`,
-      public: smol.Public,
-    };
-  }
 
   function addToMixtape(smol: SearchResult) {
-    addTrack(buildTrackPayload(smol));
+    addTrack(toMixtapeTrack(smol));
   }
 
   function handleLikeChanged(smol: SearchResult, liked: boolean) {
+    setTrackLiked(smol.Id, liked);
     const foundSmol = results.find((item) => item.Id === smol.Id);
     if (foundSmol) {
       foundSmol.Liked = liked;
-    }
-  }
-
-  function songNext() {
-    const next = mediaHook.findNextSong(results, audioState.currentSong?.Id);
-    if (next) {
-      selectSong(next);
     }
   }
 
@@ -87,18 +70,6 @@
 
   onMount(() => {
     void loadResults();
-    registerSongNextCallback(songNext);
-
-    const cleanupMedia = mediaHook.setupMediaSessionHandlers(
-      () => {
-        const previous = mediaHook.findPreviousSong(results, audioState.currentSong?.Id);
-        if (previous) selectSong(previous);
-      },
-      () => {
-        songNext();
-      }
-    );
-
     const handlePageLoad = () => {
       void loadResults();
     };
@@ -106,17 +77,8 @@
     document.addEventListener('astro:page-load', handlePageLoad);
 
     return () => {
-      cleanupMedia();
       document.removeEventListener('astro:page-load', handlePageLoad);
     };
-  });
-
-  onDestroy(() => {
-    registerSongNextCallback(null);
-  });
-
-  $effect(() => {
-    mediaHook.updateMediaMetadata(audioState.currentSong, import.meta.env.PUBLIC_API_URL);
   });
 </script>
 
@@ -152,6 +114,7 @@
         {#each results as smol (smol.Id)}
           <SmolCard
             smol={smol}
+            onPlay={() => playSmolQueue(results, smol, { wrap: true })}
             isVisible={true}
             onLikeChanged={(liked) => handleLikeChanged(smol, liked)}
             onAddToMixtape={() => addToMixtape(smol)}

@@ -16,3 +16,11 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+declare namespace App {
+  interface Locals {
+    runtime?: {
+      env: { SMOL_API?: { fetch(request: Request): Promise<Response> } };
+    };
+  }
+}

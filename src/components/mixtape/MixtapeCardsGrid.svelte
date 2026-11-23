@@ -6,11 +6,6 @@
     }
 
     let { mixtapes = [] }: Props = $props();
-
-    function handlePlayAll(mixtapeId: string) {
-        // Navigate to mixtape detail page with autoplay parameter
-        window.location.href = `/mixtapes/${mixtapeId}?autoplay=true`;
-    }
 </script>
 
 <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -48,11 +43,6 @@
             </div>
 
             <div class="mt-auto flex flex-col gap-2 pt-4">
-                <button
-                    class="rounded bg-lime-400 px-3 py-2 text-sm font-semibold text-slate-950 hover:bg-lime-300"
-                    onclick={() => handlePlayAll(mixtape.id)}
-                >Play All</button>
-
                 <a
                     class="rounded border border-slate-600 px-3 py-2 text-center text-sm text-slate-200 hover:bg-slate-800"
                     href={`/mixtapes/${mixtape.id}`}

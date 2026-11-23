@@ -1,136 +1,78 @@
 <script lang="ts">
-  import { fade } from 'svelte/transition';
+  import { onMount } from 'svelte';
   import MiniAudioPlayer from './MiniAudioPlayer.svelte';
   import LikeButton from '../ui/LikeButton.svelte';
-  import {
-    audioState,
-    setAudioElement,
-    updateProgress,
-    togglePlayPause,
-    playNextSong,
-  } from '../../stores/audio.svelte';
-  import { logger } from '../../utils/logger';
+  import { attach, player, seek, setTrackLiked, toggle } from '../../stores/audio.svelte';
 
-  /**
-   * Effect: Sync audio source with current song
-   * When the current song changes, update the audio element's src
-   */
-  $effect(() => {
-    const song = audioState.currentSong;
-    const audio = audioState.audioElement;
+  let element: HTMLAudioElement;
+  let scrub = $state<{ key: string; seconds: number } | null>(null);
+  onMount(() => attach(element));
 
-    if (!audio) return;
-
-    if (song && song.Id && song.Song_1) {
-      const songUrl = `${import.meta.env.PUBLIC_API_URL}/song/${song.Song_1}.mp3`;
-
-      // Only update src if it's different to avoid reloading
-      if (audio.src !== songUrl) {
-        audio.src = songUrl;
-        audio.load();
-      }
-    } else {
-      // No song selected, clear audio
-      audio.pause();
-      audio.src = '';
-      audio.currentTime = 0;
-    }
-  });
-
-  /**
-   * Effect: Sync playback state with playing ID
-   * When playingId changes, play or pause the audio accordingly
-   */
-  $effect(() => {
-    const playingId = audioState.playingId;
-    const currentSong = audioState.currentSong;
-    const audio = audioState.audioElement;
-
-    if (!audio || !audio.src) return;
-
-    if (currentSong && playingId === currentSong.Id) {
-      // Should be playing
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.catch((error) => {
-          logger.error('audio', 'Error playing audio:', error);
-          // Reset playing state on error
-          audioState.playingId = null;
-        });
-      }
-    } else {
-      // Should be paused
-      audio.pause();
-    }
-  });
-
-  function handleTimeUpdate(event: Event) {
-    const audio = event.target as HTMLAudioElement;
-    updateProgress(audio.currentTime, audio.duration);
-  }
-
-  function handleEnded() {
-    playNextSong();
-  }
-
-  function handleLikeChanged(liked: boolean) {
-    if (audioState.currentSong) {
-      audioState.currentSong.Liked = liked;
-    }
+  function formatTime(seconds: number) {
+    const minutes = Math.floor(seconds / 60);
+    const remainder = Math.floor(seconds % 60).toString().padStart(2, '0');
+    return `${minutes}:${remainder}`;
   }
 </script>
 
-{#if audioState.currentSong}
-  <div
-    class="fixed z-30 p-2 bottom-2 lg:w-full left-4 right-4 lg:max-w-1/2 lg:min-w-[300px] lg:left-1/2 lg:-translate-x-1/2 rounded-md bg-slate-950/50 backdrop-blur-lg border border-white/20 shadow-lg"
-    transition:fade={{ duration: 200 }}
+{#if player.track}
+  {@const track = player.track}
+  {@const position = scrub?.key === track.key ? scrub.seconds : player.currentTime}
+  <section
+    id="audio-player"
+    aria-label="Audio player"
+    class="fixed z-30 px-2 py-1 bottom-[calc(0.5rem+env(safe-area-inset-bottom,0px))] left-4 right-4 lg:w-full lg:max-w-1/2 lg:min-w-[300px] lg:left-1/2 lg:-translate-x-1/2 rounded-md bg-slate-950/90 backdrop-blur-lg border border-white/20 shadow-lg"
   >
-    <div class="flex items-center justify-between max-w-7xl mx-auto">
-      <a href={`/${audioState.currentSong.Id}`} class="flex items-center gap-4 mr-4 min-w-0">
-        <img
-          src={`${import.meta.env.PUBLIC_API_URL}/image/${audioState.currentSong.Id}.png`}
-          alt={audioState.currentSong.Title}
-          class="w-12 h-12 rounded object-cover shrink-0"
-        />
+    <div class="flex items-center justify-between gap-2">
+      <a href={`/${track.smolId}`} class="flex items-center gap-3 min-w-0">
+        <img src={track.coverUrl} alt="" class="size-10 rounded object-cover shrink-0" />
         <div class="min-w-0">
-          <h3 class="text-white font-medium leading-5 truncate">{audioState.currentSong.Title}</h3>
+          <h3 class="text-white font-medium leading-5 truncate">{track.title}</h3>
+          <div role="status" class="text-xs text-slate-300">
+            {#if player.status === 'error'}
+              {player.message}
+            {:else if player.status === 'loading'}
+              Loading audio…
+            {:else if player.buffering}
+              Buffering…
+            {/if}
+          </div>
         </div>
       </a>
 
-      <div class="flex items-center gap-2">
+      <div class="flex items-center shrink-0">
         <LikeButton
-          smolId={audioState.currentSong.Id}
-          liked={audioState.currentSong?.Liked || false}
-          on:likeChanged={(e) => handleLikeChanged(e.detail.liked)}
+          smolId={track.smolId}
+          liked={track.liked}
+          on:likeChanged={(event) => setTrackLiked(event.detail.smolId, event.detail.liked)}
         />
-        {#if audioState.currentSong.Id && audioState.currentSong.Song_1}
-          <MiniAudioPlayer
-            id={audioState.currentSong.Id}
-            playing_id={audioState.playingId}
-            songToggle={togglePlayPause}
-            songNext={playNextSong}
-            progress={audioState.progress}
-          />
-        {/if}
+        <MiniAudioPlayer trackKey={track.key} onToggle={toggle} />
       </div>
     </div>
-  </div>
+
+    {#if player.seekable}
+      <div class="flex h-6 items-center gap-2 text-xs tabular-nums text-slate-300">
+        <span>{formatTime(position)}</span>
+        <input
+          class="w-full accent-lime-400"
+          type="range"
+          aria-label="Seek audio"
+          min="0"
+          max={player.duration}
+          step="any"
+          value={position}
+          oninput={(event) => { scrub = { key: track.key, seconds: event.currentTarget.valueAsNumber }; }}
+          onchange={(event) => {
+            seek(event.currentTarget.valueAsNumber);
+            scrub = null;
+          }}
+          onpointercancel={() => { scrub = null; }}
+          onblur={() => { scrub = null; }}
+        />
+        <span>{formatTime(player.duration)}</span>
+      </div>
+    {/if}
+  </section>
 {/if}
 
-<audio
-  preload="auto"
-  bind:this={audioState.audioElement}
-  ontimeupdate={handleTimeUpdate}
-  onended={handleEnded}
-  onloadeddata={() => {
-    if (audioState.currentSong && audioState.playingId === audioState.currentSong.Id && audioState.audioElement) {
-      const playPromise = audioState.audioElement.play();
-      if (playPromise !== undefined) {
-        playPromise.catch((error) => {
-          logger.error('audio', 'Error playing audio on load:', error);
-          audioState.playingId = null;
-        });
-      }
-    }
-  }}
-></audio>
+<audio preload="auto" bind:this={element}></audio>

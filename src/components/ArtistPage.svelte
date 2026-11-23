@@ -1,16 +1,16 @@
 <script lang="ts">
   import SmolGrid from './smol/SmolGrid.svelte';
-  import type { ArtistProfile } from '../types/api';
+  import type { ArtistSmolsResponse } from '../types/api';
   import { shortenAddress } from '../utils/address';
 
   interface Props {
     address: string;
-    artist?: ArtistProfile | null;
+    initialData?: ArtistSmolsResponse | null;
   }
 
-  let { address, artist = null }: Props = $props();
+  let { address, initialData = null }: Props = $props();
 
-  const displayName = $derived(artist?.Username || shortenAddress(address));
+  const displayName = $derived(initialData?.artist?.Username || shortenAddress(address));
   const artistEndpoint = $derived(`artists/${encodeURIComponent(address)}/smols`);
 </script>
 
@@ -24,6 +24,7 @@
 
 <SmolGrid
   endpoint={artistEndpoint}
+  {initialData}
   emptyTitle={`No public smols from ${displayName} yet`}
   emptyDescription="Check back later."
 />

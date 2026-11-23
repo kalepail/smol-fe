@@ -1,5 +1,9 @@
 <script lang="ts">
-  import type { SmolDetailResponse } from '../../types/domain';
+  import type { Smol, SmolDetailResponse } from '../../types/domain';
+  import { untrack } from 'svelte';
+  import MiniAudioPlayer from '../audio/MiniAudioPlayer.svelte';
+  import { player, playQueue, setTrackLiked, toggle, updateTrack } from '../../stores/audio.svelte';
+  import { toTrack } from '../../utils/track';
   import Loader from '../ui/Loader.svelte';
   import LikeButton from '../ui/LikeButton.svelte';
   import TokenBalancePill from '../ui/TokenBalancePill.svelte';
@@ -17,11 +21,9 @@
     tradeReady: boolean;
     tradeMintBalance: bigint;
     isOwner: boolean;
-    audioElements: HTMLAudioElement[];
     onMakeSongPublic: () => void;
     onDeleteSong: () => void;
     onSelectBestSong: (songId: string) => void;
-    onPlayAudio: (index: number) => void;
     onTriggerMint: () => void;
     onOpenTradeModal: () => void;
     onLikeChanged: (liked: boolean) => void;
@@ -39,11 +41,9 @@
     tradeReady,
     tradeMintBalance,
     isOwner,
-    audioElements = $bindable(),
     onMakeSongPublic,
     onDeleteSong,
     onSelectBestSong,
-    onPlayAudio,
     onTriggerMint,
     onOpenTradeModal,
     onLikeChanged,
@@ -55,6 +55,36 @@
   const hasStreamingSongs = $derived(
     Boolean(kv_do?.songs?.some((song) => song.audio && song.status < 4))
   );
+
+  const smol = $derived<Smol | null>(id ? {
+    ...d1,
+    Id: id,
+    Title: kv_do?.lyrics?.title || d1?.Title || kv_do?.description || 'Untitled Smol',
+    Liked: liked,
+  } : null);
+  const takes = $derived.by(() => {
+    const trackSmol = smol;
+    if (!trackSmol) return [];
+    if (!kv_do?.songs?.length) return [toTrack(trackSmol)];
+    return kv_do.songs.map((song) => toTrack(trackSmol, song));
+  });
+
+  $effect(() => {
+    const tracks = takes;
+    untrack(() => {
+      for (const track of tracks) if (track) updateTrack(track);
+    });
+  });
+
+  function playTake(track: NonNullable<(typeof takes)[number]>) {
+    if (player.track?.key === track.key) toggle();
+    else playQueue([track], 0);
+  }
+
+  function handleLikeChanged(liked: boolean) {
+    if (id) setTrackLiked(id, liked);
+    onLikeChanged(liked);
+  }
 </script>
 
 <div class="px-2 py-10">
@@ -152,7 +182,7 @@
                 <LikeButton
                   smolId={d1.Id}
                   {liked}
-                  on:likeChanged={(e) => onLikeChanged(e.detail.liked)}
+                  on:likeChanged={(e) => handleLikeChanged(e.detail.liked)}
                 />
               </div>
             {/if}
@@ -206,47 +236,31 @@
           {/if}
         </h1>
 
-        {#if kv_do && kv_do?.songs?.length}
-          {#each kv_do && kv_do.songs as song, index (song.music_id)}
-            <div class="flex items-center mb-2">
-              {#if song.audio}
-                <audio
-                  class="mr-2"
-                  bind:this={audioElements[index]}
-                  onplay={() => onPlayAudio(index)}
-                  src={song.status < 4
-                    ? song.audio
-                    : `${import.meta.env.PUBLIC_API_URL}/song/${song.music_id}.mp3`}
-                  onerror={(e) => {
-                    // @ts-ignore
-                    e.currentTarget.src = song.audio;
-                  }}
-                  preload="none"
-                  controls
-                ></audio>
+        {#each takes as track, index}
+          {@const song = kv_do?.songs?.[index]}
+          <div class="flex items-center gap-2 mb-2">
+            {#if track}
+              <MiniAudioPlayer trackKey={track.key} onToggle={() => playTake(track)} label={`take ${index + 1}`} />
+              <span>Take {index + 1}</span>
 
-                {#if isOwner}
+              {#if song && isOwner && takes.length > 1}
+                <label class="flex items-center gap-2 ml-2">
                   <input
-                    class="scale-150 m-2"
                     type="radio"
                     value={song.music_id}
                     bind:group={bestSong}
                     onchange={() => onSelectBestSong(song.music_id)}
                   />
-                {/if}
-
-                {#if song.music_id === bestSong}
-                  <span class="text-2xl ml-1">👈</span>
-                  <span class="ml-2 mt-1">better</span>
-                {/if}
-              {:else}
-                <Loader />
+                  Main take
+                </label>
               {/if}
-            </div>
-          {/each}
-        {:else if showGenerationLoader}
-          <Loader />
-        {/if}
+            {:else if showGenerationLoader}
+              <Loader />
+            {:else if song}
+              <span class="text-sm text-slate-400">Take {index + 1} unavailable</span>
+            {/if}
+          </div>
+        {/each}
       </li>
 
       <li>

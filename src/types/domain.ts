@@ -56,12 +56,6 @@ export interface User {
   username?: string;
 }
 
-export interface AudioState {
-  playingId: string | null;
-  currentSong: Smol | null;
-  progress: number;
-}
-
 export interface MixtapeModeState {
   active: boolean;
 }

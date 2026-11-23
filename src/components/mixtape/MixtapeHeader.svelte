@@ -1,6 +1,5 @@
 <script lang="ts">
   import type { MixtapeDetail } from '../../services/api/mixtapes';
-  import type { Smol } from '../../types/domain';
   import Loader from '../ui/Loader.svelte';
   import { userState } from '../../stores/user.svelte';
 
@@ -9,7 +8,7 @@
     coverUrls: (string | null)[];
     loadingTracks: Set<string>;
     isPlayingAll: boolean;
-    isAnyPlaying: boolean;
+    canPlay: boolean;
     fullyOwned: boolean;
     isPurchasing: boolean;
     onPlayAll: () => void;
@@ -22,7 +21,7 @@
     coverUrls,
     loadingTracks,
     isPlayingAll,
-    isAnyPlaying,
+    canPlay,
     fullyOwned,
     isPurchasing,
     onPlayAll,
@@ -75,7 +74,7 @@
     </div>
 
     <div class="flex flex-col gap-2 md:flex-row md:items-center md:gap-4">
-      {#if isPlayingAll && isAnyPlaying}
+      {#if isPlayingAll}
         <button
           class="flex items-center justify-center gap-2 rounded bg-rose-500 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-600"
           onclick={onStopPlayAll}
@@ -93,8 +92,9 @@
         </button>
       {:else}
         <button
-          class="flex items-center justify-center gap-2 rounded bg-lime-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-lime-300"
+          class="flex items-center justify-center gap-2 rounded bg-lime-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-lime-300 disabled:opacity-50"
           onclick={onPlayAll}
+          disabled={!canPlay}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"

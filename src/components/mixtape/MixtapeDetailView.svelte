@@ -1,16 +1,16 @@
 <script lang="ts">
-  import { onMount, onDestroy, untrack } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
   import type { MixtapeDetail } from '../../services/api/mixtapes';
   import type { Smol } from '../../types/domain';
   import MixtapeHeader from './MixtapeHeader.svelte';
   import MixtapeTracklist from './MixtapeTracklist.svelte';
   import PurchaseModal from './PurchaseModal.svelte';
-  import { audioState, registerSongNextCallback } from '../../stores/audio.svelte';
+  import { next, player, playQueue, previous, setTrackLiked, stop, toggle } from '../../stores/audio.svelte';
+  import { toTrack, trackKey } from '../../utils/track';
   import { userState } from '../../stores/user.svelte';
   import { useMixtapeMinting } from '../../hooks/useMixtapeMinting';
   import { useMixtapePurchase } from '../../hooks/useMixtapePurchase';
   import { useMixtapeBalances } from '../../hooks/useMixtapeBalances';
-  import { useMixtapePlayback } from '../../hooks/useMixtapePlayback';
   import { MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from '../../utils/mint';
   import { getMixtapeDetail } from '../../services/api/mixtapes';
   import { fetchLikedSmols } from '../../services/api/smols';
@@ -18,9 +18,10 @@
 
   interface Props {
     id: string;
+    initialData?: MixtapeDetail | null;
   }
 
-  let { id }: Props = $props();
+  let { id, initialData = null }: Props = $props();
 
   // State
   let mixtape = $state<MixtapeDetail | null>(null);
@@ -29,8 +30,6 @@
   let mixtapeTracks = $state<Smol[]>([]);
 
   let loadingTracks = $state(new Set<string>());
-  let currentTrackIndex = $state(-1);
-  let isPlayingAll = $state(false);
 
   // Purchase modal state
   let showPurchaseModal = $state(false);
@@ -44,9 +43,9 @@
   const balancesHook = useMixtapeBalances();
 
   // Derived values
-  const isAnyPlaying = $derived(
-    audioState.playingId !== null && audioState.currentSong !== null
-  );
+  const ownsQueue = $derived(player.queueId === id);
+  const isPlayingAll = $derived(ownsQueue && (player.status === 'playing' || player.status === 'loading'));
+  const canPlay = $derived(player.ready && mixtapeTracks.some((track) => Boolean(track.Song_1)));
 
   const fullyOwned = $derived(
     mixtape && mixtapeTracks.length > 0
@@ -99,35 +98,40 @@
       }))
   );
 
-  // Playback hook
-  const playbackHook = useMixtapePlayback({
-    get mixtapeTracks() {
-      return mixtapeTracks;
-    },
-    get currentTrackIndex() {
-      return currentTrackIndex;
-    },
-    get isPlayingAll() {
-      return isPlayingAll;
-    },
-    onTrackIndexChange: (index: number) => {
-      currentTrackIndex = index;
-    },
-    onPlayingAllChange: (playing: boolean) => {
-      isPlayingAll = playing;
-    },
-  });
+  function startMixtape(index?: number) {
+    const tracks = mixtapeTracks.map((track) => toTrack(track)).filter((track) => track !== null);
+    const song = index === undefined ? undefined : mixtapeTracks[index];
+    if (index !== undefined && !song?.Song_1) return;
+    const key = song?.Song_1 ? trackKey(song.Id, song.Song_1) : null;
+    if (ownsQueue && key && player.track?.key === key) {
+      toggle();
+      return;
+    }
+    const start = key ? tracks.findIndex((track) => track.key === key) : 0;
+    playQueue(tracks, start, { id, album: mixtape?.title, wrap: true });
+  }
+
+  function handleKeyboard(event: KeyboardEvent) {
+    if (!ownsQueue || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.target instanceof Element && event.target.closest('input, textarea, select, button, a, [contenteditable]')) return;
+
+    switch (event.key) {
+      case ' ': event.preventDefault(); toggle(); break;
+      case 'ArrowRight': event.preventDefault(); next(); break;
+      case 'ArrowLeft': event.preventDefault(); previous(); break;
+    }
+  }
 
   // Track last fetched ID to prevent duplicate fetches
   let lastFetchedMixtapeId = $state<string | null>(null);
 
   // Fetch mixtape data
-  async function fetchMixtapeData(mixtapeId: string) {
+  async function fetchMixtapeData(mixtapeId: string, seed: MixtapeDetail | null) {
     loading = true;
     error = null;
 
     try {
-      const detailPromise = getMixtapeDetail(mixtapeId);
+      const detailPromise = seed ?? getMixtapeDetail(mixtapeId);
       const likedTrackIdsPromise = userState.contractId
         ? fetchLikedSmols().catch(() => [] as string[])
         : Promise.resolve([]);
@@ -184,8 +188,10 @@
   $effect(() => {
     // Only fetch if id actually changed
     if (id && id !== lastFetchedMixtapeId) {
-      lastFetchedMixtapeId = id;
-      fetchMixtapeData(id);
+      const mixtapeId = id;
+      const seed = initialData?.id === mixtapeId ? initialData : null;
+      lastFetchedMixtapeId = mixtapeId;
+      untrack(() => void fetchMixtapeData(mixtapeId, seed));
     }
   });
 
@@ -237,50 +243,9 @@
     };
   });
 
-  // Setup playback when mixtape loads
-  $effect(() => {
-    if (!mixtape) return;
-
-    // Register the playNext callback for this page
-    registerSongNextCallback(playbackHook.playNext);
-
-    // Setup media session handlers
-    playbackHook.setupMediaSession();
-
-    // Handle autoplay
-    const urlParams = new URLSearchParams(window.location.search);
-    const shouldAutoplay = urlParams.get('autoplay') === 'true';
-
-    if (shouldAutoplay) {
-      urlParams.delete('autoplay');
-      const newUrl =
-        window.location.pathname +
-        (urlParams.toString() ? '?' + urlParams.toString() : '');
-      window.history.replaceState({}, '', newUrl);
-
-      setTimeout(() => playbackHook.handlePlayAll(), 500);
-    }
-  });
-
-  onMount(() => {
-    // Add keyboard event listener
-    window.addEventListener('keydown', playbackHook.handleKeyboard);
-
-    return () => {
-      window.removeEventListener('keydown', playbackHook.handleKeyboard);
-      mintingHook.clearAllMintPolling();
-    };
-  });
-
   onDestroy(() => {
-    // Clear balance refresh timeout
-    if (balanceRefreshTimeout) {
-      clearTimeout(balanceRefreshTimeout);
-    }
-
+    if (balanceRefreshTimeout) clearTimeout(balanceRefreshTimeout);
     mintingHook.clearAllMintPolling();
-    // Unregister the callback when this component is destroyed
-    registerSongNextCallback(null);
   });
 
   function handleBalanceUpdated(trackId: string, balance: bigint) {
@@ -501,66 +466,14 @@
   }
 
   function handleLikeChanged(index: number, liked: boolean) {
-    if (mixtapeTracks[index]) {
-      mixtapeTracks[index].Liked = liked;
-      mixtapeTracks = [...mixtapeTracks];
-    }
-
-    // If this is the currently playing song, update currentSong
-    if (audioState.currentSong?.Id === mixtapeTracks[index]?.Id) {
-      audioState.currentSong.Liked = liked;
-    }
+    const track = mixtapeTracks[index];
+    if (!track) return;
+    track.Liked = liked;
+    setTrackLiked(track.Id, liked);
   }
-
-  // Monitor current playing song and update media session
-  $effect(() => {
-    if (audioState.currentSong && mixtape) {
-      const currentSong = audioState.currentSong;
-      const mixtapeTitle = mixtape.title;
-      const index = mixtapeTracks.findIndex(
-        (t) => t?.Id === currentSong.Id
-      );
-
-      untrack(() => {
-        if (index !== -1 && index !== currentTrackIndex) {
-          currentTrackIndex = index;
-        }
-
-        playbackHook.updateMediaSessionMetadata(currentSong, mixtapeTitle);
-      });
-    }
-  });
-
-  // Detect when playback stops completely
-  $effect(() => {
-    if (!audioState.playingId && !audioState.currentSong) {
-      untrack(() => {
-        isPlayingAll = false;
-        currentTrackIndex = -1;
-        playbackHook.clearMediaSessionMetadata();
-      });
-    }
-  });
-
-  // Auto-disable Play All mode when user pauses
-  $effect(() => {
-    if (!audioState.playingId && audioState.currentSong && isPlayingAll) {
-      isPlayingAll = false;
-    }
-  });
-
-  // Re-enable Play All mode when user resumes playing
-  $effect(() => {
-    if (
-      audioState.playingId &&
-      audioState.currentSong &&
-      !isPlayingAll &&
-      currentTrackIndex >= 0
-    ) {
-      isPlayingAll = true;
-    }
-  });
 </script>
+
+<svelte:window onkeydown={handleKeyboard} />
 
 {#if loading}
   <div class="mx-auto max-w-4xl px-4 py-16 text-center">
@@ -586,11 +499,11 @@
       {coverUrls}
       {loadingTracks}
       {isPlayingAll}
-      {isAnyPlaying}
+      {canPlay}
       {fullyOwned}
       {isPurchasing}
-      onPlayAll={playbackHook.handlePlayAll}
-      onStopPlayAll={playbackHook.stopPlayAll}
+      onPlayAll={() => startMixtape()}
+      onStopPlayAll={stop}
       onPurchaseClick={handlePurchaseClick}
     />
 
@@ -598,9 +511,7 @@
       {mixtape}
       {mixtapeTracks}
       {loadingTracks}
-      onTrackClick={(index) =>
-        playbackHook.handleTrackClick(index, audioState.currentSong?.Id ?? null)}
-      onPlayNext={playbackHook.playNext}
+      onTrackClick={startMixtape}
       onLikeChanged={handleLikeChanged}
     />
   </div>

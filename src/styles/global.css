@@ -1,6 +1,9 @@
 @import "tailwindcss";
 
 @layer base {
+    body:has(#audio-player) {
+        padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+    }
 
     button:not(:disabled),
     [role="button"]:not(:disabled) {
