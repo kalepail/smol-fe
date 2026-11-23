@@ -21,4 +21,20 @@ describe('lyrics parser', () => {
     assert.equal(isLyricSectionTag('[Chorus]'), true);
     assert.equal(isLyricSectionTag('Regular line'), false);
   });
+
+  it('handles CRLF line endings, leading blank lines, and inline annotations like [Chorus] x2', () => {
+    const raw = `\r\n\r\n[Verse 1]\r\nFirst line\r\n[Chorus] x2\r\nSecond line\r\n`;
+    const blocks = parseLyricBlocks(raw);
+    assert.deepEqual(
+      blocks.map(({ kind, ...rest }) => ({ kind, ...('text' in rest ? { text: rest.text } : {}) })),
+      [
+        { kind: 'section', text: 'Verse 1' },
+        { kind: 'line', text: 'First line' },
+        { kind: 'line', text: '[Chorus] x2' },
+        { kind: 'line', text: 'Second line' },
+        { kind: 'break' },
+      ]
+    );
+    assert.equal(isLyricSectionTag('[Chorus] x2'), false);
+  });
 });

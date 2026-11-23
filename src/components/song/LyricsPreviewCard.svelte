@@ -54,11 +54,12 @@
     </div>
   </div>
 
-  <button
-    type="button"
+  <!-- Non-focusable pointer shortcut; keyboard users use the single "Read lyrics" button above. -->
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
     onclick={onOpen}
-    aria-label="Open full lyrics"
-    class="focus-ring group relative block w-full rounded-[calc(var(--radius-control)-2px)] text-left"
+    class="group relative cursor-pointer rounded-[calc(var(--radius-control)-2px)]"
   >
     <div class="max-w-[65ch] space-y-1 text-sm leading-relaxed sm:text-base">
       {#each previewLines as line, index (index)}
@@ -80,5 +81,5 @@
         class="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-surface-1 to-transparent"
       ></div>
     {/if}
-  </button>
+  </div>
 </section>

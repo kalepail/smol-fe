@@ -76,7 +76,7 @@
         {:else if block.kind === 'break'}
           <div class="h-3.5" aria-hidden="true"></div>
         {:else}
-          <p class="text-base leading-[1.75] text-ink-1/95 sm:text-[17px]">
+          <p class="[overflow-wrap:anywhere] text-base leading-[1.75] text-ink-1/95 sm:text-[17px]">
             {block.text}
           </p>
         {/if}

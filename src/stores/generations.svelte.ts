@@ -1,5 +1,6 @@
 import { navigate } from 'astro:transitions/client';
 import type { SmolDetailResponse } from '../types/domain';
+import { expectedTakeCount, providerOf } from '../utils/takes';
 import { toast } from './toast.svelte';
 
 interface TrackedGeneration {
@@ -63,11 +64,13 @@ function schedulePoll(entry: TrackedGeneration) {
 
       const data = (await response.json()) as SmolDetailResponse;
       const songs = data.kv_do?.songs ?? [];
-      const ready = songs.length > 0 && songs.every((song) => song.music_id && song.status >= 4);
+      const expected = expectedTakeCount(providerOf(data));
+      const ready = songs.length >= expected && songs.every((song) => song.music_id && song.status >= 4);
+      const published = Boolean(data.d1?.Id) && !data.wf;
       const wfStatus = data.wf?.status;
       const failed = wfStatus === 'errored' || wfStatus === 'terminated' || wfStatus === 'unknown';
 
-      if (ready || wfStatus === 'complete') {
+      if (ready || published || wfStatus === 'complete') {
         stopTrackingGeneration(entry.id);
         const title = data.kv_do?.lyrics?.title || data.d1?.Title || 'Your song';
         const onSongPage = window.location.pathname === `/${entry.id}`;

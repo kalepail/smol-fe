@@ -107,7 +107,9 @@
   const isInstrumental = $derived(
     Boolean(kv_do?.payload?.instrumental || d1?.Instrumental)
   );
-  const isUnsafe = $derived(kv_do?.nsfw?.safe === false);
+  const isSafetyUnknown = $derived(Boolean(kv_do?.nsfw?.unknown));
+  const isUnsafe = $derived(Boolean(kv_do?.nsfw && kv_do.nsfw.safe === false && !kv_do.nsfw.unknown));
+  const isRestricted = $derived(isUnsafe || isSafetyUnknown);
   const hasCoverArt = $derived(Boolean(kv_do?.image || d1?.Id));
 
   const title = $derived.by(() => {
@@ -162,18 +164,33 @@
   const isInMixtape = $derived(Boolean(id && mixtapeTrackIds.current.has(id)));
   const rawLyrics = $derived(kv_do?.lyrics?.lyrics?.trim() ?? '');
   const hasLyrics = $derived(!isInstrumental && rawLyrics.length > 0);
-  const styleTags = $derived(kv_do?.lyrics?.style?.filter(Boolean) ?? []);
+
+  // Deduplicate style tags (case-insensitive, preserving original casing) so duplicate provider tags never throw each_key_duplicate.
+  const styleTags = $derived.by(() => {
+    const raw = kv_do?.lyrics?.style ?? [];
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const item of raw) {
+      const trimmed = item?.trim();
+      if (!trimmed) continue;
+      const key = trimmed.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(trimmed);
+    }
+    return out;
+  });
   const visibleTags = $derived(tagsExpanded ? styleTags : styleTags.slice(0, 8));
   const hiddenTagCount = $derived(Math.max(0, styleTags.length - visibleTags.length));
 
   const showOwnerPrivateBanner = $derived(
-    isOwner && isPublished && isPrivate && !isUnsafe && !failed && !showGenerationLoader
+    isOwner && isPublished && isPrivate && !isRestricted && !failed && !showGenerationLoader
   );
   const canAddToMixtape = $derived(
-    Boolean(userState.contractId && isPublished && !isPrivate && !isUnsafe)
+    Boolean(userState.contractId && isPublished && !isPrivate && !isRestricted)
   );
   const canCollect = $derived(
-    !failed && !showGenerationLoader && !isUnsafe && (isPublished || minted)
+    !failed && !showGenerationLoader && !isRestricted && (isPublished || minted)
   );
   const showActionRow = $derived(
     Boolean(primaryTrack || hasLyrics || isPublished)
@@ -233,7 +250,7 @@
   }
 
   function handleAddToMixtape() {
-    if (!smol || isPrivate || isUnsafe) return;
+    if (!smol || isPrivate || isRestricted) return;
     toggleDraftTrack({ ...smol, Public: d1?.Public === 0 ? 0 : d1?.Public === 1 ? 1 : undefined });
   }
 
@@ -302,7 +319,7 @@
         >
           <div class="flex min-w-0 items-center gap-2.5 text-sm text-ink-2">
             <Icon name="lock" size={16} class="shrink-0 text-ink-3" />
-            <span>Private · Only you can view this song in feeds.</span>
+            <span>Private · Hidden from feeds and search. Anyone with the link can listen.</span>
           </div>
           <Button
             variant="secondary"
@@ -316,7 +333,7 @@
         </div>
       {/if}
 
-      <!-- Flagged / NSFW notice (keeps cover art visible as-is) -->
+      <!-- Safety notices (cover art stays visible as-is) -->
       {#if isUnsafe}
         <div
           role="status"
@@ -327,11 +344,21 @@
             Flagged for sensitive content{kv_do?.nsfw?.categories?.length ? ` (${kv_do.nsfw.categories.join(', ')})` : ''}. Kept private from public feeds and cannot be published or minted.
           </span>
         </div>
+      {:else if isSafetyUnknown}
+        <div
+          role="status"
+          class="flex items-start gap-2.5 rounded-[var(--radius-control)] bg-warning/15 px-4 py-3 text-sm text-warning ring-1 ring-inset ring-warning/35"
+        >
+          <Icon name="info" size={18} class="mt-0.5 shrink-0" />
+          <span>
+            Safety check pending. Kept private from public feeds until review completes.
+          </span>
+        </div>
       {/if}
 
       <!-- Hero header -->
       <header class="space-y-2.5">
-        <h1 class="text-2xl font-semibold tracking-tight text-ink-1 sm:text-3xl lg:text-4xl">
+        <h1 class="[overflow-wrap:anywhere] text-2xl font-semibold tracking-tight text-ink-1 sm:text-3xl lg:text-4xl">
           {title}
         </h1>
 
@@ -361,6 +388,8 @@
           {/if}
           {#if isUnsafe}
             <Chip tone="danger">Flagged</Chip>
+          {:else if isSafetyUnknown}
+            <Chip tone="warning">Safety pending</Chip>
           {/if}
         </div>
 
@@ -372,15 +401,15 @@
         {/if}
       </header>
 
-      <!-- Lifecycle-aware action row (never shows a dead Play button on failed songs with no audio) -->
+      <!-- Lifecycle-aware action row (single clean row at 390px: Share folds into More below sm) -->
       {#if showActionRow}
-        <div class="flex flex-wrap items-center gap-2">
+        <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
           {#if primaryTrack}
             <Button
               variant="primary"
               disabled={!player.ready}
               onclick={handlePrimaryPlay}
-              class="min-w-[136px] rounded-full px-6"
+              class="min-w-[104px] rounded-full px-4 sm:min-w-[136px] sm:px-6"
             >
               {#if isPrimaryPlaying}
                 <Icon name="pause" size={18} />
@@ -396,7 +425,7 @@
             <Button
               variant="secondary"
               size="md"
-              class="rounded-full"
+              class="rounded-full px-3.5 sm:px-4"
               onclick={() => (lyricsOpen = true)}
             >
               <Icon name="lyrics" size={18} />
@@ -427,10 +456,16 @@
             </IconButton>
           {/if}
 
-          {#if isPublished && !isUnsafe}
-            <IconButton label="Share song" variant="surface" onclick={handleShare}>
-              <Icon name="share" size={20} />
-            </IconButton>
+          {#if isPublished && !isRestricted}
+            <div class="hidden sm:inline-flex">
+              <IconButton
+                label="Share song"
+                variant="surface"
+                onclick={handleShare}
+              >
+                <Icon name="share" size={20} />
+              </IconButton>
+            </div>
           {/if}
 
           {#if isPublished}
@@ -470,7 +505,7 @@
         />
       {/if}
 
-      <!-- Collectible / Mint & Trade surface (kept prominent below Takes, omitted while generating/failed/flagged) -->
+      <!-- Collectible / Mint & Trade surface (kept prominent below Takes, omitted while generating/failed/restricted) -->
       {#if canCollect}
         <section
           aria-label="Collectible"
@@ -539,7 +574,7 @@
                 {/if}
               </div>
             </div>
-            <p class="max-w-[65ch] text-sm leading-relaxed text-ink-2">
+            <p class="max-w-[65ch] [overflow-wrap:anywhere] text-sm leading-relaxed text-ink-2">
               {kv_do.payload.prompt}
             </p>
           {/if}
@@ -552,16 +587,18 @@
               {#if hiddenTagCount > 0}
                 <button
                   type="button"
+                  aria-expanded={false}
                   onclick={() => (tagsExpanded = true)}
-                  class="focus-ring inline-flex min-h-9 items-center rounded-full px-2.5 text-xs font-medium text-ink-2 hover:bg-white/8 hover:text-ink-1"
+                  class="focus-ring inline-flex min-h-11 items-center rounded-full px-3 text-xs font-medium text-ink-2 hover:bg-white/8 hover:text-ink-1"
                 >
                   +{hiddenTagCount} more
                 </button>
               {:else if tagsExpanded && styleTags.length > 8}
                 <button
                   type="button"
+                  aria-expanded={true}
                   onclick={() => (tagsExpanded = false)}
-                  class="focus-ring inline-flex min-h-9 items-center rounded-full px-2.5 text-xs font-medium text-ink-2 hover:bg-white/8 hover:text-ink-1"
+                  class="focus-ring inline-flex min-h-11 items-center rounded-full px-3 text-xs font-medium text-ink-2 hover:bg-white/8 hover:text-ink-1"
                 >
                   Show fewer
                 </button>
@@ -581,7 +618,7 @@
       {/if}
     </div>
 
-    <!-- Details panel (directly under Cover Art on desktop; bottom of article on mobile) -->
+    <!-- Details panel (directly under Cover Art on desktop; compact disclosure on mobile) -->
     <SongDetailsPanel
       {id}
       description={kv_do?.description ?? null}
@@ -618,7 +655,7 @@
 <!-- Overflow menu sheet -->
 <Sheet open={moreOpen} title={title} maxWidth="sm" onClose={() => (moreOpen = false)}>
   <div class="divide-y divide-line rounded-[var(--radius-control)] bg-surface-1 ring-1 ring-inset ring-line">
-    {#if isOwner && isPublished && !isUnsafe}
+    {#if isOwner && isPublished && !isRestricted}
       <button
         type="button"
         onclick={() => {
@@ -632,7 +669,19 @@
       </button>
     {/if}
 
-    {#if id && isPublished && !isUnsafe}
+    {#if id && isPublished && !isRestricted}
+      <button
+        type="button"
+        onclick={() => {
+          moreOpen = false;
+          void handleShare();
+        }}
+        class="focus-ring flex min-h-12 w-full items-center gap-3 px-4 text-left text-sm font-medium text-ink-1 hover:bg-white/5"
+      >
+        <Icon name="share" size={18} class="text-ink-2" />
+        <span>Share song</span>
+      </button>
+
       <button
         type="button"
         onclick={() => {
@@ -641,7 +690,7 @@
         }}
         class="focus-ring flex min-h-12 w-full items-center gap-3 px-4 text-left text-sm font-medium text-ink-1 hover:bg-white/5"
       >
-        <Icon name="share" size={18} class="text-ink-2" />
+        <Icon name="copy" size={18} class="text-ink-2" />
         <span>Copy song link</span>
       </button>
     {/if}

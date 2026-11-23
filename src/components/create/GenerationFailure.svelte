@@ -29,8 +29,9 @@
     onRemovePlaylist,
   }: Props = $props();
 
+  // Catch internal env var identifiers (UPPER_SNAKE_CASE) and infrastructure/gateway error strings.
   const INTERNAL_ERROR_RE =
-    /\b(CF_AI_GATEWAY_ID|CF_AIG_TOKEN|ELEVENLABS_API_KEY|API_KEY|BYOK is not configured|wrangler)\b/i;
+    /\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b|\b(?:BYOK|R2 storage|gateway|quota enforcement|service binding|binding|wrangler|Durable Object|HTTP \d{3})\b/i;
 
   const retryable = $derived(failure ? failure.retryable : true);
   const alternateProvider = $derived(otherProviderOf(provider));
@@ -39,11 +40,19 @@
   const safeTitle = $derived(failure?.title ?? 'Generation did not finish');
   const safeMessage = $derived.by(() => {
     const raw = failure?.message?.trim();
-    if (!raw) {
-      return 'Something interrupted this song before it could complete. You can try again or edit the prompt.';
-    }
-    if (INTERNAL_ERROR_RE.test(raw)) {
-      return `${PROVIDER_META[provider].label} is temporarily unavailable right now. Try switching to ${alternateLabel} or try again shortly.`;
+    if (!raw || INTERNAL_ERROR_RE.test(raw)) {
+      switch (failure?.code) {
+        case 'content_policy':
+          return 'Adjust the prompt or lyrics before creating this song.';
+        case 'generation_timeout':
+          return `${PROVIDER_META[provider].label} took too long to finish. Try again or switch to ${alternateLabel}.`;
+        case 'provider_unavailable':
+          return `${PROVIDER_META[provider].label} is temporarily unavailable right now. Try switching to ${alternateLabel} or try again shortly.`;
+        case 'terminated':
+          return 'This generation was stopped before it could finish. You can try again or edit the prompt.';
+        default:
+          return `${PROVIDER_META[provider].label} is temporarily unavailable right now. Try switching to ${alternateLabel} or try again shortly.`;
+      }
     }
     return raw;
   });
@@ -62,7 +71,7 @@
       <h2 class="text-base font-semibold text-ink-1">
         {safeTitle}
       </h2>
-      <p class="mt-1 max-w-[65ch] text-sm leading-relaxed text-ink-2">
+      <p class="mt-1 max-w-[65ch] [overflow-wrap:anywhere] text-sm leading-relaxed text-ink-2">
         {safeMessage}
       </p>
 

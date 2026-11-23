@@ -76,11 +76,7 @@
   const tradeReady = $derived(Boolean(id && ((d1?.Mint_Amm && d1?.Mint_Token) || chainVerified)));
   const ownerAddress = $derived(d1?.Address ?? kv_do?.payload?.address ?? null);
   const isOwner = $derived(
-    Boolean(
-      ownerAddress
-        ? userState.contractId && ownerAddress === userState.contractId
-        : !d1 && Boolean(kv_do)
-    )
+    Boolean(ownerAddress && userState.contractId && ownerAddress === userState.contractId)
   );
   const tradeSongId = $derived(id ?? d1?.Id ?? null);
   const tradeTitle = $derived(
@@ -101,7 +97,7 @@
     )
   );
   const showGenerationLoader = $derived(
-    Boolean(interval && (!hasSongSnapshots || hasIncompleteSongs))
+    Boolean(interval && !d1?.Id && (!hasSongSnapshots || hasIncompleteSongs))
   );
 
   $effect(() => {
@@ -191,7 +187,9 @@
       return;
     }
 
-    if (songsArePlaybackReady || generationHook.shouldStopPolling(status)) {
+    const published = Boolean(response?.d1?.Id) && !response?.wf;
+
+    if (songsArePlaybackReady || published || generationHook.shouldStopPolling(status)) {
       stopPolling();
       if (id) stopTrackingGeneration(id);
       failed = generationHook.isFailed(status);

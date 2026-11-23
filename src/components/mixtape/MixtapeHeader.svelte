@@ -91,6 +91,7 @@
           {#if mixtape.description.length > 120}
             <button
               type="button"
+              aria-expanded={descriptionExpanded}
               onclick={() => (descriptionExpanded = !descriptionExpanded)}
               class="focus-ring -my-2 -ml-1 inline-flex min-h-11 items-center self-start rounded px-1 text-xs font-medium text-ink-1 hover:underline"
             >

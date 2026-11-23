@@ -4,7 +4,8 @@
       "prompt": "Driving cyberpunk drum and bass loop with brass stabs",
       "instrumental": true,
       "public": true,
-      "provider": "aisonggenerator"
+      "provider": "aisonggenerator",
+      "address": "CFIXTUREUSER0000000000000000000000000000000000000000000001"
     },
     "generation_meta": {
       "requested_provider": "aisonggenerator",
@@ -13,7 +14,10 @@
     "image": true,
     "lyrics": {
       "title": "Overdrive Circuit",
-      "style": ["Drum & Bass", "Cyberpunk"]
+      "style": [
+        "Drum & Bass",
+        "Cyberpunk"
+      ]
     },
     "failure": {
       "code": "generation_timeout",
@@ -22,6 +26,8 @@
       "retryable": true
     }
   },
-  "wf": { "status": "errored" },
+  "wf": {
+    "status": "errored"
+  },
   "liked": false
 }

@@ -4,7 +4,8 @@
       "prompt": "Disallowed prompt text for testing policy rejection",
       "instrumental": false,
       "public": true,
-      "provider": "aisonggenerator"
+      "provider": "aisonggenerator",
+      "address": "CFIXTUREUSER0000000000000000000000000000000000000000000001"
     },
     "generation_meta": {
       "requested_provider": "aisonggenerator",
@@ -18,6 +19,8 @@
       "retryable": false
     }
   },
-  "wf": { "status": "errored" },
+  "wf": {
+    "status": "errored"
+  },
   "liked": false
 }

@@ -307,7 +307,7 @@
                 {:else if block.kind === 'break'}
                   <div class="h-3" aria-hidden="true"></div>
                 {:else}
-                  <p class="text-base leading-relaxed text-ink-1/90">{block.text}</p>
+                  <p class="[overflow-wrap:anywhere] text-base leading-relaxed text-ink-1/90">{block.text}</p>
                 {/if}
               {/each}
             </div>

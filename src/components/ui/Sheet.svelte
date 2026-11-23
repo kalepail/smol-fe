@@ -34,6 +34,7 @@
 
   let dialogEl = $state<HTMLDialogElement | null>(null);
   let backdropEl = $state<HTMLDivElement | null>(null);
+  let pointerDownOnBackdrop = false;
 
   const widthClass: Record<NonNullable<Props['maxWidth']>, string> = {
     sm: 'sm:max-w-sm',
@@ -63,17 +64,20 @@
     const dialog = dialogEl;
     if (!dialog) return;
     if (open) {
+      pointerDownOnBackdrop = false;
       if (!dialog.open) {
         dialog.showModal();
       }
       registerOpenDialog(dialog);
     } else {
+      pointerDownOnBackdrop = false;
       unregisterOpenDialog(dialog);
       if (dialog.open) {
         dialog.close();
       }
     }
     return () => {
+      pointerDownOnBackdrop = false;
       unregisterOpenDialog(dialog);
       if (dialog.open) {
         dialog.close();
@@ -81,14 +85,24 @@
     };
   });
 
+  function isBackdropTarget(target: EventTarget | null): boolean {
+    return target === dialogEl || target === backdropEl;
+  }
+
+  function handlePointerDown(event: PointerEvent) {
+    pointerDownOnBackdrop = isBackdropTarget(event.target);
+  }
+
   function handleCancel(event: Event) {
     event.preventDefault();
     if (dismissible) onClose();
   }
 
   function handleBackdropClick(event: MouseEvent) {
+    const startedOnBackdrop = pointerDownOnBackdrop;
+    pointerDownOnBackdrop = false;
     if (!dismissible) return;
-    if (event.target === dialogEl || event.target === backdropEl) {
+    if (startedOnBackdrop && isBackdropTarget(event.target)) {
       onClose();
     }
   }
@@ -97,6 +111,7 @@
 <dialog
   bind:this={dialogEl}
   oncancel={handleCancel}
+  onpointerdown={handlePointerDown}
   onclick={handleBackdropClick}
   class="sheet-dialog fixed inset-0 m-0 h-dvh w-screen max-h-none max-w-none bg-transparent p-0 text-ink-1 backdrop:bg-black/70 backdrop:backdrop-blur-xs"
 >

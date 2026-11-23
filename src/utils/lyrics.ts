@@ -10,7 +10,7 @@ export function isLyricSectionTag(line: string): boolean {
 }
 
 export function parseLyricBlocks(rawLyrics: string): LyricBlock[] {
-  const lines = rawLyrics.split('\n');
+  const lines = rawLyrics.replace(/\r\n?/g, '\n').split('\n');
   const out: LyricBlock[] = [];
   for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i].trim();

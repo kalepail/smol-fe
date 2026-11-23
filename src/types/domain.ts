@@ -115,6 +115,7 @@ export interface SmolDetailResponse {
     nsfw?: {
       safe: boolean;
       categories: string[];
+      unknown?: boolean;
     };
     lyrics?: {
       title?: string;
