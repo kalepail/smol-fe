@@ -73,10 +73,12 @@ async function assertLayoutInvariants(page: Page, routeLabel: string) {
       document.querySelector('#audio-player'),
       document.querySelector('nav[aria-label="Mobile navigation"]'),
       document.querySelector('form'),
+      document.querySelector('dialog[open]'),
     ].filter((n): n is Element => Boolean(n));
 
     for (const root of checkedRoots) {
       for (const el of root.querySelectorAll('button, a, label:has(input[type="radio"]), label:has(input[role="switch"])')) {
+        if (el.closest('.toast-stack')) continue;
         const rect = el.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) continue;
         if (rect.height < 43.5 || rect.width < 43.5) {
@@ -89,10 +91,19 @@ async function assertLayoutInvariants(page: Page, routeLabel: string) {
       }
     }
 
-    return { overflow, inputFonts, smallControls };
+    let dialogInnerOverflow = 0;
+    const openDialog = document.querySelector('dialog[open]');
+    if (openDialog) {
+      for (const el of openDialog.querySelectorAll('[role="region"], section, aside, ul, li')) {
+        dialogInnerOverflow = Math.max(dialogInnerOverflow, el.scrollWidth - el.clientWidth);
+      }
+    }
+
+    return { overflow, dialogInnerOverflow, inputFonts, smallControls };
   });
 
   expect(metrics.overflow, `Horizontal overflow on ${routeLabel}`).toBeLessThanOrEqual(0);
+  expect(metrics.dialogInnerOverflow, `Dialog inner overflow on ${routeLabel}`).toBeLessThanOrEqual(1);
   for (const input of metrics.inputFonts) {
     expect(input.size, `Input font-size < 16px on ${routeLabel} (${input.selector})`).toBeGreaterThanOrEqual(16);
   }
@@ -111,6 +122,7 @@ for (const vp of VIEWPORTS) {
     context,
   }) => {
     mkdirSync(RENDERS_DIR, { recursive: true });
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await page.setViewportSize({ width: vp.width, height: vp.height });
     await interceptAudio(page);
 
@@ -154,12 +166,21 @@ for (const vp of VIEWPORTS) {
       await capture(page, `home-playing-${vp.tag}.png`);
     }
 
-    // Capture NowPlayingSheet on mobile
+    // Capture NowPlayingSheet + top-layer toast on mobile (and assert 44px targets inside open sheet!)
     if (vp.tag === 'mobile') {
       await dock.getByRole('button', { name: 'Open now playing for First Track' }).click();
-      await expect(page.locator('dialog[open]').getByRole('heading', { name: 'Now playing' })).toBeVisible();
+      const nowSheet = page.locator('dialog[open]');
+      await expect(nowSheet.getByRole('heading', { name: 'Now playing' })).toBeVisible();
+      await assertLayoutInvariants(page, `${vp.tag}: NowPlayingSheet`);
       await capture(page, 'now-playing-sheet-mobile.png');
-      await page.locator('dialog[open]').getByRole('button', { name: 'Close' }).click();
+
+      // Expand lyrics, click Copy -> toast must render ABOVE open NowPlayingSheet
+      await nowSheet.getByRole('button', { name: 'Lyrics', exact: true }).click();
+      await nowSheet.getByRole('button', { name: 'Copy', exact: true }).click();
+      await expect(page.getByRole('status').filter({ hasText: 'Lyrics copied.' })).toBeVisible();
+      await capture(page, 'now-playing-toast-mobile.png');
+
+      await nowSheet.getByRole('button', { name: 'Close' }).click();
     }
 
     // 2. Logged-out Create
@@ -208,12 +229,41 @@ for (const vp of VIEWPORTS) {
       await capture(page, 'song-fallback-mobile.png');
     }
 
-    // 6. Mixtapes index & detail
+    // 6. Mixtapes index, MixtapeBuilder sheet (R1 + R4 clipping check), AccountSheet, and Mixtape detail
     await page.goto('/mixtapes');
     await expect(page.getByRole('heading', { name: 'Mixtapes', exact: true })).toBeVisible();
     await assertLayoutInvariants(page, `${vp.tag}: /mixtapes`);
     if (vp.tag !== 'small') {
       await capture(page, `mixtapes-${vp.tag}.png`);
+    }
+
+    // Exercise AccountSheet + MixtapeBuilder sheet on mobile/375 (R1 browse-and-add + R4 zero clipping)
+    if (vp.tag === 'mobile' || vp.tag === 'small') {
+      await page.goto('/');
+      await page.getByRole('button', { name: 'Open account menu' }).click();
+      const acctSheet = page.locator('dialog[open]');
+      await expect(acctSheet.getByRole('heading', { name: 'Your library' })).toBeVisible();
+      await assertLayoutInvariants(page, `${vp.tag}: AccountSheet`);
+      if (vp.tag === 'mobile') {
+        await capture(page, 'account-sheet-mobile.png');
+      }
+
+      // Enter mixtape mode from AccountSheet -> close sheet -> tap + Add -> reopen via Draft tab badge
+      await acctSheet.getByRole('button', { name: /New mixtape|Open mixtape draft/ }).click();
+      const builderSheet = page.locator('dialog[open]');
+      await expect(builderSheet.getByRole('heading', { name: /New mixtape|song/ })).toBeVisible();
+      await builderSheet.getByRole('button', { name: 'Close' }).click();
+      await expect(page.locator('dialog[open]')).toHaveCount(0);
+
+      await page.getByRole('button', { name: 'Add', exact: true }).first().click();
+      await page.getByRole('button', { name: /Open mixtape draft/ }).click();
+      await expect(builderSheet.getByText('1 song selected')).toBeVisible();
+      await assertLayoutInvariants(page, `${vp.tag}: MixtapeBuilderSheet`);
+      await capture(page, vp.tag === 'mobile' ? 'mixtape-builder-mobile.png' : 'mixtape-builder-375.png');
+
+      // Exit mixtape mode via Save draft so subsequent navigation sees the standard Mixtapes link
+      await builderSheet.getByRole('button', { name: 'Save draft' }).click();
+      await expect(page.locator('dialog[open]')).toHaveCount(0);
     }
 
     await page.goto('/mixtapes/fixture-mixtape');

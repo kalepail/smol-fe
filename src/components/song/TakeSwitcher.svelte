@@ -149,6 +149,7 @@
             <Button
               variant="ghost"
               size="sm"
+              class="min-h-11"
               disabled={savingBest}
               onclick={() => onSelectBestSong(song.music_id)}
             >

@@ -8,7 +8,7 @@
   import Button from '../ui/Button.svelte';
   import Loader from '../ui/Loader.svelte';
   import { playSmolQueue, setTrackLiked } from '../../stores/audio.svelte';
-  import { mixtapeModeState, addTrack } from '../../stores/mixtape.svelte';
+  import { mixtapeModeState, addTrack, openMixtapeSheet } from '../../stores/mixtape.svelte';
   import { userState } from '../../stores/user.svelte';
   import { openAuthSheet } from '../../stores/authSheet.svelte';
   import { toast } from '../../stores/toast.svelte';
@@ -169,7 +169,11 @@
 
   function addToMixtape(smol: Smol) {
     addTrack(toMixtapeTrack(smol));
-    toast.success(`Added "${smol.Title}" to mixtape draft.`);
+    toast.success(`Added "${smol.Title}" to mixtape draft.`, {
+      tag: 'mixtape-add',
+      actionLabel: 'Open draft',
+      onAction: openMixtapeSheet,
+    });
   }
 
   function handleDragStart(event: DragEvent, smol: Smol) {

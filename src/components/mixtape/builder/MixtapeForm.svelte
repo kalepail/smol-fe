@@ -27,21 +27,21 @@
   }: Props = $props();
 </script>
 
-<aside class="flex flex-col gap-4 rounded-[var(--radius-control)] bg-surface-1 p-4 ring-1 ring-inset ring-line">
-  <label class="flex flex-col gap-1.5">
+<aside class="flex min-w-0 flex-col gap-4 rounded-[var(--radius-control)] bg-surface-1 p-4 ring-1 ring-inset ring-line">
+  <label class="flex min-w-0 flex-col gap-1.5">
     <span class="text-sm font-medium text-ink-2">Title</span>
     <input
-      class="input-ring min-h-11 w-full rounded-[var(--radius-control)] bg-canvas px-3.5 py-2 text-base text-ink-1 ring-1 ring-inset ring-line-strong placeholder:text-ink-3"
+      class="input-ring min-h-11 min-w-0 w-full rounded-[var(--radius-control)] bg-canvas px-3.5 py-2 text-base text-ink-1 ring-1 ring-inset ring-line-strong placeholder:text-ink-3"
       placeholder="Give your mixtape a name"
       value={draft.title}
       oninput={(event) => onTitleChange(event.currentTarget.value)}
     />
   </label>
 
-  <label class="flex flex-col gap-1.5">
+  <label class="flex min-w-0 flex-col gap-1.5">
     <span class="text-sm font-medium text-ink-2">Description</span>
     <textarea
-      class="input-ring min-h-[96px] w-full rounded-[var(--radius-control)] bg-canvas px-3.5 py-2.5 text-base text-ink-1 ring-1 ring-inset ring-line-strong placeholder:text-ink-3"
+      class="input-ring min-h-[96px] min-w-0 w-full rounded-[var(--radius-control)] bg-canvas px-3.5 py-2.5 text-base text-ink-1 ring-1 ring-inset ring-line-strong placeholder:text-ink-3"
       placeholder="Say something about the vibe or story."
       value={draft.description}
       oninput={(event) => onDescriptionChange(event.currentTarget.value)}

@@ -119,13 +119,117 @@ for (const viewport of [
       await expect(page.getByRole('button', { name: 'Edit prompt' })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Try again' })).toHaveCount(0);
 
-      // G3 runtime check: logged-in navigation across non-wallet routes never loaded passkey-kit or Stellar SDK
+      // G3 runtime check: logged-in navigation across non-wallet routes (including in-app nav to an already-minted song)
+      // never loads passkey-kit, Stellar SDK, or MixtapeBuilder chunks eagerly.
       await page.goto('/');
+      await page.locator('a[href="/smol-minted"]').first().click();
+      await expect(page).toHaveURL('/smol-minted');
+      await expect(page.getByRole('heading', { name: 'Starlight Mint Anthem' })).toBeVisible();
+      await expect(page.getByText('Minted', { exact: true })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Trade', exact: true })).toBeVisible();
+
       await page.goto('/mixtapes/fixture-mixtape');
       await page.goto('/search?q=love');
       for (const scriptUrl of requestedScripts) {
-        expect(scriptUrl).not.toMatch(/passkey-kit|stellar-sdk|tldts|svelte-dnd-action|MixtapeBuilder\.svelte|MixtapeBuilderSheet/i);
+        expect(scriptUrl).not.toMatch(/passkey-kit|stellar-sdk|tldts|svelte-dnd-action|MixtapeBuilder\.svelte|MixtapeBuilderSheet|MintTradeModal/i);
       }
+    });
+
+    test('mixtape mode decouples sheet from browse-and-add and renders without clipping (R1 + R4)', async ({
+      page,
+      context,
+    }) => {
+      await context.addCookies([
+        {
+          name: 'smol_token',
+          value: fakeSmolJwt(),
+          url: 'http://127.0.0.1:4328',
+        },
+      ]);
+
+      await page.goto('/');
+
+      // Enter mixtape mode (desktop TopBar button vs mobile Mixtapes page / Account sheet)
+      if (viewport.width >= 1024) {
+        await page.getByRole('button', { name: 'New mixtape' }).click();
+      } else {
+        await page.getByRole('button', { name: 'Open account menu' }).click();
+        await page.locator('dialog[open]').getByRole('button', { name: 'New mixtape' }).click();
+      }
+
+      const builderDialog = page.locator('dialog[open]');
+      await expect(builderDialog.getByRole('heading', { name: 'New mixtape' })).toBeVisible();
+
+      // Dismiss sheet -> mixtape mode stays active so feed cards expose + Add buttons
+      await builderDialog.getByRole('button', { name: 'Close' }).click();
+      await expect(page.locator('dialog[open]')).toHaveCount(0);
+
+      const firstAddBtn = page.getByRole('button', { name: 'Add', exact: true }).first();
+      await expect(firstAddBtn).toBeVisible();
+      await firstAddBtn.click();
+
+      // Reopen builder sheet via mobile Draft tab badge or desktop Mixtape draft button
+      if (viewport.width >= 1024) {
+        await page.getByRole('button', { name: /Mixtape draft/ }).click();
+      } else {
+        await page.getByRole('button', { name: 'Open mixtape draft (1)' }).click();
+      }
+
+      await expect(builderDialog.getByRole('heading', { name: '1 song in draft' })).toBeVisible();
+      await expect(builderDialog.getByText('1 song selected')).toBeVisible();
+
+      // Verify zero horizontal clipping inside the open MixtapeBuilder sheet
+      const innerOverflow = await page.evaluate(() => {
+        const dialog = document.querySelector('dialog[open]');
+        if (!dialog) return -1;
+        let maxOverflow = 0;
+        for (const el of dialog.querySelectorAll('[role="region"], section, aside, ul, li')) {
+          maxOverflow = Math.max(maxOverflow, el.scrollWidth - el.clientWidth);
+        }
+        return maxOverflow;
+      });
+      expect(innerOverflow).toBeLessThanOrEqual(1);
+    });
+
+    test('toasts render in the top layer above open sheets and stay interactive (R2)', async ({
+      page,
+      context,
+    }) => {
+      await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+      await page.goto('/');
+      await page.getByRole('button', { name: 'Play First Track' }).click();
+
+      const dock = page.getByRole('region', { name: 'Audio player' });
+      if (viewport.width >= 1024) {
+        await dock.getByRole('button', { name: 'Expand player' }).click();
+      } else {
+        await dock.getByRole('button', { name: 'Open now playing for First Track' }).click();
+      }
+
+      const sheet = page.locator('dialog[open]');
+      await expect(sheet.getByRole('heading', { name: 'Now playing' })).toBeVisible();
+
+      await sheet.getByRole('button', { name: 'Lyrics', exact: true }).click();
+      await sheet.getByRole('button', { name: 'Copy', exact: true }).click();
+
+      const toastStatus = page.getByRole('status').filter({ hasText: 'Lyrics copied.' });
+      await expect(toastStatus).toBeVisible();
+
+      // Verify the toast is inside the open dialog top layer and receives pointer hits (not covered/inert)
+      const hitCheck = await toastStatus.evaluate((el) => {
+        const rect = el.getBoundingClientRect();
+        const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+        return {
+          insideOpenDialog: Boolean(el.closest('dialog[open]')),
+          hitIsToast: Boolean(hit && el.contains(hit)),
+        };
+      });
+      expect(hitCheck).toEqual({ insideOpenDialog: true, hitIsToast: true });
+
+      // Dismissing the toast works interactively without closing the sheet
+      await toastStatus.getByRole('button', { name: 'Dismiss notification' }).click();
+      await expect(toastStatus).toHaveCount(0);
+      await expect(sheet.getByRole('heading', { name: 'Now playing' })).toBeVisible();
     });
   });
 }

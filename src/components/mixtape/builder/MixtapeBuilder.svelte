@@ -173,7 +173,7 @@
 <div
   role="region"
   aria-label="Mixtape builder workspace"
-  class="grid gap-5 lg:grid-cols-[1.3fr_1fr]"
+  class="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]"
   ondragover={handleExternalDragOver}
   ondragleave={handleExternalDragLeave}
   ondrop={handleExternalDrop}

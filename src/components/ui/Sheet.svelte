@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { registerOpenDialog, unregisterOpenDialog } from '../../utils/topLayer';
   import Icon from './Icon.svelte';
   import IconButton from './IconButton.svelte';
 
@@ -44,15 +45,18 @@
       if (!dialog.open) {
         dialog.showModal();
       }
-      document.documentElement.style.overflow = 'hidden';
+      registerOpenDialog(dialog);
     } else {
+      unregisterOpenDialog(dialog);
       if (dialog.open) {
         dialog.close();
       }
-      document.documentElement.style.overflow = '';
     }
     return () => {
-      document.documentElement.style.overflow = '';
+      unregisterOpenDialog(dialog);
+      if (dialog.open) {
+        dialog.close();
+      }
     };
   });
 
@@ -78,9 +82,9 @@
   {#if open}
     <div class="flex h-full w-full items-end justify-center sm:items-center sm:p-4">
       <div
-        class={`flex w-full flex-col overflow-hidden bg-surface-2 ring-1 ring-line-strong ${widthClass[maxWidth]} ${
+        class={`flex min-w-0 w-full flex-col overflow-hidden bg-surface-2 ring-1 ring-line-strong ${widthClass[maxWidth]} ${
           fullHeight
-            ? 'h-dvh sm:h-auto sm:max-h-[90dvh] sm:rounded-[var(--radius-sheet)]'
+            ? 'h-dvh pt-[env(safe-area-inset-top,0px)] sm:h-auto sm:max-h-[90dvh] sm:pt-0 sm:rounded-[var(--radius-sheet)]'
             : 'max-h-[90dvh] rounded-t-[var(--radius-sheet)] sm:rounded-[var(--radius-sheet)]'
         }`}
       >
@@ -91,7 +95,7 @@
         {/if}
 
         {#if title || dismissible || headerExtra}
-          <div class="flex shrink-0 items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
+          <div class="flex shrink-0 items-center justify-between gap-3 border-b border-line py-3 pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] sm:px-5">
             <div class="min-w-0 flex-1">
               {#if title}
                 <h2 class="truncate text-lg font-semibold text-ink-1">{title}</h2>
@@ -111,12 +115,12 @@
           </div>
         {/if}
 
-        <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
+        <div class="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain py-4 pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] sm:px-5">
           {@render children()}
         </div>
 
         {#if footer}
-          <div class="shrink-0 border-t border-line bg-surface-2 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] sm:px-5 sm:pb-4">
+          <div class="shrink-0 border-t border-line bg-surface-2 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] sm:px-5 sm:pb-4">
             {@render footer()}
           </div>
         {:else}

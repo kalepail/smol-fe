@@ -1,4 +1,5 @@
 import type { MixtapeDraft, MixtapeModeState, MixtapeTrack } from '../../types/domain';
+import { dismissToastsByTag } from '../toast.svelte';
 import {
   persistDraft,
   loadDraftFromStorage,
@@ -22,6 +23,9 @@ const initialModeState = loadModeStateFromStorage();
 
 export const mixtapeDraftState = $state<MixtapeDraft>(initialDraft);
 export const mixtapeModeState = $state<MixtapeModeState>(initialModeState);
+// Sheet visibility is intentionally ephemeral (never persisted) so page reloads
+// don't pop a blocking modal and users can close the sheet while keeping +Add active.
+export const mixtapeSheetState = $state<{ open: boolean }>({ open: false });
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -174,19 +178,39 @@ export function getSnapshotDraft(): MixtapeDraft {
   };
 }
 
-export function enterMixtapeMode() {
+export function openMixtapeSheet() {
+  if (!mixtapeModeState.active) {
+    mixtapeModeState.active = true;
+    persistModeState(mixtapeModeState);
+  }
+  dismissToastsByTag('mixtape-add');
+  mixtapeSheetState.open = true;
+}
+
+export function closeMixtapeSheet() {
+  mixtapeSheetState.open = false;
+}
+
+export function enterMixtapeMode(openSheet = true) {
   mixtapeModeState.active = true;
   persistModeState(mixtapeModeState);
+  if (openSheet) {
+    mixtapeSheetState.open = true;
+  }
 }
 
 export function exitMixtapeMode() {
   mixtapeModeState.active = false;
+  mixtapeSheetState.open = false;
   persistModeState(mixtapeModeState);
 }
 
 export function toggleMixtapeMode() {
-  mixtapeModeState.active = !mixtapeModeState.active;
-  persistModeState(mixtapeModeState);
+  if (mixtapeModeState.active) {
+    exitMixtapeMode();
+  } else {
+    enterMixtapeMode(true);
+  }
 }
 
 export const mixtapeDraft = {

@@ -21,7 +21,7 @@
 </script>
 
 <li
-  class={`flex items-center gap-2.5 rounded-[var(--radius-control)] bg-surface-2 p-2.5 ring-1 ring-inset ring-line ${
+  class={`flex min-w-0 items-center gap-2 rounded-[var(--radius-control)] bg-surface-2 p-2.5 ring-1 ring-inset ring-line ${
     isPlaceholder ? 'opacity-60' : ''
   }`}
   data-mixtape-track-id={track.id}

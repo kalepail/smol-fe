@@ -2,7 +2,7 @@
   import { navigate } from 'astro:transitions/client';
   import { next, player, previous, seek, setTrackLiked, toggle } from '../../stores/audio.svelte';
   import { userState } from '../../stores/user.svelte';
-  import { addTrack, enterMixtapeMode } from '../../stores/mixtape.svelte';
+  import { addTrack, enterMixtapeMode, openMixtapeSheet } from '../../stores/mixtape.svelte';
   import { toast } from '../../stores/toast.svelte';
   import Sheet from '../ui/Sheet.svelte';
   import CoverArt from '../ui/CoverArt.svelte';
@@ -94,9 +94,15 @@
       coverUrl: track.coverUrl,
       creator: track.artist ?? null,
     });
-    enterMixtapeMode();
-    toast.success(`Added "${track.title}" to mixtape draft.`);
-    onClose();
+    enterMixtapeMode(false);
+    toast.success(`Added "${track.title}" to mixtape draft.`, {
+      tag: 'mixtape-add',
+      actionLabel: 'Open draft',
+      onAction: () => {
+        onClose();
+        openMixtapeSheet();
+      },
+    });
   }
 
   function handleOpenSongPage() {
@@ -139,13 +145,15 @@
           <a
             href={`/${track.smolId}`}
             onclick={onClose}
-            class="focus-ring block truncate text-2xl font-semibold text-ink-1 hover:underline"
+            class="focus-ring flex min-h-11 flex-col justify-center rounded"
           >
-            {track.title}
+            <span class="block truncate text-2xl font-semibold text-ink-1 hover:underline">
+              {track.title}
+            </span>
+            <span class="mt-0.5 block truncate text-sm text-ink-2">
+              {track.artist || 'SMOL'}
+            </span>
           </a>
-          <p class="mt-0.5 truncate text-sm text-ink-2">
-            {track.artist || 'SMOL'}
-          </p>
         </div>
         <LikeButton
           smolId={track.smolId}
@@ -228,30 +236,30 @@
       {#if failed}
         <div class="flex items-center justify-between gap-3 rounded-[var(--radius-control)] bg-danger/15 px-3.5 py-2.5 text-sm text-danger ring-1 ring-inset ring-danger/35">
           <span>{player.message || 'Playback could not continue.'}</span>
-          <Button variant="secondary" size="sm" onclick={toggle}>Retry</Button>
+          <Button variant="secondary" size="md" onclick={toggle}>Retry</Button>
         </div>
       {/if}
 
       <!-- Secondary actions -->
-      <div class="flex flex-wrap items-center justify-center gap-2">
-        <Button variant="ghost" size="sm" onclick={toggleLyrics}>
+      <div class="flex flex-wrap items-center justify-center gap-1.5">
+        <Button variant="ghost" size="sm" class="min-h-11" onclick={toggleLyrics}>
           <Icon name="lyrics" size={16} />
           <span>{lyricsExpanded ? 'Hide lyrics' : 'Lyrics'}</span>
         </Button>
 
-        <Button variant="ghost" size="sm" onclick={handleShare}>
+        <Button variant="ghost" size="sm" class="min-h-11" onclick={handleShare}>
           <Icon name="share" size={16} />
           <span>Share</span>
         </Button>
 
         {#if userState.contractId}
-          <Button variant="ghost" size="sm" onclick={handleAddToMixtape}>
+          <Button variant="ghost" size="sm" class="min-h-11" onclick={handleAddToMixtape}>
             <Icon name="plus-circle" size={16} />
             <span>Add to mixtape</span>
           </Button>
         {/if}
 
-        <Button variant="ghost" size="sm" onclick={handleOpenSongPage}>
+        <Button variant="ghost" size="sm" class="min-h-11" onclick={handleOpenSongPage}>
           <Icon name="external" size={16} />
           <span>Song details</span>
         </Button>
@@ -266,6 +274,7 @@
               <Button
                 variant="ghost"
                 size="sm"
+                class="min-h-11"
                 onclick={async () => {
                   if (!lyricsText) return;
                   await navigator.clipboard.writeText(lyricsText);

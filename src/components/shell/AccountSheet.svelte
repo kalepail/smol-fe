@@ -1,7 +1,7 @@
 <script lang="ts">
   import { userState } from '../../stores/user.svelte';
   import { balanceState, updateContractBalance } from '../../stores/balance.svelte';
-  import { mixtapeDraftState, mixtapeModeState, enterMixtapeMode, exitMixtapeMode } from '../../stores/mixtape.svelte';
+  import { mixtapeDraftState, mixtapeModeState, openMixtapeSheet } from '../../stores/mixtape.svelte';
   import { useAuthentication } from '../../hooks/useAuthentication';
   import { formatKaleBalanceWithSuffix } from '../../utils/kaleFormatting';
   import { shortenAddress } from '../../utils/address';
@@ -41,13 +41,9 @@
     }
   }
 
-  function handleMixtapeMode() {
-    if (mixtapeModeState.active) {
-      exitMixtapeMode();
-    } else {
-      enterMixtapeMode();
-    }
+  function handleOpenMixtape() {
     onClose();
+    openMixtapeSheet();
   }
 
   async function handleSignOut() {
@@ -74,7 +70,7 @@
               {shortenAddress(userState.contractId, 6)}
             </p>
           </div>
-          <Button variant="ghost" size="sm" onclick={copyAddress}>
+          <Button variant="ghost" size="sm" class="min-h-11" onclick={copyAddress}>
             <Icon name="copy" size={16} />
             <span>Copy</span>
           </Button>
@@ -91,7 +87,7 @@
           {:else}
             <button
               type="button"
-              class="focus-ring rounded px-2 py-1 text-xs font-medium text-accent hover:bg-accent/10"
+              class="focus-ring inline-flex min-h-11 items-center rounded-[var(--radius-control)] px-3 text-xs font-medium text-accent hover:bg-accent/10"
               onclick={loadBalanceOnDemand}
             >
               {balanceRequested ? 'Retry' : 'Check balance'}
@@ -128,12 +124,12 @@
 
         <button
           type="button"
-          onclick={handleMixtapeMode}
+          onclick={handleOpenMixtape}
           class="focus-ring flex min-h-12 w-full items-center justify-between px-3.5 text-left text-sm font-medium text-ink-1 hover:bg-white/5"
         >
           <span class="flex items-center gap-3">
             <Icon name="mixtapes" size={18} class="text-ink-2" />
-            <span>{mixtapeModeState.active ? 'Open mixtape draft' : 'New mixtape'}</span>
+            <span>{mixtapeModeState.active || draftCount > 0 ? 'Open mixtape draft' : 'New mixtape'}</span>
           </span>
           <span class="flex items-center gap-2">
             {#if draftCount > 0}

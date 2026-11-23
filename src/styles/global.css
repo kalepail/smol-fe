@@ -104,18 +104,21 @@ body {
     width: 100%;
     max-width: var(--content-max);
     margin-inline: auto;
-    padding-inline: 16px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
 
   @media (min-width: 640px) {
     .app-container {
-      padding-inline: 24px;
+      padding-left: max(24px, env(safe-area-inset-left, 0px));
+      padding-right: max(24px, env(safe-area-inset-right, 0px));
     }
   }
 
   @media (min-width: 1024px) {
     .app-container {
-      padding-inline: 32px;
+      padding-left: max(32px, env(safe-area-inset-left, 0px));
+      padding-right: max(32px, env(safe-area-inset-right, 0px));
     }
   }
 
@@ -130,12 +133,12 @@ body {
     outline-offset: -2px;
   }
 
-  /* Toast stacking sits cleanly above TabBar and PlayerDock */
+  /* Toast stacking sits cleanly above TabBar and PlayerDock, or cleanly inside open dialogs */
   .toast-stack {
     bottom: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom, 0px));
   }
 
-  body:has(#audio-player) .toast-stack {
+  body:has(:where(#audio-player)) .toast-stack {
     bottom: calc(var(--tabbar-h) + var(--miniplayer-h) + 20px + env(safe-area-inset-bottom, 0px));
   }
 
@@ -144,9 +147,13 @@ body {
       bottom: 24px;
     }
 
-    body:has(#audio-player) .toast-stack {
+    body:has(:where(#audio-player)) .toast-stack {
       bottom: 88px;
     }
+  }
+
+  dialog.sheet-dialog > .toast-stack {
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   }
 
   /* Equalizer animation for now-playing indicator */

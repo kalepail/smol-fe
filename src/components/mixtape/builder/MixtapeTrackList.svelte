@@ -34,11 +34,11 @@
 </script>
 
 <section
-  class={`flex flex-col gap-3 rounded-[var(--radius-control)] bg-surface-1 p-3.5 ring-1 ring-inset ${
+  class={`flex min-w-0 flex-col gap-3 rounded-[var(--radius-control)] bg-surface-1 p-3.5 ring-1 ring-inset ${
     isExternalDragActive ? 'ring-2 ring-accent' : 'ring-line'
   }`}
 >
-  <header class="flex items-center justify-between text-xs text-ink-2">
+  <header class="flex min-w-0 items-center justify-between text-xs text-ink-2">
     <span class="tabular">{tracks.length} {tracks.length === 1 ? 'song' : 'songs'} selected</span>
     {#if isExternalDragActive}
       <span class="font-medium text-accent">Drop to add</span>
@@ -46,7 +46,7 @@
   </header>
 
   <ul
-    class="flex min-h-[160px] flex-col gap-2"
+    class="flex min-h-[160px] min-w-0 flex-col gap-2"
     bind:this={tracksListEl}
     use:dndzone={{
       items: tracks,

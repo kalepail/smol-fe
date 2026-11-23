@@ -1,3 +1,5 @@
+import { getTopLayerRoot } from '../utils/topLayer';
+
 export const turnstileState = $state<{
   token: string | null;
 }>({
@@ -59,6 +61,19 @@ interface TurnstileApi {
     }
   ): string;
   reset(id?: string): void;
+  remove?(id?: string): void;
+}
+
+function teardownWidget(api: TurnstileApi, container: HTMLElement | null) {
+  if (widgetId) {
+    try {
+      api.remove?.(widgetId);
+    } catch {
+      // Ignore cleanup errors if the widget was already detached.
+    }
+    widgetId = null;
+  }
+  container?.remove();
 }
 
 export async function ensureTurnstileToken(): Promise<string> {
@@ -76,40 +91,46 @@ export async function ensureTurnstileToken(): Promise<string> {
     throw new Error('Verification widget unavailable.');
   }
 
-  let container = document.getElementById('smol-turnstile-host');
-  if (!container) {
-    container = document.createElement('div');
-    container.id = 'smol-turnstile-host';
-    container.className = 'fixed bottom-0 right-0 z-[70]';
-    document.body.appendChild(container);
-  }
+  // Always tear down any previous widget/container before mounting into the active
+  // top-layer root (open modal <dialog> if present, otherwise document.body) so
+  // interactive challenges stay visible and non-inert without stacking widgets.
+  teardownWidget(api, document.getElementById('smol-turnstile-host'));
+
+  const container = document.createElement('div');
+  container.id = 'smol-turnstile-host';
+  container.className =
+    'fixed bottom-[calc(16px+env(safe-area-inset-bottom,0px))] right-[max(16px,env(safe-area-inset-right,0px))] z-[90]';
+  getTopLayerRoot().appendChild(container);
 
   return new Promise<string>((resolve, reject) => {
+    let settled = false;
+    const finish = (cb: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      teardownWidget(api, container);
+      cb();
+    };
+
     const timeout = setTimeout(() => {
-      reject(new Error('Verification timed out. Please try again.'));
+      finish(() => reject(new Error('Verification timed out. Please try again.')));
     }, 30_000);
 
     api.ready(() => {
-      if (widgetId) {
-        try {
-          api.reset(widgetId);
-        } catch {
-          widgetId = null;
-        }
-      }
-      widgetId = api.render(container!, {
+      if (settled) return;
+      widgetId = api.render(container, {
         sitekey,
         appearance: 'interaction-only',
         'response-field': false,
         'feedback-enabled': false,
         callback: (token: string) => {
-          clearTimeout(timeout);
-          setTurnstileToken(token);
-          resolve(token);
+          finish(() => {
+            setTurnstileToken(token);
+            resolve(token);
+          });
         },
         'error-callback': (err: unknown) => {
-          clearTimeout(timeout);
-          reject(new Error(String(err || 'Verification failed.')));
+          finish(() => reject(new Error(String(err || 'Verification failed.'))));
         },
         'expired-callback': () => {
           clearTurnstileToken();

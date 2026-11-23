@@ -4,7 +4,7 @@
   import type { Smol, SmolDetailResponse } from '../../types/domain';
   import { player, playQueue, setTrackLiked, toggle, updateTrack } from '../../stores/audio.svelte';
   import { userState } from '../../stores/user.svelte';
-  import { addTrack, enterMixtapeMode, mixtapeTrackIds } from '../../stores/mixtape.svelte';
+  import { addTrack, enterMixtapeMode, mixtapeTrackIds, openMixtapeSheet } from '../../stores/mixtape.svelte';
   import { toast } from '../../stores/toast.svelte';
   import { toMixtapeTrack, toTrack, type Track } from '../../utils/track';
   import { shortenAddress } from '../../utils/address';
@@ -186,8 +186,12 @@
   function handleAddToMixtape() {
     if (!smol || isPrivate) return;
     addTrack(toMixtapeTrack(smol));
-    enterMixtapeMode();
-    toast.success(`Added "${title}" to mixtape draft.`);
+    enterMixtapeMode(false);
+    toast.success(`Added "${title}" to mixtape draft.`, {
+      tag: 'mixtape-add',
+      actionLabel: 'Open draft',
+      onAction: openMixtapeSheet,
+    });
   }
 
   function handleRemixPrompt() {
@@ -387,7 +391,7 @@
         <section class="border-t border-line pt-5">
           <div class="mb-3 flex items-center justify-between gap-2">
             <h2 class="text-base font-semibold text-ink-1">Lyrics</h2>
-            <Button variant="ghost" size="sm" onclick={() => copyText(rawLyrics, 'Lyrics')}>
+            <Button variant="ghost" size="sm" class="min-h-11" onclick={() => copyText(rawLyrics, 'Lyrics')}>
               <Icon name="copy" size={15} />
               <span>Copy</span>
             </Button>
@@ -400,7 +404,7 @@
           {#if lyricLines.length > 8}
             <button
               type="button"
-              class="focus-ring mt-3 inline-flex min-h-10 items-center rounded text-sm font-medium text-ink-2 hover:text-ink-1"
+              class="focus-ring mt-3 inline-flex min-h-11 items-center rounded text-sm font-medium text-ink-2 hover:text-ink-1"
               onclick={() => (lyricsExpanded = !lyricsExpanded)}
             >
               {lyricsExpanded ? 'Show less' : `Show all ${lyricLines.length} lines`}
@@ -418,12 +422,13 @@
               <Button
                 variant="ghost"
                 size="sm"
+                class="min-h-11"
                 onclick={() => copyText(kv_do.payload!.prompt!, 'Prompt')}
               >
                 <Icon name="copy" size={15} />
                 <span>Copy</span>
               </Button>
-              <Button variant="secondary" size="sm" onclick={handleRemixPrompt}>
+              <Button variant="secondary" size="sm" class="min-h-11" onclick={handleRemixPrompt}>
                 <Icon name="sparkles" size={15} />
                 <span>Remix prompt</span>
               </Button>
@@ -468,7 +473,7 @@
                 <button
                   type="button"
                   onclick={() => copyText(id, 'Song ID')}
-                  class="focus-ring inline-flex min-h-9 shrink-0 items-center gap-1 rounded px-2 text-xs font-medium text-ink-2 hover:bg-white/10 hover:text-ink-1"
+                  class="focus-ring inline-flex min-h-11 shrink-0 items-center gap-1 rounded px-2.5 text-xs font-medium text-ink-2 hover:bg-white/10 hover:text-ink-1"
                 >
                   <Icon name="copy" size={14} />
                   <span>Copy</span>

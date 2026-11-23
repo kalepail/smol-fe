@@ -1,6 +1,10 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { dismissToast, toastState } from '../../stores/toast.svelte';
+  import { registerTopLayerOverlay, syncTopLayerOverlays } from '../../utils/topLayer';
   import Icon from './Icon.svelte';
+
+  let hostEl = $state<HTMLDivElement | null>(null);
 
   const toneBorder = {
     info: 'ring-line-strong',
@@ -19,14 +23,30 @@
     success: 'text-success',
     error: 'text-danger',
   } as const;
+
+  onMount(() => {
+    if (!hostEl) return;
+    const unregister = registerTopLayerOverlay(hostEl);
+    return () => {
+      unregister();
+      hostEl?.remove();
+    };
+  });
+
+  $effect(() => {
+    if (toastState.items.length > 0 && hostEl) {
+      syncTopLayerOverlays();
+    }
+  });
 </script>
 
-{#if toastState.items.length > 0}
-  <div
-    class="toast-stack pointer-events-none fixed inset-x-0 z-50 flex flex-col items-center gap-2 px-4"
-    aria-live="polite"
-    aria-atomic="false"
-  >
+<div
+  bind:this={hostEl}
+  class="toast-stack pointer-events-none fixed inset-x-0 z-[80] flex flex-col items-center gap-2 px-4"
+  aria-live="polite"
+  aria-atomic="false"
+>
+  {#if toastState.items.length > 0}
     {#each toastState.items as item (item.id)}
       <div
         role="status"
@@ -37,7 +57,7 @@
         {#if item.actionLabel && item.onAction}
           <button
             type="button"
-            class="focus-ring shrink-0 rounded-md px-2.5 py-1.5 text-xs font-semibold text-accent hover:bg-accent/15"
+            class="focus-ring inline-flex min-h-9 shrink-0 items-center rounded-md px-2.5 text-xs font-semibold text-accent hover:bg-accent/15"
             onclick={() => {
               item.onAction?.();
               dismissToast(item.id);
@@ -48,7 +68,7 @@
         {/if}
         <button
           type="button"
-          class="focus-ring inline-flex size-8 shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-white/10 hover:text-ink-1"
+          class="focus-ring inline-flex size-9 shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-white/10 hover:text-ink-1"
           aria-label="Dismiss notification"
           onclick={() => dismissToast(item.id)}
         >
@@ -56,5 +76,5 @@
         </button>
       </div>
     {/each}
-  </div>
-{/if}
+  {/if}
+</div>

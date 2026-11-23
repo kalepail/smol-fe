@@ -5,6 +5,7 @@
 export {
   mixtapeDraftState,
   mixtapeModeState,
+  mixtapeSheetState,
   mixtapeDraftHasContent,
   mixtapeTrackIds,
   setTitle,
@@ -22,6 +23,8 @@ export {
   enterMixtapeMode,
   exitMixtapeMode,
   toggleMixtapeMode,
+  openMixtapeSheet,
+  closeMixtapeSheet,
   mixtapeDraft,
   mixtapeMode,
 } from './mixtape/index';

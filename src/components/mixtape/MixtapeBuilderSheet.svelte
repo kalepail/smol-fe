@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { mixtapeDraftState, mixtapeModeState, exitMixtapeMode } from '../../stores/mixtape.svelte';
+  import { mixtapeDraftState, mixtapeSheetState, closeMixtapeSheet } from '../../stores/mixtape.svelte';
   import Sheet from '../ui/Sheet.svelte';
   import MixtapeBuilder from './builder/MixtapeBuilder.svelte';
 
@@ -13,11 +13,11 @@
 </script>
 
 <Sheet
-  open={mixtapeModeState.active}
+  open={mixtapeSheetState.open}
   title={draftTitle}
-  subtitle="Add songs from the feed or search, then publish."
+  subtitle="Close to add songs from the feed."
   maxWidth="lg"
-  onClose={exitMixtapeMode}
+  onClose={closeMixtapeSheet}
 >
   <MixtapeBuilder />
 </Sheet>

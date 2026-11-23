@@ -4,6 +4,7 @@ export interface ToastItem {
   id: number;
   message: string;
   tone: ToastTone;
+  tag?: string;
   actionLabel?: string;
   onAction?: () => void;
 }
@@ -24,11 +25,25 @@ export function dismissToast(id: number) {
   toastState.items = toastState.items.filter((item) => item.id !== id);
 }
 
+export function dismissToastsByTag(tag: string) {
+  for (const item of toastState.items) {
+    if (item.tag === tag) {
+      const timer = timers.get(item.id);
+      if (timer) {
+        clearTimeout(timer);
+        timers.delete(item.id);
+      }
+    }
+  }
+  toastState.items = toastState.items.filter((item) => item.tag !== tag);
+}
+
 export function showToast(
   message: string,
   options: {
     tone?: ToastTone;
     duration?: number;
+    tag?: string;
     actionLabel?: string;
     onAction?: () => void;
   } = {}
@@ -43,6 +58,7 @@ export function showToast(
       id,
       message,
       tone,
+      tag: options.tag,
       actionLabel: options.actionLabel,
       onAction: options.onAction,
     },
@@ -55,10 +71,10 @@ export function showToast(
 }
 
 export const toast = {
-  info: (message: string, opts?: { actionLabel?: string; onAction?: () => void; duration?: number }) =>
+  info: (message: string, opts?: { actionLabel?: string; onAction?: () => void; duration?: number; tag?: string }) =>
     showToast(message, { ...opts, tone: 'info' }),
-  success: (message: string, opts?: { actionLabel?: string; onAction?: () => void; duration?: number }) =>
+  success: (message: string, opts?: { actionLabel?: string; onAction?: () => void; duration?: number; tag?: string }) =>
     showToast(message, { ...opts, tone: 'success' }),
-  error: (message: string, opts?: { actionLabel?: string; onAction?: () => void; duration?: number }) =>
+  error: (message: string, opts?: { actionLabel?: string; onAction?: () => void; duration?: number; tag?: string }) =>
     showToast(message, { ...opts, tone: 'error' }),
 };

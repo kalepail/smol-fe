@@ -49,9 +49,9 @@
   <section
     id="audio-player"
     aria-label="Audio player"
-    class="fixed inset-x-2 bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom,0px)+8px)] z-30 overflow-hidden rounded-[var(--radius-control)] bg-surface-2/92 ring-1 ring-inset ring-line-strong backdrop-blur-xl lg:inset-x-0 lg:bottom-0 lg:rounded-none lg:border-t lg:border-line lg:ring-0 lg:bg-surface-2/95"
+    class="fixed left-[max(0.5rem,env(safe-area-inset-left,0px))] right-[max(0.5rem,env(safe-area-inset-right,0px))] bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom,0px)+8px)] z-30 overflow-hidden rounded-[var(--radius-control)] bg-surface-2/92 ring-1 ring-inset ring-line-strong backdrop-blur-xl lg:left-0 lg:right-0 lg:bottom-0 lg:rounded-none lg:border-t lg:border-line lg:ring-0 lg:bg-surface-2/95"
   >
-    <div class="mx-auto flex h-16 max-w-[var(--content-max)] items-center gap-2 px-2.5 lg:grid lg:h-[72px] lg:grid-cols-[minmax(0,1fr)_minmax(280px,460px)_minmax(0,1fr)] lg:gap-4 lg:px-8">
+    <div class="mx-auto flex h-16 max-w-[var(--content-max)] items-center gap-2 px-2.5 lg:grid lg:h-[72px] lg:grid-cols-[minmax(0,1fr)_minmax(280px,460px)_minmax(0,1fr)] lg:gap-4 lg:pl-[max(2rem,env(safe-area-inset-left,0px))] lg:pr-[max(2rem,env(safe-area-inset-right,0px))]">
       <!-- Track info: tapping opens NowPlayingSheet on mobile; title links directly on desktop -->
       <div class="flex min-w-0 flex-1 items-center gap-3">
         <button

@@ -6,7 +6,7 @@
   import Button from '../ui/Button.svelte';
   import Icon from '../ui/Icon.svelte';
   import { userState } from '../../stores/user.svelte';
-  import { enterMixtapeMode, mixtapeDraftState } from '../../stores/mixtape.svelte';
+  import { openMixtapeSheet, mixtapeDraftState } from '../../stores/mixtape.svelte';
   import { listMixtapes, type MixtapeSummary } from '../../services/api/mixtapes';
 
   let mixtapes = $state<MixtapeSummary[]>([]);
@@ -37,7 +37,7 @@
     <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight text-ink-1">Mixtapes</h1>
     {#if userState.contractId}
       <div class="lg:hidden">
-        <Button variant="secondary" size="sm" onclick={enterMixtapeMode}>
+        <Button variant="secondary" size="sm" class="min-h-11" onclick={openMixtapeSheet}>
           <Icon name="plus" size={16} />
           <span>{draftCount > 0 ? `Open draft (${draftCount})` : 'New mixtape'}</span>
         </Button>

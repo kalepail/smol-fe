@@ -86,6 +86,15 @@ const tracks = [
   { Id: 'smol-1take', Title: 'Velvet Rain Echo', Song_1: 'el-only-1', Plays: 33, Views: 90 },
   { Id: 'smol-fallback', Title: 'Midnight Harbor Signal', Song_1: 'fallback-1', Plays: 21, Views: 72 },
   { Id: 'cjk-smol', Title: '金色余音 · Golden Echo', Song_1: 'first', Plays: 14, Views: 51 },
+  {
+    Id: 'smol-minted',
+    Title: 'Starlight Mint Anthem',
+    Song_1: 'minted-1',
+    Plays: 77,
+    Views: 210,
+    Mint_Token: 'CMINTTOKEN000000000000000000000000000000000000000000000001',
+    Mint_Amm: 'CMINTAMM00000000000000000000000000000000000000000000000001',
+  },
 ].map((track) => ({ ...track, Address: address, Public: 1 }));
 
 const { Smols, ...mixtape } = {
@@ -114,6 +123,7 @@ const smolFallback = loadJson('smol-fallback.json');
 const smolFailed = loadJson('smol-failed.json');
 const smolFailedPolicy = loadJson('smol-failed-policy.json');
 const smolGenerating = loadJson('smol-generating.json');
+const smolMinted = loadJson('smol-minted.json');
 
 const routes = new Map([
   ['/__ready', {}],
@@ -129,6 +139,7 @@ const routes = new Map([
   ['/search/smol-2take/similar', { results: tracks.slice(0, 4).map((t, i) => ({ ...t, score: 0.9 - i * 0.1 })) }],
   ['/search/smol-1take/similar', { results: tracks.slice(0, 4).map((t, i) => ({ ...t, score: 0.9 - i * 0.1 })) }],
   ['/search/smol-fallback/similar', { results: tracks.slice(0, 4).map((t, i) => ({ ...t, score: 0.9 - i * 0.1 })) }],
+  ['/search/smol-minted/similar', { results: tracks.slice(0, 4).map((t, i) => ({ ...t, score: 0.9 - i * 0.1 })) }],
   ['/likes', ['smol-1take']],
   ['/first-smol', {
     d1: { ...tracks[0], Song_2: 'alternate', Created_At: '2026-11-01T10:00:00Z', Requested_Provider: 'aisonggenerator', Actual_Provider: 'aisonggenerator' },
@@ -155,6 +166,7 @@ const routes = new Map([
   ['/smol-failed', smolFailed],
   ['/smol-failed-policy', smolFailedPolicy],
   ['/smol-generating', smolGenerating],
+  ['/smol-minted', smolMinted],
 ]);
 
 const requests = new Map();

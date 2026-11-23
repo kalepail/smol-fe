@@ -94,16 +94,16 @@
     }
   });
 
-  let wasMinted = $state(false);
+  let mintStartedInSession = $state(false);
   $effect(() => {
-    if (minted && !wasMinted) {
+    if (minted && mintStartedInSession) {
+      mintStartedInSession = false;
       minting = false;
       mintingHook.clearMintPolling();
       if (userState.contractId) {
         void updateContractBalance(userState.contractId);
       }
     }
-    wasMinted = minted;
   });
 
   let lastFetchedId = $state<string | null>(null);
@@ -189,6 +189,8 @@
       const smolId = id;
       const seed = lastFetchedId === null ? initialData : null;
       lastFetchedId = smolId;
+      mintStartedInSession = false;
+      minting = false;
       untrack(() => {
         if (seed) applySmolData(seed);
         else void fetchSmolData(smolId);
@@ -442,6 +444,7 @@
     }
 
     try {
+      mintStartedInSession = true;
       minting = true;
 
       await mintingHook.triggerMint(
@@ -464,6 +467,7 @@
       logger.error('smol', err);
       toast.error(err instanceof Error ? err.message : 'Minting failed.');
       mintingHook.clearMintPolling();
+      mintStartedInSession = false;
       minting = false;
     }
   }

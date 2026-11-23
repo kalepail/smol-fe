@@ -1,6 +1,6 @@
 <script lang="ts">
   import { userState } from '../../stores/user.svelte';
-  import { mixtapeDraftState } from '../../stores/mixtape.svelte';
+  import { mixtapeDraftState, mixtapeModeState, openMixtapeSheet } from '../../stores/mixtape.svelte';
   import {
     accountSheetState,
     authSheetState,
@@ -67,7 +67,7 @@
 <!-- Mobile bottom tab bar (<1024px) — max 2 fixed bars total with PlayerDock -->
 <nav
   aria-label="Mobile navigation"
-  class="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface-1/95 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur-lg lg:hidden"
+  class="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface-1/95 pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] backdrop-blur-lg lg:hidden"
 >
   <div class="grid h-14 grid-cols-5 items-center">
     <a
@@ -113,26 +113,52 @@
       <span class={isCreate ? 'text-accent' : 'text-ink-2'}>Create</span>
     </a>
 
-    <a
-      href="/mixtapes"
-      aria-current={isMixtapes ? 'page' : undefined}
-      class={`focus-ring relative flex min-h-12 flex-col items-center justify-center gap-1 text-[11px] font-medium ${
-        isMixtapes ? 'text-ink-1' : 'text-ink-2'
-      }`}
-    >
-      <span class="relative flex h-6 items-center justify-center">
-        <Icon name={isMixtapes ? 'mixtapes-solid' : 'mixtapes'} size={20} />
-        {#if draftCount > 0}
-          <span
-            aria-label={`${draftCount} tracks in mixtape draft`}
-            class="tabular absolute -right-2.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-on-accent"
-          >
-            {draftCount}
-          </span>
-        {/if}
-      </span>
-      <span>Mixtapes</span>
-    </a>
+    {#if mixtapeModeState.active}
+      <button
+        type="button"
+        onclick={openMixtapeSheet}
+        aria-label={draftCount > 0 ? `Open mixtape draft (${draftCount})` : 'Open mixtape draft'}
+        class="focus-ring relative flex min-h-12 flex-col items-center justify-center gap-1 text-[11px] font-medium text-accent"
+      >
+        <span class="relative flex h-6 items-center justify-center">
+          <Icon name="mixtapes-solid" size={20} />
+          {#if draftCount > 0}
+            <span
+              class="tabular absolute -right-2.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-on-accent"
+            >
+              {draftCount}
+            </span>
+          {:else}
+            <span
+              class="absolute -right-1 top-0 size-2 rounded-full bg-accent"
+              aria-hidden="true"
+            ></span>
+          {/if}
+        </span>
+        <span>Draft</span>
+      </button>
+    {:else}
+      <a
+        href="/mixtapes"
+        aria-current={isMixtapes ? 'page' : undefined}
+        class={`focus-ring relative flex min-h-12 flex-col items-center justify-center gap-1 text-[11px] font-medium ${
+          isMixtapes ? 'text-ink-1' : 'text-ink-2'
+        }`}
+      >
+        <span class="relative flex h-6 items-center justify-center">
+          <Icon name={isMixtapes ? 'mixtapes-solid' : 'mixtapes'} size={20} />
+          {#if draftCount > 0}
+            <span
+              aria-label={`${draftCount} tracks in mixtape draft`}
+              class="tabular absolute -right-2.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-on-accent"
+            >
+              {draftCount}
+            </span>
+          {/if}
+        </span>
+        <span>Mixtapes</span>
+      </a>
+    {/if}
 
     <button
       type="button"

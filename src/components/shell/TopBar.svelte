@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { navigate } from 'astro:transitions/client';
   import { userState } from '../../stores/user.svelte';
-  import { mixtapeDraftState, mixtapeModeState, enterMixtapeMode, exitMixtapeMode } from '../../stores/mixtape.svelte';
+  import { mixtapeDraftState, mixtapeModeState, openMixtapeSheet } from '../../stores/mixtape.svelte';
   import { openAccountSheet, openAuthSheet } from '../../stores/authSheet.svelte';
   import { useCurrentPath } from '../../hooks/useCurrentPath.svelte';
   import { shortenAddress } from '../../utils/address';
@@ -68,17 +68,13 @@
     void navigate(target);
   }
 
-  function handleMixtapeToggle() {
-    if (mixtapeModeState.active) {
-      exitMixtapeMode();
-    } else {
-      enterMixtapeMode();
-    }
+  function handleOpenMixtape() {
+    openMixtapeSheet();
   }
 </script>
 
 <header
-  class="sticky top-0 z-30 border-b border-line bg-surface-1/90 backdrop-blur-lg"
+  class="sticky top-0 z-30 border-b border-line bg-surface-1/90 pt-[env(safe-area-inset-top,0px)] backdrop-blur-lg"
 >
   <div class="app-container flex h-14 items-center gap-3">
     <!-- Wordmark -->
@@ -210,7 +206,7 @@
           <Button
             variant={mixtapeModeState.active ? 'primary' : 'secondary'}
             size="sm"
-            onclick={handleMixtapeToggle}
+            onclick={handleOpenMixtape}
           >
             <Icon name="mixtapes" size={16} />
             <span>{mixtapeModeState.active ? 'Mixtape draft' : 'New mixtape'}</span>
@@ -236,7 +232,7 @@
           type="button"
           onclick={openAccountSheet}
           aria-label="Open account menu"
-          class="focus-ring inline-flex min-h-11 items-center gap-2 rounded-full bg-surface-2 px-3 text-sm font-medium text-ink-1 ring-1 ring-inset ring-line hover:bg-surface-3"
+          class="focus-ring inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-full bg-surface-2 px-3 text-sm font-medium text-ink-1 ring-1 ring-inset ring-line hover:bg-surface-3"
         >
           <Icon name="user" size={18} class="text-ink-2" />
           <span class="hidden sm:inline font-mono text-xs text-ink-2">
