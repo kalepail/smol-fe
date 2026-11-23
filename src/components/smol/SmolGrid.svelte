@@ -8,14 +8,12 @@
   import Button from '../ui/Button.svelte';
   import Loader from '../ui/Loader.svelte';
   import { playSmolQueue, setTrackLiked } from '../../stores/audio.svelte';
-  import { mixtapeModeState, addTrack, openMixtapeSheet } from '../../stores/mixtape.svelte';
+  import { toggleDraftTrack } from '../../stores/mixtape.svelte';
   import { userState } from '../../stores/user.svelte';
   import { openAuthSheet } from '../../stores/authSheet.svelte';
-  import { toast } from '../../stores/toast.svelte';
   import { fetchLikedSmols } from '../../services/api/smols';
   import { fetchWithTimeout, throwIfNotOk } from '../../services/api/fetch';
   import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
-  import { toMixtapeTrack } from '../../utils/track';
   import { logger } from '../../utils/logger';
 
   interface Props {
@@ -42,7 +40,6 @@
   let loading = $state(true);
   let error = $state<string | null>(null);
   let likes = $state<string[]>([]);
-  let draggingId = $state<string | null>(null);
   let loadingMore = $state(false);
   let paginationError = $state<string | null>(null);
   let scrollTrigger = $state<HTMLDivElement | null>(null);
@@ -168,27 +165,7 @@
   });
 
   function addToMixtape(smol: Smol) {
-    addTrack(toMixtapeTrack(smol));
-    toast.success(`Added "${smol.Title}" to mixtape draft.`, {
-      tag: 'mixtape-add',
-      actionLabel: 'Open draft',
-      onAction: openMixtapeSheet,
-    });
-  }
-
-  function handleDragStart(event: DragEvent, smol: Smol) {
-    if (!mixtapeModeState.active || smol.Public === 0) return;
-    draggingId = smol.Id;
-    if (event.dataTransfer) {
-      const payload = { type: 'smol' as const, track: toMixtapeTrack(smol) };
-      event.dataTransfer.effectAllowed = 'copy';
-      event.dataTransfer.setData('application/json', JSON.stringify(payload));
-      event.dataTransfer.setData('text/plain', payload.track.title);
-    }
-  }
-
-  function handleDragEnd() {
-    draggingId = null;
+    toggleDraftTrack(smol);
   }
 
   function handleLikeChanged(smol: Smol, liked: boolean) {
@@ -282,9 +259,6 @@
           onPlay={() => playSmolQueue(results, smol, { wrap: true, album: playlist ?? undefined })}
           onLikeChanged={(liked) => handleLikeChanged(smol, liked)}
           onAddToMixtape={() => addToMixtape(smol)}
-          onDragStart={(e) => handleDragStart(e, smol)}
-          onDragEnd={handleDragEnd}
-          isDragging={draggingId === smol.Id}
         />
       {/each}
     </div>

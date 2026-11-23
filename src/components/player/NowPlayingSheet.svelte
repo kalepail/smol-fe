@@ -2,7 +2,7 @@
   import { navigate } from 'astro:transitions/client';
   import { next, player, previous, seek, setTrackLiked, toggle } from '../../stores/audio.svelte';
   import { userState } from '../../stores/user.svelte';
-  import { addTrack, enterMixtapeMode, openMixtapeSheet } from '../../stores/mixtape.svelte';
+  import { mixtapeTrackIds, toggleDraftTrack } from '../../stores/mixtape.svelte';
   import { toast } from '../../stores/toast.svelte';
   import Sheet from '../ui/Sheet.svelte';
   import CoverArt from '../ui/CoverArt.svelte';
@@ -33,6 +33,8 @@
   const playing = $derived(player.status === 'playing');
   const failed = $derived(player.status === 'error');
   const hasQueueNav = $derived(player.queue.length > 1);
+  const isInMixtape = $derived(Boolean(track && mixtapeTrackIds.current.has(track.smolId)));
+  const isPrivateTrack = $derived(track?.public === 0);
 
   $effect(() => {
     const id = track?.smolId ?? null;
@@ -91,22 +93,17 @@
   }
 
   function handleAddToMixtape() {
-    if (!track) return;
-    addTrack({
-      id: track.smolId,
-      title: track.title,
-      coverUrl: track.coverUrl,
-      creator: track.artist ?? null,
-    });
-    enterMixtapeMode(false);
-    toast.success(`Added "${track.title}" to mixtape draft.`, {
-      tag: 'mixtape-add',
-      actionLabel: 'Open draft',
-      onAction: () => {
-        onClose();
-        openMixtapeSheet();
+    if (!track || isPrivateTrack) return;
+    toggleDraftTrack(
+      {
+        id: track.smolId,
+        title: track.title,
+        coverUrl: track.coverUrl,
+        creator: track.artist ?? null,
+        public: track.public === 0 || track.public === 1 ? track.public : undefined,
       },
-    });
+      { onOpen: onClose }
+    );
   }
 
   function handleOpenSongPage() {
@@ -256,10 +253,14 @@
           <span>Share</span>
         </Button>
 
-        {#if userState.contractId}
+        {#if userState.contractId && !isPrivateTrack}
           <Button variant="ghost" size="sm" class="min-h-11" onclick={handleAddToMixtape}>
-            <Icon name="plus-circle" size={16} />
-            <span>Add to mixtape</span>
+            <Icon
+              name={isInMixtape ? 'check' : 'plus-circle'}
+              size={16}
+              class={isInMixtape ? 'text-accent' : ''}
+            />
+            <span>{isInMixtape ? 'In mixtape' : 'Add to mixtape'}</span>
           </Button>
         {/if}
 

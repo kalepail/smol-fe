@@ -4,9 +4,9 @@
   import type { Smol, SmolDetailResponse } from '../../types/domain';
   import { player, playQueue, setTrackLiked, toggle, updateTrack } from '../../stores/audio.svelte';
   import { userState } from '../../stores/user.svelte';
-  import { addTrack, enterMixtapeMode, mixtapeTrackIds, openMixtapeSheet } from '../../stores/mixtape.svelte';
+  import { mixtapeTrackIds, toggleDraftTrack } from '../../stores/mixtape.svelte';
   import { toast } from '../../stores/toast.svelte';
-  import { toMixtapeTrack, toTrack, type Track } from '../../utils/track';
+  import { toTrack, type Track } from '../../utils/track';
   import { shortenAddress } from '../../utils/address';
   import {
     PROVIDER_META,
@@ -197,13 +197,7 @@
 
   function handleAddToMixtape() {
     if (!smol || isPrivate) return;
-    addTrack(toMixtapeTrack(smol));
-    enterMixtapeMode(false);
-    toast.success(`Added "${title}" to mixtape draft.`, {
-      tag: 'mixtape-add',
-      actionLabel: 'Open draft',
-      onAction: openMixtapeSheet,
-    });
+    toggleDraftTrack({ ...smol, Public: d1?.Public === 0 ? 0 : d1?.Public === 1 ? 1 : undefined });
   }
 
   function handleRemixPrompt() {

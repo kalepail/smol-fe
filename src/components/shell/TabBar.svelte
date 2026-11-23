@@ -1,6 +1,11 @@
 <script lang="ts">
   import { userState } from '../../stores/user.svelte';
-  import { mixtapeDraftState, mixtapeModeState, openMixtapeSheet } from '../../stores/mixtape.svelte';
+  import {
+    mixtapeDraftState,
+    mixtapeDraftHasContent,
+    mixtapeSheetState,
+    openMixtapeSheet,
+  } from '../../stores/mixtape.svelte';
   import {
     accountSheetState,
     authSheetState,
@@ -18,6 +23,11 @@
   const path = $derived(currentPath.path);
   const isAuthenticated = $derived(Boolean(userState.contractId));
   const draftCount = $derived(mixtapeDraftState.tracks.length);
+  const hasDraft = $derived(mixtapeDraftHasContent.current);
+  const showDraftPill = $derived(
+    isAuthenticated && (hasDraft || mixtapeSheetState.browsingDraft) && !mixtapeSheetState.open
+  );
+  const draftLabel = $derived(mixtapeDraftState.title.trim() || 'Mixtape draft');
   const hasReady = $derived(generationsState.readyIds.length > 0);
 
   let AccountSheetComp = $state<typeof import('./AccountSheet.svelte').default | null>(null);
@@ -113,52 +123,27 @@
       <span class={isCreate ? 'text-accent' : 'text-ink-2'}>Create</span>
     </a>
 
-    {#if mixtapeModeState.active}
-      <button
-        type="button"
-        onclick={openMixtapeSheet}
-        aria-label={draftCount > 0 ? `Open mixtape draft (${draftCount})` : 'Open mixtape draft'}
-        class="focus-ring relative flex min-h-12 flex-col items-center justify-center gap-1 text-[11px] font-medium text-accent"
-      >
-        <span class="relative flex h-6 items-center justify-center">
-          <Icon name="mixtapes-solid" size={20} />
-          {#if draftCount > 0}
-            <span
-              class="tabular absolute -right-2.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-on-accent"
-            >
-              {draftCount}
-            </span>
-          {:else}
-            <span
-              class="absolute -right-1 top-0 size-2 rounded-full bg-accent"
-              aria-hidden="true"
-            ></span>
-          {/if}
-        </span>
-        <span>Draft</span>
-      </button>
-    {:else}
-      <a
-        href="/mixtapes"
-        aria-current={isMixtapes ? 'page' : undefined}
-        class={`focus-ring relative flex min-h-12 flex-col items-center justify-center gap-1 text-[11px] font-medium ${
-          isMixtapes ? 'text-ink-1' : 'text-ink-2'
-        }`}
-      >
-        <span class="relative flex h-6 items-center justify-center">
-          <Icon name={isMixtapes ? 'mixtapes-solid' : 'mixtapes'} size={20} />
-          {#if draftCount > 0}
-            <span
-              aria-label={`${draftCount} tracks in mixtape draft`}
-              class="tabular absolute -right-2.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-on-accent"
-            >
-              {draftCount}
-            </span>
-          {/if}
-        </span>
-        <span>Mixtapes</span>
-      </a>
-    {/if}
+    <!-- Mixtapes tab is ALWAYS reachable (never hijacked by draft state — B-05) -->
+    <a
+      href="/mixtapes"
+      aria-current={isMixtapes ? 'page' : undefined}
+      class={`focus-ring relative flex min-h-12 flex-col items-center justify-center gap-1 text-[11px] font-medium ${
+        isMixtapes ? 'text-ink-1' : 'text-ink-2'
+      }`}
+    >
+      <span class="relative flex h-6 items-center justify-center">
+        <Icon name={isMixtapes ? 'mixtapes-solid' : 'mixtapes'} size={20} />
+        {#if draftCount > 0}
+          <span
+            aria-label={`${draftCount} tracks in mixtape draft`}
+            class="tabular absolute -right-2.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-on-accent"
+          >
+            {draftCount}
+          </span>
+        {/if}
+      </span>
+      <span>Mixtapes</span>
+    </a>
 
     <button
       type="button"
@@ -181,6 +166,23 @@
     </button>
   </div>
 </nav>
+
+<!-- Compact floating draft pill on mobile when a draft is active and builder is closed -->
+{#if showDraftPill}
+  <button
+    type="button"
+    onclick={() => openMixtapeSheet('builder')}
+    aria-label={draftCount > 0 ? `Open mixtape draft (${draftCount})` : 'Open mixtape draft'}
+    class="draft-floating-pill focus-ring fixed right-[max(0.75rem,env(safe-area-inset-right,0px))] z-30 inline-flex min-h-11 max-w-[calc(100vw-1.5rem)] items-center gap-2 rounded-full bg-surface-2/95 pl-3.5 pr-3 text-xs font-medium text-ink-1 ring-1 ring-inset ring-accent/45 backdrop-blur-lg hover:bg-surface-3 lg:hidden"
+  >
+    <span class="size-2 shrink-0 rounded-full bg-accent" aria-hidden="true"></span>
+    <span class="truncate">{draftLabel}</span>
+    <span class="tabular shrink-0 rounded-full bg-accent/20 px-1.5 py-0.5 text-[11px] font-semibold text-accent">
+      {draftCount}
+    </span>
+    <Icon name="chevron-right" size={14} class="text-ink-2" />
+  </button>
+{/if}
 
 {#if AccountSheetComp}
   <AccountSheetComp open={accountSheetState.open} onClose={closeAccountSheet} />

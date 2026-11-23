@@ -1,5 +1,7 @@
 import type { MixtapeDraft, MixtapeTrack } from '../../types/domain';
 
+export type AddTrackResult = 'added' | 'duplicate' | 'private';
+
 export function createDraftId(): string {
   return `draft-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
@@ -28,7 +30,7 @@ export function normalizeTrack(track: MixtapeTrack): MixtapeTrack {
     title: track.title ?? 'Untitled Smol',
     coverUrl: track.coverUrl ?? null,
     creator: track.creator ?? null,
-    public: track.public,
+    public: track.public === 0 || track.public === 1 ? track.public : undefined,
   };
 }
 
@@ -61,13 +63,17 @@ export function moveTrackInArray(tracks: MixtapeTrack[], fromIndex: number, toIn
   return newTracks;
 }
 
-export function insertTrackInArray(tracks: MixtapeTrack[], track: MixtapeTrack, index: number): MixtapeTrack[] | null {
+export function insertTrackInArray(
+  tracks: MixtapeTrack[],
+  track: MixtapeTrack,
+  index: number
+): { result: AddTrackResult; tracks: MixtapeTrack[] } {
   if (track.public === 0) {
-    return null;
+    return { result: 'private', tracks };
   }
 
   if (tracks.some((existing) => existing.id === track.id)) {
-    return null;
+    return { result: 'duplicate', tracks };
   }
 
   const normalized = normalizeTrack(track);
@@ -75,19 +81,14 @@ export function insertTrackInArray(tracks: MixtapeTrack[], track: MixtapeTrack, 
   const updatedTracks = [...tracks];
   updatedTracks.splice(clampedIndex, 0, normalized);
 
-  return updatedTracks;
+  return { result: 'added', tracks: updatedTracks };
 }
 
-export function addTrackToArray(tracks: MixtapeTrack[], track: MixtapeTrack): MixtapeTrack[] | null {
-  if (track.public === 0) {
-    return null;
-  }
-
-  if (tracks.some((existing) => existing.id === track.id)) {
-    return null;
-  }
-
-  return [...tracks, normalizeTrack(track)];
+export function addTrackToArray(
+  tracks: MixtapeTrack[],
+  track: MixtapeTrack
+): { result: AddTrackResult; tracks: MixtapeTrack[] } {
+  return insertTrackInArray(tracks, track, tracks.length);
 }
 
 export function removeTrackFromArray(tracks: MixtapeTrack[], id: string): MixtapeTrack[] {

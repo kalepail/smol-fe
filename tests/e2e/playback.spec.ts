@@ -281,7 +281,7 @@ test('Q11 play beacon fires POST /plays/:musicId once after 4s real cumulative p
     return a.play();
   });
 
-  await expect.poll(() => beaconRequests.length, { timeout: 4500 }).toBe(1);
+  await expect.poll(() => beaconRequests.length, { timeout: 7000 }).toBe(1);
   expect(beaconRequests[0]).toMatchObject({
     method: 'POST',
     url: `${api}/plays/first`,

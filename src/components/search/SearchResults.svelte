@@ -2,7 +2,6 @@
   import { onMount } from 'svelte';
   import { navigate } from 'astro:transitions/client';
   import { playSmolQueue, setTrackLiked } from '../../stores/audio.svelte';
-  import { toMixtapeTrack } from '../../utils/track';
   import SmolCard from '../smol/SmolCard.svelte';
   import Skeleton from '../ui/Skeleton.svelte';
   import StateFeedback from '../ui/StateFeedback.svelte';
@@ -12,8 +11,7 @@
   import { searchSmols } from '../../services/api/search';
   import { fetchLikedSmols } from '../../services/api/smols';
   import { userState } from '../../stores/user.svelte';
-  import { addTrack } from '../../stores/mixtape.svelte';
-  import { toast } from '../../stores/toast.svelte';
+  import { toggleDraftTrack } from '../../stores/mixtape.svelte';
 
   let results = $state<SearchResult[]>([]);
   let loading = $state(false);
@@ -22,8 +20,7 @@
   let inputQuery = $state('');
 
   function addToMixtape(smol: SearchResult) {
-    addTrack(toMixtapeTrack(smol));
-    toast.success(`Added "${smol.Title}" to mixtape draft.`);
+    toggleDraftTrack({ ...smol, Public: smol.Public === 0 ? 0 : 1 });
   }
 
   function handleLikeChanged(smol: SearchResult, liked: boolean) {

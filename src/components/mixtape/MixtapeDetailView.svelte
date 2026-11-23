@@ -11,6 +11,7 @@
   import { next, player, playQueue, previous, setTrackLiked, stop, toggle } from '../../stores/audio.svelte';
   import { toTrack, trackKey } from '../../utils/track';
   import { userState } from '../../stores/user.svelte';
+  import { balanceState, updateContractBalance } from '../../stores/balance.svelte';
   import { openAuthSheet } from '../../stores/authSheet.svelte';
   import { toast } from '../../stores/toast.svelte';
   import { MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from '../../utils/mintConstants';
@@ -21,9 +22,10 @@
   interface Props {
     id: string;
     initialData?: MixtapeDetail | null;
+    initialNotFound?: boolean;
   }
 
-  let { id, initialData = null }: Props = $props();
+  let { id, initialData = null, initialNotFound = false }: Props = $props();
 
   let mixtape = $state<MixtapeDetail | null>(null);
   let loading = $state(true);
@@ -171,8 +173,15 @@
   $effect(() => {
     if (id && id !== lastFetchedMixtapeId) {
       const mixtapeId = id;
+      const isInitialMount = lastFetchedMixtapeId === null;
       const seed = initialData?.id === mixtapeId ? initialData : null;
       lastFetchedMixtapeId = mixtapeId;
+      if (isInitialMount && initialNotFound && !seed) {
+        mixtape = null;
+        loading = false;
+        error = null;
+        return;
+      }
       untrack(() => void fetchMixtapeData(mixtapeId, seed));
     }
   });
@@ -239,6 +248,7 @@
     }
     showPurchaseModal = true;
     void refreshBalancesLazily();
+    void updateContractBalance(userState.contractId);
   }
 
   async function handlePurchaseConfirm() {
@@ -443,6 +453,11 @@
 <PurchaseModal
   isOpen={showPurchaseModal}
   {balancesLoading}
+  kaleBalance={balanceState.balance}
+  kaleBalanceLoading={balanceState.loading}
+  onRefreshKaleBalance={() => {
+    if (userState.contractId) void updateContractBalance(userState.contractId);
+  }}
   {tracksToMint}
   {tracksToPurchase}
   isProcessing={isPurchasing}

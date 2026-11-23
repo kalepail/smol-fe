@@ -233,6 +233,11 @@ createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'POST' && path === '/mixtapes') {
+    res.writeHead(200, { ...headers, 'Content-Type': 'application/json' }).end(JSON.stringify({ id: 'fixture-mixtape' }));
+    return;
+  }
+
   if (req.method === 'POST' && path.startsWith('/plays/')) {
     const musicId = decodeURIComponent(path.slice('/plays/'.length));
     playBeacons.push(musicId);

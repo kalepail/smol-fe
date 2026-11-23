@@ -1,8 +1,13 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import MixtapesIndex from '../../components/mixtape/MixtapesIndex.svelte';
+import { toMixtapeSummaries, type ApiMixtape } from '../../services/api/mixtapes';
+import { serverApiFetch } from '../../services/api/server';
+
+const data = await serverApiFetch<ApiMixtape[]>(Astro, '/mixtapes');
+const initialMixtapes = Array.isArray(data) ? toMixtapeSummaries(data) : null;
 ---
 
 <Layout title="Mixtapes">
-  <MixtapesIndex client:only="svelte" />
+  <MixtapesIndex {initialMixtapes} client:load />
 </Layout>

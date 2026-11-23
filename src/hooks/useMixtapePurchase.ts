@@ -4,6 +4,11 @@ import { rpc } from '../utils/base';
 import { logger } from '../utils/logger';
 import { getWebAuthnRpId } from '../utils/rpId';
 import { getConnectedAccount } from '../utils/wallet';
+import {
+  PURCHASE_BATCH_SIZE,
+  PURCHASE_ESTIMATE_KALE,
+  kaleToStroops,
+} from '../utils/mixtapePricing';
 
 interface PurchaseBatchParams {
   tokensOut: string[];
@@ -17,7 +22,7 @@ export function useMixtapePurchase() {
   async function purchaseBatch(params: PurchaseBatchParams): Promise<void> {
     const { tokensOut, cometAddresses, smolContractId, userContractId, userKeyId } = params;
 
-    const costPerToken = 33_0000000n; // 33 KALE per token
+    const costPerToken = kaleToStroops(PURCHASE_ESTIMATE_KALE);
 
     // Create the swap_them_in transaction
     const smolClient = new SmolClient({
@@ -59,7 +64,7 @@ export function useMixtapePurchase() {
     userKeyId: string,
     onBatchComplete: (trackIds: string[]) => void
   ): Promise<void> {
-    const BATCH_SIZE = 9;
+    const BATCH_SIZE = PURCHASE_BATCH_SIZE;
 
     // Build arrays of tokens and their corresponding comet addresses
     const tokenData: Array<{

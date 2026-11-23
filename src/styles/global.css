@@ -133,13 +133,30 @@ body {
     outline-offset: -2px;
   }
 
-  /* Toast stacking sits cleanly above TabBar and PlayerDock, or cleanly inside open dialogs */
+  /* Floating mobile mixtape draft pill sits above TabBar or PlayerDock */
+  .draft-floating-pill {
+    bottom: calc(var(--tabbar-h) + 10px + env(safe-area-inset-bottom, 0px));
+  }
+
+  body:has(:where(#audio-player)) .draft-floating-pill {
+    bottom: calc(var(--tabbar-h) + var(--miniplayer-h) + 16px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Toast stacking sits cleanly above TabBar, PlayerDock, and mobile draft pill, or cleanly inside open dialogs */
   .toast-stack {
     bottom: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom, 0px));
   }
 
+  body:has(:where(.draft-floating-pill)) .toast-stack {
+    bottom: calc(var(--tabbar-h) + 64px + env(safe-area-inset-bottom, 0px));
+  }
+
   body:has(:where(#audio-player)) .toast-stack {
     bottom: calc(var(--tabbar-h) + var(--miniplayer-h) + 20px + env(safe-area-inset-bottom, 0px));
+  }
+
+  body:has(:where(#audio-player)):has(:where(.draft-floating-pill)) .toast-stack {
+    bottom: calc(var(--tabbar-h) + var(--miniplayer-h) + 72px + env(safe-area-inset-bottom, 0px));
   }
 
   @media (min-width: 1024px) {

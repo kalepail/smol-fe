@@ -1,14 +1,21 @@
-import type { MixtapeDraft, MixtapeModeState } from '../../types/domain';
+import type { MixtapeDraft } from '../../types/domain';
 import * as storage from '../../services/localStorage';
 
 const STORAGE_KEY = 'smol:mixtape-draft';
-const MODE_STORAGE_KEY = 'smol:mixtape-mode';
+const LEGACY_MODE_STORAGE_KEY = 'smol:mixtape-mode';
+
+export function clearLegacyModeStorage() {
+  storage.removeItem(LEGACY_MODE_STORAGE_KEY);
+}
 
 export function persistDraft(draft: MixtapeDraft) {
   storage.setItem(STORAGE_KEY, draft);
 }
 
 export function loadDraftFromStorage(): MixtapeDraft | null {
+  // One-time cleanup of retired mixtape-mode flag.
+  clearLegacyModeStorage();
+
   const parsed = storage.getItem<Partial<MixtapeDraft>>(STORAGE_KEY);
 
   if (!parsed || typeof parsed !== 'object') {
@@ -38,20 +45,5 @@ export function loadDraftFromStorage(): MixtapeDraft | null {
 
 export function removeDraftFromStorage() {
   storage.removeItem(STORAGE_KEY);
-}
-
-export function persistModeState(state: MixtapeModeState) {
-  storage.setItem(MODE_STORAGE_KEY, state);
-}
-
-export function loadModeStateFromStorage(): MixtapeModeState {
-  const parsed = storage.getItem<Partial<MixtapeModeState>>(MODE_STORAGE_KEY);
-
-  if (!parsed || typeof parsed !== 'object') {
-    return { active: false };
-  }
-
-  return {
-    active: Boolean(parsed.active),
-  };
+  clearLegacyModeStorage();
 }

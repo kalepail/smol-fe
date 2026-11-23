@@ -12,6 +12,7 @@ export interface Track {
   artist?: string;
   coverUrl: string;
   liked?: boolean;
+  public?: number;
 }
 
 export function trackKey(smolId: string, musicId: string): string {
@@ -47,5 +48,6 @@ export function toTrack(smol: Smol, take?: SongData): Track | null {
     artist: creator ?? undefined,
     coverUrl,
     liked: smol.Liked,
+    public: smol.Public === 0 || smol.Public === 1 ? smol.Public : undefined,
   };
 }

@@ -52,8 +52,22 @@ export function showToast(
   const tone = options.tone ?? 'info';
   const duration = options.duration ?? (tone === 'error' ? 6000 : 4000);
 
+  let remaining = toastState.items;
+  if (options.tag) {
+    for (const item of remaining) {
+      if (item.tag === options.tag) {
+        const existingTimer = timers.get(item.id);
+        if (existingTimer) {
+          clearTimeout(existingTimer);
+          timers.delete(item.id);
+        }
+      }
+    }
+    remaining = remaining.filter((item) => item.tag !== options.tag);
+  }
+
   toastState.items = [
-    ...toastState.items.slice(-2),
+    ...remaining.slice(-2),
     {
       id,
       message,

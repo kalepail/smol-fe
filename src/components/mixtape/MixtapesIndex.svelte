@@ -6,14 +6,26 @@
   import Button from '../ui/Button.svelte';
   import Icon from '../ui/Icon.svelte';
   import { userState } from '../../stores/user.svelte';
-  import { openMixtapeSheet, mixtapeDraftState } from '../../stores/mixtape.svelte';
+  import { openAuthSheet } from '../../stores/authSheet.svelte';
+  import {
+    openMixtapeSheet,
+    mixtapeDraftState,
+    mixtapeDraftHasContent,
+  } from '../../stores/mixtape.svelte';
   import { listMixtapes, type MixtapeSummary } from '../../services/api/mixtapes';
 
-  let mixtapes = $state<MixtapeSummary[]>([]);
-  let loading = $state(true);
+  interface Props {
+    initialMixtapes?: MixtapeSummary[] | null;
+  }
+
+  let { initialMixtapes = null }: Props = $props();
+
+  let mixtapes = $state<MixtapeSummary[]>(initialMixtapes ?? []);
+  let loading = $state(initialMixtapes === null);
   let error = $state<string | null>(null);
 
   const draftCount = $derived(mixtapeDraftState.tracks.length);
+  const hasDraft = $derived(mixtapeDraftHasContent.current);
 
   async function loadMixtapes() {
     loading = true;
@@ -28,7 +40,9 @@
   }
 
   onMount(() => {
-    void loadMixtapes();
+    if (initialMixtapes === null) {
+      void loadMixtapes();
+    }
   });
 </script>
 
@@ -37,11 +51,29 @@
     <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight text-ink-1">Mixtapes</h1>
     {#if userState.contractId}
       <div class="lg:hidden">
-        <Button variant="secondary" size="sm" class="min-h-11" onclick={openMixtapeSheet}>
+        <Button variant="secondary" size="sm" class="min-h-11" onclick={() => openMixtapeSheet('builder')}>
           <Icon name="plus" size={16} />
-          <span>{draftCount > 0 ? `Open draft (${draftCount})` : 'New mixtape'}</span>
+          <span>
+            {#if draftCount > 0}
+              Open draft ({draftCount})
+            {:else if hasDraft}
+              Open draft
+            {:else}
+              New mixtape
+            {/if}
+          </span>
         </Button>
       </div>
+    {:else}
+      <Button
+        variant="secondary"
+        size="sm"
+        class="min-h-11"
+        onclick={() => openAuthSheet('signin', 'Sign in to create and publish mixtapes.')}
+      >
+        <Icon name="plus" size={16} />
+        <span>Make a mixtape</span>
+      </Button>
     {/if}
   </header>
 

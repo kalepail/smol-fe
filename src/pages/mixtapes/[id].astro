@@ -7,11 +7,15 @@ import { serverApiFetch } from '../../services/api/server';
 const { id } = Astro.params;
 const data = id ? await serverApiFetch<ApiMixtapeDetail>(Astro, `/mixtapes/${encodeURIComponent(id)}`) : null;
 const initialData = data ? toMixtapeDetail(data) : null;
-const title = initialData ? initialData.title : 'Mixtape';
+const initialNotFound = Boolean(id && !initialData);
+if (initialNotFound) {
+  Astro.response.status = 404;
+}
+const title = initialData ? initialData.title : 'Mixtape not found';
 const description = initialData?.description || 'Smol art onchain';
 const image_url = initialData?.coverUrls[0] ?? null;
 ---
 
 <Layout {title} {description} {image_url}>
-  <MixtapeDetailView id={id ?? ''} {initialData} client:only="svelte" />
+  <MixtapeDetailView id={id ?? ''} {initialData} {initialNotFound} client:only="svelte" />
 </Layout>

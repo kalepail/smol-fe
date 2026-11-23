@@ -158,10 +158,20 @@ for (const viewport of [
       }
     });
 
-    test('mixtape mode decouples sheet from browse-and-add and renders without clipping (R1 + R4)', async ({
+    test('mixtape overhaul: single draft, in-sheet picker, B-01/B-02/B-03/B-04/B-05/B-09/B-11/B-15/B-16 safety & zero clipping', async ({
       page,
       context,
     }) => {
+      // B-15 logged-out /mixtapes has SSR cards + Make a mixtape CTA
+      await page.goto('/mixtapes');
+      await expect(page.locator('main article a[href^="/mixtapes/"]').first()).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Make a mixtape' })).toBeVisible();
+
+      // B-16 unknown mixtape returns HTTP 404
+      const notFoundRes = await page.goto('/mixtapes/smoke-does-not-exist');
+      expect(notFoundRes?.status()).toBe(404);
+      await expect(page.getByText('Mixtape not found')).toBeVisible();
+
       await context.addCookies([
         {
           name: 'smol_token',
@@ -172,7 +182,7 @@ for (const viewport of [
 
       await page.goto('/');
 
-      // Enter mixtape mode (desktop TopBar button vs mobile Mixtapes page / Account sheet)
+      // Open new mixtape builder (empty state offers in-sheet Add songs + suggestions — B-07)
       if (viewport.width >= 1024) {
         await page.getByRole('button', { name: 'New mixtape' }).click();
       } else {
@@ -182,24 +192,45 @@ for (const viewport of [
 
       const builderDialog = page.locator('dialog[open]');
       await expect(builderDialog.getByRole('heading', { name: 'New mixtape' })).toBeVisible();
+      await expect(builderDialog.getByRole('button', { name: 'Add songs' })).toBeVisible();
+      await expect(builderDialog.getByRole('button', { name: 'Add a song to publish' })).toBeDisabled();
 
-      // Dismiss sheet -> mixtape mode stays active so feed cards expose + Add buttons
+      // Open in-sheet "Add songs" picker, toggle 1 track in place (⊕ -> ✓), return with Done
+      await builderDialog.getByRole('button', { name: 'Add songs' }).click();
+      await expect(builderDialog.getByRole('heading', { name: 'Add songs' })).toBeVisible();
+      await expect(builderDialog.getByPlaceholder(/Search songs/i)).toBeVisible();
+      await builderDialog.getByRole('button', { name: 'Add First Track to mixtape' }).click();
+      await expect(builderDialog.getByRole('button', { name: 'Remove First Track from mixtape' })).toBeVisible();
+      await builderDialog.getByRole('button', { name: 'Done' }).click();
+      await expect(builderDialog.getByText('1 song selected')).toBeVisible();
+
+      // Set title, close builder -> Mixtapes tab stays reachable (B-05) & feed shows accessible +Add chips (B-18)
+      await builderDialog.getByLabel('Title').fill('Smoke Mix');
       await builderDialog.getByRole('button', { name: 'Close' }).click();
       await expect(page.locator('dialog[open]')).toHaveCount(0);
 
-      const firstAddBtn = page.getByRole('button', { name: 'Add', exact: true }).first();
-      await expect(firstAddBtn).toBeVisible();
-      await firstAddBtn.click();
+      if (viewport.width < 1024) {
+        await expect(
+          page.getByRole('navigation', { name: 'Mobile navigation' }).locator('a[href="/mixtapes"]')
+        ).toBeVisible();
+      }
 
-      // Reopen builder sheet via mobile Draft tab badge or desktop Mixtape draft button
+      // Add 2 more songs rapidly from feed -> coalesced into <= 1 toast (B-04)
+      await page.getByRole('button', { name: 'Add Second Track to mixtape' }).click();
+      await page.getByRole('button', { name: 'Add Third Track to mixtape' }).click();
+      const addToasts = page.locator('.toast-stack [role="status"]').filter({ hasText: /mixtape draft/i });
+      expect(await addToasts.count()).toBeLessThanOrEqual(1);
+
+      // Reopen builder via floating draft pill (mobile) or header Mixtape draft button (desktop)
       if (viewport.width >= 1024) {
         await page.getByRole('button', { name: /Mixtape draft/ }).click();
       } else {
-        await page.getByRole('button', { name: 'Open mixtape draft (1)' }).click();
+        await page.getByRole('button', { name: 'Open mixtape draft (3)' }).click();
       }
 
-      await expect(builderDialog.getByRole('heading', { name: '1 song in draft' })).toBeVisible();
-      await expect(builderDialog.getByText('1 song selected')).toBeVisible();
+      await expect(builderDialog.getByRole('heading', { name: 'Smoke Mix' })).toBeVisible();
+      await expect(builderDialog.getByText('3 songs selected')).toBeVisible();
+      await expect(builderDialog.getByRole('button', { name: /Publish mixtape \(3\)/ })).toBeVisible();
 
       // Verify zero horizontal clipping inside the open MixtapeBuilder sheet
       const innerOverflow = await page.evaluate(() => {
@@ -212,6 +243,144 @@ for (const viewport of [
         return maxOverflow;
       });
       expect(innerOverflow).toBeLessThanOrEqual(1);
+
+      // B-09: keyboard reorder keeps focus on a Move track button and updates order
+      const firstMoveDown = builderDialog.locator('[data-mixtape-track-id] button[aria-label="Move track down"]').first();
+      await firstMoveDown.focus();
+      await page.keyboard.press('Enter');
+      const focusedLabel = await page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? '');
+      expect(focusedLabel).toMatch(/^Move track (up|down)$/);
+
+      // Desktop handle-only mouse drag reorder + persistence
+      if (viewport.width >= 1024) {
+        const dragPos = await page.evaluate(() => {
+          const handles = Array.from(document.querySelectorAll('[data-mixtape-track-id] [data-drag-handle]'));
+          if (handles.length < 3) return null;
+          const from = handles[2].getBoundingClientRect();
+          const to = handles[0].getBoundingClientRect();
+          return {
+            x: Math.round(from.left + from.width / 2),
+            y0: Math.round(from.top + from.height / 2),
+            y1: Math.round(to.top + 4),
+          };
+        });
+        expect(dragPos).not.toBeNull();
+        const firstBefore = await page.evaluate(() =>
+          document.querySelector('[data-mixtape-track-id]')?.getAttribute('data-mixtape-track-id')
+        );
+        await page.mouse.move(dragPos!.x, dragPos!.y0);
+        await page.mouse.down();
+        await page.mouse.move(dragPos!.x, dragPos!.y1, { steps: 6 });
+        await page.mouse.up();
+        const firstAfter = await page.evaluate(() => {
+          const draft = JSON.parse(localStorage.getItem('smol:mixtape-draft') || '{}');
+          return draft.tracks?.[0]?.id;
+        });
+        expect(firstAfter).not.toBe(firstBefore);
+      }
+
+      // B-03: touch swipe on row body must NOT trigger drag (only explicit handle drags)
+      const draggedOnRowSwipe = await page.evaluate(() => {
+        const row = document.querySelectorAll('[data-mixtape-track-id]')[1];
+        if (!row) return false;
+        const r = row.getBoundingClientRect();
+        const x = r.left + r.width / 2;
+        const y = r.top + r.height / 2;
+        const makeTouch = (yy: number) =>
+          new Touch({ identifier: 11, target: row, clientX: x, clientY: yy, pageX: x, pageY: yy });
+        row.dispatchEvent(
+          new TouchEvent('touchstart', {
+            bubbles: true,
+            cancelable: true,
+            touches: [makeTouch(y)],
+            targetTouches: [makeTouch(y)],
+            changedTouches: [makeTouch(y)],
+          })
+        );
+        for (let i = 1; i <= 5; i++) {
+          document.dispatchEvent(
+            new TouchEvent('touchmove', {
+              bubbles: true,
+              cancelable: true,
+              touches: [makeTouch(y - i * 18)],
+              targetTouches: [makeTouch(y - i * 18)],
+              changedTouches: [makeTouch(y - i * 18)],
+            })
+          );
+        }
+        const dragging = Boolean(document.getElementById('dnd-action-dragged-el'));
+        document.dispatchEvent(
+          new TouchEvent('touchend', {
+            bubbles: true,
+            cancelable: true,
+            touches: [],
+            targetTouches: [],
+            changedTouches: [makeTouch(y - 90)],
+          })
+        );
+        return dragging;
+      });
+      expect(draggedOnRowSwipe).toBe(false);
+
+      // B-11: remove track shows Undo toast, clicking Undo restores count to 3
+      await builderDialog.getByRole('button', { name: 'Remove track' }).first().click();
+      await expect(builderDialog.getByText('2 songs selected')).toBeVisible();
+      const undoToast = page.locator('.toast-stack [role="status"]').filter({ hasText: /Removed/i });
+      await expect(undoToast.getByRole('button', { name: 'Undo' })).toBeVisible();
+      await undoToast.getByRole('button', { name: 'Undo' }).click();
+      await expect(builderDialog.getByText('3 songs selected')).toBeVisible();
+
+      // B-02: malformed 2xx publish ({ ok: true } without id) MUST keep draft intact & never go to /mixtapes/undefined
+      await page.route(`${api}/mixtapes`, async (route) => {
+        if (route.request().method() === 'POST') {
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            headers: {
+              'Access-Control-Allow-Origin': 'http://127.0.0.1:4328',
+              'Access-Control-Allow-Credentials': 'true',
+            },
+            body: JSON.stringify({ ok: true }),
+          });
+          return;
+        }
+        await route.continue();
+      });
+      await builderDialog.getByRole('button', { name: /Publish mixtape/ }).click();
+      await expect(builderDialog.getByRole('alert')).toContainText(/draft is safe/i);
+      expect(new URL(page.url()).pathname).not.toContain('undefined');
+      await expect(builderDialog.getByText('3 songs selected')).toBeVisible();
+      await page.unroute(`${api}/mixtapes`);
+
+      // B-01: Now Playing "Add to mixtape" stores public visibility & updates button to "In mixtape" (B-10)
+      await builderDialog.getByRole('button', { name: 'Close' }).click();
+      await page.getByRole('button', { name: 'Play Neon Arcade Runner' }).click();
+      const dock = page.getByRole('region', { name: 'Audio player' });
+      if (viewport.width >= 1024) {
+        await dock.getByRole('button', { name: 'Expand player' }).click();
+      } else {
+        await dock.getByRole('button', { name: 'Open now playing for Neon Arcade Runner' }).click();
+      }
+      const npDialog = page.locator('dialog[open]');
+      await npDialog.getByRole('button', { name: 'Add to mixtape' }).click();
+      await expect(npDialog.getByRole('button', { name: 'In mixtape' })).toBeVisible();
+      const allTracksHavePublic = await page.evaluate(() => {
+        const draft = JSON.parse(localStorage.getItem('smol:mixtape-draft') || '{}');
+        return Array.isArray(draft.tracks) && draft.tracks.length === 4 && draft.tracks.every((t: { public?: number }) => t.public === 1);
+      });
+      expect(allTracksHavePublic).toBe(true);
+      await npDialog.getByRole('button', { name: 'Close' }).click();
+
+      // Happy-path publish clears draft and navigates to /mixtapes/fixture-mixtape
+      if (viewport.width >= 1024) {
+        await page.getByRole('button', { name: /Mixtape draft/ }).click();
+      } else {
+        await page.getByRole('button', { name: 'Open mixtape draft (4)' }).click();
+      }
+      await builderDialog.getByRole('button', { name: /Publish mixtape \(4\)/ }).click();
+      await expect(page).toHaveURL('/mixtapes/fixture-mixtape');
+      const cleared = await page.evaluate(() => !localStorage.getItem('smol:mixtape-draft'));
+      expect(cleared).toBe(true);
     });
 
     test('toasts render in the top layer above open sheets and stay interactive (R2)', async ({

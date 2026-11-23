@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { MixtapeSummary } from '../../services/api/mixtapes';
+  import { shortenAddress } from '../../utils/address';
   import MixtapeCollage from '../ui/MixtapeCollage.svelte';
   import StateFeedback from '../ui/StateFeedback.svelte';
 
@@ -33,8 +34,8 @@
             <h2 class="truncate text-[15px] font-medium leading-5 text-ink-1 group-hover:underline">
               {mixtape.title}
             </h2>
-            <p class="tabular text-[13px] text-ink-2">
-              {mixtape.trackCount} {mixtape.trackCount === 1 ? 'song' : 'songs'}
+            <p class="tabular truncate text-[13px] text-ink-2">
+              {mixtape.trackCount} {mixtape.trackCount === 1 ? 'song' : 'songs'}{#if mixtape.creator}{' · '}{shortenAddress(mixtape.creator)}{/if}
             </p>
             {#if mixtape.description}
               <p class="line-clamp-2 text-xs leading-relaxed text-ink-3">

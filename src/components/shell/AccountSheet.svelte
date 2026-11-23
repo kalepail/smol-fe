@@ -1,7 +1,11 @@
 <script lang="ts">
   import { userState } from '../../stores/user.svelte';
   import { balanceState, updateContractBalance } from '../../stores/balance.svelte';
-  import { mixtapeDraftState, mixtapeModeState, openMixtapeSheet } from '../../stores/mixtape.svelte';
+  import {
+    mixtapeDraftState,
+    mixtapeDraftHasContent,
+    openMixtapeSheet,
+  } from '../../stores/mixtape.svelte';
   import { useAuthentication } from '../../hooks/useAuthentication';
   import { formatKaleBalanceWithSuffix } from '../../utils/kaleFormatting';
   import { shortenAddress } from '../../utils/address';
@@ -129,7 +133,7 @@
         >
           <span class="flex items-center gap-3">
             <Icon name="mixtapes" size={18} class="text-ink-2" />
-            <span>{mixtapeModeState.active || draftCount > 0 ? 'Open mixtape draft' : 'New mixtape'}</span>
+            <span>{mixtapeDraftHasContent.current ? 'Open mixtape draft' : 'New mixtape'}</span>
           </span>
           <span class="flex items-center gap-2">
             {#if draftCount > 0}

@@ -1,15 +1,13 @@
 <script lang="ts">
   import { playSmolQueue, setTrackLiked } from '../../stores/audio.svelte';
-  import { toMixtapeTrack } from '../../utils/track';
   import SmolCard from '../smol/SmolCard.svelte';
   import Skeleton from '../ui/Skeleton.svelte';
   import type { SearchResult } from '../../types/domain';
   import { searchSimilarSmols } from '../../services/api/search';
   import { fetchLikedSmols } from '../../services/api/smols';
   import { ApiError } from '../../services/api/fetch';
-  import { addTrack } from '../../stores/mixtape.svelte';
+  import { toggleDraftTrack } from '../../stores/mixtape.svelte';
   import { userState } from '../../stores/user.svelte';
-  import { toast } from '../../stores/toast.svelte';
 
   interface Props {
     id: string;
@@ -24,8 +22,7 @@
   let error = $state<string | null>(null);
 
   function addToMixtape(smol: SearchResult) {
-    addTrack(toMixtapeTrack(smol));
-    toast.success(`Added "${smol.Title}" to mixtape draft.`);
+    toggleDraftTrack({ ...smol, Public: smol.Public === 0 ? 0 : 1 });
   }
 
   function handleLikeChanged(smol: SearchResult, liked: boolean) {

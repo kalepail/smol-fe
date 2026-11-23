@@ -2,7 +2,12 @@
   import { onMount } from 'svelte';
   import { navigate } from 'astro:transitions/client';
   import { userState } from '../../stores/user.svelte';
-  import { mixtapeDraftState, mixtapeModeState, openMixtapeSheet } from '../../stores/mixtape.svelte';
+  import {
+    mixtapeDraftState,
+    mixtapeDraftHasContent,
+    mixtapeSheetState,
+    openMixtapeSheet,
+  } from '../../stores/mixtape.svelte';
   import { openAccountSheet, openAuthSheet } from '../../stores/authSheet.svelte';
   import { useCurrentPath } from '../../hooks/useCurrentPath.svelte';
   import { shortenAddress } from '../../utils/address';
@@ -41,6 +46,7 @@
 
   const isAuthenticated = $derived(Boolean(userState.contractId));
   const draftCount = $derived(mixtapeDraftState.tracks.length);
+  const hasActiveDraft = $derived(mixtapeDraftHasContent.current || mixtapeSheetState.browsingDraft);
 
   function syncFromLocation() {
     if (typeof window === 'undefined') return;
@@ -134,11 +140,6 @@
         }`}
       >
         <span>Mixtapes</span>
-        {#if draftCount > 0}
-          <span class="tabular rounded-full bg-accent/20 px-1.5 py-0.5 text-[11px] font-semibold text-accent">
-            {draftCount}
-          </span>
-        {/if}
       </a>
       {#if isAuthenticated}
         <a
@@ -204,12 +205,12 @@
       <div class="hidden lg:flex items-center gap-2">
         {#if isAuthenticated}
           <Button
-            variant={mixtapeModeState.active ? 'primary' : 'secondary'}
+            variant={hasActiveDraft ? 'primary' : 'secondary'}
             size="sm"
             onclick={handleOpenMixtape}
           >
             <Icon name="mixtapes" size={16} />
-            <span>{mixtapeModeState.active ? 'Mixtape draft' : 'New mixtape'}</span>
+            <span>{hasActiveDraft ? 'Mixtape draft' : 'New mixtape'}</span>
             {#if draftCount > 0}
               <span class="tabular rounded-full bg-black/25 px-1.5 text-xs">{draftCount}</span>
             {/if}

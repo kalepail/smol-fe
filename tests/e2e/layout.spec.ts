@@ -237,7 +237,7 @@ for (const vp of VIEWPORTS) {
       await capture(page, `mixtapes-${vp.tag}.png`);
     }
 
-    // Exercise AccountSheet + MixtapeBuilder sheet on mobile/375 (R1 browse-and-add + R4 zero clipping)
+    // Exercise AccountSheet + MixtapeBuilder + MixtapePicker across mobile, small 375, and desktop
     if (vp.tag === 'mobile' || vp.tag === 'small') {
       await page.goto('/');
       await page.getByRole('button', { name: 'Open account menu' }).click();
@@ -248,21 +248,43 @@ for (const vp of VIEWPORTS) {
         await capture(page, 'account-sheet-mobile.png');
       }
 
-      // Enter mixtape mode from AccountSheet -> close sheet -> tap + Add -> reopen via Draft tab badge
+      // Open builder -> open in-sheet Picker -> add 2 tracks -> return to Builder -> check clipping & 44px targets
       await acctSheet.getByRole('button', { name: /New mixtape|Open mixtape draft/ }).click();
       const builderSheet = page.locator('dialog[open]');
-      await expect(builderSheet.getByRole('heading', { name: /New mixtape|song/ })).toBeVisible();
-      await builderSheet.getByRole('button', { name: 'Close' }).click();
-      await expect(page.locator('dialog[open]')).toHaveCount(0);
+      await expect(builderSheet.getByRole('button', { name: 'Add songs' })).toBeVisible();
+      await builderSheet.getByRole('button', { name: 'Add songs' }).click();
+      await expect(builderSheet.getByRole('heading', { name: 'Add songs' })).toBeVisible();
+      await builderSheet.getByRole('button', { name: 'Add First Track to mixtape' }).click();
+      await builderSheet.getByRole('button', { name: 'Add Second Track to mixtape' }).click();
+      await assertLayoutInvariants(page, `${vp.tag}: MixtapePicker`);
+      if (vp.tag === 'mobile') {
+        await capture(page, 'mixtape-picker-mobile.png');
+      }
 
-      await page.getByRole('button', { name: 'Add', exact: true }).first().click();
-      await page.getByRole('button', { name: /Open mixtape draft/ }).click();
-      await expect(builderSheet.getByText('1 song selected')).toBeVisible();
+      await builderSheet.getByRole('button', { name: 'Done' }).click();
+      await expect(builderSheet.getByText('2 songs selected')).toBeVisible();
       await assertLayoutInvariants(page, `${vp.tag}: MixtapeBuilderSheet`);
       await capture(page, vp.tag === 'mobile' ? 'mixtape-builder-mobile.png' : 'mixtape-builder-375.png');
 
-      // Exit mixtape mode via Save draft so subsequent navigation sees the standard Mixtapes link
-      await builderSheet.getByRole('button', { name: 'Save draft' }).click();
+      // Discard draft so subsequent checks start clean
+      await builderSheet.getByRole('button', { name: 'Discard' }).click();
+      await page.getByRole('button', { name: 'Discard draft' }).click();
+      await expect(page.locator('dialog[open]')).toHaveCount(0);
+    } else {
+      await page.goto('/');
+      await page.getByRole('button', { name: /New mixtape|Mixtape draft/ }).click();
+      const builderSheet = page.locator('dialog[open]');
+      await builderSheet.getByRole('button', { name: 'Add songs' }).click();
+      await builderSheet.getByRole('button', { name: 'Add First Track to mixtape' }).click();
+      await builderSheet.getByRole('button', { name: 'Add Second Track to mixtape' }).click();
+      await assertLayoutInvariants(page, `${vp.tag}: MixtapePicker`);
+      await capture(page, 'mixtape-picker-desktop.png');
+      await builderSheet.getByRole('button', { name: 'Done' }).click();
+      await expect(builderSheet.getByText('2 songs selected')).toBeVisible();
+      await assertLayoutInvariants(page, `${vp.tag}: MixtapeBuilderSheet`);
+      await capture(page, 'mixtape-builder-desktop.png');
+      await builderSheet.getByRole('button', { name: 'Discard' }).click();
+      await page.getByRole('button', { name: 'Discard draft' }).click();
       await expect(page.locator('dialog[open]')).toHaveCount(0);
     }
 

@@ -1,208 +1,115 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { navigate } from 'astro:transitions/client';
-  import { type DndEvent, SHADOW_PLACEHOLDER_ITEM_ID } from 'svelte-dnd-action';
-  import type { MixtapeTrack } from '../../../types/domain';
+  import { flushSync } from 'svelte';
+  import type { TrackIssueKind } from '../../../hooks/useMixtapePublishing';
   import {
     mixtapeDraftState,
-    mixtapeDraftHasContent,
-    exitMixtapeMode,
     setTitle,
     setDescription,
     moveTrack,
-    removeTrack,
-    clearDraft,
-    touchMixtapeDraft,
-    setTracks,
-    getSnapshotDraft,
+    removeFromDraftWithUndo,
   } from '../../../stores/mixtape.svelte';
-  import { confirmAction } from '../../../stores/confirm.svelte';
-  import { toast } from '../../../stores/toast.svelte';
-  import { useMixtapePublishing } from '../../../hooks/useMixtapePublishing';
-  import { useMixtapeDragDrop } from '../../../hooks/useMixtapeDragDrop';
   import MixtapeTrackList from './MixtapeTrackList.svelte';
   import MixtapeForm from './MixtapeForm.svelte';
-  import { logger } from '../../../utils/logger';
 
-  let publishing = $state(false);
-  let statusMessage = $state<string | null>(null);
-  let statusTone = $state<'info' | 'success' | 'error'>('info');
-  let isDraggingTracks = $state(false);
-  let tracksForDnd = $state<MixtapeTrack[]>([]);
-  let isExternalDragActive = $state(false);
-  let tracksListEl = $state<HTMLUListElement | null>(null);
-
-  const publishingHook = useMixtapePublishing();
-  const dragDropHook = useMixtapeDragDrop();
-
-  function resetStatus() {
-    statusMessage = null;
+  interface Props {
+    statusMessage: string | null;
+    statusTone: 'info' | 'success' | 'error';
+    showAuthAction?: boolean;
+    trackIssues?: Record<string, TrackIssueKind>;
+    onResetStatus: () => void;
+    onOpenPicker: () => void;
+    onSignIn?: () => void;
   }
 
-  function showStatus(message: string, tone: typeof statusTone) {
-    statusMessage = message;
-    statusTone = tone;
+  let {
+    statusMessage,
+    statusTone,
+    showAuthAction = false,
+    trackIssues = {},
+    onResetStatus,
+    onOpenPicker,
+    onSignIn,
+  }: Props = $props();
+
+  let announcement = $state('');
+  let workspaceEl = $state<HTMLDivElement | null>(null);
+
+  function handleReorder(fromIndex: number, toIndex: number) {
+    const track = mixtapeDraftState.tracks[fromIndex];
+    if (!track || !moveTrack(fromIndex, toIndex)) return;
+    announcement = `Moved "${track.title}" to position ${toIndex + 1} of ${mixtapeDraftState.tracks.length}.`;
   }
 
   function handleMove(index: number, direction: 'up' | 'down') {
+    const track = mixtapeDraftState.tracks[index];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    moveTrack(index, targetIndex);
+    if (!track) return;
+
+    let moved = false;
+    flushSync(() => {
+      moved = moveTrack(index, targetIndex);
+      if (moved) {
+        const total = mixtapeDraftState.tracks.length;
+        announcement = `Moved "${track.title}" to position ${targetIndex + 1} of ${total}.`;
+      }
+    });
+    if (!moved || !workspaceEl) return;
+
+    const selectorId = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(track.id) : track.id;
+    const row = workspaceEl.querySelector(`[data-mixtape-track-id="${selectorId}"]`);
+    if (!row) return;
+
+    const preferredLabel = direction === 'up' ? 'Move track up' : 'Move track down';
+    const fallbackLabel = direction === 'up' ? 'Move track down' : 'Move track up';
+    const preferredBtn = row.querySelector<HTMLButtonElement>(`button[aria-label="${preferredLabel}"]`);
+    const fallbackBtn = row.querySelector<HTMLButtonElement>(`button[aria-label="${fallbackLabel}"]`);
+    if (preferredBtn && !preferredBtn.disabled) {
+      preferredBtn.focus();
+    } else if (fallbackBtn && !fallbackBtn.disabled) {
+      fallbackBtn.focus();
+    }
   }
 
   function handleRemove(index: number) {
     const track = mixtapeDraftState.tracks[index];
     if (!track) return;
-    removeTrack(track.id);
-    toast.info(`Removed "${track.title}" from draft.`);
-  }
-
-  async function handleDiscard() {
-    if (!mixtapeDraftHasContent.current) {
-      clearDraft();
-      exitMixtapeMode();
-      return;
-    }
-
-    const name = mixtapeDraftState.title.trim() || 'current mixtape draft';
-    const confirmed = await confirmAction({
-      title: `Discard "${name}"?`,
-      message: 'This clears all tracks, title, and description from your local draft.',
-      confirmLabel: 'Discard draft',
-      destructive: true,
-    });
-    if (!confirmed) return;
-
-    clearDraft();
-    exitMixtapeMode();
-    toast.info('Mixtape draft discarded.');
-  }
-
-  function handleSaveDraft() {
-    touchMixtapeDraft();
-    exitMixtapeMode();
-    toast.success('Mixtape draft saved locally.');
-  }
-
-  async function handlePublish() {
-    resetStatus();
-    publishing = true;
-
-    try {
-      const published = await publishingHook.publish(getSnapshotDraft());
-      clearDraft();
-      exitMixtapeMode();
-      toast.success('Mixtape published.');
-      await navigate(`/mixtapes/${published.id}`);
-    } catch (error) {
-      logger.error('mixtape', error);
-      showStatus(
-        error instanceof Error ? error.message : 'Failed to publish mixtape. Try again.',
-        'error'
-      );
-    } finally {
-      publishing = false;
+    const removed = removeFromDraftWithUndo(track.id);
+    if (removed) {
+      onResetStatus();
+      announcement = `Removed "${track.title}" from draft.`;
     }
   }
-
-  function handleTrackConsider(event: CustomEvent<DndEvent<MixtapeTrack>>) {
-    isDraggingTracks = true;
-    tracksForDnd = event.detail.items;
-  }
-
-  function handleTrackFinalize(event: CustomEvent<DndEvent<MixtapeTrack>>) {
-    isDraggingTracks = false;
-    const filtered = event.detail.items.filter(
-      (item) => item.id && item.id !== SHADOW_PLACEHOLDER_ITEM_ID
-    );
-    setTracks(filtered);
-    tracksForDnd = getSnapshotDraft().tracks;
-  }
-
-  function handleExternalDragOver(event: DragEvent) {
-    const shouldShowShadow = dragDropHook.handleExternalDragOver(
-      event,
-      isDraggingTracks,
-      tracksForDnd,
-      tracksListEl,
-      (tracks) => {
-        tracksForDnd = tracks;
-      }
-    );
-    if (shouldShowShadow) {
-      isExternalDragActive = true;
-    }
-  }
-
-  function handleExternalDragLeave(event: DragEvent) {
-    dragDropHook.handleExternalDragLeave(
-      event,
-      isDraggingTracks,
-      getSnapshotDraft().tracks,
-      (tracks) => {
-        isExternalDragActive = false;
-        tracksForDnd = tracks;
-      }
-    );
-  }
-
-  function handleExternalDrop(event: DragEvent) {
-    dragDropHook.handleExternalDrop(
-      event,
-      mixtapeDraftState.tracks,
-      getSnapshotDraft().tracks,
-      tracksListEl,
-      (tracks) => {
-        mixtapeDraftState.tracks = tracks;
-        isExternalDragActive = false;
-        tracksForDnd = getSnapshotDraft().tracks;
-      }
-    );
-  }
-
-  onMount(() => {
-    resetStatus();
-  });
-
-  $effect(() => {
-    if (!isDraggingTracks) {
-      tracksForDnd = mixtapeDraftState.tracks;
-    }
-  });
 </script>
 
 <div
+  bind:this={workspaceEl}
   role="region"
   aria-label="Mixtape builder workspace"
-  class="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]"
-  ondragover={handleExternalDragOver}
-  ondragleave={handleExternalDragLeave}
-  ondrop={handleExternalDrop}
+  class="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]"
 >
   <MixtapeTrackList
-    tracks={tracksForDnd}
-    {isExternalDragActive}
-    onConsider={handleTrackConsider}
-    onFinalize={handleTrackFinalize}
+    tracks={mixtapeDraftState.tracks}
+    {trackIssues}
+    {announcement}
+    onReorder={handleReorder}
     onMove={handleMove}
     onRemove={handleRemove}
-    bindElement={(el) => (tracksListEl = el)}
+    {onOpenPicker}
   />
 
   <MixtapeForm
     draft={mixtapeDraftState}
-    {publishing}
     {statusMessage}
     {statusTone}
+    {showAuthAction}
     onTitleChange={(title) => {
-      resetStatus();
+      onResetStatus();
       setTitle(title);
     }}
     onDescriptionChange={(desc) => {
-      resetStatus();
+      onResetStatus();
       setDescription(desc);
     }}
-    onDiscard={handleDiscard}
-    onSaveDraft={handleSaveDraft}
-    onPublish={handlePublish}
+    {onSignIn}
   />
 </div>

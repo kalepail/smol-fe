@@ -10,7 +10,7 @@
     subtitle?: string;
     dismissible?: boolean;
     fullHeight?: boolean;
-    maxWidth?: 'sm' | 'md' | 'lg';
+    maxWidth?: 'sm' | 'md' | 'lg' | 'xl';
     onClose: () => void;
     headerExtra?: Snippet;
     footer?: Snippet;
@@ -36,6 +36,7 @@
     sm: 'sm:max-w-sm',
     md: 'sm:max-w-lg',
     lg: 'sm:max-w-2xl',
+    xl: 'sm:max-w-4xl',
   };
 
   $effect(() => {
