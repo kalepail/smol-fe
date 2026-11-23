@@ -381,6 +381,117 @@ test.describe('Report 34 regressions @390', () => {
     expect(stats.contracts.has(derive(mixedIds[1]).pool)).toBe(false);
   });
 
+  test('Pass3 #1 tab B confirming 1 song never runs tab A\'s cancelled 8-song step', async ({ context }) => {
+    await signIn(context);
+    const scenario = () => ({ minted: mintedIds, balances: {}, kale: KALE(1_000) });
+    const tabA = await context.newPage();
+    const tabB = await context.newPage();
+    await installStellarMock(tabA, scenario);
+    const statsB = await installStellarMock(tabB, scenario);
+    await tabA.goto('/mixtapes/collect-minted');
+    await tabB.goto('/mixtapes/collect-minted');
+
+    // B: deselect 7 of 8 songs → Collect for 33 KALE.
+    await card(tabB).getByRole('button', { name: 'Buy all 8 · 264 KALE' }).click({ timeout: 10_000 });
+    const sheetB = tabB.locator('dialog[open]');
+    await sheetB.getByRole('button', { name: /Choose songs/ }).click();
+    const boxes = sheetB.getByRole('checkbox');
+    for (let i = 1; i < 8; i++) await boxes.nth(i).uncheck();
+    await expect(sheetB.getByRole('button', { name: 'Collect for 33 KALE' })).toBeEnabled();
+
+    // A: confirmed 264 KALE, then cancelled at the passkey → a cancelled 8-song step is saved.
+    await tabA.evaluate(
+      ([key, value]) => localStorage.setItem(key, value),
+      [
+        `smol:collect:v1:${COLLECTOR}:collect-minted`,
+        JSON.stringify({ v: 1, updatedAt: Date.now(), steps: [{ id: 'buy-1', kind: 'buy', trackIds: mintedIds, titles: [], costStroops: KALE(264).toString(), status: 'cancelled', failure: 'cancelled' }] }),
+      ] as const
+    );
+
+    await sheetB.getByRole('button', { name: 'Collect for 33 KALE' }).click();
+    await expect(sheetB.getByText('This purchase changed in another tab. Check the step below and approve it again.')).toBeVisible({ timeout: 10_000 });
+    await tabB.waitForTimeout(300);
+    expect(statsB.simulateTransaction, 'B executed nothing it did not confirm').toBe(0);
+  });
+
+  test('Pass3 #2 without Web Locks: another tab\'s live signing claim blocks this tab (fail closed)', async ({ context }) => {
+    await signIn(context);
+    await context.addInitScript(() => {
+      Object.defineProperty(Navigator.prototype, 'locks', { get: () => undefined, configurable: true });
+    });
+    const scenario = () => ({ minted: mintedIds, balances: {}, kale: KALE(1_000) });
+    const tabA = await context.newPage();
+    const tabB = await context.newPage();
+    await installStellarMock(tabA, scenario);
+    const statsB = await installStellarMock(tabB, scenario);
+    await tabA.goto('/mixtapes/collect-minted');
+    await tabB.goto('/mixtapes/collect-minted');
+    expect(await tabB.evaluate(() => navigator.locks)).toBeUndefined();
+
+    await card(tabB).getByRole('button', { name: 'Buy all 8 · 264 KALE' }).click({ timeout: 10_000 });
+    const sheetB = tabB.locator('dialog[open]');
+    await expect(sheetB.getByRole('button', { name: 'Collect for 264 KALE' })).toBeEnabled();
+
+    // A holds the cross-tab storage lease (it is mid-checkout).
+    await tabA.evaluate(
+      (leaseKey) => localStorage.setItem(leaseKey, JSON.stringify({ owner: 'tab-A', expiresAt: Date.now() + 60_000 })),
+      `smol:collect-lock:v1:${COLLECTOR}:collect-minted`
+    );
+    await sheetB.getByRole('button', { name: 'Collect for 264 KALE' }).click();
+    await expect(sheetB.getByText('Another tab is completing this purchase. Finish it there, then try again.')).toBeVisible({ timeout: 10_000 });
+    expect(statsB.simulateTransaction, 'fail closed: nothing built without the lease').toBe(0);
+
+    // A is now waiting at its passkey prompt for the same 8 songs (live signing claim).
+    await tabA.evaluate(
+      ([flowKey, flow]) => localStorage.setItem(flowKey, flow),
+      [
+        `smol:collect:v1:${COLLECTOR}:collect-minted`,
+        JSON.stringify({ v: 1, updatedAt: Date.now(), steps: [{ id: 'buy-1', kind: 'buy', trackIds: mintedIds, titles: [], costStroops: KALE(264).toString(), status: 'signing', ownerTabId: 'tab-A', leaseExpiresAt: Date.now() + 60_000 }] }),
+      ] as const
+    );
+    // B immediately stops offering those songs…
+    await expect(sheetB.getByRole('button', { name: 'Collect for 264 KALE' })).toHaveCount(0, { timeout: 10_000 });
+    // …and a reload in B never downgrades A's live signing step to "cancelled".
+    await tabB.reload();
+    await expect(card(tabB).getByRole('button', { name: /Collecting…/ })).toBeVisible({ timeout: 10_000 });
+    await expect(tabB.getByRole('button', { name: /^(Continue|Buy all)/ })).toHaveCount(0);
+    expect(statsB.simulateTransaction).toBe(0);
+  });
+
+  test('Pass3 #3 a failed progress write (QuotaExceededError) aborts before signing', async ({ page, context }) => {
+    await signIn(context);
+    await context.addInitScript(() => {
+      const original = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (key: string, value: string) {
+        if (key.startsWith('smol:collect:')) throw new DOMException('Quota exceeded', 'QuotaExceededError');
+        return original.call(this, key, value);
+      };
+    });
+    const stats = await installStellarMock(page, () => ({ minted: mintedIds, balances: {}, kale: KALE(1_000) }));
+    await page.goto('/mixtapes/collect-minted');
+    await card(page).getByRole('button', { name: 'Buy all 8 · 264 KALE' }).click({ timeout: 10_000 });
+    const sheet = page.locator('dialog[open]');
+    await sheet.getByRole('button', { name: 'Collect for 264 KALE' }).click();
+    await expect(
+      sheet.getByText("Couldn't save your progress in this browser, so nothing was signed. Free up browser storage and try again.").first()
+    ).toBeVisible({ timeout: 10_000 });
+    expect(stats.simulateTransaction, '0 submissions').toBe(0);
+  });
+
+  test('Pass3 #5 ordinary /{id}: Mint on an unindexed on-chain mint opens Trade, mints nothing', async ({ page, context }) => {
+    await signIn(context);
+    const stats = await installStellarMock(page, () => ({ minted: [unindexedSong.Id], balances: {}, kale: KALE(1_000) }));
+    await page.goto(`/${unindexedSong.Id}`);
+    await page.getByRole('button', { name: 'Mint', exact: true }).click({ timeout: 10_000 });
+    const sheet = page.locator('dialog[open]');
+    await expect(sheet.getByRole('heading', { name: 'Trade SMOL' })).toBeVisible({ timeout: 10_000 });
+    expect(stats.getLedgerEntries, 'canonical identity was read before minting').toBeGreaterThan(0);
+    expect(stats.simulateTransaction, 'no mint was built').toBe(0);
+    await sheet.getByRole('button', { name: 'Close' }).click();
+    await expect(page.getByRole('button', { name: 'Trade', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Mint', exact: true })).toHaveCount(0);
+  });
+
   test('#4 an unaudited pool executable can never be traded from the song sheet', async ({ page, context }) => {
     await signIn(context);
     const stats = await installStellarMock(page, () => ({ minted: [badExecTrack.Id], badExec: [badExecTrack.Id], balances: {}, kale: KALE(1_000) }));

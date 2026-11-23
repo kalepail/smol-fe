@@ -13,6 +13,12 @@ export default defineConfig({
     hasTouch: true,
     launchOptions: { args: ['--autoplay-policy=user-gesture-required'] },
   },
+  // Tests tagged @isolated assert global fixture-API request counts, so they
+  // run alone, after every other test (no concurrent traffic on the counter).
+  projects: [
+    { name: 'main', grepInvert: /@isolated/ },
+    { name: 'isolated', grep: /@isolated/, dependencies: ['main'] },
+  ],
   webServer: [
     {
       command: 'node tests/fixtures/api.mjs',

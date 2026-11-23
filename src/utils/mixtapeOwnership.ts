@@ -457,6 +457,22 @@ export interface FlowStep {
   expiresAtLedger?: number;
   /** Workflow ids returned by POST /mint (for POST /mint/status, Report 31). */
   workflowIds?: string[];
+  /** Tab currently signing this step, and until when that claim is valid. */
+  ownerTabId?: string;
+  leaseExpiresAt?: number;
+}
+
+/** A signing claim is refreshed while the passkey prompt is open. */
+export const SIGNING_LEASE_MS = 60_000;
+
+/** Another tab is signing this step right now (its lease is still valid). */
+export function isSigningElsewhere(step: FlowStep, tabId: string, now: number): boolean {
+  return (
+    step.status === 'signing' &&
+    step.ownerTabId !== undefined &&
+    step.ownerTabId !== tabId &&
+    (step.leaseExpiresAt ?? 0) > now
+  );
 }
 
 export type FlowKind = 'idle' | 'running' | 'paused' | 'done';
@@ -509,7 +525,8 @@ export function flowKind(steps: FlowStep[]): FlowKind {
 export function pendingByTrack(steps: FlowStep[]): Map<string, PendingMark> {
   const out = new Map<string, PendingMark>();
   for (const step of steps) {
-    if (step.status === 'submitting' || step.status === 'confirming') {
+    // `signing` included: a step being signed (here or in another tab) is never re-planned.
+    if (step.status === 'signing' || step.status === 'submitting' || step.status === 'confirming') {
       for (const id of step.trackIds) out.set(id, step.kind);
     } else if (isUnsettledFailure(step)) {
       for (const id of step.trackIds) if (!out.has(id)) out.set(id, 'locked');
@@ -627,7 +644,7 @@ export function serializeFlow(steps: FlowStep[], now: number): string {
 export function restoreFlow(
   raw: string | null,
   now: number,
-  opts: { live?: boolean } = {}
+  opts: { live?: boolean; tabId?: string } = {}
 ): FlowStep[] | null {
   if (!raw) return null;
   try {
@@ -648,10 +665,22 @@ export function restoreFlow(
         since: typeof s.since === 'number' ? s.since : undefined,
         expiresAtLedger: typeof s.expiresAtLedger === 'number' ? s.expiresAtLedger : undefined,
         workflowIds: Array.isArray(s.workflowIds) ? (s.workflowIds as unknown[]).map(String) : undefined,
+        ownerTabId: typeof s.ownerTabId === 'string' ? s.ownerTabId : undefined,
+        leaseExpiresAt: typeof s.leaseExpiresAt === 'number' ? s.leaseExpiresAt : undefined,
       };
+      // V1 records from 8e9ebc6 wrote `failed/expired` without a receipt: we can't
+      // know whether they were charged, so they require explicit acknowledgement.
+      if (status === 'failed' && (s.failure as string) === 'expired') {
+        return { ...base, failure: 'unconfirmed' as StepFailure };
+      }
       // Live view of another tab's progress: keep its in-flight statuses as written.
       if (opts.live) return base;
-      if (status === 'signing') return { ...base, status: 'cancelled', failure: 'cancelled' };
+      if (status === 'signing') {
+        // Another tab's live signing claim stays active; only a stale or own
+        // (interrupted) signature becomes "cancelled".
+        if (opts.tabId !== undefined && isSigningElsewhere(base, opts.tabId, now)) return base;
+        return { ...base, status: 'cancelled', failure: 'cancelled', ownerTabId: undefined, leaseExpiresAt: undefined };
+      }
       if (status === 'submitting' || status === 'confirming') {
         // Mints resolve from the chain poll; buys resolve from one balance re-read.
         return { ...base, status: 'confirming', since: base.since ?? now };

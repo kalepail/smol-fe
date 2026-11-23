@@ -172,3 +172,47 @@ export function createArchiveCapability(opts: { override?: string; probe: () => 
 export function isArchivedEntry(liveUntilLedgerSeq: number | undefined, latestLedger: number): boolean {
   return liveUntilLedgerSeq === 0 || (liveUntilLedgerSeq !== undefined && liveUntilLedgerSeq < latestLedger);
 }
+
+export interface RawLedgerEntry {
+  keyB64: string;
+  val: xdr.LedgerEntryData | undefined;
+  lastModifiedLedgerSeq?: number;
+  liveUntilLedgerSeq?: number;
+}
+
+/**
+ * Interpret one getLedgerEntries response for the requested keys. The response
+ * is authoritative ONLY when it carries a valid positive integer
+ * `latestLedger` and an `entries` array; otherwise (e.g. a malformed JSON-RPC
+ * success with `result: {}`) every key is `error` — never `missing`, never 0n.
+ */
+export function interpretLedgerResponse(
+  keys: string[],
+  response: { latestLedger?: unknown; entries?: unknown } | null | undefined,
+  readEntries: (entries: unknown[]) => RawLedgerEntry[],
+  archiveAware: boolean
+): Map<string, LedgerEntryRead> {
+  const out = new Map<string, LedgerEntryRead>();
+  const latestLedger = response?.latestLedger;
+  if (typeof latestLedger !== 'number' || !Number.isInteger(latestLedger) || latestLedger <= 0 || !Array.isArray(response?.entries)) {
+    for (const key of keys) out.set(key, { state: 'error', error: 'Malformed getLedgerEntries response' });
+    return out;
+  }
+  const byKey = new Map(readEntries(response.entries as unknown[]).map((e) => [e.keyB64, e]));
+  for (const key of keys) {
+    const entry = byKey.get(key);
+    if (!entry?.val) {
+      out.set(key, { state: 'missing', latestLedger, archiveAware });
+      continue;
+    }
+    out.set(key, {
+      state: 'found',
+      val: entry.val,
+      lastModifiedLedgerSeq: entry.lastModifiedLedgerSeq,
+      liveUntilLedgerSeq: entry.liveUntilLedgerSeq,
+      archived: isArchivedEntry(entry.liveUntilLedgerSeq, latestLedger),
+      latestLedger,
+    });
+  }
+  return out;
+}

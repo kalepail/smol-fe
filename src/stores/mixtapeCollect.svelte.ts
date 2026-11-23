@@ -35,6 +35,8 @@ import {
   serializeFlow,
   stepsForStartOver,
   acknowledgeSteps,
+  isSigningElsewhere,
+  SIGNING_LEASE_MS,
   stepsFromPlan,
   summarizeMixtape,
   type CardAction,
@@ -157,14 +159,69 @@ function readStorage(key: string): string | null {
   }
 }
 
-function writeStorage(key: string, value: string | null) {
+/** True only when the write succeeded AND reads back identically. */
+function writeStorage(key: string, value: string | null): boolean {
   try {
     if (value === null) localStorage.removeItem(key);
     else localStorage.setItem(key, value);
+    return localStorage.getItem(key) === value;
   } catch {
-    /* private mode: progress just isn't resumable across reloads */
+    return false; // e.g. QuotaExceededError or storage disabled
   }
 }
+
+/** Per-tab identity for signing claims and the storage-lease fallback lock. */
+const TAB_ID = (() => {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return `tab-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;
+  }
+})();
+const STORAGE_LEASE_MS = 15_000;
+
+type StorageLease = { stillHeld: () => boolean; release: () => void };
+
+/**
+ * Cross-tab mutex over localStorage, used only when Web Locks are missing:
+ * claim if free or expired, wait, then verify our claim survived concurrent
+ * writers. Refreshed while held. `busy` / `unavailable` both fail closed.
+ */
+async function acquireStorageLease(key: string): Promise<StorageLease | 'busy' | 'unavailable'> {
+  const read = (): { owner?: string; expiresAt?: number } | null => {
+    try {
+      return JSON.parse(localStorage.getItem(key) ?? 'null');
+    } catch {
+      return null;
+    }
+  };
+  const current = read();
+  if (current?.owner && current.owner !== TAB_ID && (current.expiresAt ?? 0) > Date.now()) return 'busy';
+  const claim = () => writeStorage(key, JSON.stringify({ owner: TAB_ID, expiresAt: Date.now() + STORAGE_LEASE_MS }));
+  if (!claim()) return 'unavailable';
+  await new Promise((r) => setTimeout(r, 60));
+  if (read()?.owner !== TAB_ID) return 'busy';
+  const stillHeld = () => {
+    const lease = read();
+    return lease?.owner === TAB_ID && (lease.expiresAt ?? 0) > Date.now();
+  };
+  const timer = setInterval(() => {
+    if (stillHeld()) claim();
+  }, STORAGE_LEASE_MS / 3);
+  return {
+    stillHeld,
+    release: () => {
+      clearInterval(timer);
+      if (read()?.owner === TAB_ID) writeStorage(key, null);
+    },
+  };
+}
+
+type ConfirmIntent =
+  | { source: 'review'; key: string; cost: bigint }
+  | { source: 'step'; stepId: string; key: string; cost: bigint };
+
+const stepKey = (s: Pick<FlowStep, 'kind' | 'trackIds'>) => `${s.kind}:${s.trackIds.join(',')}`;
 
 export function createCollectController(opts: {
   getMixtapeId: () => string;
@@ -246,16 +303,17 @@ export function createCollectController(opts: {
     return wallet ? flowStorageKey(wallet, opts.getMixtapeId()) : null;
   }
 
-  function persist() {
+  /** Persist shared progress. Returns false when it could not be saved durably. */
+  function persist(): boolean {
     const key = storageKey();
-    if (!key) return;
+    if (!key) return false;
     const k = flowKind(steps);
-    writeStorage(key, steps.length && k !== 'done' ? serializeFlow(steps, Date.now()) : null);
+    return writeStorage(key, steps.length && k !== 'done' ? serializeFlow(steps, Date.now()) : null);
   }
 
-  function setSteps(next: FlowStep[]) {
+  function setSteps(next: FlowStep[]): boolean {
     steps = next;
-    persist();
+    return persist();
   }
 
   /**
@@ -266,14 +324,14 @@ export function createCollectController(opts: {
    */
   function readSharedSteps(live: boolean): FlowStep[] | null {
     const key = storageKey();
-    return key ? restoreFlow(readStorage(key), Date.now(), { live }) : null;
+    return key ? restoreFlow(readStorage(key), Date.now(), { live, tabId: TAB_ID }) : null;
   }
 
   /** Read-modify-write against the freshest shared progress (never clobbers another tab). */
-  function patchStep(id: string, patch: Partial<FlowStep>) {
+  function patchStep(id: string, patch: Partial<FlowStep>): boolean {
     const shared = readSharedSteps(true);
     const base = shared && shared.some((s) => s.id === id) ? shared : steps;
-    setSteps(base.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+    return setSteps(base.map((s) => (s.id === id ? { ...s, ...patch } : s)));
   }
 
   /**
@@ -282,7 +340,9 @@ export function createCollectController(opts: {
    * re-read before anything is written or signed, so a second tab can never
    * overwrite another tab's submitted/uncertain lock or submit a duplicate buy.
    */
-  async function withCollectLock<T>(fn: () => Promise<T>): Promise<T> {
+  let activeLease: StorageLease | null = null;
+
+  async function withCollectLock<T>(fn: () => Promise<T>): Promise<T | undefined> {
     const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
     const name = `smol-collect:${userState.contractId ?? ''}:${opts.getMixtapeId()}`;
     const run = async () => {
@@ -290,8 +350,40 @@ export function createCollectController(opts: {
       steps = shared ?? [];
       return fn();
     };
-    // Fallback (no Web Locks): the in-lock re-read above still applies.
-    return locks?.request ? (locks.request(name, { mode: 'exclusive' }, run) as Promise<T>) : run();
+    if (locks?.request) return locks.request(name, { mode: 'exclusive' }, run) as Promise<T>;
+
+    // No Web Locks: require the storage lease, else fail closed (nothing is signed).
+    const lease = await acquireStorageLease(`smol:collect-lock:v1:${userState.contractId ?? ''}:${opts.getMixtapeId()}`);
+    if (lease === 'busy' || lease === 'unavailable') {
+      notices = [
+        ...notices,
+        {
+          tone: 'warning',
+          text:
+            lease === 'busy'
+              ? 'Another tab is completing this purchase. Finish it there, then try again.'
+              : "This browser window can't safely coordinate purchases across tabs, so nothing was signed.",
+        },
+      ];
+      return undefined;
+    }
+    activeLease = lease;
+    try {
+      return await run();
+    } finally {
+      activeLease = null;
+      lease.release();
+    }
+  }
+
+  /** Durable-save failure before a signature: abort, never sign unrecorded. */
+  function abortUnsaved(stepId: string, revertTo: FlowStep['status']) {
+    steps = steps.map((s) =>
+      s.id === stepId ? { ...s, status: revertTo, ownerTabId: undefined, leaseExpiresAt: undefined } : s
+    );
+    const text = "Couldn't save your progress in this browser, so nothing was signed. Free up browser storage and try again.";
+    notices = [...notices, { tone: 'warning', text }];
+    toast.error(text, { tag: TOAST_TAG });
   }
 
   function resetContext() {
@@ -326,7 +418,7 @@ export function createCollectController(opts: {
         contextKey = key;
         resetContext();
         if (wallet) {
-          const restored = restoreFlow(readStorage(flowStorageKey(wallet, mixtapeId)), Date.now());
+          const restored = restoreFlow(readStorage(flowStorageKey(wallet, mixtapeId)), Date.now(), { tabId: TAB_ID });
           if (restored) steps = restored;
         }
       }
@@ -358,7 +450,7 @@ export function createCollectController(opts: {
     const onStorage = (event: StorageEvent) => {
       const key = storageKey();
       if (!key || event.key !== key) return;
-      steps = (event.newValue ? restoreFlow(event.newValue, Date.now(), { live: true }) : null) ?? [];
+      steps = (event.newValue ? restoreFlow(event.newValue, Date.now(), { live: true, tabId: TAB_ID }) : null) ?? [];
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
@@ -507,7 +599,7 @@ export function createCollectController(opts: {
       case 'continue':
         view = 'progress';
         sheetOpen = true;
-        void approveNext();
+        void approveNext('step');
         break;
       case 'holdings':
         view = 'holdings';
@@ -600,7 +692,14 @@ export function createCollectController(opts: {
   // Execution: one passkey tap per step
   // -------------------------------------------------------------------------
 
-  async function approveNext(): Promise<void> {
+  /**
+   * Run ONE step for exactly what the user is looking at. `review` = the
+   * Review sheet's plan (songs + total); `step` = the displayed next step
+   * (Continue / Approve step i). The intent is captured at click time and
+   * re-checked under the cross-tab lock: if shared progress changed, nothing is
+   * signed and the user confirms again.
+   */
+  async function approveNext(source: 'review' | 'step' = 'step'): Promise<void> {
     if (approving) return;
     const holder = userState.contractId;
     const keyId = userState.keyId;
@@ -610,62 +709,100 @@ export function createCollectController(opts: {
       return;
     }
     const gen = generation;
-    // What the user confirmed: the plan's exact songs (re-checked inside the lock).
-    const confirmed = planKey(plan);
+    let intent: ConfirmIntent;
+    if (source === 'review') {
+      const p = plan;
+      intent = { source, key: planKey(p), cost: p?.costStroops ?? 0n };
+    } else {
+      const st = nextRunnableStep(steps);
+      intent = { source, stepId: st?.id ?? '', key: st ? stepKey(st) : '', cost: st?.costStroops ?? 0n };
+    }
     approving = true;
     try {
-      await withCollectLock(() => approveNextLocked(holder, keyId, gen, confirmed));
+      await withCollectLock(() => approveNextLocked(holder, keyId, gen, intent));
     } finally {
       if (gen === generation) approving = false;
     }
   }
 
   function planKey(p: typeof plan): string {
-    return p ? p.steps.map((x) => `${x.kind}:${x.trackIds.join(',')}`).join('|') : '';
+    return p ? p.steps.map(stepKey).join('|') : '';
   }
 
-  async function approveNextLocked(holder: string, keyId: string, gen: number, confirmed: string): Promise<void> {
+  function requireReconfirm(text: string) {
+    notices = [...notices, { tone: 'warning', text }];
+    view = steps.length ? 'progress' : 'review';
+    sheetOpen = true;
+  }
+
+  async function approveNextLocked(holder: string, keyId: string, gen: number, intent: ConfirmIntent): Promise<void> {
     if (gen !== generation) return;
     if (flowKind(steps) === 'done') setSteps([]);
 
+    const now = Date.now();
+    if (steps.some((s) => isSigningElsewhere(s, TAB_ID, now))) {
+      requireReconfirm('Another tab is completing this purchase. Finish it there, then try again.');
+      return;
+    }
+
     let step = nextRunnableStep(steps);
+    if (step && (intent.source === 'review' || step.id !== intent.stepId || stepKey(step) !== intent.key || step.costStroops !== intent.cost)) {
+      // The step that would run is not what the user confirmed (e.g. another
+      // tab left a cancelled 8-song step while this tab showed 1 song).
+      requireReconfirm('This purchase changed in another tab. Check the step below and approve it again.');
+      return;
+    }
     if (!step) {
       // Unsettled outcomes are re-checked, never re-signed.
       if (steps.some((s) => s.status === 'failed')) {
         await reconcileLocked();
         if (steps.some(isLocked)) {
-          notices = [
-            ...notices,
-            {
-              tone: 'warning',
-              text: "An earlier purchase for this mixtape isn't confirmed yet, so nothing new was signed. Its songs won't be charged again.",
-            },
-          ];
-          view = 'progress';
+          requireReconfirm(
+            "An earlier purchase for this mixtape isn't confirmed yet, so nothing new was signed. Its songs won't be charged again."
+          );
         }
         return;
       }
+      if (intent.source !== 'review') return; // Continue never starts a new purchase.
       const p = plan;
       if (!p || p.steps.length === 0) return;
-      if (planKey(p) !== confirmed) {
-        // Shared progress changed under us (another tab submitted): re-confirm.
-        notices = [
-          ...notices,
-          { tone: 'warning', text: 'Another purchase for this mixtape is in progress or unconfirmed. Review the updated total before collecting.' },
-        ];
+      if (planKey(p) !== intent.key || p.costStroops !== intent.cost) {
+        requireReconfirm('This purchase changed in another tab. Review the updated total and confirm again.');
         return;
       }
       if (kaleGuard(kale, p.costStroops) !== 'ok') return;
       const suffix = steps.length ? `-${Date.now().toString(36)}` : '';
       const added = stepsFromPlan(p, titles).map((s) => ({ ...s, id: `${s.id}${suffix}` }));
-      setSteps([...steps, ...added]);
+      const before = steps;
+      if (!setSteps([...steps, ...added])) {
+        steps = before;
+        abortUnsaved('', 'pending');
+        return;
+      }
       notices = [];
       view = 'progress';
       step = added[0];
     }
 
     const resumeStatus = step.status;
-    patchStep(step.id, { status: 'signing', failure: undefined });
+    // Claim the step for THIS tab and persist the claim before any signature.
+    if (
+      !patchStep(step.id, {
+        status: 'signing',
+        failure: undefined,
+        ownerTabId: TAB_ID,
+        leaseExpiresAt: Date.now() + SIGNING_LEASE_MS,
+      })
+    ) {
+      abortUnsaved(step.id, resumeStatus);
+      return;
+    }
+    const signingStepId = step.id;
+    const leaseTimer = setInterval(() => {
+      if (steps.find((s) => s.id === signingStepId)?.status === 'signing') {
+        patchStep(signingStepId, { leaseExpiresAt: Date.now() + SIGNING_LEASE_MS });
+      }
+    }, SIGNING_LEASE_MS / 4);
     try {
       // Pre-flight (C-15, freshness): re-read exactly this step's songs + KALE.
       const stepTracks = untrack(() => tracks).filter((t) => step.trackIds.includes(t.id));
@@ -737,7 +874,10 @@ export function createCollectController(opts: {
         finishIfDone();
         return;
       }
-      setSteps(working);
+      if (!setSteps(working) || (activeLease && !activeLease.stillHeld())) {
+        abortUnsaved(step.id, resumeStatus);
+        return;
+      }
       const current = working.find((s) => s.id === step.id)!;
       // Final signing guard (C-10): nothing is built or simulated unless the
       // pre-flight KALE read is KNOWN and covers this step.
@@ -815,7 +955,14 @@ export function createCollectController(opts: {
         status: (error as { status?: number })?.status,
         phase: was === 'submitting' ? 'submitting' : 'signing',
       });
-      patchStep(step.id, { status: failure === 'cancelled' ? 'cancelled' : 'failed', failure });
+      patchStep(step.id, {
+        status: failure === 'cancelled' ? 'cancelled' : 'failed',
+        failure,
+        ownerTabId: undefined,
+        leaseExpiresAt: undefined,
+      });
+    } finally {
+      clearInterval(leaseTimer);
     }
   }
 

@@ -410,7 +410,7 @@
     {#if c.view === 'review'}
       <div class="flex items-center gap-2.5">
         <Button variant="secondary" fullWidth onclick={() => c.closeSheet()}>Cancel</Button>
-        <Button variant="primary" fullWidth disabled={reviewPrimary.disabled} loading={c.approving} onclick={() => c.approveNext()}>
+        <Button variant="primary" fullWidth disabled={reviewPrimary.disabled} loading={c.approving} onclick={() => c.approveNext('review')}>
           <span class="tabular">{reviewPrimary.label}</span>
         </Button>
       </div>
@@ -429,7 +429,7 @@
                   ? c.refreshKale()
                   : progressPrimary.label === 'Acknowledge & start new purchase'
                     ? c.acknowledge()
-                    : c.approveNext()}
+                    : c.approveNext('step')}
           >
             {progressPrimary.label}
           </Button>

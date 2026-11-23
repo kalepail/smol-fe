@@ -11,6 +11,7 @@ import {
   flowKind,
   acknowledgeSteps,
   isAcknowledgeable,
+  isSigningElsewhere,
   kaleGuard,
   nextRunnableStep,
   pendingByTrack,
@@ -390,4 +391,30 @@ test('#11 a row with no creator Address is unavailable even when minted on chain
   const plan = buildCollectPlan([{ track: t, identity: id, state: classifyTrack(id, known(0n)) }]);
   assert.equal(plan.costKale, 0);
   assert.equal(plan.excluded[0].reason, 'unavailable');
+});
+
+test('#6 a V1 failed/expired record (8e9ebc6 shape) restores as unconfirmed: acknowledge, never "not charged"', () => {
+  const raw = JSON.stringify({
+    v: 1,
+    updatedAt: NOW,
+    steps: [{ id: 'buy-1', kind: 'buy', trackIds: ['t1', 't2'], titles: [], costStroops: KALE_(66).toString(), status: 'failed', failure: 'expired', since: NOW, expiresAtLedger: 10 }],
+  });
+  const restored = restoreFlow(raw, NOW + 60_000)!;
+  assert.equal(restored[0].failure, 'unconfirmed');
+  assert.equal(nextRunnableStep(restored), null);
+  const s = scenario([{ kind: 'owned' }, { kind: 'available' }], { pending: pendingByTrack(restored), steps: restored });
+  assert.doesNotMatch(s.card.subline, /Nothing else was charged/);
+  assert.equal(s.card.primary.action, 'acknowledge');
+});
+
+test('#2 another tab\'s live signing claim is never downgraded to cancelled on restore', () => {
+  const signing = buyStep({ status: 'signing', ownerTabId: 'tab-A', leaseExpiresAt: NOW + 30_000 });
+  const raw = serializeFlow([signing], NOW);
+  const inB = restoreFlow(raw, NOW, { tabId: 'tab-B' })!;
+  assert.equal(inB[0].status, 'signing', 'active elsewhere');
+  assert.equal(isSigningElsewhere(inB[0], 'tab-B', NOW), true);
+  assert.equal(pendingByTrack(inB).get('t1'), 'buy', 'its songs are excluded from any plan');
+  assert.equal(nextRunnableStep(inB), null);
+  assert.equal(restoreFlow(raw, NOW + 31_000, { tabId: 'tab-B' })![0].status, 'cancelled', 'expired lease');
+  assert.equal(restoreFlow(raw, NOW)![0].status, 'cancelled', 'no tab context = interrupted reload');
 });

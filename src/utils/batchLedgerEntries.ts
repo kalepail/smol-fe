@@ -17,7 +17,7 @@ import { rpc } from './base';
 import { logger } from './logger';
 import {
   createArchiveCapability,
-  isArchivedEntry,
+  interpretLedgerResponse,
   toBalanceResult,
   type BalanceBatchRequest,
   type BalanceBatchResult,
@@ -105,28 +105,26 @@ async function fetchChunk(keys: string[], resolvers: Map<string, (r: LedgerEntry
       rpc.getLedgerEntries(...keys.map((k) => xdr.LedgerKey.fromXDR(k, 'base64'))),
       getReaderArchiveAware(),
     ]);
-    const latestLedger = response.latestLedger;
-    const byKey = new Map<string, (typeof response.entries)[number]>();
-    for (const entry of response.entries ?? []) {
-      if (entry?.key) byKey.set(entry.key.toXDR('base64'), entry);
-    }
+    const reads = interpretLedgerResponse(
+      keys,
+      response as { latestLedger?: unknown; entries?: unknown },
+      (entries) =>
+        (entries as (typeof response.entries)[number][])
+          .filter((entry) => entry?.key)
+          .map((entry) => ({
+            keyB64: entry.key.toXDR('base64'),
+            val: entry.val,
+            lastModifiedLedgerSeq: entry.lastModifiedLedgerSeq,
+            liveUntilLedgerSeq: entry.liveUntilLedgerSeq,
+          })),
+      archiveAware
+    );
+    const first = reads.get(keys[0]);
+    if (first?.state === 'error') logger.error('rpc', first.error);
     for (const key of keys) {
-      const entry = byKey.get(key);
-      if (!entry?.val) {
-        resolvers.get(key)?.({ state: 'missing', latestLedger, archiveAware });
-        continue;
-      }
-      const liveUntil = entry.liveUntilLedgerSeq;
-      const archived = isArchivedEntry(liveUntil, latestLedger);
-      capability.observe(liveUntil);
-      resolvers.get(key)?.({
-        state: 'found',
-        val: entry.val,
-        lastModifiedLedgerSeq: entry.lastModifiedLedgerSeq,
-        liveUntilLedgerSeq: liveUntil,
-        archived,
-        latestLedger,
-      });
+      const read = reads.get(key)!;
+      if (read.state === 'found') capability.observe(read.liveUntilLedgerSeq);
+      resolvers.get(key)?.(read);
     }
   } catch (error) {
     logger.error('rpc', 'getLedgerEntries failed:', error);

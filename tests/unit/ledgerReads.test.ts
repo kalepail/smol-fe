@@ -11,6 +11,7 @@ import {
 import {
   createArchiveCapability,
   interpretIdentity,
+  interpretLedgerResponse,
   knownBalance,
   toBalanceResult,
   type LedgerEntryRead,
@@ -141,4 +142,17 @@ test('#3 archive capability needs POSITIVE evidence (TTL 0), never an absent TTL
   const probed = createArchiveCapability({ probe: async () => true });
   assert.equal(await probed.isAware(), true);
   assert.equal(await createArchiveCapability({ override: '0', probe: async () => true }).isAware(), false);
+});
+
+test('#4 a malformed getLedgerEntries success (result: {}) is an error, never missing / 0n', () => {
+  const keys = ['k1', 'k2'];
+  const none = () => [];
+  for (const bad of [{}, null, { latestLedger: 0, entries: [] }, { latestLedger: 1.5, entries: [] }, { latestLedger: '100', entries: [] }, { latestLedger: 100 }]) {
+    const reads = interpretLedgerResponse(keys, bad as never, none, true);
+    for (const key of keys) assert.equal(reads.get(key)!.state, 'error', JSON.stringify(bad));
+    const balance = toBalanceResult({ tokenContractId: SAC, holderAddress: KALE }, reads.get('k1'));
+    assert.equal(knownBalance(balance), null);
+  }
+  const ok = interpretLedgerResponse(keys, { latestLedger: 100, entries: [] }, none, true);
+  assert.equal(ok.get('k1')!.state, 'missing', 'a well-formed response may report absence');
 });

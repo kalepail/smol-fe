@@ -502,6 +502,35 @@
       return;
     }
 
+    // Canonical preflight (C-15): never mint a song that already exists on chain
+    // (D1 may not have indexed it yet). An inconclusive check blocks minting.
+    const songId = id;
+    minting = true;
+    try {
+      const { readMixtapeChainSnapshot } = await import('../utils/smolChainIdentity');
+      const snapshot = await readMixtapeChainSnapshot({
+        tracks: [{ id: songId, mintToken: d1?.Mint_Token ?? null, mintAmm: d1?.Mint_Amm ?? null }],
+      });
+      const facts = snapshot.tracks.get(songId)?.facts;
+      if (facts?.status === 'minted') {
+        minting = false;
+        verifiedMarket = { songId, sac: facts.sac, pool: facts.pool };
+        toast.info('This song is already minted. Opening its market.');
+        showTradeModal = true;
+        return;
+      }
+      if (facts?.status !== 'unminted') {
+        minting = false;
+        toast.error("Couldn't confirm this song's mint status, so nothing was minted. Try again in a moment.");
+        return;
+      }
+    } catch (err) {
+      logger.error('smol', 'Mint preflight failed', err);
+      minting = false;
+      toast.error("Couldn't confirm this song's mint status, so nothing was minted. Try again in a moment.");
+      return;
+    }
+
     try {
       mintStartedInSession = true;
       minting = true;

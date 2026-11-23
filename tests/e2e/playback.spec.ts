@@ -187,7 +187,7 @@ test('the persisted audio handles navigation, now playing sheet, natural advance
   await expect(dock).toHaveCount(1);
 });
 
-test('song, mixtape, artist and playlist islands reuse their single SSR response (G3)', async ({ page, request }) => {
+test('song, mixtape, artist and playlist islands reuse their single SSR response (G3) @isolated', async ({ page, request }) => {
   await request.post(`${api}/__reset`);
   await page.goto('/first-smol');
   await expect(page.getByRole('button', { name: 'Play take 1' })).toBeVisible();
