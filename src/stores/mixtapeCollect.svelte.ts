@@ -149,6 +149,12 @@ const TAB_ID = (() => {
   }
 })();
 const STORAGE_LEASE_MS = 15_000;
+/**
+ * Web Locks hand off between tabs immediately, but Chromium propagates
+ * localStorage between renderer processes asynchronously. Holding the lock
+ * briefly after our last write lets the next holder's in-lock re-read see it.
+ */
+const LOCK_RELEASE_GRACE_MS = 150;
 
 type StorageLease = { stillHeld: () => boolean; release: () => void };
 
@@ -315,11 +321,47 @@ export function createCollectController(opts: {
     return key ? restoreFlow(readStorage(key), Date.now(), { live, tabId: TAB_ID }) : null;
   }
 
-  /** Read-modify-write against the freshest shared progress (never clobbers another tab). */
-  function patchStep(id: string, patch: Partial<FlowStep>): boolean {
+  /**
+   * THE single write path for an existing step (update, replace or delete).
+   * Re-reads shared progress and writes ONLY if the stored step still matches
+   * what this code path last saw: same attempt, same owner (when given), and an
+   * expected status. Otherwise another tab (or a newer attempt) owns the record:
+   * reload it for display and write/delete NOTHING.
+   */
+  type StepGuard = { attemptId: string | undefined; ownerTabId?: string; statuses: FlowStep['status'][] };
+
+  function writeIfStill(
+    stepId: string,
+    guard: StepGuard,
+    mutate: (shared: FlowStep[]) => FlowStep[]
+  ): 'ok' | 'lost' | 'unsaved' {
+    const shared = readSharedSteps(true) ?? [];
+    const stored = shared.find((s) => s.id === stepId);
+    if (
+      !stored ||
+      stored.attemptId !== guard.attemptId ||
+      (guard.ownerTabId !== undefined && stored.ownerTabId !== guard.ownerTabId) ||
+      !guard.statuses.includes(stored.status)
+    ) {
+      steps = shared;
+      return 'lost';
+    }
+    return setSteps(mutate(shared)) ? 'ok' : 'unsaved';
+  }
+
+  const patchIn = (id: string, patch: Partial<FlowStep>) => (shared: FlowStep[]) =>
+    shared.map((s) => (s.id === id ? { ...s, ...patch } : s));
+  const removeIn = (id: string) => (shared: FlowStep[]) => shared.filter((s) => s.id !== id);
+
+  /** Guard for a step exactly as this tab currently sees it. */
+  const asSeen = (step: FlowStep | undefined): StepGuard =>
+    step ? { attemptId: step.attemptId, statuses: [step.status] } : { attemptId: '\u0000none', statuses: [] };
+
+  /** Clear finished progress, but never delete another tab's newer record. */
+  function clearIfDone() {
     const shared = readSharedSteps(true);
-    const base = shared && shared.some((s) => s.id === id) ? shared : steps;
-    return setSteps(base.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+    if (!shared || flowKind(shared) === 'done') setSteps([]);
+    else steps = shared;
   }
 
   /**
@@ -346,6 +388,7 @@ export function createCollectController(opts: {
           return await run();
         } finally {
           holdingWebLock = false;
+          await new Promise((r) => setTimeout(r, LOCK_RELEASE_GRACE_MS));
         }
       }) as Promise<T>;
     }
@@ -370,6 +413,7 @@ export function createCollectController(opts: {
       return await run();
     } finally {
       activeLease = null;
+      await new Promise((r) => setTimeout(r, LOCK_RELEASE_GRACE_MS));
       lease.release();
     }
   }
@@ -607,7 +651,7 @@ export function createCollectController(opts: {
     selection = sel;
     notices = [];
     doneSummary = null;
-    if (kind === 'done') setSteps([]);
+    if (kind === 'done') clearIfDone();
     view = kind === 'running' || kind === 'paused' ? 'progress' : 'review';
     sheetOpen = true;
     if (Date.now() - lastCheckedAt > FRESH_MS) void refresh({ markLoading: false });
@@ -679,7 +723,7 @@ export function createCollectController(opts: {
   function closeSheet() {
     sheetOpen = false;
     if (kind === 'done') {
-      setSteps([]);
+      clearIfDone();
       doneSummary = null;
     }
   }
@@ -802,6 +846,7 @@ export function createCollectController(opts: {
       if (kaleGuard(kale, p.costStroops) !== 'ok') return;
       const suffix = steps.length ? `-${Date.now().toString(36)}` : '';
       const added = stepsFromPlan(p, titles).map((s) => ({ ...s, id: `${s.id}${suffix}` }));
+      // Safe: synchronous with the in-lock re-read above (no await in between).
       const before = steps;
       if (!setSteps([...steps, ...added])) {
         steps = before;
@@ -816,26 +861,31 @@ export function createCollectController(opts: {
     const resumeStatus = step.status;
     // Claim the step for THIS tab + attempt and persist the claim before any signature.
     const attemptId = newAttemptId();
-    if (
-      !patchStep(step.id, {
+    const claimed = writeIfStill(
+      step.id,
+      asSeen(step),
+      patchIn(step.id, {
         status: 'signing',
         failure: undefined,
         ownerTabId: TAB_ID,
         attemptId,
         leaseExpiresAt: Date.now() + SIGNING_LEASE_MS,
       })
-    ) {
-      abortUnsaved(step.id, resumeStatus);
+    );
+    if (claimed !== 'ok') {
+      if (claimed === 'lost') requireReconfirm('This purchase changed in another tab. Check the step below and approve it again.');
+      else abortUnsaved(step.id, resumeStatus);
       return;
     }
     const signingStepId = step.id;
-    const ownsAttempt = () => {
-      const mine = readSharedSteps(true)?.find((s) => s.id === signingStepId);
-      return mine?.status === 'signing' && mine.ownerTabId === TAB_ID && mine.attemptId === attemptId;
-    };
-    // Heartbeat: only ever refreshes OUR claim; never resurrects a taken-over step.
+    // Every later write for this attempt must still find OUR attempt in the record.
+    let phase: 'signing' | 'submitting' | 'confirming' = 'signing';
+    const mine = (): StepGuard => ({ attemptId, ownerTabId: TAB_ID, statuses: [phase] });
+    // Heartbeat: only ever refreshes OUR live claim; never resurrects a taken-over step.
     const leaseTimer = setInterval(() => {
-      if (ownsAttempt()) patchStep(signingStepId, { leaseExpiresAt: Date.now() + SIGNING_LEASE_MS });
+      if (phase === 'signing') {
+        writeIfStill(signingStepId, mine(), patchIn(signingStepId, { leaseExpiresAt: Date.now() + SIGNING_LEASE_MS }));
+      }
     }, SIGNING_LEASE_MS / 4);
     try {
       // Pre-flight (C-15, freshness): re-read exactly this step's songs + KALE.
@@ -879,45 +929,57 @@ export function createCollectController(opts: {
       notices = [...notices, ...next];
 
       const unitCost = step.kind === 'mint' ? MINT_COST_STROOPS : BUY_COST_STROOPS;
-      let working = steps.map((s) =>
-        s.id === step.id
-          ? {
-              ...s,
-              trackIds: keep,
-              titles: keep.map((id) => titles.get(id) ?? 'Untitled track'),
-              costStroops: unitCost * BigInt(keep.length),
-            }
-          : s
-      );
-      if (moveToBuy.length) {
-        working = [
-          ...working,
-          {
-            id: `buy-x${Date.now().toString(36)}`,
-            kind: 'buy',
-            trackIds: moveToBuy,
-            titles: moveToBuy.map((id) => titles.get(id) ?? 'Untitled track'),
-            costStroops: BUY_COST_STROOPS * BigInt(moveToBuy.length),
-            status: 'pending',
-          },
-        ];
-      }
+      const narrowed: Partial<FlowStep> = {
+        trackIds: keep,
+        titles: keep.map((id) => titles.get(id) ?? 'Untitled track'),
+        costStroops: unitCost * BigInt(keep.length),
+      };
+      const extra: FlowStep[] = moveToBuy.length
+        ? [
+            {
+              id: `buy-x${Date.now().toString(36)}`,
+              kind: 'buy',
+              trackIds: moveToBuy,
+              titles: moveToBuy.map((id) => titles.get(id) ?? 'Untitled track'),
+              costStroops: BUY_COST_STROOPS * BigInt(moveToBuy.length),
+              status: 'pending',
+            },
+          ]
+        : [];
       if (keep.length === 0) {
-        // Nothing left to sign in this step: drop it without charging.
-        setSteps(working.filter((s) => s.id !== step.id));
-        finishIfDone();
+        // Nothing left to sign in this step: drop it without charging (ours only).
+        const dropped = writeIfStill(step.id, mine(), (shared) => [...removeIn(step.id)(shared), ...extra]);
+        if (dropped === 'ok') finishIfDone();
+        else if (dropped === 'lost') {
+          requireReconfirm('Another tab took over this purchase, so this tab changed nothing. Check the step below.');
+        }
         return;
       }
-      if (!setSteps(working) || (activeLease && !activeLease.stillHeld())) {
-        abortUnsaved(step.id, resumeStatus);
+      const updated = writeIfStill(step.id, mine(), (shared) => [...patchIn(step.id, narrowed)(shared), ...extra]);
+      if (updated !== 'ok' || (activeLease && !activeLease.stillHeld())) {
+        if (updated === 'lost') {
+          requireReconfirm('Another tab took over this purchase, so this tab sent nothing. Check the step below.');
+        } else {
+          abortUnsaved(step.id, resumeStatus);
+        }
         return;
       }
+      const working = steps;
       const current = working.find((s) => s.id === step.id)!;
       // Final signing guard (C-10): nothing is built or simulated unless the
       // pre-flight KALE read is KNOWN and covers this step.
       const guard = kaleGuard(kale, current.costStroops);
       if (guard !== 'ok') {
-        patchStep(step.id, { status: resumeStatus === 'cancelled' ? 'cancelled' : 'pending', failure: undefined });
+        writeIfStill(
+          step.id,
+          mine(),
+          patchIn(step.id, {
+            status: resumeStatus === 'cancelled' ? 'cancelled' : 'pending',
+            failure: undefined,
+            ownerTabId: undefined,
+            leaseExpiresAt: undefined,
+          })
+        );
         notices = [
           ...notices,
           {
@@ -941,15 +1003,15 @@ export function createCollectController(opts: {
        */
       const onBeforeSubmit = ({ expiresAtLedger }: { expiresAtLedger: number }) => {
         if (gen !== generation) throw new SubmitGuardError('stale');
-        const shared = readSharedSteps(true);
         const holdsLock = holdingWebLock || Boolean(activeLease?.stillHeld());
-        if (!ownsSigningClaim(shared, { stepId: step.id, tabId: TAB_ID, attemptId, now: Date.now(), holdsLock })) {
+        if (!ownsSigningClaim(readSharedSteps(true), { stepId: step.id, tabId: TAB_ID, attemptId, now: Date.now(), holdsLock })) {
+          steps = readSharedSteps(true) ?? [];
           throw new SubmitGuardError('stale');
         }
-        const next = shared!.map((s) =>
-          s.id === step.id ? { ...s, status: 'submitting' as const, since: Date.now(), expiresAtLedger } : s
-        );
-        if (!setSteps(next)) throw new SubmitGuardError('unsaved');
+        const saved = writeIfStill(step.id, mine(), patchIn(step.id, { status: 'submitting', since: Date.now(), expiresAtLedger }));
+        if (saved === 'lost') throw new SubmitGuardError('stale');
+        if (saved === 'unsaved') throw new SubmitGuardError('unsaved');
+        phase = 'submitting';
       };
 
       if (current.kind === 'mint') {
@@ -970,17 +1032,22 @@ export function createCollectController(opts: {
           ];
         }
         if (accepted.length === 0) {
-          setSteps(steps.filter((s) => s.id !== step.id));
+          writeIfStill(step.id, mine(), removeIn(step.id));
           void refresh({ markLoading: false });
           return;
         }
-        patchStep(step.id, {
-          status: 'confirming',
-          workflowIds: result.workflowIds.length ? result.workflowIds : undefined,
-          trackIds: accepted,
-          titles: accepted.map((id) => titles.get(id) ?? 'Untitled track'),
-          costStroops: unitCost * BigInt(accepted.length),
-        });
+        writeIfStill(
+          step.id,
+          mine(),
+          patchIn(step.id, {
+            status: 'confirming',
+            workflowIds: result.workflowIds.length ? result.workflowIds : undefined,
+            trackIds: accepted,
+            titles: accepted.map((id) => titles.get(id) ?? 'Untitled track'),
+            costStroops: unitCost * BigInt(accepted.length),
+          })
+        );
+        phase = 'confirming';
         startMintPolling();
       } else {
         const { submitBuyBatch } = await import('../hooks/useMixtapePurchase');
@@ -991,8 +1058,10 @@ export function createCollectController(opts: {
         });
         await submitBuyBatch({ tracks: buyTracks, userContractId: holder, userKeyId: keyId, onBeforeSubmit });
         if (gen !== generation) return;
-        patchStep(step.id, { status: 'confirming' });
-        void confirmBuy(step.id, keep);
+        if (writeIfStill(step.id, mine(), patchIn(step.id, { status: 'confirming' })) === 'ok') {
+          phase = 'confirming';
+          void confirmBuy(step.id, keep);
+        }
       }
     } catch (error) {
       if (gen !== generation) return;
@@ -1007,22 +1076,28 @@ export function createCollectController(opts: {
         return;
       }
       logger.error('collect', `Step ${step.id} failed`, error);
-      const was = steps.find((s) => s.id === step.id)?.status;
+      // This ATTEMPT's own phase (never inherited from another tab's record).
       // Only a step that never left the device (or a definite 4xx refusal) is
       // safely "not charged"; 5xx / transport errors after submission are
       // `uncertain` and lock their songs until reconciled.
       const failure = classifySubmitFailure({
         error,
         status: (error as { status?: number })?.status,
-        phase: was === 'submitting' ? 'submitting' : 'signing',
+        phase: phase === 'signing' ? 'signing' : 'submitting',
       });
-      patchStep(step.id, {
-        status: failure === 'cancelled' ? 'cancelled' : 'failed',
-        failure,
-        ownerTabId: undefined,
-        leaseExpiresAt: undefined,
-        attemptId: undefined,
-      });
+      const result = writeIfStill(
+        step.id,
+        mine(),
+        patchIn(step.id, {
+          status: failure === 'cancelled' ? 'cancelled' : 'failed',
+          failure,
+          ownerTabId: undefined,
+          leaseExpiresAt: undefined,
+        })
+      );
+      if (result === 'lost') {
+        requireReconfirm('Another tab took over this purchase, so this tab changed nothing. Check the step below.');
+      }
     } finally {
       clearInterval(leaseTimer);
     }
@@ -1030,6 +1105,8 @@ export function createCollectController(opts: {
 
   async function confirmBuy(stepId: string, ids: string[]) {
     const gen = generation;
+    // Only resolve the attempt that was confirming when this loop started.
+    const guard: StepGuard = { attemptId: steps.find((s) => s.id === stepId)?.attemptId, statuses: ['confirming'] };
     for (let attempt = 0; attempt < 8; attempt++) {
       await new Promise((r) => setTimeout(r, attempt === 0 ? 2_500 : 3_500));
       if (gen !== generation) return;
@@ -1040,12 +1117,11 @@ export function createCollectController(opts: {
         return h?.status === 'known' && h.balance > 0n;
       });
       if (owned) {
-        patchStep(stepId, { status: 'done' });
-        finishIfDone();
+        if (writeIfStill(stepId, guard, patchIn(stepId, { status: 'done' })) === 'ok') finishIfDone();
         return;
       }
     }
-    patchStep(stepId, { status: 'failed', failure: 'uncertain' });
+    writeIfStill(stepId, guard, patchIn(stepId, { status: 'failed', failure: 'uncertain' }));
   }
 
   function startMintPolling() {
@@ -1077,7 +1153,7 @@ export function createCollectController(opts: {
             if (gen !== generation) return;
             for (const s of steps) {
               if (s.kind === 'mint' && s.status === 'confirming' && s.trackIds.some((id) => failed.includes(id))) {
-                patchStep(s.id, { status: 'failed', failure: 'rejected' });
+                writeIfStill(s.id, asSeen(s), patchIn(s.id, { status: 'failed', failure: 'rejected' }));
               }
             }
           },
@@ -1085,7 +1161,7 @@ export function createCollectController(opts: {
         if (gen !== generation || controller.signal.aborted) return;
         for (const s of steps) {
           if (s.kind === 'mint' && s.status === 'confirming' && s.trackIds.some((id) => remaining.includes(id))) {
-            patchStep(s.id, { status: 'failed', failure: 'timeout' });
+            writeIfStill(s.id, asSeen(s), patchIn(s.id, { status: 'failed', failure: 'timeout' }));
           }
         }
       } catch (error) {
@@ -1104,7 +1180,7 @@ export function createCollectController(opts: {
     await refresh({ markLoading: false });
     for (const s of steps) {
       if (s.kind === 'mint' && s.status === 'confirming' && s.trackIds.every((id) => settledMintIds.has(id))) {
-        patchStep(s.id, { status: 'done' });
+        writeIfStill(s.id, asSeen(s), patchIn(s.id, { status: 'done' }));
       }
     }
     finishIfDone();
@@ -1164,7 +1240,9 @@ export function createCollectController(opts: {
         return h?.status === 'known' && h.balance > 0n;
       });
       const next = reconcileStep(step, { ok, ownedAll, latestLedger, now });
-      if (next !== step) patchStep(step.id, { status: next.status, failure: next.failure });
+      if (next !== step) {
+        writeIfStill(step.id, asSeen(step), patchIn(step.id, { status: next.status, failure: next.failure }));
+      }
     }
     finishIfDone();
   }
@@ -1179,7 +1257,7 @@ export function createCollectController(opts: {
     const added = steps.reduce((n, step) => n + step.trackIds.length, 0);
     doneSummary = { owned: s.owned, total: s.total, added };
     view = 'done';
-    persist();
+    // Already persisted by the guarded write that completed the last step.
     const title = opts.getMixtapeTitle();
     toast.success(s.owned === s.collectible ? `You own “${title}”.` : `You own ${added} more ${added === 1 ? 'song' : 'songs'}.`, {
       tag: TOAST_TAG,

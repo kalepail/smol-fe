@@ -315,12 +315,20 @@ test.describe('Report 34 regressions @390', () => {
 
     // Tab A is mid-collect: it holds the cross-tab lock (passkey prompt open).
     const lockName = `smol-collect:${COLLECTOR}:collect-minted`;
-    await tabA.evaluate((name) => {
-      (window as unknown as { __release: () => void }).__release = () => {};
-      void navigator.locks.request(name, () => new Promise<void>((resolve) => {
-        (window as unknown as { __release: () => void }).__release = resolve;
-      }));
-    }, lockName);
+    // Wait until A has actually been GRANTED the lock before B clicks.
+    await tabA.evaluate(
+      (name) =>
+        new Promise<void>((granted) => {
+          (window as unknown as { __release: () => void }).__release = () => {};
+          void navigator.locks.request(name, () => {
+            granted();
+            return new Promise<void>((resolve) => {
+              (window as unknown as { __release: () => void }).__release = resolve;
+            });
+          });
+        }),
+      lockName
+    );
 
     // Tab B clicks Collect: it must wait for A's lock, not sign.
     await sheetB.getByRole('button', { name: 'Collect for 264 KALE' }).click();
@@ -331,7 +339,8 @@ test.describe('Report 34 regressions @390', () => {
     await tabA.evaluate(
       ([key, value]) => {
         localStorage.setItem(key, value);
-        (window as unknown as { __release: () => void }).__release();
+        // Like the store: hold the lock briefly after the last write (cross-process propagation).
+        setTimeout(() => (window as unknown as { __release: () => void }).__release(), 150);
       },
       [
         `smol:collect:v1:${COLLECTOR}:collect-minted`,
@@ -638,6 +647,91 @@ test.describe('Report 34 regressions @390', () => {
     await expect(sheet.getByRole('button', { name: /^Continue/ })).toBeEnabled({ timeout: 5_000 });
     await expect(sheet.getByRole('button', { name: 'Waiting for passkey…' })).toHaveCount(0);
   });
+
+  for (const scenarioName of ['stale passkey cancel', 'stale preflight HTTP 500'] as const) {
+    test(`Pass5 ${scenarioName} after B's takeover never touches B's uncertain record`, async ({ context }) => {
+      await signIn(context);
+      await context.addInitScript(() => {
+        Object.defineProperty(Navigator.prototype, 'locks', { get: () => undefined, configurable: true });
+        const w = window as unknown as {
+          __relays: string[][];
+          __cancelPasskey: () => void;
+          __smolCollectSeams: unknown;
+        };
+        w.__relays = [];
+        w.__smolCollectSeams = {
+          buy: {
+            assemble: async () => ({}),
+            expiration: async () => 66_000_000,
+            sign: () =>
+              new Promise<void>((_resolve, reject) => {
+                w.__cancelPasskey = () =>
+                  reject(Object.assign(new Error('The operation either timed out or was not allowed.'), { name: 'NotAllowedError' }));
+              }),
+            relay: async (ids: string[]) => {
+              w.__relays.push(ids);
+            },
+          },
+        };
+      });
+      const flowKey = `smol:collect:v1:${COLLECTOR}:collect-minted`;
+      const leaseKey = `smol:collect-lock:v1:${COLLECTOR}:collect-minted`;
+      let scenarioA: ChainScenario = { minted: mintedIds, balances: {}, kale: KALE(1_000) };
+      const tabA = await context.newPage();
+      const tabB = await context.newPage();
+      await installStellarMock(tabA, () => scenarioA);
+      await installStellarMock(tabB, () => ({ minted: mintedIds, balances: {}, kale: KALE(1_000) }));
+      await tabA.goto('/mixtapes/collect-minted');
+      await card(tabA).getByRole('button', { name: 'Buy all 8 · 264 KALE' }).click({ timeout: 10_000 });
+      if (scenarioName === 'stale preflight HTTP 500') {
+        // A's pre-sign ledger read is held, then fails with HTTP 500.
+        scenarioA = { ...scenarioA, delayMs: 2_500, fail: true };
+      }
+      await tabA.locator('dialog[open]').getByRole('button', { name: 'Collect for 264 KALE' }).click();
+      // A's signing claim is persisted (A is now at its preflight / passkey prompt).
+      await expect.poll(() => tabA.evaluate((k) => localStorage.getItem(k) ?? '', flowKey)).toContain('"status":"signing"');
+
+      // A's lease expires; B takes over, approves the 8-song buy and loses the relay response.
+      await tabB.goto('/mixtapes/collect-minted');
+      const recordB = await tabB.evaluate(
+        ([flowKey, leaseKey]) => {
+          const flow = JSON.parse(localStorage.getItem(flowKey)!);
+          flow.updatedAt = Date.now();
+          flow.steps = flow.steps.map((s: Record<string, unknown>) => ({
+            ...s,
+            status: 'failed',
+            failure: 'uncertain',
+            ownerTabId: 'tab-B',
+            attemptId: 'b-1',
+            leaseExpiresAt: undefined,
+            since: Date.now(),
+            expiresAtLedger: 99_999_999,
+          }));
+          localStorage.setItem(leaseKey, JSON.stringify({ owner: 'tab-B', expiresAt: Date.now() + 60_000 }));
+          const value = JSON.stringify(flow);
+          localStorage.setItem(flowKey, value);
+          return value;
+        },
+        [flowKey, leaseKey] as const
+      );
+
+      if (scenarioName === 'stale passkey cancel') {
+        await tabA.evaluate(() => (window as unknown as { __cancelPasskey: () => void }).__cancelPasskey());
+      }
+      // A's stale outcome is ignored; it shows B's record instead of writing.
+      await expect(tabA.locator('dialog[open]').getByText(/Another tab took over this purchase/)).toBeVisible({ timeout: 10_000 });
+      await tabA.waitForTimeout(400);
+      expect(await tabA.evaluate((k) => localStorage.getItem(k), flowKey), "B's uncertain record is byte-identical").toBe(recordB);
+      expect(await tabA.evaluate(() => (window as unknown as { __relays: string[][] }).__relays.length), 'A relays nothing').toBe(0);
+
+      // B (reloaded) still sees its unsettled buy and cannot submit a second 264-KALE buy.
+      await tabB.reload();
+      await expect(card(tabB).getByRole('heading')).toHaveText('Collecting paused', { timeout: 10_000 });
+      await expect(tabB.getByRole('button', { name: /^(Continue|Buy all 8|Collect for)/ })).toHaveCount(0);
+      expect(await tabB.evaluate((k) => localStorage.getItem(k), flowKey)).toBe(recordB);
+      expect(await tabB.evaluate(() => (window as unknown as { __relays: string[][] }).__relays.length)).toBe(0);
+    });
+  }
 
   test('#4 an unaudited pool executable can never be traded from the song sheet', async ({ page, context }) => {
     await signIn(context);
