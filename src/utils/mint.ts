@@ -1,8 +1,7 @@
 import { Asset } from '@stellar/stellar-sdk/minimal';
 import { Client as SmolClient } from 'smol-sdk';
-import { rpc } from './base';
-import { getWebAuthnRpId } from './rpId';
-import { getConnectedAccount } from './wallet';
+import { signWithPasskey } from './passkeySign';
+import { SMOL_ISSUER } from './smolChainIdentity';
 export { MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from './mintConstants';
 
 export interface MintOptions {
@@ -14,6 +13,19 @@ export interface MintOptions {
   networkPassphrase: string;
   creatorAddress: string;
   kaleSacId: string;
+}
+
+/** Fee split: creator 25% + minter 25%, or 50% when the creator mints their own song. */
+export function buildMintFeeRule(creatorAddress: string, minterAddress: string, kaleSacId: string) {
+  return creatorAddress === minterAddress
+    ? { fee_asset: kaleSacId, recipients: [{ percent: 50_00000n, recipient: creatorAddress }] }
+    : {
+        fee_asset: kaleSacId,
+        recipients: [
+          { percent: 25_00000n, recipient: creatorAddress },
+          { percent: 25_00000n, recipient: minterAddress },
+        ],
+      };
 }
 
 export async function createMintTransaction(options: MintOptions) {
@@ -32,46 +44,16 @@ export async function createMintTransaction(options: MintOptions) {
   });
 
   const assetCode = id.padStart(64, '0').substring(0, 12);
-  const issuer = 'GBVJZCVQIKK7SL2K6NL4BO6ZYNXAGNVBTAQDDNOIJ5VPP3IXCSE2SMOL';
-  const asset = new Asset(assetCode, issuer);
-
-  const feeRule = creatorAddress === contractId
-    ? {
-        fee_asset: kaleSacId,
-        recipients: [{
-          percent: 50_00000n,
-          recipient: creatorAddress,
-        }],
-      }
-    : {
-        fee_asset: kaleSacId,
-        recipients: [
-          {
-            percent: 25_00000n,
-            recipient: creatorAddress,
-          },
-          {
-            percent: 25_00000n,
-            recipient: contractId,
-          },
-        ],
-      };
+  const asset = new Asset(assetCode, SMOL_ISSUER);
 
   let at = await smolClient.coin_it({
     user: contractId,
     asset_bytes: asset.toXDRObject().toXDR(),
     salt,
-    fee_rule: feeRule,
+    fee_rule: buildMintFeeRule(creatorAddress, contractId, kaleSacId),
   });
 
-  const { sequence } = await rpc.getLatestLedger();
-  const { account } = await getConnectedAccount();
-
-  at = await account.sign(at, {
-    rpId: getWebAuthnRpId(),
-    keyId,
-    expiration: sequence + 60,
-  });
+  at = await signWithPasskey(at, { keyId });
 
   const xdrString = at.built?.toXDR();
 

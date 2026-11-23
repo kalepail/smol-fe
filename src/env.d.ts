@@ -11,6 +11,10 @@ interface ImportMetaEnv {
   readonly PUBLIC_RELAYER_URL: string;
   // Turnstile site key for bot protection
   readonly PUBLIC_TURNSTILE_SITE_KEY: string;
+  // Opt-in: smol-workflow POST /chain/snapshot (Report 31). Falls back to batched getLedgerEntries.
+  readonly PUBLIC_CHAIN_SNAPSHOT?: string;
+  // Opt-in: smol-workflow POST /mint/status. Auto-detected (404 → chain fallback) when unset.
+  readonly PUBLIC_MINT_STATUS?: string;
 }
 
 interface ImportMeta {

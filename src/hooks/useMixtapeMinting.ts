@@ -1,301 +1,197 @@
+/**
+ * Mixtape mint helpers — LAZY-LOADED (smol-sdk, passkey-kit, Stellar SDK).
+ *
+ * - `submitMintBatch`: build ONE `coin_them` (≤5 songs), sign with ONE passkey
+ *   prompt (explicit expiry, zero getLatestLedger), POST /mint. Minting makes
+ *   the collector the owner: 10,000,000 tokens are minted to `user`.
+ * - `pollMintSettlement`: ONE abortable, sequential poll loop for every
+ *   outstanding mint on the page (replaces N per-track `GET /:id` intervals
+ *   that inflated Views). Uses `POST /mint/status` when the API has it, else one
+ *   batched on-chain read of the canonical SACs + holder balances per tick.
+ */
 import { Asset } from '@stellar/stellar-sdk/minimal';
 import { Client as SmolClient } from 'smol-sdk';
-import type { Smol } from '../types/domain';
-import type { MixtapeSmolData } from '../services/api/mixtapes';
-import { rpc } from '../utils/base';
 import { logger } from '../utils/logger';
-import { MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from '../utils/mintConstants';
-import { getWebAuthnRpId } from '../utils/rpId';
-import { getConnectedAccount } from '../utils/wallet';
+import { buildMintFeeRule } from '../utils/mint';
+import { signWithPasskey } from '../utils/passkeySign';
+import { SMOL_ISSUER, readMixtapeChainSnapshot } from '../utils/smolChainIdentity';
 
-interface MintingState {
-  mintIntervals: Map<string, NodeJS.Timeout>;
-  mintTimeouts: Map<string, NodeJS.Timeout>;
+export class CollectRequestError extends Error {
+  readonly status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = 'CollectRequestError';
+    this.status = status;
+  }
 }
 
-interface MintBatchParams {
-  tracksWithData: Array<{ track: MixtapeSmolData; trackData: Smol }>;
-  smolContractId: string;
+export interface MintBatchTrack {
+  id: string;
+  creator: string;
+}
+
+export interface MintBatchResult {
+  acceptedIds: string[];
+  alreadyMintedIds: string[];
+}
+
+export async function submitMintBatch(params: {
+  tracks: MintBatchTrack[];
   userContractId: string;
   userKeyId: string;
-  kaleSacId: string;
-}
+  /** Fires once the passkey signature is done (UI: Approve → Sending). */
+  onSigned?: () => void;
+}): Promise<MintBatchResult> {
+  const { tracks, userContractId, userKeyId, onSigned } = params;
+  const smolContractId = import.meta.env.PUBLIC_SMOL_CONTRACT_ID;
+  const kaleSacId = import.meta.env.PUBLIC_KALE_SAC_ID;
+  if (!smolContractId || !kaleSacId) throw new Error('Minting is not configured');
+  if (tracks.length === 0) return { acceptedIds: [], alreadyMintedIds: [] };
 
-interface MintAllTracksParams {
-  mixtapeTracks: Smol[];
-  userContractId: string;
-  userKeyId: string;
-}
+  const asset_bytes: Buffer[] = [];
+  const salts: Buffer[] = [];
+  const fee_rules: ReturnType<typeof buildMintFeeRule>[] = [];
+  for (const track of tracks) {
+    const padded = track.id.padStart(64, '0');
+    const salt = Buffer.from(padded, 'hex');
+    if (salt.length !== 32 || !track.creator) {
+      throw new Error(`Invalid smol for minting: ${track.id}`);
+    }
+    asset_bytes.push(Buffer.from(new Asset(padded.substring(0, 12), SMOL_ISSUER).toXDRObject().toXDR()));
+    salts.push(salt);
+    fee_rules.push(buildMintFeeRule(track.creator, userContractId, kaleSacId));
+  }
 
-export function useMixtapeMinting() {
-  const mintingState: MintingState = {
-    mintIntervals: new Map(),
-    mintTimeouts: new Map(),
+  const smolClient = new SmolClient({
+    contractId: smolContractId,
+    rpcUrl: import.meta.env.PUBLIC_RPC_URL!,
+    networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE!,
+  });
+
+  const tx = await smolClient.coin_them({ user: userContractId, asset_bytes, salts, fee_rules });
+  await signWithPasskey(tx, { keyId: userKeyId });
+  onSigned?.();
+  const xdr = tx.built?.toXDR();
+  if (!xdr) throw new Error('Failed to build signed coin_them transaction');
+
+  const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/mint`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ xdr, ids: tracks.map((t) => t.id) }),
+  });
+  if (!response.ok) {
+    throw new CollectRequestError(response.status, `Mint request failed (${response.status})`);
+  }
+  const body = (await response.json().catch(() => null)) as {
+    acceptedIds?: string[];
+    skipped?: { alreadyMinted?: string[] };
+  } | null;
+  return {
+    acceptedIds: body?.acceptedIds ?? tracks.map((t) => t.id),
+    alreadyMintedIds: body?.skipped?.alreadyMinted ?? [],
   };
+}
 
-  function clearMintPolling(trackId: string) {
-    const interval = mintingState.mintIntervals.get(trackId);
-    if (interval) {
-      clearInterval(interval);
-      mintingState.mintIntervals.delete(trackId);
-    }
+// ---------------------------------------------------------------------------
+// One poll loop per page
+// ---------------------------------------------------------------------------
 
-    const timeout = mintingState.mintTimeouts.get(trackId);
-    if (timeout) {
-      clearTimeout(timeout);
-      mintingState.mintTimeouts.delete(trackId);
-    }
-  }
+/** null = unknown, false = API has no /mint/status (fallback to chain reads). */
+let mintStatusSupported: boolean | null = import.meta.env.PUBLIC_MINT_STATUS === '1' ? true : null;
 
-  function clearAllMintPolling() {
-    for (const trackId of mintingState.mintIntervals.keys()) {
-      clearMintPolling(trackId);
-    }
-  }
-
-  async function pollTrackMintStatus(
-    trackId: string,
-    onMinted: (trackId: string, mintToken: string, mintAmm: string) => void
-  ): Promise<void> {
-    try {
-      const response = await fetch(
-        `${import.meta.env.PUBLIC_API_URL}/${trackId}`,
-        {
-          credentials: 'include',
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        const d1 = data?.d1;
-
-        if (d1?.Mint_Token && d1?.Mint_Amm) {
-          clearMintPolling(trackId);
-          onMinted(trackId, d1.Mint_Token, d1.Mint_Amm);
-        }
-      }
-    } catch (error) {
-      logger.error('mint', `Error polling mint status for ${trackId}:`, error);
-    }
-  }
-
-  async function mintBatch(
-    params: MintBatchParams,
-    onMinted: (trackId: string, mintToken: string, mintAmm: string) => void
-  ): Promise<void> {
-    const { tracksWithData, smolContractId, userContractId, userKeyId, kaleSacId } = params;
-
-    // Prepare arrays for coin_them
-    const assetBytesArray: Buffer[] = [];
-    const saltsArray: Buffer[] = [];
-    const feeRulesArray: Array<
-      | {
-          fee_asset: string;
-          recipients: Array<{ percent: bigint; recipient: string }>;
-        }
-      | undefined
-    > = [];
-    const issuer = 'GBVJZCVQIKK7SL2K6NL4BO6ZYNXAGNVBTAQDDNOIJ5VPP3IXCSE2SMOL';
-
-    for (const { track, trackData } of tracksWithData) {
-      const salt = Buffer.from(track.Id.padStart(64, '0'), 'hex');
-      if (salt.length !== 32) {
-        throw new Error(`Invalid smol identifier for minting: ${track.Id}`);
-      }
-
-      const assetCode = track.Id.padStart(64, '0').substring(0, 12);
-      const asset = new Asset(assetCode, issuer);
-
-      assetBytesArray.push(Buffer.from(asset.toXDRObject().toXDR()));
-      saltsArray.push(salt);
-
-      // Build fee_rule for this track
-      const creatorAddress = trackData.Address!;
-
-      if (creatorAddress === userContractId) {
-        // Same address - give 50% to the single recipient
-        feeRulesArray.push({
-          fee_asset: kaleSacId,
-          recipients: [
-            {
-              percent: 50_00000n,
-              recipient: creatorAddress,
-            },
-          ],
-        });
-      } else {
-        // Different addresses - split 25% each
-        feeRulesArray.push({
-          fee_asset: kaleSacId,
-          recipients: [
-            {
-              percent: 25_00000n,
-              recipient: creatorAddress,
-            },
-            {
-              percent: 25_00000n,
-              recipient: userContractId,
-            },
-          ],
-        });
-      }
-    }
-
-    // Create SmolClient and call coin_them
-    const smolClient = new SmolClient({
-      contractId: smolContractId,
-      rpcUrl: import.meta.env.PUBLIC_RPC_URL!,
-      networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE!,
-    });
-
-    let at = await smolClient.coin_them({
-      user: userContractId,
-      asset_bytes: assetBytesArray,
-      salts: saltsArray,
-      fee_rules: feeRulesArray,
-    });
-
-    const { sequence } = await rpc.getLatestLedger();
-    const { account } = await getConnectedAccount();
-    at = await account.sign(at, {
-      rpId: getWebAuthnRpId(),
-      keyId: userKeyId,
-      expiration: sequence + 60,
-    });
-
-    const xdrString = at.built?.toXDR();
-
-    if (!xdrString) {
-      throw new Error('Failed to build signed coin_them transaction');
-    }
-
-    logger.info('mint', 'Batch Mint Transaction XDR:', xdrString);
-    logger.info(
-      'mint',
-      'Tracks in batch:',
-      tracksWithData.map(({ track }) => track.Id)
-    );
-
-    // Submit to backend
-    const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/mint`, {
+async function readMintStatus(ids: string[], signal: AbortSignal): Promise<Map<string, 'settled' | 'failed'> | null> {
+  if (mintStatusSupported === false) return null;
+  try {
+    const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/mint/status`, {
       method: 'POST',
       credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+      signal,
+    });
+    if (response.status === 404 || response.status === 405 || response.status === 501) {
+      mintStatusSupported = false;
+      return null;
+    }
+    if (!response.ok) return new Map();
+    mintStatusSupported = true;
+    const body = (await response.json()) as {
+      batches?: { phase?: string; ids?: string[] }[];
+    };
+    const out = new Map<string, 'settled' | 'failed'>();
+    for (const batch of body.batches ?? []) {
+      const phase = batch.phase;
+      if (phase === 'persisted' || phase === 'confirmed' || phase === 'failed') {
+        for (const id of batch.ids ?? []) out.set(id, phase === 'failed' ? 'failed' : 'settled');
+      }
+    }
+    return out;
+  } catch (error) {
+    if (signal.aborted) throw error;
+    // A network blip is not "unsupported": retry next tick.
+    return new Map();
+  }
+}
+
+async function readChainSettlement(ids: string[], holder: string): Promise<Map<string, 'settled'>> {
+  const snapshot = await readMixtapeChainSnapshot({ tracks: ids.map((id) => ({ id })), holder });
+  const out = new Map<string, 'settled'>();
+  for (const id of ids) {
+    const read = snapshot.tracks.get(id);
+    if (read?.facts.status === 'minted' && read.holding.status === 'known' && read.holding.balance > 0n) {
+      out.set(id, 'settled');
+    }
+  }
+  return out;
+}
+
+function sleep(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    signal.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer);
+        reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
       },
-      body: JSON.stringify({
-        xdr: xdrString,
-        ids: tracksWithData.map(({ track }) => track.Id),
-      }),
-    });
-
-    if (!response.ok) {
-      const message = await response.text();
-      throw new Error(message || 'Failed to start batch mint workflow');
-    }
-
-    // Start polling for all tracks in this batch
-    for (const { track } of tracksWithData) {
-      const interval = setInterval(
-        () => pollTrackMintStatus(track.Id, onMinted),
-        MINT_POLL_INTERVAL
-      );
-      mintingState.mintIntervals.set(track.Id, interval);
-
-      const timeout = setTimeout(() => {
-        clearMintPolling(track.Id);
-      }, MINT_POLL_TIMEOUT);
-      mintingState.mintTimeouts.set(track.Id, timeout);
-
-      // Do initial poll
-      await pollTrackMintStatus(track.Id, onMinted);
-    }
-  }
-
-  async function mintAllTracks(
-    params: MintAllTracksParams,
-    mixtape: { tracks: MixtapeSmolData[] },
-    onMinted: (trackId: string, mintToken: string, mintAmm: string) => void,
-    onBatchError: (chunkIndex: number, error: Error) => void
-  ): Promise<void> {
-    const { mixtapeTracks, userContractId, userKeyId } = params;
-
-    const smolContractId = import.meta.env.PUBLIC_SMOL_CONTRACT_ID;
-    if (!smolContractId) {
-      throw new Error('Missing PUBLIC_SMOL_CONTRACT_ID env var');
-    }
-
-    const kaleSacId = import.meta.env.PUBLIC_KALE_SAC_ID;
-    if (!kaleSacId) {
-      throw new Error('Missing PUBLIC_KALE_SAC_ID env var');
-    }
-
-    // Find all tracks that need minting
-    const tracksToMintData = mixtapeTracks.filter((track) => {
-      return track && !track.Mint_Token;
-    });
-
-    if (tracksToMintData.length === 0) return;
-
-    // Get track data for all tracks to mint
-    const tracksWithData: Array<{ track: MixtapeSmolData; trackData: Smol }> = [];
-    for (const trackData of tracksToMintData) {
-      const track = mixtape.tracks.find((t) => t.Id === trackData.Id);
-      if (!track) continue;
-      if (!trackData?.Address) {
-        logger.warn('mint', `No creator address for track ${trackData.Id}`);
-        continue;
-      }
-      tracksWithData.push({ track, trackData });
-    }
-
-    if (tracksWithData.length === 0) return;
-
-    // Process in chunks of 5
-    const CHUNK_SIZE = 5;
-    const chunks: Array<Array<{ track: MixtapeSmolData; trackData: Smol }>> = [];
-
-    for (let i = 0; i < tracksWithData.length; i += CHUNK_SIZE) {
-      chunks.push(tracksWithData.slice(i, i + CHUNK_SIZE));
-    }
-
-    logger.info(
-      'mint',
-      `Processing ${tracksWithData.length} mints in ${chunks.length} batch(es) of up to ${CHUNK_SIZE}`
+      { once: true }
     );
+  });
+}
 
-    // Process each chunk sequentially
-    for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
-      const chunk = chunks[chunkIndex];
-      logger.info(
-        'mint',
-        `Processing batch ${chunkIndex + 1}/${chunks.length} with ${chunk.length} track(s)`
-      );
-
-      try {
-        await mintBatch(
-          {
-            tracksWithData: chunk,
-            smolContractId,
-            userContractId,
-            userKeyId,
-            kaleSacId,
-          },
-          onMinted
-        );
-      } catch (error) {
-        logger.error('mint', `Error processing batch ${chunkIndex + 1}:`, error);
-        onBatchError(chunkIndex, error as Error);
-        // Stop processing remaining batches
-        throw error;
-      }
+/**
+ * Poll until every id settles, the signal aborts, or `deadline` passes.
+ * Ticks never overlap; backoff 3s → 8s with jitter.
+ */
+export async function pollMintSettlement(params: {
+  ids: string[];
+  holder: string;
+  signal: AbortSignal;
+  deadline: number;
+  onSettled: (ids: string[]) => void;
+  onFailed?: (ids: string[]) => void;
+}): Promise<{ remaining: string[] }> {
+  const remaining = new Set(params.ids);
+  let delay = 3_000;
+  await sleep(1_500, params.signal);
+  while (remaining.size > 0 && Date.now() < params.deadline) {
+    const ids = [...remaining];
+    try {
+      const status = (await readMintStatus(ids, params.signal)) ?? (await readChainSettlement(ids, params.holder));
+      const settled = ids.filter((id) => status.get(id) === 'settled');
+      const failed = ids.filter((id) => status.get(id) === 'failed');
+      for (const id of [...settled, ...failed]) remaining.delete(id);
+      if (settled.length) params.onSettled(settled);
+      if (failed.length) params.onFailed?.(failed);
+    } catch (error) {
+      if (params.signal.aborted) throw error;
+      logger.warn('mint', 'Mint status tick failed; retrying', error);
     }
+    if (remaining.size === 0) break;
+    await sleep(delay + Math.floor(Math.random() * 500), params.signal);
+    delay = Math.min(8_000, Math.round(delay * 1.4));
   }
-
-  return {
-    mintAllTracks,
-    clearMintPolling,
-    clearAllMintPolling,
-    pollTrackMintStatus,
-  };
+  return { remaining: [...remaining] };
 }

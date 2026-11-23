@@ -5,8 +5,8 @@
   import { openAuthSheet } from '../stores/authSheet.svelte';
   import { toast } from '../stores/toast.svelte';
   import { shortenAddress } from '../utils/address';
-  import { getWebAuthnRpId } from '../utils/rpId';
   import { getConnectedAccount } from '../utils/wallet';
+  import { KALE_DECIMALS } from '../utils/mixtapePricing';
   import { logger } from '../utils/logger';
   import Button from './ui/Button.svelte';
   import Icon from './ui/Icon.svelte';
@@ -18,26 +18,14 @@
   let submitting = $state(false);
   let error = $state<string | null>(null);
   let success = $state<string | null>(null);
-  let kaleDecimals = $state(7);
-  let decimalsFactor = $state(10n ** 7n);
+  // KALE is a SAC with a fixed 7 decimals: no decimals() simulation needed.
+  const kaleDecimals = KALE_DECIMALS;
+  const decimalsFactor = 10n ** BigInt(KALE_DECIMALS);
   let showKaleInfo = $state(false);
 
-  onMount(async () => {
-    if (!userState.contractId) return;
-
-    try {
-      const { kale } = await import('../utils/passkey-kit');
-      const { result } = await kale.decimals();
-      kaleDecimals = Number(result);
-      decimalsFactor = 10n ** BigInt(kaleDecimals);
-    } catch (err) {
-      logger.error('account', 'Failed to load KALE decimals', err);
-      kaleDecimals = 7;
-      decimalsFactor = 10n ** 7n;
-    }
-
-    if (userState.contractId && balanceState.balance === null && !balanceState.loading) {
-      await updateContractBalance(userState.contractId);
+  onMount(() => {
+    if (userState.contractId && !balanceState.loading) {
+      void updateContractBalance(userState.contractId);
     }
   });
 
@@ -109,9 +97,9 @@
 
     submitting = true;
     try {
-      const [{ account, kale, send }, { rpc }] = await Promise.all([
+      const [{ kale, send }, { signWithPasskey }] = await Promise.all([
         getConnectedAccount(),
-        import('../utils/base'),
+        import('../utils/passkeySign'),
       ]);
 
       let tx = await kale.transfer({
@@ -120,15 +108,10 @@
         amount: amountInUnits,
       });
 
-      const { sequence } = await rpc.getLatestLedger();
-      tx = await account.sign(tx, {
-        rpId: getWebAuthnRpId(),
-        keyId: userState.keyId,
-        expiration: sequence + 60,
-      });
+      tx = await signWithPasskey(tx, { keyId: userState.keyId });
 
       await send(tx);
-      await updateContractBalance(userState.contractId);
+      await updateContractBalance(userState.contractId, { force: true });
 
       const displayAmount = formatKaleBalance(amountInUnits);
       success = `Sent ${displayAmount} KALE to ${shortenAddress(destination, 4)}.`;

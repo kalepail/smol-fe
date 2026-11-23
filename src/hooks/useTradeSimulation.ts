@@ -57,6 +57,11 @@ export function useTradeSimulation() {
     }
   }
 
+  /** Drop any in-flight simulation result (a local quote superseded it). */
+  function invalidate() {
+    simulationNonce++;
+  }
+
   function getCurrentNonce(): number {
     return simulationNonce;
   }
@@ -65,6 +70,7 @@ export function useTradeSimulation() {
     scheduleSimulation,
     runSimulation,
     clearTimer,
+    invalidate,
     getCurrentNonce,
   };
 }

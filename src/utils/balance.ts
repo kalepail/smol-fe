@@ -17,19 +17,3 @@ export function abbreviateNumber(value: bigint): string {
   }
   return result.toFixed(result < 10 ? 2 : 1) + suffixes[suffixIndex];
 }
-
-interface BalanceClientLike {
-  balance(arg: { id: string }): Promise<{ result: bigint }>;
-}
-
-export async function getTokenBalance(
-  mintTokenClient: BalanceClientLike,
-  contractId: string
-): Promise<bigint> {
-  try {
-    const { result } = await mintTokenClient.balance({ id: contractId });
-    return result;
-  } catch {
-    return 0n;
-  }
-}

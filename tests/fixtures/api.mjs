@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
+import { collectMixtapes } from './collect.mjs';
 
 function crc32(buf) {
   let c = 0xffffffff;
@@ -140,6 +141,7 @@ const routes = new Map([
   ['/artists/fixture-artist/smols', { ...list, artist }],
   ['/mixtapes', [{ ...mixtape, Smols: Smols.map((track) => track.Id) }, secondMixtape]],
   ['/mixtapes/fixture-mixtape', { ...mixtape, Smols }],
+  ...Object.entries(collectMixtapes).map(([id, data]) => [`/mixtapes/${id}`, data]),
   ['/search', { results: tracks.slice(0, 4).map((t, i) => ({ ...t, score: 1 - i * 0.1 })) }],
   ['/search/first-smol/similar', { results: tracks.slice(2, 6).map((t, i) => ({ ...t, score: 0.9 - i * 0.1 })) }],
   ['/search/smol-2take/similar', { results: tracks.slice(0, 4).map((t, i) => ({ ...t, score: 0.9 - i * 0.1 })) }],

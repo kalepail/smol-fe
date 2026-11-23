@@ -3,8 +3,9 @@
   import type { Smol } from '../../types/domain';
   import MiniAudioPlayer from '../audio/MiniAudioPlayer.svelte';
   import LikeButton from '../ui/LikeButton.svelte';
-  import TokenBalancePill from '../ui/TokenBalancePill.svelte';
   import CoverArt from '../ui/CoverArt.svelte';
+  import TrackCollectPill from './TrackCollectPill.svelte';
+  import type { TrackCollectState } from '../../utils/mixtapeOwnership';
   import Chip from '../ui/Chip.svelte';
   import { player } from '../../stores/audio.svelte';
   import { trackKey } from '../../utils/track';
@@ -13,6 +14,9 @@
   interface Props {
     mixtape: MixtapeDetail;
     mixtapeTracks: Smol[];
+    collectStates: TrackCollectState[];
+    balances: (bigint | undefined)[];
+    signedIn: boolean;
     onTrackClick: (index: number) => void;
     onLikeChanged: (index: number, liked: boolean) => void;
   }
@@ -20,17 +24,26 @@
   let {
     mixtape,
     mixtapeTracks,
+    collectStates,
+    balances,
+    signedIn,
     onTrackClick,
     onLikeChanged,
   }: Props = $props();
+
+  const counter = $derived.by(() => {
+    const total = collectStates.length;
+    if (total === 0) return `${mixtape.trackCount} ${mixtape.trackCount === 1 ? 'song' : 'songs'}`;
+    if (signedIn) return `${collectStates.filter((s) => s === 'owned').length}/${total} owned`;
+    return `${collectStates.filter((s) => s === 'available').length}/${total} minted`;
+  });
+
 </script>
 
 <section class="border-t border-line pt-6">
   <header class="mb-3 flex items-center justify-between">
     <h2 class="text-lg font-semibold text-ink-1">Tracklist</h2>
-    <span class="tabular text-xs text-ink-3">
-      {mixtape.trackCount} {mixtape.trackCount === 1 ? 'song' : 'songs'}
-    </span>
+    <span class="tabular text-xs font-medium text-ink-2">{counter}</span>
   </header>
 
   {#if mixtape.tracks.length === 0}
@@ -43,13 +56,13 @@
         {@const smolTrack = mixtapeTracks[index]}
         {@const key = smolTrack?.Song_1 ? trackKey(track.Id, smolTrack.Song_1) : null}
         {@const isCurrentTrack = Boolean(key && player.track?.key === key)}
-        {@const isMinted = Boolean(smolTrack?.Mint_Token && smolTrack?.Mint_Amm)}
-        {@const balance = smolTrack?.balance || 0n}
+        {@const collectState = collectStates[index]}
+        {@const inFlight = collectState === 'minting' || collectState === 'buying'}
 
         <li
-          class={`flex items-center gap-3 py-3 px-2 -mx-2 rounded-[var(--radius-control)] ${
+          class={`flex items-center gap-3 py-3 px-2 -mx-2 rounded-[var(--radius-control)] transition-opacity ${
             isCurrentTrack ? 'bg-surface-1 ring-1 ring-inset ring-accent/40' : 'hover:bg-surface-1/70'
-          }`}
+          } ${inFlight ? 'opacity-60' : ''}`}
         >
           <span class="tabular hidden w-6 shrink-0 text-right font-mono text-xs text-ink-3 sm:inline-block">
             {index + 1}
@@ -81,14 +94,19 @@
                   {/each}
                 </span>
               {/if}
-              {#if isMinted}
-                <Chip tone="success" class="py-0 text-[11px]">Minted</Chip>
-              {/if}
-              {#if isMinted && balance > 0n}
-                <TokenBalancePill {balance} />
+              {#if collectState}
+                <span class="lg:hidden">
+                  <TrackCollectPill state={collectState} balance={balances[index]} {signedIn} />
+                </span>
               {/if}
             </div>
           </div>
+
+          {#if collectState}
+            <div class="hidden w-44 shrink-0 lg:flex">
+              <TrackCollectPill state={collectState} balance={balances[index]} {signedIn} />
+            </div>
+          {/if}
 
           <div class="flex shrink-0 items-center gap-1">
             <LikeButton

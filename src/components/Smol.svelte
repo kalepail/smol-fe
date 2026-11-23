@@ -92,6 +92,16 @@
     }
   });
 
+  // `/{id}?trade=1` (mixtape holdings → Trade) opens the trade sheet once the market is known.
+  let tradeDeepLinkHandled = false;
+  $effect(() => {
+    if (!tradeReady || tradeDeepLinkHandled || typeof window === 'undefined') return;
+    tradeDeepLinkHandled = true;
+    if (new URLSearchParams(window.location.search).get('trade') === '1') {
+      showTradeModal = true;
+    }
+  });
+
   $effect(() => {
     if (d1?.Song_1 && !best_song) {
       best_song = d1.Song_1;
@@ -105,7 +115,7 @@
       minting = false;
       mintingHook.clearMintPolling();
       if (userState.contractId) {
-        void updateContractBalance(userState.contractId);
+        void updateContractBalance(userState.contractId, { force: true });
       }
     }
   });

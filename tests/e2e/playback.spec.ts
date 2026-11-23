@@ -174,17 +174,17 @@ test('the persisted audio handles navigation, now playing sheet, natural advance
 
   await page.getByRole('navigation', { name: 'Mobile navigation' }).getByRole('link', { name: 'Mixtapes', exact: true }).click();
   await page.getByRole('link', { name: /Fixture Mixtape/ }).click();
-  await page.getByRole('button', { name: 'Play All' }).tap();
+  const header = page.locator('main header').first();
+  await header.getByRole('button', { name: 'Play', exact: true }).tap();
   await expect.poll(() => snapshot(page)).toMatchObject({
     sameElement: true, title: 'First Track', album: 'Fixture Mixtape', paused: false,
   });
-  await page.getByRole('button', { name: 'Stop Playing' }).tap();
-  await expect(dock).toHaveCount(0);
-  expect(await page.evaluate(() => ({
-    state: navigator.mediaSession.playbackState,
-    metadata: navigator.mediaSession.metadata,
-    src: document.querySelector('audio')?.getAttribute('src'),
-  }))).toEqual({ state: 'none', metadata: null, src: null });
+  // C-08: Play ⇄ Pause (never a danger "Stop Playing"); pausing keeps the queue and dock.
+  await expect(page.getByRole('button', { name: 'Stop Playing' })).toHaveCount(0);
+  await header.getByRole('button', { name: 'Pause', exact: true }).tap();
+  await expect.poll(() => snapshot(page)).toMatchObject({ sameElement: true, paused: true });
+  await expect(header.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+  await expect(dock).toHaveCount(1);
 });
 
 test('song, mixtape, artist and playlist islands reuse their single SSR response (G3)', async ({ page, request }) => {
@@ -192,7 +192,7 @@ test('song, mixtape, artist and playlist islands reuse their single SSR response
   await page.goto('/first-smol');
   await expect(page.getByRole('button', { name: 'Play take 1' })).toBeVisible();
   await page.goto('/mixtapes/fixture-mixtape');
-  await expect(page.getByRole('button', { name: 'Play All' })).toBeEnabled();
+  await expect(page.locator('main header').first().getByRole('button', { name: 'Play', exact: true })).toBeEnabled();
   await page.goto('/artists/fixture-artist');
   await expect(page.getByRole('heading', { name: 'Fixture Artist' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Play First Track' })).toBeVisible();

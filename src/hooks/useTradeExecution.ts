@@ -1,6 +1,5 @@
 import type { Client as CometClient } from 'comet-sdk';
-import { rpc } from '../utils/base';
-import { getWebAuthnRpId } from '../utils/rpId';
+import { signWithPasskey } from '../utils/passkeySign';
 import { getConnectedAccount } from '../utils/wallet';
 
 const MAX_PRICE = 170141183460469231731687303715884105727n;
@@ -30,14 +29,8 @@ export function useTradeExecution() {
 
     const [expectedOut] = tx.result ?? [];
 
-    const { sequence } = await rpc.getLatestLedger();
-    const { account, send } = await getConnectedAccount();
-    await account.sign(tx, {
-      rpId: getWebAuthnRpId(),
-      keyId: userKeyId,
-      expiration: sequence + 60,
-    });
-
+    await signWithPasskey(tx, { keyId: userKeyId });
+    const { send } = await getConnectedAccount();
     await send(tx);
 
     return expectedOut ?? null;

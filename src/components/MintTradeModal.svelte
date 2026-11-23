@@ -7,14 +7,16 @@
   import TradeBalances from './trade/TradeBalances.svelte';
   import TradeSimulation from './trade/TradeSimulation.svelte';
   import { userState } from '../stores/user.svelte';
-  import { balanceState } from '../stores/balance.svelte';
+  import { setKnownKaleBalance } from '../stores/balance.svelte';
   import { openAuthSheet } from '../stores/authSheet.svelte';
   import { toast } from '../stores/toast.svelte';
-  import { kale, sac } from '../utils/passkey-kit';
   import { logger } from '../utils/logger';
   import { Client as CometClient } from 'comet-sdk';
   import { useTradeSimulation } from '../hooks/useTradeSimulation';
   import { useTradeExecution } from '../hooks/useTradeExecution';
+  import { readCometTradeSnapshot, quoteTrade, type CometTradeSnapshot } from '../utils/cometPool';
+  import { cometMaxIn, CometQuoteError } from '../utils/cometQuote';
+  import { KALE_DECIMALS } from '../utils/mixtapePricing';
   import {
     computeAmmBuyCap,
     computeMaxBuy,
@@ -60,11 +62,12 @@
   let lastSimulatedMode = $state<'buy' | 'sell'>('buy');
 
   let cometClient = $state<CometClient | null>(null);
-  let mintTokenClient = $state<ReturnType<typeof sac.getSACClient> | null>(null);
+  let snapshot = $state<CometTradeSnapshot | null>(null);
 
-  let kaleDecimals = $state(7);
-  let mintDecimals = $state(7);
-  let kaleSymbol = $state('KALE');
+  // KALE and song tokens are SACs with a fixed 7 decimals (no decimals() RPC).
+  const kaleDecimals = KALE_DECIMALS;
+  const mintDecimals = KALE_DECIMALS;
+  const kaleSymbol = 'KALE';
 
   let ammKaleBalance = $state<bigint>(0n);
   let userKaleBalance = $state<bigint>(0n);
@@ -87,6 +90,18 @@
     };
   });
 
+  function applySnapshot(next: CometTradeSnapshot) {
+    snapshot = next;
+    // The pool's KALE *reserve* (AllRecordData) bounds a buy, not its SAC balance.
+    ammKaleBalance = next.kaleRecord.balance;
+    userKaleBalance = next.userKale ?? 0n;
+    userMintBalance = next.userMint ?? 0n;
+    if (currentContractId && next.userKale !== null) {
+      setKnownKaleBalance(currentContractId, next.userKale);
+    }
+    recomputeLimits();
+  }
+
   async function initialize() {
     loading = true;
     loadError = null;
@@ -103,40 +118,10 @@
         networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE!,
       });
 
-      mintTokenClient = sac.getSACClient(mintTokenId);
-
-      // Parallelize initial RPC reads instead of chaining user balances sequentially.
-      const baseCalls = Promise.all([
-        kale.decimals(),
-        mintTokenClient.decimals(),
-        kale.balance({ id: ammId }),
-      ]);
-      const userCalls = currentContractId
-        ? Promise.all([
-            kale.balance({ id: currentContractId }),
-            mintTokenClient.balance({ id: currentContractId }),
-          ])
-        : Promise.resolve(null);
-
-      const [[kaleDecRes, mintDecRes, ammBalanceRes], userRes] = await Promise.all([
-        baseCalls,
-        userCalls,
-      ]);
-
-      kaleDecimals = Number(kaleDecRes.result);
-      mintDecimals = Number(mintDecRes.result);
-      ammKaleBalance = ammBalanceRes.result;
-
-      if (userRes) {
-        userKaleBalance = userRes[0].result;
-        userMintBalance = userRes[1].result;
-        balanceState.balance = userKaleBalance;
-      } else {
-        userKaleBalance = 0n;
-        userMintBalance = 0n;
-      }
-
-      recomputeLimits();
+      // ONE getLedgerEntries: pool instance + reserves + user KALE + user song tokens.
+      applySnapshot(
+        await readCometTradeSnapshot({ pool: ammId, mintToken: mintTokenId, holder: currentContractId })
+      );
     } catch (error) {
       logger.error('trade', error);
       loadError = error instanceof Error ? error.message : 'Failed to load trading data.';
@@ -146,43 +131,20 @@
   }
 
   async function refreshAllBalances() {
-    if (!mintTokenClient) return;
-    const promises: Promise<void>[] = [
-      kale
-        .balance({ id: ammId })
-        .then(({ result }) => {
-          ammKaleBalance = result;
-        })
-        .catch((error) => {
-          logger.error('trade', 'Failed to refresh AMM balance', error);
-        }),
-    ];
-
-    if (currentContractId) {
-      promises.push(
-        Promise.all([
-          kale.balance({ id: currentContractId }),
-          mintTokenClient.balance({ id: currentContractId }),
-        ])
-          .then(([{ result: kaleResult }, { result: mintResult }]) => {
-            userKaleBalance = kaleResult;
-            userMintBalance = mintResult;
-            balanceState.balance = kaleResult;
-          })
-          .catch((error) => {
-            logger.error('trade', 'Failed to refresh user balances', error);
-          })
+    try {
+      applySnapshot(
+        await readCometTradeSnapshot({ pool: ammId, mintToken: mintTokenId, holder: currentContractId })
       );
+    } catch (error) {
+      logger.error('trade', 'Failed to refresh trade balances', error);
     }
-
-    await Promise.all(promises);
-    recomputeLimits();
   }
 
   function recomputeLimits() {
     ammBuyCap = computeAmmBuyCap(ammKaleBalance);
     maxBuyAmount = computeMaxBuy(ammKaleBalance, userKaleBalance);
-    maxSellAmount = userMintBalance;
+    const sellCap = snapshot ? cometMaxIn(snapshot.mintRecord.balance) : userMintBalance;
+    maxSellAmount = userMintBalance < sellCap ? userMintBalance : sellCap;
 
     if (mode === 'sell' && maxSellAmount <= 0n) {
       mode = 'buy';
@@ -227,8 +189,28 @@
     const tokenIn = mode === 'buy' ? import.meta.env.PUBLIC_KALE_SAC_ID : mintTokenId;
     const tokenOut = mode === 'buy' ? mintTokenId : import.meta.env.PUBLIC_KALE_SAC_ID;
 
-    simulationLoading = true;
     lastSimulatedMode = mode;
+
+    // Exact local quote from the ledger snapshot (zero RPC). Falls back to a
+    // simulation only for pool versions the local math doesn't support.
+    if (snapshot) {
+      try {
+        const local = quoteTrade(snapshot, mode, amount);
+        if (local !== null) {
+          simulationHook.invalidate();
+          simulatedAmountOut = local;
+          return;
+        }
+      } catch (error) {
+        simulationError =
+          error instanceof CometQuoteError && error.issue === 'aboveMaxIn'
+            ? `Amount exceeds max ${mode === 'buy' ? 'buy' : 'sell'} limit.`
+            : 'Enter a smaller amount.';
+        return;
+      }
+    }
+
+    simulationLoading = true;
 
     try {
       const { amountOut, nonce } = await simulationHook.runSimulation(
@@ -272,7 +254,7 @@
   }
 
   async function executeSwap() {
-    if (!cometClient || !mintTokenClient) return;
+    if (!cometClient) return;
     if (!currentContractId || !currentKeyId) {
       openAuthSheet('signin', 'Sign in to trade song tokens.');
       return;
