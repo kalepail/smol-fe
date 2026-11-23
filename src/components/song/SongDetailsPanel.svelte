@@ -64,7 +64,7 @@
     const parts = [providerLabel, isPrivate ? 'Private' : 'Public'];
     if (formattedPlays) parts.push(`${formattedPlays} ${plays === 1 ? 'play' : 'plays'}`);
     if (isUnsafe) parts.push('Flagged');
-    else if (isSafetyUnknown) parts.push('Pending');
+    else if (isSafetyUnknown) parts.push('Unverified');
     return parts.join(' · ');
   });
 </script>
@@ -158,7 +158,7 @@
                   : 'text-ink-1'
             }`}
           >
-            {isUnsafe ? 'Flagged' : isSafetyUnknown ? 'Pending' : 'Safe'}
+            {isUnsafe ? 'Flagged' : isSafetyUnknown ? 'Unverified' : 'Safe'}
           </dd>
         </div>
       {/if}

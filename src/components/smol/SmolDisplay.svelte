@@ -351,7 +351,7 @@
         >
           <Icon name="info" size={18} class="mt-0.5 shrink-0" />
           <span>
-            Safety check pending. Kept private from public feeds until review completes.
+            Safety check didn't complete. Kept private from public feeds.
           </span>
         </div>
       {/if}
@@ -389,7 +389,7 @@
           {#if isUnsafe}
             <Chip tone="danger">Flagged</Chip>
           {:else if isSafetyUnknown}
-            <Chip tone="warning">Safety pending</Chip>
+            <Chip tone="warning">Safety unverified</Chip>
           {/if}
         </div>
 

@@ -339,7 +339,7 @@ test.describe('Fable P1 & P2 edge-case regressions', () => {
     await expect(page.getByText('1 of 2 takes finished.')).toBeVisible();
 
     const pollsAfterPublish = polls;
-    await page.waitForTimeout(4500);
+    await page.waitForTimeout(8000);
     expect(polls).toBe(pollsAfterPublish);
   });
 
@@ -396,7 +396,7 @@ test.describe('Fable P1 & P2 edge-case regressions', () => {
 
     await page.goto('/smol-edge');
     // P2-3: pending notice, never "Flagged"
-    await expect(page.getByText(/Safety check pending/)).toBeVisible();
+    await expect(page.getByText(/Safety check didn't complete/)).toBeVisible();
     await expect(page.getByText(/Flagged for sensitive content/)).toHaveCount(0);
     // P2-10: duplicate tags deduplicated without throwing
     await expect(page.locator('[aria-label="Style tags"]')).toContainText('Pop');

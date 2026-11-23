@@ -31,7 +31,7 @@
 
   // Catch internal env var identifiers (UPPER_SNAKE_CASE) and infrastructure/gateway error strings.
   const INTERNAL_ERROR_RE =
-    /\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b|\b(?:BYOK|R2 storage|gateway|quota enforcement|service binding|binding|wrangler|Durable Object|HTTP \d{3})\b/i;
+    /\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b|\b(?:BYOK|R2|gateway|quota enforcement|service binding|binding|wrangler|Durable Object|HTTP \d{3}|200 OK|fallback unavailable|aisonggenerator)\b/i;
 
   const retryable = $derived(failure ? failure.retryable : true);
   const alternateProvider = $derived(otherProviderOf(provider));
