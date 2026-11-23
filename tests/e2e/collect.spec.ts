@@ -920,6 +920,35 @@ test.describe('Report 34 regressions @390', () => {
     expect(await observer.evaluate((k) => localStorage.getItem(k), flowKey), 'progress cleared once done').toBeNull();
   });
 
+  test('Pass9 an observer with A\'s 1-song buy in memory never clears B\'s newer 7-song buy', async ({ page, context }) => {
+    await signIn(context);
+    const flowKey = `smol:collect:v1:${COLLECTOR}:collect-minted`;
+    // A's confirming 1-song buy (A's song IS owned on chain).
+    await seedFlow(context, 'collect-minted', [
+      { id: 'buy-1', kind: 'buy', trackIds: [mintedIds[0]], titles: [mintedTracks[0].Title], costStroops: KALE(33).toString(), status: 'confirming', since: Date.now(), ownerTabId: 'tab-A', attemptId: 'a-1', expiresAtLedger: 99_999_999 },
+    ]);
+    let delay = 3_000;
+    await installStellarMock(page, () => ({ minted: mintedIds, balances: ownedBalances([mintedIds[0]]), kale: KALE(1_000), delayMs: delay }));
+    await page.goto('/mixtapes/collect-minted');
+    await expect(card(page)).toBeVisible({ timeout: 10_000 }); // A restored into memory; read held
+    // B persists a newer 7-song confirming buy under the same step id (0 balance for all 7).
+    const recordB = await page.evaluate(
+      ([key, ids]) => {
+        const flow = JSON.parse(localStorage.getItem(key)!);
+        flow.updatedAt = Date.now();
+        flow.steps = [{ ...flow.steps[0], trackIds: ids, titles: [], costStroops: '2310000000', ownerTabId: 'tab-B', attemptId: 'b-1', since: Date.now() }];
+        const value = JSON.stringify(flow);
+        localStorage.setItem(key, value);
+        return value;
+      },
+      [flowKey, mintedIds.slice(1)] as const
+    );
+    delay = 0; // hydrate → resumeConfirming → confirmBuy
+    await page.waitForTimeout(7_000); // ≥ 2 confirmBuy checks
+    expect(await page.evaluate((k) => localStorage.getItem(k), flowKey), "B's 7-song buy is byte-identical, never cleared").toBe(recordB);
+    await expect(card(page).getByRole('heading')).not.toHaveText('You own this mixtape');
+  });
+
   test('Pass6 #3 reload mid-relay (persisted "submitting") settles to owned once the ledger confirms', async ({ page, context }) => {
     await signIn(context);
     await seedFlow(context, 'collect-minted', [

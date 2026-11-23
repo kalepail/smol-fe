@@ -905,7 +905,10 @@ export function createCollectController(opts: {
     const attemptId = newAttemptId();
     // Compare-and-set against the exact RAW stored step (attempt, owner, status;
     // a persisted `signing` only once its lease has expired), read just now.
-    const claimGuard = captureGuard(step.id) ?? NO_MATCH;
+    // Its songs must equal the in-memory step this attempt will preflight and
+    // sign, so memory and storage can never diverge across the claim.
+    const rawClaim = captureGuard(step.id);
+    const claimGuard = rawClaim ? { ...rawClaim, trackKey: step.trackIds.join(',') } : NO_MATCH;
     const claimed = writeIfStill(
       step.id,
       claimGuard,
@@ -1110,7 +1113,7 @@ export function createCollectController(opts: {
         if (gen !== generation) return;
         if (writeIfStill(step.id, mine(), patchIn(step.id, { status: 'confirming' })) === 'ok') {
           phase = 'confirming';
-          void confirmBuy(step.id, keep);
+          void confirmBuy(step.id);
         }
       }
     } catch (error) {
@@ -1153,11 +1156,22 @@ export function createCollectController(opts: {
     }
   }
 
-  async function confirmBuy(stepId: string, ids: string[]) {
+  async function confirmBuy(stepId: string) {
     const gen = generation;
-    // Only resolve the exact attempt that was in flight when this loop started.
-    // Raw `submitting` (relay response lost / reload mid-relay) or `confirming`.
-    const guard = captureGuard(stepId, ['submitting', 'confirming']) ?? NO_MATCH;
+    // ONE raw persisted snapshot supplies BOTH the songs to confirm and the exact
+    // guard (attempt, owner, raw status, songs, workflows, expiry). Raw
+    // `submitting` (response lost / reload mid-relay) or `confirming` only.
+    const raw = readSharedSteps(true)?.find((s) => s.id === stepId);
+    if (!raw || raw.kind !== 'buy' || (raw.status !== 'submitting' && raw.status !== 'confirming')) return;
+    const ids = [...raw.trackIds];
+    const guard: StepGuard = {
+      attemptId: raw.attemptId,
+      owner: { id: raw.ownerTabId },
+      statuses: ['submitting', 'confirming'],
+      trackKey: raw.trackIds.join(','),
+      workflowKey: workflowKeyOf(raw),
+      expiresAtLedger: { value: raw.expiresAtLedger },
+    };
     for (let attempt = 0; attempt < 8; attempt++) {
       await new Promise((r) => setTimeout(r, attempt === 0 ? 2_500 : 3_500));
       if (gen !== generation) return;
@@ -1272,7 +1286,7 @@ export function createCollectController(opts: {
   function resumeConfirming() {
     if (steps.some((s) => s.kind === 'mint' && s.status === 'confirming')) startMintPolling();
     for (const s of steps) {
-      if (s.kind === 'buy' && s.status === 'confirming') void confirmBuy(s.id, s.trackIds);
+      if (s.kind === 'buy' && s.status === 'confirming') void confirmBuy(s.id);
     }
     // Restored unsettled outcomes are reconciled (read-only), never re-signed.
     if (steps.some((s) => s.status === 'failed' && isLocked(s))) void reconcileLocked();
