@@ -35,6 +35,7 @@ import {
   serializeFlow,
   stepsForStartOver,
   acknowledgeSteps,
+  mintPollTargets,
   isSigningElsewhere,
   ownsSigningClaim,
   expireForeignClaims,
@@ -905,6 +906,11 @@ export function createCollectController(opts: {
         ownerTabId: TAB_ID,
         attemptId,
         leaseExpiresAt: Date.now() + SIGNING_LEASE_MS,
+        // A retry is a new attempt: drop the previous attempt's receipt so no
+        // tab can poll the old workflow against it.
+        workflowIds: undefined,
+        expiresAtLedger: undefined,
+        since: undefined,
       })
     );
     if (claimed !== 'ok') {
@@ -1163,27 +1169,39 @@ export function createCollectController(opts: {
   function startMintPolling() {
     const holder = userState.contractId;
     if (!holder) return;
-    const confirming = steps.filter((s) => s.kind === 'mint' && s.status === 'confirming');
-    const ids = confirming.flatMap((s) => s.trackIds).filter((id) => !settledMintIds.has(id));
+    // ONE raw persisted snapshot drives both the request and the write guards.
+    const targets = mintPollTargets(readSharedSteps(true) ?? []);
+    const ids = targets.flatMap((t) => t.trackIds).filter((id) => !settledMintIds.has(id));
     pollAbort?.abort();
     if (ids.length === 0) return;
     const controller = new AbortController();
     pollAbort = controller;
     const gen = generation;
-    const since = Math.min(...confirming.map((s) => s.since ?? Date.now()));
-    // Guards captured NOW, per step: a late result for this poll's workflow can
-    // never touch a newer attempt (another tab's workflow) on the same step.
-    const guards = new Map<string, { guard: StepGuard; trackIds: string[] }>();
-    for (const st of confirming) {
-      const guard = captureGuard(st.id, ['submitting', 'confirming']);
-      if (guard) guards.set(st.id, { guard, trackIds: [...st.trackIds] });
-    }
+    const since = Math.min(...targets.map((t) => t.since ?? Date.now()));
+    const guards = new Map<string, { guard: StepGuard; trackIds: string[]; hasWorkflow: boolean }>(
+      targets.map((t) => [
+        t.stepId,
+        {
+          guard: {
+            attemptId: t.attemptId,
+            owner: { id: t.ownerTabId },
+            statuses: ['submitting', 'confirming'],
+            trackKey: t.trackIds.join(','),
+            workflowKey: t.workflowIds.join(','),
+          },
+          trackIds: t.trackIds,
+          hasWorkflow: t.workflowIds.length > 0,
+        },
+      ])
+    );
     void (async () => {
       try {
         const { pollMintSettlement } = await import('../hooks/useMixtapeMinting');
         const { remaining } = await pollMintSettlement({
           ids,
-          workflowIds: confirming.flatMap((s) => s.workflowIds ?? []),
+          workflowIds: targets.flatMap((t) => t.workflowIds),
+          // No workflow id yet (POST /mint response pending): settle from chain only.
+          chainOnlyIds: targets.filter((t) => t.workflowIds.length === 0).flatMap((t) => t.trackIds),
           holder,
           signal: controller.signal,
           deadline: since + MINT_CONFIRM_TIMEOUT_MS,
@@ -1194,8 +1212,9 @@ export function createCollectController(opts: {
           },
           onFailed: (failed) => {
             if (gen !== generation) return;
-            for (const [stepId, { guard, trackIds }] of guards) {
-              if (trackIds.some((id) => failed.includes(id))) {
+            for (const [stepId, { guard, trackIds, hasWorkflow }] of guards) {
+              // A workflow failure only applies to the attempt that owns that workflow.
+              if (hasWorkflow && trackIds.some((id) => failed.includes(id))) {
                 writeIfStill(stepId, guard, patchIn(stepId, { status: 'failed', failure: 'rejected' }));
               }
             }
@@ -1214,7 +1233,7 @@ export function createCollectController(opts: {
   }
 
   /** ONE batched post-settlement refresh, then close out settled mint steps. */
-  async function settleMints(guards: Map<string, { guard: StepGuard; trackIds: string[] }>) {
+  async function settleMints(guards: Map<string, { guard: StepGuard; trackIds: string[]; hasWorkflow: boolean }>) {
     const ready = [...guards].filter(([, g]) => g.trackIds.every((id) => settledMintIds.has(id)));
     if (ready.length === 0) return;
     await refresh({ markLoading: false });

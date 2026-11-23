@@ -13,6 +13,7 @@ import {
   expireForeignClaims,
   isAcknowledgeable,
   isSigningElsewhere,
+  mintPollTargets,
   nextForeignClaimExpiry,
   ownsSigningClaim,
   parseServerSnapshot,
@@ -458,4 +459,18 @@ test('Pass4 #4 an expired foreign signing claim becomes recoverable (Continue)',
   assert.equal(after[0].status, 'cancelled');
   assert.equal(nextRunnableStep(after)?.id, 'buy-1');
   assert.equal(expireForeignClaims([foreign], 'tab-A', NOW + 9_000)[0].status, 'signing', 'own claim untouched');
+});
+
+test('Pass7 #2 mint-poll request and guard come from ONE raw record', () => {
+  const raw: FlowStep[] = [
+    { id: 'mint-1', kind: 'mint', trackIds: ['t9', 't10'], titles: [], costStroops: KALE_(200), status: 'confirming', attemptId: 'b-1', ownerTabId: 'tab-B', workflowIds: ['wf-B'], since: NOW },
+    { id: 'mint-2', kind: 'mint', trackIds: ['t11'], titles: [], costStroops: KALE_(100), status: 'submitting', attemptId: 'c-1', ownerTabId: 'tab-C' },
+    buyStep({ status: 'confirming' }),
+  ];
+  const targets = mintPollTargets(raw);
+  assert.deepEqual(targets.map((t) => [t.stepId, t.attemptId, t.ownerTabId, t.workflowIds.join(',')]), [
+    ['mint-1', 'b-1', 'tab-B', 'wf-B'],
+    ['mint-2', 'c-1', 'tab-C', ''],
+  ]);
+  assert.deepEqual(targets[1].workflowIds, [], 'a pending retry without a workflow id is chain-only');
 });

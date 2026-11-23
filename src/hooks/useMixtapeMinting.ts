@@ -138,6 +138,7 @@ async function readMintStatus(
   signal: AbortSignal
 ): Promise<SettlementRead | null> {
   if (!mintStatusEnabled()) return null;
+  if (workflowIds.length === 0) return new Map(); // nothing this poll may ask about
   try {
     const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/mint/status`, {
       method: 'POST',
@@ -156,7 +157,10 @@ async function readMintStatus(
     const body = (await response.json()) as { batches?: { phase?: string; ids?: string[] }[] };
     if (!Array.isArray(body?.batches)) return null;
     const out: SettlementRead = new Map();
-    for (const batch of body.batches) {
+    const requested = new Set(workflowIds);
+    for (const batch of body.batches as { workflowId?: string; phase?: string; ids?: string[] }[]) {
+      // Only outcomes for workflows this poll asked about (never another attempt's).
+      if (!batch.workflowId || !requested.has(batch.workflowId)) continue;
       const phase = batch.phase;
       if (phase === 'persisted' || phase === 'confirmed' || phase === 'failed') {
         for (const id of batch.ids ?? []) out.set(id, phase === 'failed' ? 'failed' : 'settled');
@@ -185,6 +189,8 @@ async function readChainSettlement(ids: string[], holder: string): Promise<Settl
 export function pollMintSettlement(params: {
   ids: string[];
   workflowIds?: string[];
+  /** Ids whose attempt has no workflow id yet: settled from the chain only. */
+  chainOnlyIds?: string[];
   holder: string;
   signal: AbortSignal;
   deadline: number;
@@ -198,8 +204,14 @@ export function pollMintSettlement(params: {
     onSettled: params.onSettled,
     onFailed: params.onFailed,
     onTickError: (error) => logger.warn('mint', 'Mint status tick failed; retrying', error),
-    read: async (ids, signal) =>
-      (await readMintStatus(ids, params.workflowIds ?? [], signal)) ??
-      (await readChainSettlement(ids, params.holder)),
+    read: async (ids, signal) => {
+      const status = await readMintStatus(ids, params.workflowIds ?? [], signal);
+      if (status === null) return readChainSettlement(ids, params.holder);
+      const chainOnly = ids.filter((id) => params.chainOnlyIds?.includes(id));
+      if (chainOnly.length) {
+        for (const [id, value] of await readChainSettlement(chainOnly, params.holder)) status.set(id, value);
+      }
+      return status;
+    },
   });
 }

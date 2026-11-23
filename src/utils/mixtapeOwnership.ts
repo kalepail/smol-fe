@@ -544,6 +544,34 @@ export function ownsSigningClaim(
   return claim.holdsLock || (step.leaseExpiresAt ?? 0) > claim.now;
 }
 
+export interface MintPollTarget {
+  stepId: string;
+  trackIds: string[];
+  workflowIds: string[];
+  since: number | undefined;
+  /** Exact raw identity this poll may update (same snapshot as the request). */
+  attemptId: string | undefined;
+  ownerTabId: string | undefined;
+}
+
+/**
+ * Mint-poll targets from ONE raw persisted snapshot: the HTTP request (tracks,
+ * workflow ids, deadline) and the write guards come from the same record, so a
+ * poll can never query workflow A while holding permission to update B.
+ */
+export function mintPollTargets(rawSteps: FlowStep[]): MintPollTarget[] {
+  return rawSteps
+    .filter((s) => s.kind === 'mint' && (s.status === 'submitting' || s.status === 'confirming'))
+    .map((s) => ({
+      stepId: s.id,
+      trackIds: [...s.trackIds],
+      workflowIds: [...(s.workflowIds ?? [])],
+      since: s.since,
+      attemptId: s.attemptId,
+      ownerTabId: s.ownerTabId,
+    }));
+}
+
 /** Another tab's signing claim whose lease ran out is a cancelled step (recoverable). */
 export function expireForeignClaims(steps: FlowStep[], tabId: string, now: number): FlowStep[] {
   let changed = false;
