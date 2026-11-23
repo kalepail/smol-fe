@@ -12,23 +12,23 @@
  * - In-flight coalescing is per canonical key; each caller gets its own
  *   ordering and ids back. Keys requested in the same microtask are batched.
  */
-import { Address, scValToNative, xdr } from '@stellar/stellar-sdk/minimal';
+import { Address, xdr } from '@stellar/stellar-sdk/minimal';
 import { rpc } from './base';
 import { logger } from './logger';
-import type { CometFeeConfig, CometRecord } from './cometQuote';
+
+export {
+  contractWasmHash,
+  isStellarAssetInstance,
+  isSupportedCometInstance,
+  parseBalanceFromLedgerEntry,
+  parseCometFeeConfig,
+  parseCometRecords,
+  SUPPORTED_COMET_WASM_HASHES,
+} from './ledgerParsers';
 
 export const MAX_LEDGER_KEYS_PER_CALL = 200;
 
-export type LedgerEntryRead =
-  | {
-      state: 'found';
-      val: xdr.LedgerEntryData;
-      lastModifiedLedgerSeq?: number;
-      liveUntilLedgerSeq?: number;
-      latestLedger: number;
-    }
-  | { state: 'missing'; latestLedger: number }
-  | { state: 'error'; error: string };
+export type { LedgerEntryRead } from './ledgerReads';
 
 // ---------------------------------------------------------------------------
 // Key builders
@@ -64,6 +64,32 @@ export function createCometRecordsLedgerKey(poolId: string): string {
 // Coalesced reader
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Reader capability: does an omitted persistent entry mean "absent"?
+// Since protocol 23 (CAP-62/66) RPC proxies getLedgerEntries to Core, which
+// serves live AND hot-archive state. Older/unverified readers may silently omit
+// evicted entries, so their omissions are treated as unknown.
+// ---------------------------------------------------------------------------
+
+let capability: Promise<boolean> | null = null;
+let observedArchivedEntry = false;
+
+export function getReaderArchiveAware(): Promise<boolean> {
+  const override = import.meta.env.PUBLIC_RPC_ARCHIVE_AWARE;
+  if (override === '1') return Promise.resolve(true);
+  if (override === '0') return Promise.resolve(false);
+  if (observedArchivedEntry) return Promise.resolve(true);
+  capability ??= rpc
+    .getVersionInfo()
+    .then((info) => Number(info.protocolVersion) >= 23)
+    .catch((error) => {
+      logger.warn('rpc', 'Could not verify reader archive capability', error);
+      capability = null; // retry on the next read; unverified ⇒ not archive-aware
+      return false;
+    });
+  return capability;
+}
+
 const inflight = new Map<string, Promise<LedgerEntryRead>>();
 let pending: Map<string, (read: LedgerEntryRead) => void> | null = null;
 
@@ -73,7 +99,10 @@ function canonical(key: string): string {
 
 async function fetchChunk(keys: string[], resolvers: Map<string, (r: LedgerEntryRead) => void>) {
   try {
-    const response = await rpc.getLedgerEntries(...keys.map((k) => xdr.LedgerKey.fromXDR(k, 'base64')));
+    const [response, archiveAware] = await Promise.all([
+      rpc.getLedgerEntries(...keys.map((k) => xdr.LedgerKey.fromXDR(k, 'base64'))),
+      getReaderArchiveAware(),
+    ]);
     const latestLedger = response.latestLedger;
     const byKey = new Map<string, (typeof response.entries)[number]>();
     for (const entry of response.entries ?? []) {
@@ -81,17 +110,21 @@ async function fetchChunk(keys: string[], resolvers: Map<string, (r: LedgerEntry
     }
     for (const key of keys) {
       const entry = byKey.get(key);
-      resolvers.get(key)?.(
-        entry?.val
-          ? {
-              state: 'found',
-              val: entry.val,
-              lastModifiedLedgerSeq: entry.lastModifiedLedgerSeq,
-              liveUntilLedgerSeq: entry.liveUntilLedgerSeq,
-              latestLedger,
-            }
-          : { state: 'missing', latestLedger }
-      );
+      if (!entry?.val) {
+        resolvers.get(key)?.({ state: 'missing', latestLedger, archiveAware });
+        continue;
+      }
+      const liveUntil = entry.liveUntilLedgerSeq;
+      const archived = !liveUntil || liveUntil < latestLedger;
+      if (archived) observedArchivedEntry = true;
+      resolvers.get(key)?.({
+        state: 'found',
+        val: entry.val,
+        lastModifiedLedgerSeq: entry.lastModifiedLedgerSeq,
+        liveUntilLedgerSeq: liveUntil,
+        archived,
+        latestLedger,
+      });
     }
   } catch (error) {
     logger.error('rpc', 'getLedgerEntries failed:', error);
@@ -147,146 +180,12 @@ export async function readLedgerEntries(keys: string[]): Promise<Map<string, Led
 }
 
 // ---------------------------------------------------------------------------
-// Parsers (throw on malformed data — callers map a throw to `error`)
-// ---------------------------------------------------------------------------
-
-function contractDataVal(entry: xdr.LedgerEntryData): xdr.ScVal {
-  if (entry.switch().value !== xdr.LedgerEntryType.contractData().value) {
-    throw new TypeError('Not a contract data entry');
-  }
-  return entry.contractData().val();
-}
-
-/** SAC balance for a C-address holder: ScMap { amount: i128, authorized, clawback }. */
-export function parseBalanceFromLedgerEntry(entry: xdr.LedgerEntryData): bigint {
-  const val = contractDataVal(entry);
-  if (val.switch().value !== xdr.ScValType.scvMap().value) {
-    throw new TypeError('SAC balance is not a map');
-  }
-  for (const item of val.map() ?? []) {
-    const key = item.key();
-    if (key.switch().value === xdr.ScValType.scvSymbol().value && key.sym().toString() === 'amount') {
-      const amount = scValToNative(item.val());
-      if (typeof amount !== 'bigint') throw new TypeError('SAC amount is not i128');
-      return amount;
-    }
-  }
-  throw new TypeError('SAC balance has no amount');
-}
-
-/** True when the contract instance is a Stellar Asset Contract (built-in executable). */
-export function isStellarAssetInstance(entry: xdr.LedgerEntryData): boolean {
-  const val = contractDataVal(entry);
-  if (val.switch().value !== xdr.ScValType.scvContractInstance().value) return false;
-  const executable = val.instance().executable();
-  return executable.switch().value === xdr.ContractExecutableType.contractExecutableStellarAsset().value;
-}
-
-/** Comet `AllRecordData`: address → { balance, weight, scalar }. */
-export function parseCometRecords(entry: xdr.LedgerEntryData): Map<string, CometRecord> {
-  const val = contractDataVal(entry);
-  if (val.switch().value !== xdr.ScValType.scvMap().value) throw new TypeError('Records are not a map');
-  const out = new Map<string, CometRecord>();
-  for (const item of val.map() ?? []) {
-    const token = scValToNative(item.key());
-    const record = scValToNative(item.val()) as Record<string, unknown>;
-    if (typeof token !== 'string' || !record || typeof record !== 'object') {
-      throw new TypeError('Malformed Comet record');
-    }
-    const { balance, weight, scalar } = record;
-    if (typeof balance !== 'bigint' || typeof weight !== 'bigint' || typeof scalar !== 'bigint') {
-      throw new TypeError('Malformed Comet record fields');
-    }
-    out.set(token, { balance, weight, scalar });
-  }
-  return out;
-}
-
-/** Comet instance storage `["SwapFeeConfig"]`. Returns null when absent. */
-export function parseCometFeeConfig(entry: xdr.LedgerEntryData): (CometFeeConfig & { trackedToken: string }) | null {
-  const val = contractDataVal(entry);
-  if (val.switch().value !== xdr.ScValType.scvContractInstance().value) return null;
-  for (const item of val.instance().storage() ?? []) {
-    const key = item.key();
-    if (key.switch().value !== xdr.ScValType.scvVec().value) continue;
-    const parts = key.vec() ?? [];
-    if (
-      parts.length === 1 &&
-      parts[0].switch().value === xdr.ScValType.scvSymbol().value &&
-      parts[0].sym().toString() === 'SwapFeeConfig'
-    ) {
-      const cfg = scValToNative(item.val()) as Record<string, unknown>;
-      const { tracked_token, min_fee, max_fee, low_util_balance, high_util_balance } = cfg ?? {};
-      if (
-        typeof tracked_token !== 'string' ||
-        typeof min_fee !== 'bigint' ||
-        typeof max_fee !== 'bigint' ||
-        typeof low_util_balance !== 'bigint' ||
-        typeof high_util_balance !== 'bigint'
-      ) {
-        throw new TypeError('Malformed SwapFeeConfig');
-      }
-      return {
-        trackedToken: tracked_token,
-        minFee: min_fee,
-        maxFee: max_fee,
-        lowUtilBalance: low_util_balance,
-        highUtilBalance: high_util_balance,
-      };
-    }
-  }
-  return null;
-}
-
-// ---------------------------------------------------------------------------
 // SAC balances (tri-state)
 // ---------------------------------------------------------------------------
 
-export interface BalanceBatchRequest {
-  tokenContractId: string;
-  holderAddress: string;
-  id?: string;
-}
-
-export type BalanceBatchResult = BalanceBatchRequest &
-  (
-    | {
-        status: 'known';
-        balance: bigint;
-        /** Archived persistent entries still prove a positive balance. */
-        liveUntilLedgerSeq?: number;
-        archived: boolean;
-      }
-    /** No balance entry on the reader: the holder never held / fully spent it. */
-    | { status: 'missing' }
-    /** Transport or decode failure. Ownership is UNKNOWN, never 0n. */
-    | { status: 'error'; error: string }
-  );
-
-export function toBalanceResult(req: BalanceBatchRequest, read: LedgerEntryRead | undefined): BalanceBatchResult {
-  if (!read) return { ...req, status: 'error', error: 'No read' };
-  if (read.state === 'error') return { ...req, status: 'error', error: read.error };
-  if (read.state === 'missing') return { ...req, status: 'missing' };
-  try {
-    return {
-      ...req,
-      status: 'known',
-      balance: parseBalanceFromLedgerEntry(read.val),
-      liveUntilLedgerSeq: read.liveUntilLedgerSeq,
-      archived: read.liveUntilLedgerSeq !== undefined && read.liveUntilLedgerSeq < read.latestLedger,
-    };
-  } catch (error) {
-    logger.error('balance', 'Malformed SAC balance entry:', error);
-    return { ...req, status: 'error', error: 'Malformed balance entry' };
-  }
-}
-
-/** Value of a tri-state result where `missing` means a known zero. */
-export function knownBalance(result: BalanceBatchResult): bigint | null {
-  if (result.status === 'known') return result.balance;
-  if (result.status === 'missing') return 0n;
-  return null;
-}
+export type { BalanceBatchRequest, BalanceBatchResult } from './ledgerReads';
+export { knownBalance, toBalanceResult } from './ledgerReads';
+import { toBalanceResult, type BalanceBatchRequest, type BalanceBatchResult, type LedgerEntryRead } from './ledgerReads';
 
 export async function getBatchSACBalances(requests: BalanceBatchRequest[]): Promise<BalanceBatchResult[]> {
   if (requests.length === 0) return [];

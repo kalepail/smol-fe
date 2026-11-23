@@ -108,20 +108,21 @@
     simulationError = null;
     simulatedAmountOut = null;
     try {
-      if (!ammId || !mintTokenId) {
-        throw new Error('Missing AMM configuration.');
-      }
-
+      // Resolve + verify the canonical market BEFORE showing balances or quotes.
+      // `ammId` / `mintTokenId` are D1 hints only; trading always uses the
+      // verified canonical pair (C-15: D1 rows can be cross-wired or empty).
+      const next = await readCometTradeSnapshot({
+        songId,
+        d1Token: mintTokenId || null,
+        d1Amm: ammId || null,
+        holder: currentContractId,
+      });
       cometClient = new CometClient({
-        contractId: ammId,
+        contractId: next.pool,
         rpcUrl: import.meta.env.PUBLIC_RPC_URL!,
         networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE!,
       });
-
-      // ONE getLedgerEntries: pool instance + reserves + user KALE + user song tokens.
-      applySnapshot(
-        await readCometTradeSnapshot({ pool: ammId, mintToken: mintTokenId, holder: currentContractId })
-      );
+      applySnapshot(next);
     } catch (error) {
       logger.error('trade', error);
       loadError = error instanceof Error ? error.message : 'Failed to load trading data.';
@@ -133,7 +134,12 @@
   async function refreshAllBalances() {
     try {
       applySnapshot(
-        await readCometTradeSnapshot({ pool: ammId, mintToken: mintTokenId, holder: currentContractId })
+        await readCometTradeSnapshot({
+          songId,
+          d1Token: mintTokenId || null,
+          d1Amm: ammId || null,
+          holder: currentContractId,
+        })
       );
     } catch (error) {
       logger.error('trade', 'Failed to refresh trade balances', error);
@@ -186,8 +192,9 @@
       return;
     }
 
-    const tokenIn = mode === 'buy' ? import.meta.env.PUBLIC_KALE_SAC_ID : mintTokenId;
-    const tokenOut = mode === 'buy' ? mintTokenId : import.meta.env.PUBLIC_KALE_SAC_ID;
+    if (!snapshot) return;
+    const tokenIn = mode === 'buy' ? import.meta.env.PUBLIC_KALE_SAC_ID : snapshot.mintToken;
+    const tokenOut = mode === 'buy' ? snapshot.mintToken : import.meta.env.PUBLIC_KALE_SAC_ID;
 
     lastSimulatedMode = mode;
 
@@ -284,8 +291,9 @@
     submitting = true;
     simulationError = null;
 
-    const tokenIn = mode === 'buy' ? import.meta.env.PUBLIC_KALE_SAC_ID : mintTokenId;
-    const tokenOut = mode === 'buy' ? mintTokenId : import.meta.env.PUBLIC_KALE_SAC_ID;
+    if (!snapshot) return;
+    const tokenIn = mode === 'buy' ? import.meta.env.PUBLIC_KALE_SAC_ID : snapshot.mintToken;
+    const tokenOut = mode === 'buy' ? snapshot.mintToken : import.meta.env.PUBLIC_KALE_SAC_ID;
 
     try {
       await executionHook.executeSwap({

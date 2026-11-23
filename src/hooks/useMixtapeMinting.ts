@@ -14,6 +14,8 @@ import { Client as SmolClient } from 'smol-sdk';
 import { logger } from '../utils/logger';
 import { buildMintFeeRule } from '../utils/mint';
 import { signWithPasskey } from '../utils/passkeySign';
+import { pollUntilSettled, type SettlementRead } from '../utils/pollLoop';
+import { getSignatureExpiration } from '../utils/rpcTip';
 import { SMOL_ISSUER, readMixtapeChainSnapshot } from '../utils/smolChainIdentity';
 
 export class CollectRequestError extends Error {
@@ -33,20 +35,22 @@ export interface MintBatchTrack {
 export interface MintBatchResult {
   acceptedIds: string[];
   alreadyMintedIds: string[];
+  /** Durable workflow ids when the API returns them (Report 31 POST /mint/status). */
+  workflowIds: string[];
 }
 
 export async function submitMintBatch(params: {
   tracks: MintBatchTrack[];
   userContractId: string;
   userKeyId: string;
-  /** Fires once the passkey signature is done (UI: Approve → Sending). */
-  onSigned?: () => void;
+  /** Fires once the passkey signature is done (UI: Approve → Sending) with its expiry ledger. */
+  onSigned?: (info: { expiresAtLedger: number }) => void;
 }): Promise<MintBatchResult> {
   const { tracks, userContractId, userKeyId, onSigned } = params;
   const smolContractId = import.meta.env.PUBLIC_SMOL_CONTRACT_ID;
   const kaleSacId = import.meta.env.PUBLIC_KALE_SAC_ID;
   if (!smolContractId || !kaleSacId) throw new Error('Minting is not configured');
-  if (tracks.length === 0) return { acceptedIds: [], alreadyMintedIds: [] };
+  if (tracks.length === 0) return { acceptedIds: [], alreadyMintedIds: [], workflowIds: [] };
 
   const asset_bytes: Buffer[] = [];
   const salts: Buffer[] = [];
@@ -69,8 +73,9 @@ export async function submitMintBatch(params: {
   });
 
   const tx = await smolClient.coin_them({ user: userContractId, asset_bytes, salts, fee_rules });
-  await signWithPasskey(tx, { keyId: userKeyId });
-  onSigned?.();
+  const expiration = await getSignatureExpiration();
+  await signWithPasskey(tx, { keyId: userKeyId, expiration });
+  onSigned?.({ expiresAtLedger: expiration });
   const xdr = tx.built?.toXDR();
   if (!xdr) throw new Error('Failed to build signed coin_them transaction');
 
@@ -86,10 +91,13 @@ export async function submitMintBatch(params: {
   const body = (await response.json().catch(() => null)) as {
     acceptedIds?: string[];
     skipped?: { alreadyMinted?: string[] };
+    workflowId?: string;
+    workflowIds?: string[];
   } | null;
   return {
     acceptedIds: body?.acceptedIds ?? tracks.map((t) => t.id),
     alreadyMintedIds: body?.skipped?.alreadyMinted ?? [],
+    workflowIds: body?.workflowIds ?? (body?.workflowId ? [body.workflowId] : []),
   };
 }
 
@@ -97,31 +105,38 @@ export async function submitMintBatch(params: {
 // One poll loop per page
 // ---------------------------------------------------------------------------
 
-/** null = unknown, false = API has no /mint/status (fallback to chain reads). */
-let mintStatusSupported: boolean | null = import.meta.env.PUBLIC_MINT_STATUS === '1' ? true : null;
+/**
+ * POST /mint/status is opt-in (PUBLIC_MINT_STATUS=1). Today's workflow routes
+ * that path to POST /mint/:id and answers 400, so any 400/404/405/501 marks it
+ * unsupported and the SAME tick falls back to one batched chain read.
+ */
+let mintStatusSupported = import.meta.env.PUBLIC_MINT_STATUS === '1';
 
-async function readMintStatus(ids: string[], signal: AbortSignal): Promise<Map<string, 'settled' | 'failed'> | null> {
-  if (mintStatusSupported === false) return null;
+async function readMintStatus(
+  ids: string[],
+  workflowIds: string[],
+  signal: AbortSignal
+): Promise<SettlementRead | null> {
+  if (!mintStatusSupported) return null;
   try {
     const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/mint/status`, {
       method: 'POST',
       credentials: 'include',
       cache: 'no-store',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids }),
+      // Report 31 MintStatusRequest: { workflowIds, target }.
+      body: JSON.stringify({ workflowIds, target: { trackIds: ids } }),
       signal,
     });
-    if (response.status === 404 || response.status === 405 || response.status === 501) {
+    if ([400, 404, 405, 501].includes(response.status)) {
       mintStatusSupported = false;
       return null;
     }
-    if (!response.ok) return new Map();
-    mintStatusSupported = true;
-    const body = (await response.json()) as {
-      batches?: { phase?: string; ids?: string[] }[];
-    };
-    const out = new Map<string, 'settled' | 'failed'>();
-    for (const batch of body.batches ?? []) {
+    if (!response.ok) return null;
+    const body = (await response.json()) as { batches?: { phase?: string; ids?: string[] }[] };
+    if (!Array.isArray(body?.batches)) return null;
+    const out: SettlementRead = new Map();
+    for (const batch of body.batches) {
       const phase = batch.phase;
       if (phase === 'persisted' || phase === 'confirmed' || phase === 'failed') {
         for (const id of batch.ids ?? []) out.set(id, phase === 'failed' ? 'failed' : 'settled');
@@ -130,14 +145,13 @@ async function readMintStatus(ids: string[], signal: AbortSignal): Promise<Map<s
     return out;
   } catch (error) {
     if (signal.aborted) throw error;
-    // A network blip is not "unsupported": retry next tick.
-    return new Map();
+    return null; // transport blip: use the chain this tick
   }
 }
 
-async function readChainSettlement(ids: string[], holder: string): Promise<Map<string, 'settled'>> {
+async function readChainSettlement(ids: string[], holder: string): Promise<SettlementRead> {
   const snapshot = await readMixtapeChainSnapshot({ tracks: ids.map((id) => ({ id })), holder });
-  const out = new Map<string, 'settled'>();
+  const out: SettlementRead = new Map();
   for (const id of ids) {
     const read = snapshot.tracks.get(id);
     if (read?.facts.status === 'minted' && read.holding.status === 'known' && read.holding.balance > 0n) {
@@ -147,51 +161,25 @@ async function readChainSettlement(ids: string[], holder: string): Promise<Map<s
   return out;
 }
 
-function sleep(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(resolve, ms);
-    signal.addEventListener(
-      'abort',
-      () => {
-        clearTimeout(timer);
-        reject(signal.reason ?? new DOMException('Aborted', 'AbortError'));
-      },
-      { once: true }
-    );
-  });
-}
-
-/**
- * Poll until every id settles, the signal aborts, or `deadline` passes.
- * Ticks never overlap; backoff 3s → 8s with jitter.
- */
-export async function pollMintSettlement(params: {
+/** Poll until every id settles, the signal aborts, or `deadline` passes. */
+export function pollMintSettlement(params: {
   ids: string[];
+  workflowIds?: string[];
   holder: string;
   signal: AbortSignal;
   deadline: number;
   onSettled: (ids: string[]) => void;
   onFailed?: (ids: string[]) => void;
 }): Promise<{ remaining: string[] }> {
-  const remaining = new Set(params.ids);
-  let delay = 3_000;
-  await sleep(1_500, params.signal);
-  while (remaining.size > 0 && Date.now() < params.deadline) {
-    const ids = [...remaining];
-    try {
-      const status = (await readMintStatus(ids, params.signal)) ?? (await readChainSettlement(ids, params.holder));
-      const settled = ids.filter((id) => status.get(id) === 'settled');
-      const failed = ids.filter((id) => status.get(id) === 'failed');
-      for (const id of [...settled, ...failed]) remaining.delete(id);
-      if (settled.length) params.onSettled(settled);
-      if (failed.length) params.onFailed?.(failed);
-    } catch (error) {
-      if (params.signal.aborted) throw error;
-      logger.warn('mint', 'Mint status tick failed; retrying', error);
-    }
-    if (remaining.size === 0) break;
-    await sleep(delay + Math.floor(Math.random() * 500), params.signal);
-    delay = Math.min(8_000, Math.round(delay * 1.4));
-  }
-  return { remaining: [...remaining] };
+  return pollUntilSettled({
+    ids: params.ids,
+    signal: params.signal,
+    deadline: params.deadline,
+    onSettled: params.onSettled,
+    onFailed: params.onFailed,
+    onTickError: (error) => logger.warn('mint', 'Mint status tick failed; retrying', error),
+    read: async (ids, signal) =>
+      (await readMintStatus(ids, params.workflowIds ?? [], signal)) ??
+      (await readChainSettlement(ids, params.holder)),
+  });
 }

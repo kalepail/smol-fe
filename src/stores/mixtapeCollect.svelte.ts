@@ -19,17 +19,21 @@ import { SvelteMap } from 'svelte/reactivity';
 import {
   affordableSubset,
   buildCollectPlan,
-  classifyStepError,
+  classifySubmitFailure,
   classifyTrack,
   derivePageState,
   describeCollectCard,
   flowKind,
   flowStorageKey,
+  isLocked,
+  kaleGuard,
   nextRunnableStep,
   pendingByTrack,
+  reconcileStep,
   resolveTrackIdentity,
   restoreFlow,
   serializeFlow,
+  stepsForStartOver,
   stepsFromPlan,
   summarizeMixtape,
   type CardAction,
@@ -39,7 +43,6 @@ import {
   type Holding,
   type KaleState,
   type PlanInputTrack,
-  type StepFailure,
   type TrackCollectState,
 } from '../utils/mixtapeOwnership';
 import { fitsMaxIn } from '../utils/cometQuote';
@@ -61,6 +64,7 @@ const MINT_CONFIRM_TIMEOUT_MS = 10 * 60_000;
 const TOAST_TAG = 'mixtape-collect';
 
 type SnapshotResult = {
+  latestLedger: number | null;
   tracks: Map<string, { facts: ChainFacts; holding: Holding }>;
   kale: { status: 'known'; balance: bigint } | { status: 'error' } | null;
   errors: number;
@@ -117,7 +121,7 @@ async function readServerSnapshot(mixtapeId: string, signal?: AbortSignal): Prom
       body.kale?.state === 'known' && body.kale.amount !== undefined
         ? { status: 'known', balance: BigInt(body.kale.amount) }
         : { status: 'error' };
-    return { tracks, kale, errors };
+    return { latestLedger: null, tracks, kale, errors };
   } catch (error) {
     if (signal?.aborted) throw error;
     logger.warn('collect', 'Server snapshot unavailable; using ledger reads', error);
@@ -369,6 +373,8 @@ export function createCollectController(opts: {
       if (gen !== generation) return;
       logger.error('collect', 'Ownership check failed', error);
       for (const t of subset) {
+        // A failed read makes mint status unknown too: never fall back to D1 ("unminted").
+        facts.set(t.id, { status: 'error' });
         const prev = holdings.get(t.id);
         holdings.set(t.id, {
           status: 'error',
@@ -510,15 +516,16 @@ export function createCollectController(opts: {
   }
 
   function startOver() {
-    pollAbort?.abort();
-    setSteps(steps.filter((s) => s.status === 'confirming'));
+    // Submitted / unsettled steps keep their lock: their songs can't be re-signed
+    // until a fresh chain read reconciles them (owned, or signature expired).
+    setSteps(stepsForStartOver(steps));
     notices = [];
     doneSummary = null;
     selection = null;
-    void refresh().then(() => {
+    void refresh().then(async () => {
+      await reconcileLocked();
       view = steps.length ? 'progress' : 'review';
       sheetOpen = true;
-      resumeConfirming();
     });
   }
 
@@ -542,12 +549,12 @@ export function createCollectController(opts: {
     if (!step) {
       // Unsettled outcomes are re-checked, never re-signed.
       if (steps.some((s) => s.status === 'failed')) {
-        await recheckUncertain();
+        await reconcileLocked();
         return;
       }
       const p = plan;
       if (!p || p.steps.length === 0) return;
-      if (kale.status !== 'known' || kale.balance < p.costStroops) return;
+      if (kaleGuard(kale, p.costStroops) !== 'ok') return;
       const suffix = steps.length ? `-${Date.now().toString(36)}` : '';
       const added = stepsFromPlan(p, titles).map((s) => ({ ...s, id: `${s.id}${suffix}` }));
       setSteps([...steps, ...added]);
@@ -557,6 +564,7 @@ export function createCollectController(opts: {
     }
 
     approving = true;
+    const resumeStatus = step.status;
     patchStep(step.id, { status: 'signing', failure: undefined });
     try {
       // Pre-flight (C-15, freshness): re-read exactly this step's songs + KALE.
@@ -631,14 +639,26 @@ export function createCollectController(opts: {
       }
       setSteps(working);
       const current = working.find((s) => s.id === step.id)!;
-      if (kale.status === 'known' && kale.balance < current.costStroops) {
-        patchStep(step.id, { status: 'pending' });
-        notices = [...notices, { tone: 'warning', text: 'Not enough KALE for this step. Add KALE and continue.' }];
+      // Final signing guard (C-10): nothing is built or simulated unless the
+      // pre-flight KALE read is KNOWN and covers this step.
+      const guard = kaleGuard(kale, current.costStroops);
+      if (guard !== 'ok') {
+        patchStep(step.id, { status: resumeStatus === 'cancelled' ? 'cancelled' : 'pending', failure: undefined });
+        notices = [
+          ...notices,
+          {
+            tone: 'warning',
+            text:
+              guard === 'short'
+                ? 'Not enough KALE for this step. Add KALE and continue.'
+                : "We couldn't check your KALE balance, so nothing was signed. Try again.",
+          },
+        ];
         return;
       }
 
-      const onSigned = () => {
-        if (gen === generation) patchStep(step.id, { status: 'submitting' });
+      const onSigned = ({ expiresAtLedger }: { expiresAtLedger: number }) => {
+        if (gen === generation) patchStep(step.id, { status: 'submitting', since: Date.now(), expiresAtLedger });
       };
 
       if (current.kind === 'mint') {
@@ -665,7 +685,7 @@ export function createCollectController(opts: {
         }
         patchStep(step.id, {
           status: 'confirming',
-          since: Date.now(),
+          workflowIds: result.workflowIds.length ? result.workflowIds : undefined,
           trackIds: accepted,
           titles: accepted.map((id) => titles.get(id) ?? 'Untitled track'),
           costStroops: unitCost * BigInt(accepted.length),
@@ -680,19 +700,21 @@ export function createCollectController(opts: {
         });
         await submitBuyBatch({ tracks: buyTracks, userContractId: holder, userKeyId: keyId, onSigned });
         if (gen !== generation) return;
-        patchStep(step.id, { status: 'confirming', since: Date.now() });
+        patchStep(step.id, { status: 'confirming' });
         void confirmBuy(step.id, keep);
       }
     } catch (error) {
       if (gen !== generation) return;
       logger.error('collect', `Step ${step.id} failed`, error);
-      let failure: StepFailure = classifyStepError(error);
-      const status = (error as { status?: number })?.status;
-      if (status === 401) failure = 'auth';
-      else if (typeof status === 'number' && status >= 400) failure = 'rejected';
       const was = steps.find((s) => s.id === step.id)?.status;
-      // Only a step that never left the device is safely "not charged".
-      if (was === 'submitting' && failure !== 'rejected' && failure !== 'auth') failure = 'uncertain';
+      // Only a step that never left the device (or a definite 4xx refusal) is
+      // safely "not charged"; 5xx / transport errors after submission are
+      // `uncertain` and lock their songs until reconciled.
+      const failure = classifySubmitFailure({
+        error,
+        status: (error as { status?: number })?.status,
+        phase: was === 'submitting' ? 'submitting' : 'signing',
+      });
       patchStep(step.id, { status: failure === 'cancelled' ? 'cancelled' : 'failed', failure });
     } finally {
       if (gen === generation) approving = false;
@@ -735,6 +757,7 @@ export function createCollectController(opts: {
         const { pollMintSettlement } = await import('../hooks/useMixtapeMinting');
         const { remaining } = await pollMintSettlement({
           ids,
+          workflowIds: confirming.flatMap((s) => s.workflowIds ?? []),
           holder,
           signal: controller.signal,
           deadline: since + MINT_CONFIRM_TIMEOUT_MS,
@@ -785,21 +808,57 @@ export function createCollectController(opts: {
     for (const s of steps) {
       if (s.kind === 'buy' && s.status === 'confirming') void confirmBuy(s.id, s.trackIds);
     }
+    // Restored unsettled outcomes are reconciled (read-only), never re-signed.
+    if (steps.some((s) => s.status === 'failed' && isLocked(s))) void reconcileLocked();
   }
 
-  async function recheckUncertain() {
-    const ids = steps.filter((s) => s.status === 'failed' || s.status === 'confirming').flatMap((s) => s.trackIds);
-    await refresh({ ids, markLoading: false });
-    for (const s of steps) {
-      if (s.status !== 'failed' && s.status !== 'confirming') continue;
-      const owned = s.trackIds.every((id) => {
+  /**
+   * Reconcile every locked step (submitted, confirming, uncertain, timed out)
+   * against ONE fresh chain read: owned → done; signature expired and still not
+   * held → `expired` (never landed, safe to retry); otherwise it stays locked.
+   */
+  async function reconcileLocked() {
+    const holder = userState.contractId;
+    const locked = steps.filter(isLocked);
+    if (!holder || locked.length === 0) return;
+    const gen = generation;
+    const ids = [...new Set(locked.flatMap((s) => s.trackIds))];
+    let latestLedger: number | null = null;
+    let readIds = new Set<string>();
+    try {
+      const snap = await readSnapshot({
+        mixtapeId: opts.getMixtapeId(),
+        tracks: untrack(() => tracks).filter((t) => ids.includes(t.id)),
+        holder,
+        includeKale: true,
+        serverFirst: false,
+      });
+      if (gen !== generation) return;
+      applySnapshot(snap, ids);
+      latestLedger = snap.latestLedger;
+      readIds = new Set(ids.filter((id) => snap.tracks.get(id)?.holding.status === 'known'));
+    } catch (error) {
+      logger.warn('collect', 'Reconciliation read failed; steps stay locked', error);
+      return;
+    }
+    const now = Date.now();
+    for (const step of locked) {
+      // Confirming buys are owned by confirmBuy; confirming mints by the poll.
+      if (step.status === 'confirming' || step.status === 'submitting') {
+        const ownedAll = step.trackIds.every((id) => {
+          const h = holdings.get(id);
+          return h?.status === 'known' && h.balance > 0n;
+        });
+        if (!ownedAll) continue;
+      }
+      const ok = step.trackIds.every((id) => readIds.has(id));
+      const ownedAll = step.trackIds.every((id) => {
         const h = holdings.get(id);
         return h?.status === 'known' && h.balance > 0n;
       });
-      if (owned) patchStep(s.id, { status: 'done', failure: undefined });
-      else if (s.kind === 'mint' && s.failure === 'timeout') patchStep(s.id, { status: 'confirming', since: Date.now() });
+      const next = reconcileStep(step, { ok, ownedAll, latestLedger, now });
+      if (next !== step) patchStep(step.id, { status: next.status, failure: next.failure });
     }
-    resumeConfirming();
     finishIfDone();
   }
 

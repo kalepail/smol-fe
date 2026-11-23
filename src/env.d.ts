@@ -15,6 +15,8 @@ interface ImportMetaEnv {
   readonly PUBLIC_CHAIN_SNAPSHOT?: string;
   // Opt-in: smol-workflow POST /mint/status. Auto-detected (404 → chain fallback) when unset.
   readonly PUBLIC_MINT_STATUS?: string;
+  // '1' / '0' to assert getLedgerEntries archive capability; unset → getVersionInfo (protocol ≥ 23).
+  readonly PUBLIC_RPC_ARCHIVE_AWARE?: string;
 }
 
 interface ImportMeta {

@@ -3,14 +3,20 @@ import assert from 'node:assert/strict';
 import {
   affordableSubset,
   buildCollectPlan,
+  classifySubmitFailure,
   classifyTrack,
   derivePageState,
   describeCollectCard,
   describeTrackPill,
   flowKind,
+  kaleGuard,
+  nextRunnableStep,
+  pendingByTrack,
+  reconcileStep,
   resolveTrackIdentity,
   restoreFlow,
   serializeFlow,
+  stepsForStartOver,
   stepsFromPlan,
   summarizeMixtape,
   type ChainFacts,
@@ -19,6 +25,7 @@ import {
   type Holding,
   type KaleState,
   type PendingKind,
+  type PendingMark,
 } from '../../src/utils/mixtapeOwnership.ts';
 import { kaleToStroops } from '../../src/utils/mixtapePricing.ts';
 
@@ -55,7 +62,7 @@ function holdingFor(spec: Spec): Holding {
   }
 }
 
-function scenario(specs: Spec[], opts: { signedIn?: boolean; kale?: KaleState; steps?: FlowStep[]; hydrated?: boolean; pending?: Map<string, PendingKind> } = {}) {
+function scenario(specs: Spec[], opts: { signedIn?: boolean; kale?: KaleState; steps?: FlowStep[]; hydrated?: boolean; pending?: Map<string, PendingKind | PendingMark> } = {}) {
   const signedIn = opts.signedIn ?? true;
   const rows = specs.map((spec, i) => {
     const t = track(i + 1, spec);
@@ -254,4 +261,106 @@ test('pills pair an icon with a word for every state', () => {
     assert.ok(pill.label.length > 0);
   }
   assert.equal(describeTrackPill('owned', { signedIn: true, balance: 2_360_000_000_000_000n }).suffix, '236M');
+});
+
+// ---------------------------------------------------------------------------
+// Report 34 regressions
+// ---------------------------------------------------------------------------
+
+const KALE_ = (n: number) => kaleToStroops(n);
+const buyStep = (over: Partial<FlowStep>): FlowStep => ({
+  id: 'buy-1', kind: 'buy', trackIds: ['t1', 't2'], titles: ['Track 1', 'Track 2'], costStroops: KALE_(66), status: 'pending', ...over,
+});
+
+test('#1 an uncertain buy stays locked through Start over and is never re-planned', () => {
+  const uncertain = buyStep({ status: 'failed', failure: 'uncertain', since: NOW, expiresAtLedger: 1_000 });
+  const cancelled = buyStep({ id: 'buy-2', trackIds: ['t3'], titles: ['Track 3'], status: 'cancelled', failure: 'cancelled' });
+  const kept = stepsForStartOver([uncertain, cancelled]);
+  assert.deepEqual(kept.map((x) => x.id), ['buy-1'], 'Start over keeps the unsettled step, drops the cancelled one');
+
+  const pending = pendingByTrack(kept);
+  assert.equal(pending.get('t1'), 'locked');
+  // Balances still read zero (relay response lost): plan must NOT include t1/t2.
+  const s = scenario(many(3, { kind: 'available' }), { pending, steps: kept });
+  assert.deepEqual(s.plan!.buy.map((t) => t.id), ['t3']);
+  assert.equal(s.rows[0].state, 'unknown');
+  assert.equal(nextRunnableStep(kept), null, 'an unsettled step is never re-signed');
+
+  // The paused card never claims "Nothing else was charged" while unsettled.
+  const paused = scenario(many(3, { kind: 'available' }), { pending, steps: [uncertain, cancelled] });
+  assert.equal(paused.page.state, 'S9');
+  assert.doesNotMatch(paused.card.subline, /Nothing else was charged/);
+  assert.match(paused.card.subline, /still confirming 1/);
+
+  // Locks survive the 30 min TTL until reconciled.
+  assert.ok(restoreFlow(serializeFlow([uncertain], NOW), NOW + 60 * 60_000));
+  assert.equal(restoreFlow(serializeFlow([cancelled], NOW), NOW + 60 * 60_000), null);
+});
+
+test('#1 reconciliation: owned → done; signature expired & not held → expired (retryable); else locked', () => {
+  const step = buyStep({ status: 'failed', failure: 'uncertain', since: NOW, expiresAtLedger: 1_000 });
+  assert.equal(reconcileStep(step, { ok: true, ownedAll: true, latestLedger: 999, now: NOW }).status, 'done');
+  assert.equal(reconcileStep(step, { ok: true, ownedAll: false, latestLedger: 999, now: NOW }), step, 'may still land');
+  assert.equal(reconcileStep(step, { ok: false, ownedAll: false, latestLedger: 5_000, now: NOW }), step, 'failed read never unlocks');
+  const expired = reconcileStep(step, { ok: true, ownedAll: false, latestLedger: 1_001, now: NOW });
+  assert.equal(expired.failure, 'expired');
+  assert.equal(nextRunnableStep([expired])?.id, 'buy-1');
+});
+
+test('#1 a 5xx / transport error after submission is uncertain; only definite 4xx is clean', () => {
+  const err = new Error('boom');
+  assert.equal(classifySubmitFailure({ error: err, status: 502, phase: 'submitting' }), 'uncertain');
+  assert.equal(classifySubmitFailure({ error: new TypeError('Failed to fetch'), phase: 'submitting' }), 'uncertain');
+  assert.equal(classifySubmitFailure({ error: err, status: 429, phase: 'submitting' }), 'uncertain');
+  assert.equal(classifySubmitFailure({ error: err, status: 400, phase: 'submitting' }), 'rejected');
+  assert.equal(classifySubmitFailure({ error: err, status: 401, phase: 'submitting' }), 'auth');
+  const cancel = Object.assign(new Error('The operation either timed out or was not allowed.'), { name: 'NotAllowedError' });
+  assert.equal(classifySubmitFailure({ error: cancel, phase: 'signing' }), 'cancelled');
+});
+
+test('#3 an underivable / unresolved id never trusts its D1 pair', () => {
+  const legacy = { id: 'legacy-song', title: 'Legacy', address: 'GCREATOR', mintToken: 'COTHER_SAC', mintAmm: 'COTHER_POOL' };
+  assert.deepEqual(resolveTrackIdentity(legacy, { status: 'underivable' }), { mint: 'unavailable', reason: 'conflict' });
+  assert.deepEqual(resolveTrackIdentity(legacy, { status: 'unresolved' }), { mint: 'unavailable', reason: 'conflict' });
+  const state = classifyTrack(resolveTrackIdentity(legacy, { status: 'unresolved' }), known(0n));
+  assert.equal(state, 'unavailable');
+});
+
+test('#4 a failed chain read is unknown, never "unminted" (+100 KALE)', () => {
+  const t = track(1, { kind: 'unminted' });
+  const id = resolveTrackIdentity(t, { status: 'error' });
+  assert.deepEqual(id, { mint: 'unknown' });
+  assert.equal(classifyTrack(id, err), 'unknown');
+  // Even with unread facts, a failed holding read beats the D1 fallback.
+  assert.equal(classifyTrack(resolveTrackIdentity(t), err), 'unknown');
+  const plan = buildCollectPlan([{ track: t, identity: id, state: classifyTrack(id, err) }]);
+  assert.equal(plan.mint.length, 0);
+  assert.equal(plan.costKale, 0);
+});
+
+test('#6 signing requires a KNOWN, SUFFICIENT KALE balance', () => {
+  assert.equal(kaleGuard({ status: 'known', balance: KALE_(66), checkedAt: NOW }, KALE_(66)), 'ok');
+  assert.equal(kaleGuard({ status: 'known', balance: KALE_(65), checkedAt: NOW }, KALE_(66)), 'short');
+  assert.equal(kaleGuard({ status: 'error' }, KALE_(66)), 'unknown');
+  assert.equal(kaleGuard({ status: 'loading', balance: KALE_(1_000) }, KALE_(66)), 'unknown');
+});
+
+test('#9 a confirming mint never hides a cancelled buy: the card offers Continue', () => {
+  const steps: FlowStep[] = [
+    { id: 'mint-1', kind: 'mint', trackIds: ['t1'], titles: ['Track 1'], costStroops: KALE_(100), status: 'confirming' },
+    buyStep({ id: 'buy-1', trackIds: ['t2'], titles: ['Track 2'], costStroops: KALE_(33), status: 'cancelled', failure: 'cancelled' }),
+  ];
+  const s = scenario([{ kind: 'unminted' }, { kind: 'available' }], { pending: pendingByTrack(steps), steps });
+  assert.equal(s.page.overlay, 'busy');
+  assert.equal(s.card.primary.action, 'continue');
+  assert.equal(s.card.primary.label, 'Continue · 1 approval left');
+});
+
+test('#11 a row with no creator Address is unavailable even when minted on chain', () => {
+  const t = { id: 'x', title: 'No creator', address: '', mintToken: 'CSAC', mintAmm: 'CAMM' };
+  const id = resolveTrackIdentity(t, { status: 'minted', sac: 'CSAC', pool: 'CAMM' });
+  assert.deepEqual(id, { mint: 'unavailable', reason: 'noCreator' });
+  const plan = buildCollectPlan([{ track: t, identity: id, state: classifyTrack(id, known(0n)) }]);
+  assert.equal(plan.costKale, 0);
+  assert.equal(plan.excluded[0].reason, 'unavailable');
 });

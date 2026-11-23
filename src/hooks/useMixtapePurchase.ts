@@ -9,6 +9,7 @@
 import { Client as SmolClient } from 'smol-sdk';
 import { BUY_COST_STROOPS } from '../utils/mixtapePricing';
 import { signWithPasskey } from '../utils/passkeySign';
+import { getSignatureExpiration } from '../utils/rpcTip';
 import { getConnectedAccount } from '../utils/wallet';
 
 export interface BuyBatchTrack {
@@ -21,8 +22,8 @@ export async function submitBuyBatch(params: {
   tracks: BuyBatchTrack[];
   userContractId: string;
   userKeyId: string;
-  /** Fires once the passkey signature is done (UI: Approve → Sending). */
-  onSigned?: () => void;
+  /** Fires once the passkey signature is done (UI: Approve → Sending) with its expiry ledger. */
+  onSigned?: (info: { expiresAtLedger: number }) => void;
 }): Promise<void> {
   const { tracks, userContractId, userKeyId, onSigned } = params;
   const smolContractId = import.meta.env.PUBLIC_SMOL_CONTRACT_ID;
@@ -46,8 +47,9 @@ export async function submitBuyBatch(params: {
     fee_recipients: undefined,
   });
 
-  await signWithPasskey(tx, { keyId: userKeyId });
-  onSigned?.();
+  const expiration = await getSignatureExpiration();
+  await signWithPasskey(tx, { keyId: userKeyId, expiration });
+  onSigned?.({ expiresAtLedger: expiration });
   const { send } = await getConnectedAccount();
   await send(tx);
 }

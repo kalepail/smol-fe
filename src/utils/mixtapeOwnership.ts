@@ -45,10 +45,12 @@ export type Holding =
 /** What the chain said about this track's canonical (derived) identity. */
 export type ChainFacts =
   | { status: 'unread' }
+  /** The id can't be canonically derived: identity is unresolved, never trusted from D1. */
   | { status: 'underivable' }
+  /** The chain read failed or was inconclusive: ownership AND mint status are unknown. */
   | { status: 'error' }
   | { status: 'unminted' }
-  /** Server snapshot could not resolve a legacy identity (Report 31): never act on it. */
+  /** Unverifiable identity (legacy id, unaudited pool executable, server "unresolved"). */
   | { status: 'unresolved' }
   | { status: 'minted'; sac: string; pool: string; kaleReserve?: bigint };
 
@@ -67,9 +69,13 @@ export type TrackIdentity =
       kaleReserve?: bigint;
     }
   | { mint: 'unminted'; source: 'chain' | 'd1' }
+  /** Chain read failed: never fall back to D1 for a signed-in decision. */
+  | { mint: 'unknown' }
   | { mint: 'unavailable'; reason: UnavailableReason };
 
 export type PendingKind = 'mint' | 'buy';
+/** `locked`: submitted with an unconfirmed outcome — never re-signed until reconciled. */
+export type PendingMark = PendingKind | 'locked';
 
 export type TrackCollectState =
   | 'owned'
@@ -86,8 +92,10 @@ export type TrackCollectState =
 // ---------------------------------------------------------------------------
 
 /**
- * Resolve the identity used for balance reads and checkout. On-chain facts for
- * the canonical derived pair win over D1 when available; D1 is the fallback.
+ * Resolve the identity used for balance reads and checkout.
+ * Order: no creator Address → unavailable (C-04, even if minted) · verified
+ * chain facts · unresolved/underivable → unavailable · failed read → unknown ·
+ * chain-unminted (a D1 pair there is cross-wired) · D1 only when unread.
  */
 export function resolveTrackIdentity(
   track: CollectTrackInput,
@@ -95,67 +103,64 @@ export function resolveTrackIdentity(
 ): TrackIdentity {
   const d1Token = track.mintToken || null;
   const d1Amm = track.mintAmm || null;
-  const hasCreator = Boolean(track.address);
 
-  if (facts.status === 'minted') {
-    const d1Mismatch = Boolean(
-      (d1Token && d1Token !== facts.sac) || (d1Amm && d1Amm !== facts.pool)
-    );
-    return {
-      mint: 'minted',
-      sac: facts.sac,
-      pool: facts.pool,
-      source: 'chain',
-      d1Mismatch,
-      unindexed: !d1Token && !d1Amm,
-      kaleReserve: facts.kaleReserve,
-    };
-  }
+  if (!track.address) return { mint: 'unavailable', reason: 'noCreator' };
 
-  if (facts.status === 'unresolved') return { mint: 'unavailable', reason: 'conflict' };
-
-  if (facts.status === 'unminted') {
-    // D1 claims a pair but the canonical asset doesn't exist: the indexed pair
-    // belongs to another song (Report 31). Never buy or mint on that basis.
-    if (d1Token || d1Amm) return { mint: 'unavailable', reason: 'conflict' };
-    if (!hasCreator) return { mint: 'unavailable', reason: 'noCreator' };
-    return { mint: 'unminted', source: 'chain' };
+  switch (facts.status) {
+    case 'minted':
+      return {
+        mint: 'minted',
+        sac: facts.sac,
+        pool: facts.pool,
+        source: 'chain',
+        d1Mismatch: Boolean((d1Token && d1Token !== facts.sac) || (d1Amm && d1Amm !== facts.pool)),
+        unindexed: !d1Token && !d1Amm,
+        kaleReserve: facts.kaleReserve,
+      };
+    case 'unresolved':
+    case 'underivable':
+      return { mint: 'unavailable', reason: 'conflict' };
+    case 'error':
+      return { mint: 'unknown' };
+    case 'unminted':
+      // D1 claims a pair but the canonical asset doesn't exist: the indexed pair
+      // belongs to another song (Report 31). Never buy or mint on that basis.
+      if (d1Token || d1Amm) return { mint: 'unavailable', reason: 'conflict' };
+      return { mint: 'unminted', source: 'chain' };
+    default:
+      break;
   }
 
   if (d1Token && d1Amm) {
-    return {
-      mint: 'minted',
-      sac: d1Token,
-      pool: d1Amm,
-      source: 'd1',
-      d1Mismatch: false,
-      unindexed: false,
-    };
+    return { mint: 'minted', sac: d1Token, pool: d1Amm, source: 'd1', d1Mismatch: false, unindexed: false };
   }
   if (d1Token || d1Amm) return { mint: 'unavailable', reason: 'partialIndex' };
-  if (!hasCreator) return { mint: 'unavailable', reason: 'noCreator' };
   return { mint: 'unminted', source: 'd1' };
 }
 
 /**
- * Precedence: pending → unavailable → unminted → holding.
+ * Precedence: pending → unavailable → unknown (failed chain or holding read,
+ * BEFORE any D1 fallback) → unminted → holding.
  * Signed out: only `available | unminted | unavailable` (ownership unknowable).
  */
 export function classifyTrack(
   identity: TrackIdentity,
   holding: Holding,
-  pending?: PendingKind | null,
+  pending?: PendingMark | null,
   signedIn = true
 ): TrackCollectState {
-  if (signedIn && pending) return pending === 'mint' ? 'minting' : 'buying';
+  if (signedIn && pending) {
+    if (pending === 'locked') return 'unknown';
+    return pending === 'mint' ? 'minting' : 'buying';
+  }
   if (identity.mint === 'unavailable') return 'unavailable';
+  if (signedIn && (identity.mint === 'unknown' || holding.status === 'error')) return 'unknown';
+  if (identity.mint === 'unknown') return 'unavailable';
   if (identity.mint === 'unminted') return 'unminted';
   if (!signedIn) return 'available';
   switch (holding.status) {
     case 'known':
       return holding.balance > 0n ? 'owned' : 'available';
-    case 'error':
-      return 'unknown';
     default:
       return 'checking';
   }
@@ -256,7 +261,7 @@ export function derivePageState(input: {
   if (signedIn) {
     // S9 waits for the first ownership read so the bar and counts are real.
     if (flow === 'paused' && phase !== 'S6') overlay = 'S9';
-    else if (flow === 'running' || s.minting + s.buying > 0) overlay = 'busy';
+    else if ((flow === 'running' || s.minting + s.buying > 0) && phase !== 'S6') overlay = 'busy';
     else if (
       plan &&
       plan.costStroops > 0n &&
@@ -428,6 +433,8 @@ export type StepFailure =
   | 'rejected'
   | 'timeout'
   | 'uncertain'
+  /** Reconciled: its signature expired on chain and it never landed. Safe to retry. */
+  | 'expired'
   | 'auth'
   | 'network'
   | 'unknown';
@@ -440,11 +447,25 @@ export interface FlowStep {
   costStroops: bigint;
   status: StepStatus;
   failure?: StepFailure;
-  /** Epoch ms when the step was submitted (mint confirmation timeout). */
+  /** Epoch ms when the step was signed/submitted. */
   since?: number;
+  /** Ledger after which this step's signed auth can never land (reconciliation bound). */
+  expiresAtLedger?: number;
+  /** Workflow ids returned by POST /mint (for POST /mint/status, Report 31). */
+  workflowIds?: string[];
 }
 
 export type FlowKind = 'idle' | 'running' | 'paused' | 'done';
+
+/** Outcomes that may have been charged and are not yet reconciled. */
+export function isUnsettledFailure(step: FlowStep): boolean {
+  return step.status === 'failed' && (step.failure === 'uncertain' || step.failure === 'timeout');
+}
+
+/** Submitted (or possibly submitted) steps: their songs are locked against re-signing. */
+export function isLocked(step: FlowStep): boolean {
+  return step.status === 'submitting' || step.status === 'confirming' || isUnsettledFailure(step);
+}
 
 export function flowKind(steps: FlowStep[]): FlowKind {
   if (steps.length === 0) return 'idle';
@@ -458,15 +479,77 @@ export function flowKind(steps: FlowStep[]): FlowKind {
   return 'idle';
 }
 
-/** Track id → in-flight kind for steps that were submitted but not settled. */
-export function pendingByTrack(steps: FlowStep[]): Map<string, PendingKind> {
-  const out = new Map<string, PendingKind>();
+/**
+ * Track id → pending mark. In-flight steps show Minting…/Buying…; unsettled
+ * failures lock their songs (`locked` → unknown) so no plan can re-sign them.
+ */
+export function pendingByTrack(steps: FlowStep[]): Map<string, PendingMark> {
+  const out = new Map<string, PendingMark>();
   for (const step of steps) {
     if (step.status === 'submitting' || step.status === 'confirming') {
       for (const id of step.trackIds) out.set(id, step.kind);
+    } else if (isUnsettledFailure(step)) {
+      for (const id of step.trackIds) if (!out.has(id)) out.set(id, 'locked');
     }
   }
   return out;
+}
+
+/** "Start over" keeps every submitted/unsettled step (and its lock); drops the rest. */
+export function stepsForStartOver(steps: FlowStep[]): FlowStep[] {
+  return steps.filter(isLocked);
+}
+
+/** Wall-clock bound for locks saved without an expiration ledger. */
+export const LOCK_MAX_MS = 30 * 60 * 1000;
+
+/**
+ * Reconcile one submitted/unsettled step against a FRESH, successful chain read.
+ * - every song now held → done;
+ * - the signature's expiration ledger has passed (or the wall-clock bound for
+ *   legacy records) and the songs still aren't held → `expired`: it can never
+ *   land, so it was not charged and may be retried;
+ * - otherwise unchanged (still locked).
+ */
+export function reconcileStep(
+  step: FlowStep,
+  read: { ok: boolean; ownedAll: boolean; latestLedger: number | null; now: number }
+): FlowStep {
+  if (!isLocked(step) || !read.ok) return step;
+  if (read.ownedAll) return { ...step, status: 'done', failure: undefined };
+  const expired =
+    step.expiresAtLedger !== undefined
+      ? read.latestLedger !== null && read.latestLedger > step.expiresAtLedger
+      : step.since !== undefined && read.now - step.since > LOCK_MAX_MS;
+  return expired ? { ...step, status: 'failed', failure: 'expired' } : step;
+}
+
+/**
+ * Classify a step error by where it happened. Before the signature leaves the
+ * device it is clean (cancel = not charged). After submission only a definite
+ * 4xx refusal is clean; 5xx / 408 / 429 / transport errors are `uncertain`.
+ */
+export function classifySubmitFailure(input: {
+  error: unknown;
+  status?: number;
+  phase: 'signing' | 'submitting';
+}): StepFailure {
+  const { error, status, phase } = input;
+  if (phase === 'signing') {
+    if (status === 401) return 'auth';
+    return classifyStepError(error);
+  }
+  if (status === 401) return 'auth';
+  if (typeof status === 'number' && status >= 400 && status < 500 && status !== 408 && status !== 429) {
+    return 'rejected';
+  }
+  return 'uncertain';
+}
+
+/** Signing guard: a step may only be built and signed with a KNOWN, SUFFICIENT KALE balance. */
+export function kaleGuard(kale: KaleState, costStroops: bigint): 'ok' | 'unknown' | 'short' {
+  if (kale.status !== 'known') return 'unknown';
+  return kale.balance >= costStroops ? 'ok' : 'short';
 }
 
 export function stepsFromPlan(plan: CollectPlan, titles: ReadonlyMap<string, string>): FlowStep[] {
@@ -480,10 +563,10 @@ export function stepsFromPlan(plan: CollectPlan, titles: ReadonlyMap<string, str
   }));
 }
 
-/** Steps that a passkey tap may (re)run. Timeouts/uncertain outcomes never re-sign. */
+/** Steps that a passkey tap may (re)run. Unsettled outcomes never re-sign. */
 export function isRunnable(step: FlowStep): boolean {
   if (step.status === 'pending' || step.status === 'cancelled') return true;
-  return step.status === 'failed' && step.failure !== 'uncertain' && step.failure !== 'timeout';
+  return step.status === 'failed' && !isUnsettledFailure(step);
 }
 
 export function runnableCount(steps: FlowStep[]): number {
@@ -512,16 +595,16 @@ export function serializeFlow(steps: FlowStep[], now: number): string {
 
 /**
  * Restore saved progress. Steps interrupted mid-signature were never signed
- * (→ cancelled). Steps interrupted after submission are uncertain: mints keep
- * confirming (the poll resolves them from the chain), buys become `uncertain`
- * so the UI never repeats a paid action without a fresh re-plan.
+ * (→ cancelled). Steps interrupted after submission keep confirming and stay
+ * locked until a fresh chain read reconciles them (owned → done, signature
+ * expired → `expired`), so the UI never repeats a paid action on a guess.
  */
 export function restoreFlow(raw: string | null, now: number): FlowStep[] | null {
   if (!raw) return null;
   try {
     const data = JSON.parse(raw);
     if (data?.v !== FLOW_STORAGE_VERSION || typeof data.updatedAt !== 'number') return null;
-    if (now - data.updatedAt > FLOW_TTL_MS || !Array.isArray(data.steps)) return null;
+    if (!Array.isArray(data.steps)) return null;
     const steps: FlowStep[] = data.steps.map((s: Record<string, unknown>) => {
       const status = s.status as StepStatus;
       const kind = s.kind as PendingKind;
@@ -534,6 +617,8 @@ export function restoreFlow(raw: string | null, now: number): FlowStep[] | null 
         status,
         failure: s.failure as StepFailure | undefined,
         since: typeof s.since === 'number' ? s.since : undefined,
+        expiresAtLedger: typeof s.expiresAtLedger === 'number' ? s.expiresAtLedger : undefined,
+        workflowIds: Array.isArray(s.workflowIds) ? (s.workflowIds as unknown[]).map(String) : undefined,
       };
       if (status === 'signing') return { ...base, status: 'cancelled', failure: 'cancelled' };
       if (status === 'submitting' || status === 'confirming') {
@@ -543,6 +628,9 @@ export function restoreFlow(raw: string | null, now: number): FlowStep[] | null 
       return base;
     });
     if (steps.length === 0 || steps.every((s) => s.status === 'done')) return null;
+    // Expired records are dropped ONLY when nothing is locked: a submitted or
+    // unsettled step persists until a fresh chain read reconciles it.
+    if (now - data.updatedAt > FLOW_TTL_MS && !steps.some(isLocked)) return null;
     return steps;
   } catch {
     return null;
@@ -598,9 +686,9 @@ function planLabel(plan: CollectPlan, phase: CollectPhase, summary: CollectSumma
   const u = plan.mint.length;
   const m = plan.buy.length;
   const cost = formatKale(plan.costKale);
-  if (phase === 'S1' && u === 0 && m === summary.available) return `Buy all ${m} · ${cost}`;
+  if (phase === 'S1' && u === 0 && m > 1 && m === summary.available) return `Buy all ${m} · ${cost}`;
   if (phase === 'S2' && u === 0 && m === summary.available) return `Complete mixtape · ${cost}`;
-  if (phase === 'S4' && m === 0 && u === summary.unminted) return `Mint all ${u} · ${cost}`;
+  if (phase === 'S4' && m === 0 && u > 1 && u === summary.unminted) return `Mint all ${u} · ${cost}`;
   if (u > 0 && m > 0) return `Mint ${u} & buy ${m} · ${cost}`;
   if (u > 0) return `Mint ${u} · ${cost}`;
   return `Buy ${m} · ${cost}`;
@@ -625,10 +713,14 @@ export function describeCollectCard(input: {
   if (page.overlay === 'S9') {
     const done = steps.filter((x) => x.status === 'done').length;
     const left = runnableCount(steps);
+    const unsettled = steps.filter(isUnsettledFailure).length;
     return {
       title: 'Collecting paused',
       tone: 'paused',
-      subline: `${done} of ${steps.length} ${plural(steps.length, 'step')} done. Nothing else was charged.`,
+      // Never claim "nothing else was charged" while an outcome is unconfirmed.
+      subline: unsettled
+        ? `${done} of ${steps.length} ${plural(steps.length, 'step')} done. We're still confirming ${unsettled} — ${unsettled === 1 ? 'its songs' : 'their songs'} won't be charged again.`
+        : `${done} of ${steps.length} ${plural(steps.length, 'step')} done. Nothing else was charged.`,
       primary:
         left > 0
           ? { label: `Continue · ${left} ${plural(left, 'approval')} left`, action: 'continue', kind: 'primary' }
@@ -641,6 +733,8 @@ export function describeCollectCard(input: {
     const done = steps.filter((x) => x.status === 'done').length;
     const minting = s.minting;
     const buying = s.buying;
+    const left = runnableCount(steps);
+    const signing = steps.some((x) => x.status === 'signing');
     const base = describeBase(input);
     return {
       ...base,
@@ -650,11 +744,15 @@ export function describeCollectCard(input: {
           : buying > 0
             ? `Buying ${buying}…`
             : 'Waiting for your passkey…',
-      primary: {
-        label: steps.length ? `Collecting… ${done} of ${steps.length} done` : 'Collecting…',
-        action: 'openSheet',
-        kind: 'secondary',
-      },
+      // A confirming step never hides a cancelled/remaining one (C-05/S9).
+      primary:
+        left > 0 && !signing
+          ? { label: `Continue · ${left} ${plural(left, 'approval')} left`, action: 'continue', kind: 'primary' }
+          : {
+              label: steps.length ? `Collecting… ${done} of ${steps.length} done` : 'Collecting…',
+              action: 'openSheet',
+              kind: 'secondary',
+            },
       secondary: undefined,
       note: undefined,
     };
@@ -776,7 +874,9 @@ function describeBase(input: {
       return {
         title: "You don't own any of these yet",
         tone: 'default',
-        subline: `All ${N} are minted and ready to buy`,
+        subline: s.unavailable
+          ? `${s.available} ready to buy · ${s.unavailable} not available yet`
+          : `All ${N} are minted and ready to buy`,
         primary: planPrimary(plan, page.phase, s),
         note: signatures ? approvals(signatures) : undefined,
         showExplainer: false,
@@ -890,6 +990,8 @@ export function describeStepFailure(failure: StepFailure | undefined, title?: st
   switch (failure) {
     case 'cancelled':
       return "Cancelled. You weren't charged for this step.";
+    case 'expired':
+      return "This step didn't go through. You weren't charged.";
     case 'poolTooSmall':
       return `${title ? `“${title}”` : "A song"}'s market is too small to buy ${BUY_COST_KALE} KALE at once right now.`;
     case 'mintCollision':
@@ -899,7 +1001,7 @@ export function describeStepFailure(failure: StepFailure | undefined, title?: st
     case 'timeout':
       return 'This is taking longer than usual. It may still finish. We’ll keep checking.';
     case 'uncertain':
-      return 'We couldn’t confirm this step. Check again before collecting more.';
+      return 'We couldn’t confirm this step yet. These songs won’t be charged again until we know.';
     case 'auth':
       return 'Your session expired. Sign in to continue. Your progress is saved.';
     case 'network':

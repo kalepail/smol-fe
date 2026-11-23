@@ -73,3 +73,54 @@ export const collectMixtapes = {
     Smols: mintedTracks,
   },
 };
+
+// ---------------------------------------------------------------------------
+// Report 34 regressions
+// ---------------------------------------------------------------------------
+
+/** Minted on chain, but its pool runs an unaudited executable (#8). */
+export const badExecTrack = makeTrack('badexec-0', 'Unaudited Pool', true);
+/** Non-hex legacy id whose D1 row carries ANOTHER song's valid pair (#3). */
+export const legacyTrack = {
+  ...makeTrack('legacy-0', 'Legacy Song', false),
+  Id: 'legacy-song',
+  Mint_Token: derive(mixedTracks[1].Id).sac,
+  Mint_Amm: derive(mixedTracks[1].Id).pool,
+};
+/** Minted, but no creator Address (#11, Report 30 acceptance 7). */
+export const addresslessTrack = { ...makeTrack('noaddr-0', 'No Creator', true), Address: '' };
+export const goodTrack = makeTrack('good-0', 'Good Market', true);
+
+collectMixtapes['collect-legacy'] = {
+  Id: 'collect-legacy',
+  Title: 'Edge Cases',
+  Desc: 'Identity and data edge cases.',
+  Address: CREATOR,
+  Created_At: '2026-11-22',
+  Smols: [legacyTrack, badExecTrack, addresslessTrack, goodTrack],
+};
+
+/** Song-page fixtures for the canonical trade market (#2). */
+export const crosswiredSong = { ...makeTrack('crosswired-0', 'Crosswired Song', false) };
+crosswiredSong.Mint_Token = derive(mixedTracks[0].Id).sac; // D1 points at ANOTHER song's market
+crosswiredSong.Mint_Amm = derive(mixedTracks[0].Id).pool;
+export const unindexedSong = makeTrack('unindexed-0', 'Unindexed Song', false);
+
+function songDetail(track) {
+  return {
+    d1: { ...track, Song_1: 'first', Instrumental: 0, Created_At: '2026-11-21T16:00:00Z', Requested_Provider: 'aisonggenerator', Actual_Provider: 'aisonggenerator' },
+    kv_do: {
+      payload: { prompt: 'Collector fixture', instrumental: false, public: true, provider: 'aisonggenerator' },
+      description: 'Collector fixture',
+      image: true,
+      nsfw: { safe: true, categories: [] },
+      lyrics: { title: track.Title, style: ['lofi'], lyrics: 'La la' },
+      songs: [{ music_id: 'first', status: 4 }],
+    },
+    liked: false,
+  };
+}
+
+export const collectSongs = Object.fromEntries(
+  [crosswiredSong, unindexedSong, legacyTrack].map((t) => [`/${t.Id}`, songDetail(t)])
+);

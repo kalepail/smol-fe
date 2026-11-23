@@ -8,12 +8,9 @@
  * transaction that gets signed.
  */
 import {
-  createCometRecordsLedgerKey,
-  createContractInstanceLedgerKey,
   createSACBalanceLedgerKey,
   knownBalance,
   parseCometFeeConfig,
-  parseCometRecords,
   readLedgerEntries,
   toBalanceResult,
 } from './batchLedgerEntries';
@@ -25,11 +22,27 @@ import {
   type CometRecord,
 } from './cometQuote';
 import { logger } from './logger';
+import { deriveSmolIdentity, identityKeys, interpretIdentity } from './smolChainIdentity';
+
+export class TradeMarketError extends Error {
+  readonly reason: 'unresolved' | 'unminted' | 'unavailable' | 'balances';
+  constructor(reason: TradeMarketError['reason'], message: string) {
+    super(message);
+    this.name = 'TradeMarketError';
+    this.reason = reason;
+  }
+}
 
 export interface CometTradeSnapshot {
+  /** Canonical, verified market for THIS song (never taken from D1 alone). */
+  pool: string;
   mintToken: string;
+  /** D1 pointed at a different pair (cross-wired) or had none (unindexed). */
+  d1Mismatch: boolean;
+  unindexed: boolean;
   kaleRecord: CometRecord;
   mintRecord: CometRecord;
+  /** null when the pool executable isn't audited: quotes fall back to simulation. */
   feeConfig: (CometFeeConfig & { trackedToken: string }) | null;
   /** null = not requested (signed out). Errors throw. */
   userKale: bigint | null;
@@ -37,31 +50,63 @@ export interface CometTradeSnapshot {
   latestLedger: number | null;
 }
 
+/**
+ * Resolve and verify the song's canonical (SAC, pool) pair and read everything
+ * the trade sheet shows in ONE getLedgerEntries call: SAC instance, pool
+ * instance (executable + fee config), pool reserves, user KALE, user tokens.
+ * Throws `TradeMarketError` when the market can't be verified — trading is
+ * then blocked rather than pointed at whatever D1 says.
+ */
 export async function readCometTradeSnapshot(input: {
-  pool: string;
-  mintToken: string;
+  songId: string;
+  d1Token?: string | null;
+  d1Amm?: string | null;
   holder?: string | null;
 }): Promise<CometTradeSnapshot> {
   const kaleSac = import.meta.env.PUBLIC_KALE_SAC_ID;
-  const instanceKey = createContractInstanceLedgerKey(input.pool);
-  const recordsKey = createCometRecordsLedgerKey(input.pool);
-  const kaleKey = input.holder ? createSACBalanceLedgerKey(kaleSac, input.holder) : null;
-  const mintKey = input.holder ? createSACBalanceLedgerKey(input.mintToken, input.holder) : null;
-  const keys = [instanceKey, recordsKey, ...(kaleKey ? [kaleKey] : []), ...(mintKey ? [mintKey] : [])];
-
-  const reads = await readLedgerEntries(keys);
-  const records = reads.get(recordsKey);
-  if (!records || records.state !== 'found') {
-    throw new Error(records?.state === 'missing' ? 'This song has no market yet.' : "Couldn't load the market.");
+  const identity = deriveSmolIdentity(input.songId);
+  if (!identity) {
+    throw new TradeMarketError('unresolved', "We couldn't verify this song's market, so trading is paused.");
   }
-  const byToken = parseCometRecords(records.val);
-  const kaleRecord = byToken.get(kaleSac);
-  const mintRecord = byToken.get(input.mintToken);
-  if (!kaleRecord || !mintRecord) throw new Error("This market doesn't match this song.");
+  const keys = identityKeys(identity);
+  const kaleKey = input.holder ? createSACBalanceLedgerKey(kaleSac, input.holder) : null;
+  const mintKey = input.holder ? createSACBalanceLedgerKey(identity.sac, input.holder) : null;
+  const reads = await readLedgerEntries([
+    keys.sacInstance,
+    keys.poolInstance,
+    keys.poolRecords,
+    ...(kaleKey ? [kaleKey] : []),
+    ...(mintKey ? [mintKey] : []),
+  ]);
+
+  const verdict = interpretIdentity(
+    identity,
+    {
+      sacInstance: reads.get(keys.sacInstance),
+      poolInstance: reads.get(keys.poolInstance),
+      poolRecords: reads.get(keys.poolRecords),
+    },
+    { kaleSac, requireAuditedPool: false }
+  );
+  if (verdict.facts.status === 'unminted') {
+    throw new TradeMarketError('unminted', "This song isn't minted yet, so it has no market.");
+  }
+  if (verdict.facts.status === 'unresolved') {
+    throw new TradeMarketError('unresolved', "We couldn't verify this song's market, so trading is paused.");
+  }
+  if (verdict.facts.status !== 'minted' || !verdict.records) {
+    throw new TradeMarketError('unavailable', "Couldn't load the market. Try again in a moment.");
+  }
+  const kaleRecord = verdict.records.get(kaleSac)!;
+  const mintRecord = verdict.records.get(identity.sac)!;
+  const d1Mismatch = Boolean(
+    (input.d1Token && input.d1Token !== identity.sac) || (input.d1Amm && input.d1Amm !== identity.pool)
+  );
+  if (d1Mismatch) logger.warn('trade', `D1 market for ${input.songId} differs from the canonical pair; using canonical`);
 
   let feeConfig: CometTradeSnapshot['feeConfig'] = null;
-  const instance = reads.get(instanceKey);
-  if (instance?.state === 'found') {
+  const instance = reads.get(keys.poolInstance);
+  if (verdict.auditedPool && instance?.state === 'found') {
     try {
       feeConfig = parseCometFeeConfig(instance.val);
     } catch (error) {
@@ -72,18 +117,22 @@ export async function readCometTradeSnapshot(input: {
   const balanceOf = (key: string | null, token: string): bigint | null => {
     if (!key || !input.holder) return null;
     const value = knownBalance(toBalanceResult({ tokenContractId: token, holderAddress: input.holder }, reads.get(key)));
-    if (value === null) throw new Error("Couldn't load your balances.");
+    if (value === null) throw new TradeMarketError('balances', "Couldn't load your balances.");
     return value;
   };
 
+  const recordsRead = reads.get(keys.poolRecords);
   return {
-    mintToken: input.mintToken,
+    pool: identity.pool,
+    mintToken: identity.sac,
+    d1Mismatch,
+    unindexed: !input.d1Token && !input.d1Amm,
     kaleRecord,
     mintRecord,
     feeConfig,
     userKale: balanceOf(kaleKey, kaleSac),
-    userMint: balanceOf(mintKey, input.mintToken),
-    latestLedger: records.latestLedger,
+    userMint: balanceOf(mintKey, identity.sac),
+    latestLedger: recordsRead && recordsRead.state !== 'error' ? recordsRead.latestLedger : null,
   };
 }
 

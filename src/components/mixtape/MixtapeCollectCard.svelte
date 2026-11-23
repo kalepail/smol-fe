@@ -42,14 +42,16 @@
   } as const;
 </script>
 
+<!--
+  Fixed slot layout (C-17): title · bar · subline (2 lines reserved) · CTA (48px)
+  · footer (44px: secondary action, note, or skeleton). Every state fills the
+  same slots, so S6 → S1–S5/S8/S9 never moves the card height or the CTA.
+-->
 <section
   aria-labelledby="collect-title"
   aria-busy={busy}
   data-collect-state={page.state}
-  class={`flex w-full flex-col gap-3 rounded-[var(--radius-control)] bg-surface-1 p-4 ring-1 ring-inset ring-line ${
-    // Fixed height once signed in: S6 → any resolved state never shifts layout (C-17).
-    page.phase === 'S0' ? '' : 'min-h-[216px]'
-  }`}
+  class="flex w-full flex-col gap-3 rounded-[var(--radius-control)] bg-surface-1 p-4 ring-1 ring-inset ring-line"
 >
   <div class="flex min-h-6 items-start justify-between gap-2">
     <h2
@@ -71,7 +73,7 @@
         type="button"
         onclick={onExplain}
         aria-label="How collecting works"
-        class="focus-ring relative -mt-1 -mr-1 inline-flex size-8 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-white/8 hover:text-ink-1 before:absolute before:-inset-1.5 before:content-['']"
+        class="focus-ring relative -my-1 -mr-1 inline-flex size-8 shrink-0 items-center justify-center rounded-full text-ink-3 hover:bg-white/8 hover:text-ink-1 before:absolute before:-inset-1.5 before:content-['']"
       >
         <Icon name="info" size={16} />
       </button>
@@ -84,45 +86,40 @@
     <MixtapeOwnershipBar {states} label={barLabel} />
   {/if}
 
-  <p class={`text-xs leading-relaxed ${page.overlay === 'S8' ? 'text-warning' : 'text-ink-2'}`}>
+  <p class={`min-h-[39px] text-xs leading-relaxed ${page.overlay === 'S8' ? 'text-warning' : 'text-ink-2'}`}>
     {card.subline}
   </p>
 
   <div class="mt-auto flex flex-col gap-1.5">
-    {#if card.primary.kind === 'owned'}
-      <div class="flex min-h-11 flex-wrap items-center justify-between gap-2">
-        <span class="inline-flex items-center gap-1.5 rounded-full bg-success/15 px-3 py-1.5 text-sm font-medium text-success ring-1 ring-inset ring-success/30">
-          <Icon name="check" size={14} />
-          {card.primary.label}
-        </span>
-        {#if card.secondary}
-          <button
-            type="button"
-            onclick={() => onAction(card.secondary!.action)}
-            class="focus-ring inline-flex min-h-11 items-center gap-0.5 rounded px-1 text-sm font-medium text-ink-1 hover:underline"
-          >
-            {card.secondary.label}
-            <Icon name="chevron-right" size={16} />
-          </button>
-        {/if}
-      </div>
-    {:else}
-      {#if card.primary.kind === 'skeleton'}
-        <Button variant="secondary" fullWidth disabled class="min-h-12 animate-pulse motion-reduce:animate-none">
+    <div class="flex h-12 items-center" data-collect-cta>
+      {#if card.primary.kind === 'owned'}
+        <div class="flex w-full flex-wrap items-center justify-between gap-2">
+          <span class="inline-flex items-center gap-1.5 rounded-full bg-success/15 px-3 py-1.5 text-sm font-medium text-success ring-1 ring-inset ring-success/30">
+            <Icon name="check" size={14} />
+            {card.primary.label}
+          </span>
+          {#if card.secondary}
+            <button
+              type="button"
+              onclick={() => onAction(card.secondary!.action)}
+              class="focus-ring inline-flex min-h-11 items-center gap-0.5 rounded px-1 text-sm font-medium text-ink-1 hover:underline"
+            >
+              {card.secondary.label}
+              <Icon name="chevron-right" size={16} />
+            </button>
+          {/if}
+        </div>
+      {:else if card.primary.kind === 'skeleton'}
+        <Button variant="secondary" fullWidth disabled class="h-12 animate-pulse motion-reduce:animate-none">
           {card.primary.label}
         </Button>
-        <!-- Mirrors the S1–S4 note so the CTA doesn't move when ownership resolves. -->
-        <div class="flex flex-col items-center gap-2 py-1" aria-hidden="true">
-          <span class="h-2.5 w-3/4 animate-pulse rounded-full bg-surface-2 motion-reduce:animate-none"></span>
-          <span class="h-2.5 w-1/3 animate-pulse rounded-full bg-surface-2 motion-reduce:animate-none"></span>
-        </div>
       {:else}
         <Button
           variant={card.primary.kind === 'primary' ? 'primary' : 'secondary'}
           fullWidth
           disabled={card.primary.action === 'none'}
           onclick={() => onAction(card.primary.action)}
-          class="min-h-12"
+          class="h-12"
         >
           {#if card.primary.action === 'retryCheck'}
             <Icon name="refresh" size={16} />
@@ -133,17 +130,27 @@
           {/if}
         </Button>
       {/if}
-      {#if card.secondary}
+    </div>
+
+    <div class="flex min-h-11 items-center justify-center">
+      {#if card.primary.kind === 'owned'}
+        <!-- secondary rendered inline with the Owned pill -->
+      {:else if card.primary.kind === 'skeleton'}
+        <div class="flex w-full flex-col items-center gap-2" aria-hidden="true">
+          <span class="h-2.5 w-3/4 animate-pulse rounded-full bg-surface-2 motion-reduce:animate-none"></span>
+          <span class="h-2.5 w-1/3 animate-pulse rounded-full bg-surface-2 motion-reduce:animate-none"></span>
+        </div>
+      {:else if card.secondary}
         <button
           type="button"
           onclick={() => onAction(card.secondary!.action)}
-          class="focus-ring mx-auto inline-flex min-h-11 items-center rounded px-2 text-sm font-medium text-ink-1 underline-offset-4 hover:underline"
+          class="focus-ring inline-flex min-h-11 items-center rounded px-2 text-sm font-medium text-ink-1 underline-offset-4 hover:underline"
         >
           {card.secondary.label}
         </button>
       {:else if card.note}
         <p class="text-center text-xs leading-relaxed text-ink-3">{card.note}</p>
       {/if}
-    {/if}
+    </div>
   </div>
 </section>

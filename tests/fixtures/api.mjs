@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
-import { collectMixtapes } from './collect.mjs';
+import { collectMixtapes, collectSongs } from './collect.mjs';
 
 function crc32(buf) {
   let c = 0xffffffff;
@@ -142,6 +142,7 @@ const routes = new Map([
   ['/mixtapes', [{ ...mixtape, Smols: Smols.map((track) => track.Id) }, secondMixtape]],
   ['/mixtapes/fixture-mixtape', { ...mixtape, Smols }],
   ...Object.entries(collectMixtapes).map(([id, data]) => [`/mixtapes/${id}`, data]),
+  ...Object.entries(collectSongs),
   ['/search', { results: tracks.slice(0, 4).map((t, i) => ({ ...t, score: 1 - i * 0.1 })) }],
   ['/search/first-smol/similar', { results: tracks.slice(2, 6).map((t, i) => ({ ...t, score: 0.9 - i * 0.1 })) }],
   ['/search/smol-2take/similar', { results: tracks.slice(0, 4).map((t, i) => ({ ...t, score: 0.9 - i * 0.1 })) }],
@@ -237,6 +238,13 @@ createServer(async (req, res) => {
 
   if (req.method === 'POST' && path === '/mixtapes') {
     res.writeHead(200, { ...headers, 'Content-Type': 'application/json' }).end(JSON.stringify({ id: 'fixture-mixtape' }));
+    return;
+  }
+
+  // Live smol-workflow routes POST /mint/status to POST /mint/:id → 400 (Report 34).
+  if (req.method === 'POST' && path === '/mint/status') {
+    requests.set('POST /mint/status', (requests.get('POST /mint/status') ?? 0) + 1);
+    res.writeHead(400, { ...headers, 'Content-Type': 'text/plain' }).end('Missing signed XDR');
     return;
   }
 

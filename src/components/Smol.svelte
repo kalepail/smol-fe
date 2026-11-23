@@ -69,7 +69,9 @@
   const activeProvider = $derived(providerOf(detail));
   const requestedProvider = $derived(requestedProviderOf(detail));
   const minted = $derived(Boolean(d1?.Mint_Token || d1?.Mint_Amm));
-  const tradeReady = $derived(Boolean(id && d1?.Mint_Amm && d1?.Mint_Token));
+  // Minted on chain but not yet indexed in D1 (found via the ?trade=1 deep link).
+  let onChainMarket = $state(false);
+  const tradeReady = $derived(Boolean(id && ((d1?.Mint_Amm && d1?.Mint_Token) || onChainMarket)));
   const isOwner = $derived(Boolean(d1?.Address && d1.Address === userState.contractId));
   const tradeSongId = $derived(id ?? d1?.Id ?? null);
   const tradeTitle = $derived(
@@ -92,14 +94,31 @@
     }
   });
 
-  // `/{id}?trade=1` (mixtape holdings → Trade) opens the trade sheet once the market is known.
+  // `/{id}?trade=1` (mixtape holdings → Trade) opens the trade sheet. The sheet
+  // itself resolves and verifies the canonical market before showing anything;
+  // a song minted on chain but not yet indexed in D1 is found here first.
   let tradeDeepLinkHandled = false;
   $effect(() => {
-    if (!tradeReady || tradeDeepLinkHandled || typeof window === 'undefined') return;
+    if (tradeDeepLinkHandled || typeof window === 'undefined' || !id || !d1) return;
     tradeDeepLinkHandled = true;
-    if (new URLSearchParams(window.location.search).get('trade') === '1') {
+    if (new URLSearchParams(window.location.search).get('trade') !== '1') return;
+    if (d1.Mint_Amm && d1.Mint_Token) {
       showTradeModal = true;
+      return;
     }
+    const songId = id;
+    void import('../utils/smolChainIdentity')
+      .then(({ readMixtapeChainSnapshot }) => readMixtapeChainSnapshot({ tracks: [{ id: songId }] }))
+      .then((snapshot) => {
+        if (songId !== id) return;
+        if (snapshot.tracks.get(songId)?.facts.status === 'minted') {
+          onChainMarket = true;
+          showTradeModal = true;
+        }
+      })
+      .catch(() => {
+        /* stays untradeable; the page still plays */
+      });
   });
 
   $effect(() => {
@@ -607,12 +626,13 @@
   {/if}
 {/if}
 
-{#if tradeReady && d1?.Mint_Amm && d1?.Mint_Token && tradeSongId}
+{#if tradeReady && tradeSongId}
+  <!-- ammId / mintTokenId are D1 hints; the sheet trades only the verified canonical pair. -->
   <SmolTradeSection
     bind:show={showTradeModal}
     songId={tradeSongId}
-    ammId={d1.Mint_Amm}
-    mintTokenId={d1.Mint_Token}
+    ammId={d1?.Mint_Amm ?? ''}
+    mintTokenId={d1?.Mint_Token ?? ''}
     title={tradeTitle}
     imageUrl={tradeImageUrl}
     bind:mintBalance={tradeMintBalance}

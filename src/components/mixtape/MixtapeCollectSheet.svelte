@@ -9,6 +9,7 @@
     formatKale,
     formatStroops,
     isRunnable,
+    kaleGuard,
     nextRunnableStep,
     type FlowStep,
   } from '../../utils/mixtapeOwnership';
@@ -90,6 +91,10 @@
     if (signing) return { label: 'Waiting for passkey…', disabled: true };
     if (c.approving) return { label: 'Checking…', disabled: true };
     if (nextStep) {
+      // Same guard as signing: a KNOWN balance that covers the next step (C-10).
+      const guard = kaleGuard(kale, nextStep.costStroops);
+      if (guard === 'unknown') return { label: 'Check balance again', disabled: kale.status === 'loading' };
+      if (guard === 'short') return { label: 'Not enough KALE', disabled: true };
       const paused = nextStep.status === 'cancelled' || nextStep.status === 'failed';
       const left = c.steps.filter(isRunnable).length;
       if (paused) return { label: `Continue · approve ${left}`, disabled: false };
@@ -413,7 +418,12 @@
             variant="primary"
             fullWidth
             disabled={progressPrimary.disabled}
-            onclick={() => (progressPrimary.label === 'Done' ? c.closeSheet() : c.approveNext())}
+            onclick={() =>
+              progressPrimary.label === 'Done'
+                ? c.closeSheet()
+                : progressPrimary.label === 'Check balance again'
+                  ? c.refreshKale()
+                  : c.approveNext()}
           >
             {progressPrimary.label}
           </Button>
