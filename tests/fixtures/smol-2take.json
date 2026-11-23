@@ -8,6 +8,7 @@
     "Song_2": "take-2",
     "Public": 1,
     "Instrumental": 0,
+    "Plays": 55,
     "Created_At": "2026-11-20T12:00:00Z",
     "Requested_Provider": "aisonggenerator",
     "Actual_Provider": "aisonggenerator"
@@ -23,13 +24,24 @@
       "requested_provider": "aisonggenerator",
       "actual_provider": "aisonggenerator"
     },
-    "description": "A glowing pixel cat behind a glowing synth cabinet in a midnight arcade.",
+    "description": "A glowing pixel cat perched behind an illuminated retro synth cabinet inside a neon-lit midnight arcade, framed by emerald CRT reflections and starlight.",
     "image": true,
     "nsfw": { "safe": true, "categories": [] },
     "lyrics": {
       "title": "Neon Arcade Runner",
-      "style": ["Synthwave", "Chiptune", "Upbeat"],
-      "lyrics": "Coins drop slow in the midnight glow\nCRT screens hum down the row\nPaws on the keys, tempo climbs\nChasing high scores out of time\n\nNeon lights reflect in green\nFastest beat you have ever seen\nPress start now, never slow\nRunning through the afterglow\n\nPixel skies above the street\nAnalog bass under our feet"
+      "style": [
+        "Synthwave",
+        "Chiptune",
+        "Upbeat",
+        "80s Retro",
+        "Arcade",
+        "Neon",
+        "Driving Bass",
+        "Electronic",
+        "Playful",
+        "High Energy"
+      ],
+      "lyrics": "[Verse 1]\nCoins drop slow in the midnight glow\nCRT screens hum down the row\nPaws on the keys, tempo climbs\nChasing high scores out of time\n\n[Chorus]\nNeon lights reflect in green\nFastest beat you have ever seen\nPress start now, never slow\nRunning through the afterglow\n\n[Outro]\nPixel skies above the street\nAnalog bass under our feet"
     },
     "songs": [
       { "music_id": "take-1", "status": 4, "audio": "http://127.0.0.1:4329/song/take-1.mp3" },

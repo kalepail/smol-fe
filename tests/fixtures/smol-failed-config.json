@@ -1,0 +1,24 @@
+{
+  "kv_do": {
+    "payload": {
+      "address": "CFIXTUREUSER0000000000000000000000000000000000000000000001",
+      "prompt": "Warm lo-fi acoustic guitar and soft drums by the ocean at dusk",
+      "instrumental": false,
+      "public": false,
+      "provider": "elevenlabs"
+    },
+    "generation_meta": {
+      "requested_provider": "elevenlabs",
+      "actual_provider": null
+    },
+    "image": false,
+    "failure": {
+      "code": "generation_failed",
+      "title": "Song generation failed",
+      "message": "ElevenLabs AI Gateway BYOK is not configured (missing CF_AI_GATEWAY_ID or CF_AIG_TOKEN)",
+      "retryable": true
+    }
+  },
+  "wf": { "status": "errored" },
+  "liked": false
+}

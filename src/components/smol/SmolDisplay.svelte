@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { navigate } from 'astro:transitions/client';
-  import type { Smol, SmolDetailResponse } from '../../types/domain';
+  import type { MusicProvider, Smol, SmolDetailResponse } from '../../types/domain';
   import { player, playQueue, setTrackLiked, toggle, updateTrack } from '../../stores/audio.svelte';
   import { userState } from '../../stores/user.svelte';
   import { mixtapeTrackIds, toggleDraftTrack } from '../../stores/mixtape.svelte';
@@ -23,6 +23,10 @@
   import TokenBalancePill from '../ui/TokenBalancePill.svelte';
   import Loader from '../ui/Loader.svelte';
   import TakeSwitcher from '../song/TakeSwitcher.svelte';
+  import GenerationFailure from '../create/GenerationFailure.svelte';
+  import SongDetailsPanel from '../song/SongDetailsPanel.svelte';
+  import LyricsPreviewCard from '../song/LyricsPreviewCard.svelte';
+  import LyricsSheet from '../song/LyricsSheet.svelte';
 
   interface Props {
     id: string | null;
@@ -31,6 +35,10 @@
     liked?: boolean;
     bestSong?: string;
     showGenerationLoader: boolean;
+    failed?: boolean;
+    isPolling?: boolean;
+    playlist?: string | null;
+    retryError?: string | null;
     minting: boolean;
     minted: boolean;
     tradeReady: boolean;
@@ -43,6 +51,9 @@
     onTriggerMint: () => void;
     onOpenTradeModal: () => void;
     onLikeChanged: (liked: boolean) => void;
+    onRetry?: (overrideProvider?: MusicProvider) => void;
+    onEditPrompt?: () => void;
+    onRemovePlaylist?: () => void;
   }
 
   let {
@@ -52,6 +63,10 @@
     liked,
     bestSong = $bindable(),
     showGenerationLoader,
+    failed = false,
+    isPolling = false,
+    playlist = null,
+    retryError = null,
     minting,
     minted,
     tradeReady,
@@ -64,28 +79,48 @@
     onTriggerMint,
     onOpenTradeModal,
     onLikeChanged,
+    onRetry = () => {},
+    onEditPrompt = () => {},
+    onRemovePlaylist = () => {},
   }: Props = $props();
 
   let moreOpen = $state(false);
-  let lyricsExpanded = $state(false);
-  let lyricsHeading = $state<HTMLHeadingElement | null>(null);
+  let lyricsOpen = $state(false);
+  let tagsExpanded = $state(false);
+
+  $effect(() => {
+    id;
+    moreOpen = false;
+    lyricsOpen = false;
+    tagsExpanded = false;
+  });
 
   const detail = $derived<SmolDetailResponse>({ d1, kv_do, liked });
   const activeProvider = $derived(providerOf(detail));
   const fallback = $derived(isFallbackGeneration(detail));
   const providerLabel = $derived(PROVIDER_META[activeProvider].label);
 
-  const title = $derived(
-    kv_do?.lyrics?.title || d1?.Title || kv_do?.description || 'Untitled Smol'
-  );
-  const artistName = $derived(
-    d1?.Creator ?? d1?.Username ?? d1?.artist ?? d1?.author ?? shortenAddress(d1?.Address)
+  const isPublished = $derived(Boolean(d1?.Id));
+  const isPrivate = $derived(
+    d1 ? d1.Public === 0 : kv_do?.payload?.public === false
   );
   const isInstrumental = $derived(
     Boolean(kv_do?.payload?.instrumental || d1?.Instrumental)
   );
-  const isPrivate = $derived(d1?.Public === 0);
   const isUnsafe = $derived(kv_do?.nsfw?.safe === false);
+  const hasCoverArt = $derived(Boolean(kv_do?.image || d1?.Id));
+
+  const title = $derived.by(() => {
+    const resolved = kv_do?.lyrics?.title || d1?.Title;
+    if (resolved) return resolved;
+    if (showGenerationLoader) return 'Creating your song…';
+    if (failed) return 'Unfinished song';
+    return kv_do?.description || 'Untitled Smol';
+  });
+
+  const artistName = $derived(
+    d1?.Creator ?? d1?.Username ?? d1?.artist ?? d1?.author ?? shortenAddress(d1?.Address)
+  );
 
   const smol = $derived<Smol | null>(
     id
@@ -127,21 +162,23 @@
   const isInMixtape = $derived(Boolean(id && mixtapeTrackIds.current.has(id)));
   const rawLyrics = $derived(kv_do?.lyrics?.lyrics?.trim() ?? '');
   const hasLyrics = $derived(!isInstrumental && rawLyrics.length > 0);
-  const lyricLines = $derived(hasLyrics ? rawLyrics.split('\n') : []);
-  const lyricsTruncated = $derived(!lyricsExpanded && lyricLines.length > 10);
-  const displayedLyrics = $derived(
-    lyricsTruncated ? lyricLines.slice(0, 10).join('\n') : rawLyrics
-  );
+  const styleTags = $derived(kv_do?.lyrics?.style?.filter(Boolean) ?? []);
+  const visibleTags = $derived(tagsExpanded ? styleTags : styleTags.slice(0, 8));
+  const hiddenTagCount = $derived(Math.max(0, styleTags.length - visibleTags.length));
 
-  function scrollToLyrics() {
-    if (!lyricsHeading) return;
-    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    lyricsHeading.scrollIntoView({
-      behavior: reducedMotion ? 'auto' : 'smooth',
-      block: 'start',
-    });
-    lyricsHeading.focus({ preventScroll: true });
-  }
+  const showOwnerPrivateBanner = $derived(
+    isOwner && isPublished && isPrivate && !isUnsafe && !failed && !showGenerationLoader
+  );
+  const canAddToMixtape = $derived(
+    Boolean(userState.contractId && isPublished && !isPrivate && !isUnsafe)
+  );
+  const canCollect = $derived(
+    !failed && !showGenerationLoader && !isUnsafe && (isPublished || minted)
+  );
+  const showActionRow = $derived(
+    Boolean(primaryTrack || hasLyrics || isPublished)
+  );
+  const playlistTag = $derived(d1?.Playlist ?? kv_do?.payload?.playlist ?? null);
 
   const formattedCreatedAt = $derived.by(() => {
     if (!d1?.Created_At) return null;
@@ -196,7 +233,7 @@
   }
 
   function handleAddToMixtape() {
-    if (!smol || isPrivate) return;
+    if (!smol || isPrivate || isUnsafe) return;
     toggleDraftTrack({ ...smol, Public: d1?.Public === 0 ? 0 : d1?.Public === 1 ? 1 : undefined });
   }
 
@@ -220,22 +257,81 @@
 </script>
 
 <article class="app-container py-6 sm:py-8">
-  <div class="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)] lg:items-start lg:gap-10">
-    <!-- Left column: crisp square cover art -->
-    <div class="mx-auto w-full max-w-[360px] lg:sticky lg:top-20">
-      <CoverArt
-        id={kv_do?.image || d1?.Id ? id : null}
-        alt=""
-        scale={8}
-        loading="eager"
-      />
+  <div
+    class="grid grid-cols-1 gap-6 lg:grid-cols-[320px_minmax(0,1fr)] lg:grid-rows-[auto_1fr] lg:items-start lg:gap-x-10 lg:gap-y-5"
+  >
+    <!-- Cover art (top-left on desktop, compact centered hero on mobile) -->
+    <div class="mx-auto w-full max-w-[min(240px,30dvh)] lg:col-start-1 lg:row-start-1 lg:mx-0 lg:max-w-none">
+      {#if hasCoverArt}
+        <CoverArt
+          id={id}
+          alt=""
+          scale={8}
+          loading="eager"
+        />
+      {:else if showGenerationLoader}
+        <div
+          aria-label="Generating cover art"
+          class="flex aspect-square w-full flex-col items-center justify-center gap-3 rounded-[var(--radius-media)] bg-surface-1 p-6 text-center ring-1 ring-inset ring-line"
+        >
+          <Loader classNames="size-6" textColor="text-accent" />
+          <p class="text-xs font-medium text-ink-2">
+            {kv_do?.lyrics?.title ? 'Painting pixel cover art…' : 'Artwork queued…'}
+          </p>
+        </div>
+      {:else if failed}
+        <div
+          aria-label="No cover art generated"
+          class="flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-[var(--radius-media)] bg-surface-1 p-6 text-center ring-1 ring-inset ring-line"
+        >
+          <Icon name="warning" size={28} class="text-warning/80" />
+          <p class="text-xs text-ink-3">No artwork generated</p>
+        </div>
+      {:else}
+        <CoverArt id={null} alt="" />
+      {/if}
     </div>
 
-    <!-- Right column: song details, actions, takes, lyrics, about -->
-    <div class="min-w-0 space-y-6">
+    <!-- Main column (right on desktop spanning both rows; second on mobile) -->
+    <div class="min-w-0 space-y-5 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+      <!-- Owner private banner (matches MixtapeHeader's ownerBanner pattern) -->
+      {#if showOwnerPrivateBanner}
+        <div
+          role="status"
+          class="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-control)] bg-surface-1 px-4 py-3 ring-1 ring-inset ring-line"
+        >
+          <div class="flex min-w-0 items-center gap-2.5 text-sm text-ink-2">
+            <Icon name="lock" size={16} class="shrink-0 text-ink-3" />
+            <span>Private · Only you can view this song in feeds.</span>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            class="min-h-11 shrink-0"
+            onclick={onMakeSongPublic}
+          >
+            <Icon name="globe" size={15} />
+            <span>Publish to feed</span>
+          </Button>
+        </div>
+      {/if}
+
+      <!-- Flagged / NSFW notice (keeps cover art visible as-is) -->
+      {#if isUnsafe}
+        <div
+          role="status"
+          class="flex items-start gap-2.5 rounded-[var(--radius-control)] bg-danger/15 px-4 py-3 text-sm text-danger ring-1 ring-inset ring-danger/35"
+        >
+          <Icon name="warning" size={18} class="mt-0.5 shrink-0" />
+          <span>
+            Flagged for sensitive content{kv_do?.nsfw?.categories?.length ? ` (${kv_do.nsfw.categories.join(', ')})` : ''}. Kept private from public feeds and cannot be published or minted.
+          </span>
+        </div>
+      {/if}
+
       <!-- Hero header -->
-      <header class="space-y-3">
-        <h1 class="text-2xl sm:text-3xl lg:text-4xl font-semibold tracking-tight text-ink-1">
+      <header class="space-y-2.5">
+        <h1 class="text-2xl font-semibold tracking-tight text-ink-1 sm:text-3xl lg:text-4xl">
           {title}
         </h1>
 
@@ -257,152 +353,125 @@
           {#if isInstrumental}
             <Chip tone="neutral">Instrumental</Chip>
           {/if}
-          {#if isPrivate}
+          {#if isPrivate && !showOwnerPrivateBanner}
             <Chip tone="neutral">Private</Chip>
+          {/if}
+          {#if showGenerationLoader}
+            <Chip tone="accent">Generating</Chip>
+          {/if}
+          {#if isUnsafe}
+            <Chip tone="danger">Flagged</Chip>
           {/if}
         </div>
 
         {#if fallback}
           <p class="flex items-center gap-2 text-sm text-ink-2">
-            <Icon name="info" size={16} class="text-ink-3" />
+            <Icon name="info" size={16} class="shrink-0 text-ink-3" />
             <span>Made with ElevenLabs — Classic was unavailable.</span>
           </p>
         {/if}
-
-        {#if isUnsafe}
-          <div
-            role="status"
-            class="flex items-start gap-2.5 rounded-[var(--radius-control)] bg-danger/15 px-3.5 py-2.5 text-sm text-danger ring-1 ring-inset ring-danger/35"
-          >
-            <Icon name="warning" size={18} class="mt-0.5 shrink-0" />
-            <span>
-              Flagged for sensitive content{kv_do?.nsfw?.categories?.length ? ` (${kv_do.nsfw.categories.join(', ')})` : ''}. Kept private from public feeds.
-            </span>
-          </div>
-        {/if}
       </header>
 
-      <!-- Action row: one primary lime Play button + round secondary controls -->
-      <div class="flex flex-wrap items-center gap-2">
-        <Button
-          variant="primary"
-          disabled={!primaryTrack || !player.ready}
-          onclick={handlePrimaryPlay}
-          class="min-w-[140px] rounded-full px-6"
-        >
-          {#if isPrimaryPlaying}
-            <Icon name="pause" size={18} />
-            <span>Pause</span>
-          {:else}
-            <Icon name="play" size={18} />
-            <span>{showGenerationLoader && !primaryTrack ? 'Generating…' : 'Play'}</span>
-          {/if}
-        </Button>
-
-        {#if hasLyrics}
-          <Button
-            variant="secondary"
-            size="md"
-            class="rounded-full"
-            onclick={scrollToLyrics}
-          >
-            <Icon name="lyrics" size={18} />
-            <span>Lyrics</span>
-          </Button>
-        {/if}
-
-        {#if d1?.Id}
-          <LikeButton
-            smolId={d1.Id}
-            {liked}
-            classNames="bg-surface-2 ring-1 ring-inset ring-line-strong"
-            onLikeChanged={handleLikeChanged}
-          />
-        {/if}
-
-        {#if userState.contractId && d1?.Id && !isPrivate}
-          <IconButton
-            label={isInMixtape ? 'In mixtape draft' : 'Add to mixtape'}
-            variant="surface"
-            onclick={handleAddToMixtape}
-          >
-            <Icon name={isInMixtape ? 'check' : 'plus-circle'} size={20} class={isInMixtape ? 'text-accent' : ''} />
-          </IconButton>
-        {/if}
-
-        <IconButton label="Share song" variant="surface" onclick={handleShare}>
-          <Icon name="share" size={20} />
-        </IconButton>
-
-        <IconButton label="More options" variant="surface" onclick={() => (moreOpen = true)}>
-          <Icon name="ellipsis" size={20} />
-        </IconButton>
-      </div>
-
-      <!-- Takes (generating slots, 2-take Classic switcher, or cleanly omitted for 1-take ElevenLabs) -->
-      <TakeSwitcher
-        provider={activeProvider}
-        wasFallback={fallback}
-        {songs}
-        {takes}
-        {bestSong}
-        {isOwner}
-        {showGenerationLoader}
-        kvDo={kv_do}
-        {savingBest}
-        onPlayTake={playTake}
-        {onSelectBestSong}
-      />
-
-      <!-- Lyrics section (prominently lifted above Collectible for vocal songs; strictly omitted for instrumentals) -->
-      {#if hasLyrics}
-        <section
-          id="song-lyrics"
-          aria-labelledby="song-lyrics-heading"
-          class="scroll-mt-20 rounded-[var(--radius-control)] bg-surface-1 p-4 sm:p-5 ring-1 ring-inset ring-line"
-        >
-          <div class="mb-3 flex items-center justify-between gap-2">
-            <h2
-              id="song-lyrics-heading"
-              bind:this={lyricsHeading}
-              tabindex="-1"
-              class="focus-ring rounded text-base font-semibold text-ink-1"
+      <!-- Lifecycle-aware action row (never shows a dead Play button on failed songs with no audio) -->
+      {#if showActionRow}
+        <div class="flex flex-wrap items-center gap-2">
+          {#if primaryTrack}
+            <Button
+              variant="primary"
+              disabled={!player.ready}
+              onclick={handlePrimaryPlay}
+              class="min-w-[136px] rounded-full px-6"
             >
-              Lyrics
-            </h2>
-            <Button variant="ghost" size="sm" class="min-h-11" onclick={() => copyText(rawLyrics, 'Lyrics')}>
-              <Icon name="copy" size={15} />
-              <span>Copy</span>
+              {#if isPrimaryPlaying}
+                <Icon name="pause" size={18} />
+                <span>Pause</span>
+              {:else}
+                <Icon name="play" size={18} />
+                <span>Play</span>
+              {/if}
             </Button>
-          </div>
-
-          <p class="max-w-[65ch] whitespace-pre-wrap text-base leading-relaxed text-ink-1/90">
-            {displayedLyrics}
-          </p>
-
-          {#if lyricLines.length > 10}
-            <button
-              type="button"
-              class="focus-ring mt-3 inline-flex min-h-11 items-center rounded text-sm font-medium text-ink-2 hover:text-ink-1"
-              onclick={() => (lyricsExpanded = !lyricsExpanded)}
-            >
-              {lyricsExpanded ? 'Show less' : `Show all ${lyricLines.length} lines`}
-            </button>
           {/if}
-        </section>
-      {/if}
 
-      <!-- Style tags -->
-      {#if kv_do?.lyrics?.style?.length}
-        <div class="flex flex-wrap gap-1.5" aria-label="Style tags">
-          {#each kv_do.lyrics.style as tag (tag)}
-            <Chip tone="neutral">{tag}</Chip>
-          {/each}
+          {#if hasLyrics}
+            <Button
+              variant="secondary"
+              size="md"
+              class="rounded-full"
+              onclick={() => (lyricsOpen = true)}
+            >
+              <Icon name="lyrics" size={18} />
+              <span>Lyrics</span>
+            </Button>
+          {/if}
+
+          {#if d1?.Id}
+            <LikeButton
+              smolId={d1.Id}
+              {liked}
+              classNames="bg-surface-2 ring-1 ring-inset ring-line-strong"
+              onLikeChanged={handleLikeChanged}
+            />
+          {/if}
+
+          {#if canAddToMixtape}
+            <IconButton
+              label={isInMixtape ? 'In mixtape draft' : 'Add to mixtape'}
+              variant="surface"
+              onclick={handleAddToMixtape}
+            >
+              <Icon
+                name={isInMixtape ? 'check' : 'plus-circle'}
+                size={20}
+                class={isInMixtape ? 'text-accent' : ''}
+              />
+            </IconButton>
+          {/if}
+
+          {#if isPublished && !isUnsafe}
+            <IconButton label="Share song" variant="surface" onclick={handleShare}>
+              <Icon name="share" size={20} />
+            </IconButton>
+          {/if}
+
+          {#if isPublished}
+            <IconButton label="More options" variant="surface" onclick={() => (moreOpen = true)}>
+              <Icon name="ellipsis" size={20} />
+            </IconButton>
+          {/if}
         </div>
       {/if}
 
-      <!-- Collectible / Mint & Trade surface -->
-      {#if kv_do?.nsfw?.safe !== false && (d1?.Id || minted)}
+      <!-- Stateful media slot: Failure recovery OR Generation progress OR 2-take switcher -->
+      {#if failed}
+        <GenerationFailure
+          {isPolling}
+          failure={kv_do?.failure}
+          provider={activeProvider}
+          {playlist}
+          {retryError}
+          canManage={isOwner}
+          {onRetry}
+          {onEditPrompt}
+          {onRemovePlaylist}
+        />
+      {:else}
+        <TakeSwitcher
+          provider={activeProvider}
+          wasFallback={fallback}
+          {songs}
+          {takes}
+          {bestSong}
+          {isOwner}
+          {showGenerationLoader}
+          kvDo={kv_do}
+          {savingBest}
+          onPlayTake={playTake}
+          {onSelectBestSong}
+        />
+      {/if}
+
+      <!-- Collectible / Mint & Trade surface (kept prominent below Takes, omitted while generating/failed/flagged) -->
+      {#if canCollect}
         <section
           aria-label="Collectible"
           class="flex flex-wrap items-center justify-between gap-4 rounded-[var(--radius-control)] bg-surface-1 p-4 ring-1 ring-inset ring-line"
@@ -415,12 +484,16 @@
                 <TokenBalancePill balance={tradeMintBalance} />
               </div>
               <p class="mt-1 text-xs text-ink-2">
-                Buy or sell this song token with KALE.
+                {tradeReady
+                  ? 'Buy or sell this song token with KALE.'
+                  : 'Mint confirmed on Stellar — market indexing…'}
               </p>
             {:else}
               <h2 class="text-sm font-semibold text-ink-1">Make it a collectible</h2>
               <p class="mt-1 text-xs text-ink-2">
-                {minting ? 'Minting on Stellar… usually under 30 seconds.' : 'Mint for 100 KALE to enable trading and earn creator fees.'}
+                {minting
+                  ? 'Minting on Stellar… usually under 30 seconds.'
+                  : 'Mint for 100 KALE to enable trading and earn creator fees.'}
               </p>
             {/if}
           </div>
@@ -442,84 +515,110 @@
         </section>
       {/if}
 
-      <!-- Prompt section -->
-      {#if kv_do?.payload?.prompt}
-        <section class="border-t border-line pt-5">
-          <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <h2 class="text-base font-semibold text-ink-1">Prompt</h2>
-            <div class="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                class="min-h-11"
-                onclick={() => copyText(kv_do.payload!.prompt!, 'Prompt')}
-              >
-                <Icon name="copy" size={15} />
-                <span>Copy</span>
-              </Button>
-              <Button variant="secondary" size="sm" class="min-h-11" onclick={handleRemixPrompt}>
-                <Icon name="sparkles" size={15} />
-                <span>Remix prompt</span>
-              </Button>
+      <!-- Prompt & Style tags -->
+      {#if kv_do?.payload?.prompt || styleTags.length > 0}
+        <section class="space-y-3 border-t border-line pt-5">
+          {#if kv_do?.payload?.prompt}
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h2 class="text-base font-semibold text-ink-1">Prompt</h2>
+              <div class="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  class="min-h-11"
+                  onclick={() => copyText(kv_do.payload!.prompt!, 'Prompt')}
+                >
+                  <Icon name="copy" size={15} />
+                  <span>Copy</span>
+                </Button>
+                {#if !failed}
+                  <Button variant="secondary" size="sm" class="min-h-11" onclick={handleRemixPrompt}>
+                    <Icon name="sparkles" size={15} />
+                    <span>Remix prompt</span>
+                  </Button>
+                {/if}
+              </div>
             </div>
-          </div>
-          <p class="max-w-[65ch] text-sm leading-relaxed text-ink-2">
-            {kv_do.payload.prompt}
-          </p>
+            <p class="max-w-[65ch] text-sm leading-relaxed text-ink-2">
+              {kv_do.payload.prompt}
+            </p>
+          {/if}
+
+          {#if styleTags.length > 0}
+            <div class="flex flex-wrap items-center gap-1.5 pt-1" aria-label="Style tags">
+              {#each visibleTags as tag (tag)}
+                <Chip tone="neutral">{tag}</Chip>
+              {/each}
+              {#if hiddenTagCount > 0}
+                <button
+                  type="button"
+                  onclick={() => (tagsExpanded = true)}
+                  class="focus-ring inline-flex min-h-9 items-center rounded-full px-2.5 text-xs font-medium text-ink-2 hover:bg-white/8 hover:text-ink-1"
+                >
+                  +{hiddenTagCount} more
+                </button>
+              {:else if tagsExpanded && styleTags.length > 8}
+                <button
+                  type="button"
+                  onclick={() => (tagsExpanded = false)}
+                  class="focus-ring inline-flex min-h-9 items-center rounded-full px-2.5 text-xs font-medium text-ink-2 hover:bg-white/8 hover:text-ink-1"
+                >
+                  Show fewer
+                </button>
+              {/if}
+            </div>
+          {/if}
         </section>
       {/if}
 
-      <!-- About / Details metadata (moves ID & safety out of the hero) -->
-      <section class="border-t border-line pt-5 space-y-4">
-        <h2 class="text-base font-semibold text-ink-1">Details</h2>
-
-        {#if kv_do?.description}
-          <p class="max-w-[65ch] text-sm leading-relaxed text-ink-2">
-            {kv_do.description}
-          </p>
-        {/if}
-
-        <dl class="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
-          <div>
-            <dt class="text-xs text-ink-3">Model</dt>
-            <dd class="mt-0.5 text-ink-1">{providerLabel}</dd>
-          </div>
-          <div>
-            <dt class="text-xs text-ink-3">Visibility</dt>
-            <dd class="mt-0.5 text-ink-1">{isPrivate ? 'Private' : 'Public'}</dd>
-          </div>
-          {#if kv_do?.nsfw}
-            <div>
-              <dt class="text-xs text-ink-3">Safety</dt>
-              <dd class="mt-0.5 text-ink-1">{isUnsafe ? 'Flagged' : 'Safe'}</dd>
-            </div>
-          {/if}
-          {#if id}
-            <div class="col-span-2 sm:col-span-3">
-              <dt class="text-xs text-ink-3">Song ID</dt>
-              <dd class="mt-1 flex items-center gap-2">
-                <code class="min-w-0 truncate font-mono text-xs text-ink-2">{id}</code>
-                <button
-                  type="button"
-                  onclick={() => copyText(id, 'Song ID')}
-                  class="focus-ring inline-flex min-h-11 shrink-0 items-center gap-1 rounded px-2.5 text-xs font-medium text-ink-2 hover:bg-white/10 hover:text-ink-1"
-                >
-                  <Icon name="copy" size={14} />
-                  <span>Copy</span>
-                </button>
-              </dd>
-            </div>
-          {/if}
-        </dl>
-      </section>
+      <!-- Compact Lyrics preview card at the bottom of the song column (opens full Lyrics drawer) -->
+      {#if hasLyrics}
+        <LyricsPreviewCard
+          {rawLyrics}
+          onOpen={() => (lyricsOpen = true)}
+          onCopy={() => void copyText(rawLyrics, 'Lyrics')}
+        />
+      {/if}
     </div>
+
+    <!-- Details panel (directly under Cover Art on desktop; bottom of article on mobile) -->
+    <SongDetailsPanel
+      {id}
+      description={kv_do?.description ?? null}
+      {providerLabel}
+      wasFallback={fallback}
+      {isPrivate}
+      plays={d1?.Plays ?? null}
+      nsfw={kv_do?.nsfw ?? null}
+      {playlistTag}
+      onCopyId={() => id && void copyText(id, 'Song ID')}
+      class="lg:col-start-1 lg:row-start-2"
+    />
   </div>
 </article>
+
+<!-- Focused Spotify/Apple Music-style Lyrics drawer / sheet -->
+{#if hasLyrics}
+  <LyricsSheet
+    open={lyricsOpen}
+    {title}
+    artistName={d1?.Address ? artistName : null}
+    coverId={hasCoverArt ? id : null}
+    {rawLyrics}
+    isGenerating={showGenerationLoader}
+    {primaryTrack}
+    {isPrimaryPlaying}
+    playerReady={player.ready}
+    onPlayToggle={handlePrimaryPlay}
+    onCopy={() => void copyText(rawLyrics, 'Lyrics')}
+    onClose={() => (lyricsOpen = false)}
+  />
+{/if}
 
 <!-- Overflow menu sheet -->
 <Sheet open={moreOpen} title={title} maxWidth="sm" onClose={() => (moreOpen = false)}>
   <div class="divide-y divide-line rounded-[var(--radius-control)] bg-surface-1 ring-1 ring-inset ring-line">
-    {#if isOwner && kv_do?.nsfw?.safe !== false}
+    {#if isOwner && isPublished && !isUnsafe}
       <button
         type="button"
         onclick={() => {
@@ -530,6 +629,34 @@
       >
         <Icon name={d1?.Public ? 'lock' : 'globe'} size={18} class="text-ink-2" />
         <span>{d1?.Public ? 'Make private' : 'Publish to feed'}</span>
+      </button>
+    {/if}
+
+    {#if id && isPublished && !isUnsafe}
+      <button
+        type="button"
+        onclick={() => {
+          moreOpen = false;
+          void copyText(`${window.location.origin}/${id}`, 'Song link');
+        }}
+        class="focus-ring flex min-h-12 w-full items-center gap-3 px-4 text-left text-sm font-medium text-ink-1 hover:bg-white/5"
+      >
+        <Icon name="share" size={18} class="text-ink-2" />
+        <span>Copy song link</span>
+      </button>
+    {/if}
+
+    {#if kv_do?.payload?.prompt}
+      <button
+        type="button"
+        onclick={() => {
+          moreOpen = false;
+          handleRemixPrompt();
+        }}
+        class="focus-ring flex min-h-12 w-full items-center gap-3 px-4 text-left text-sm font-medium text-ink-1 hover:bg-white/5"
+      >
+        <Icon name="sparkles" size={18} class="text-ink-2" />
+        <span>Remix prompt</span>
       </button>
     {/if}
 
@@ -547,7 +674,7 @@
       </button>
     {/if}
 
-    {#if isOwner}
+    {#if isOwner && isPublished}
       <button
         type="button"
         onclick={() => {

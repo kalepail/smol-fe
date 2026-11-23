@@ -90,11 +90,15 @@ export interface SmolDetailResponse {
     Mint_Amm?: string;
     Instrumental?: number;
     Created_At?: string;
+    Plays?: number;
+    Views?: number;
+    Playlist?: string | null;
     Requested_Provider?: MusicProvider | null;
     Actual_Provider?: MusicProvider | null;
   };
   kv_do?: {
     payload?: {
+      address?: string;
       prompt?: string;
       instrumental?: boolean;
       public?: boolean;

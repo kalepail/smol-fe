@@ -4,6 +4,7 @@
   import { userState } from '../../stores/user.svelte';
   import { mixtapeTrackIds, toggleDraftTrack } from '../../stores/mixtape.svelte';
   import { toast } from '../../stores/toast.svelte';
+  import { parseLyricBlocks } from '../../utils/lyrics';
   import Sheet from '../ui/Sheet.svelte';
   import CoverArt from '../ui/CoverArt.svelte';
   import Icon from '../ui/Icon.svelte';
@@ -35,6 +36,7 @@
   const hasQueueNav = $derived(player.queue.length > 1);
   const isInMixtape = $derived(Boolean(track && mixtapeTrackIds.current.has(track.smolId)));
   const isPrivateTrack = $derived(track?.public === 0);
+  const lyricBlocks = $derived(lyricsText ? parseLyricBlocks(lyricsText) : []);
 
   $effect(() => {
     const id = track?.smolId ?? null;
@@ -296,9 +298,19 @@
               <Loader classNames="size-5" textColor="text-ink-2" />
             </div>
           {:else if lyricsText}
-            <p class="whitespace-pre-wrap text-base leading-relaxed text-ink-1/90">
-              {lyricsText}
-            </p>
+            <div class="max-w-[65ch]">
+              {#each lyricBlocks as block (block.key)}
+                {#if block.kind === 'section'}
+                  <p class="mt-4 mb-1 text-xs font-semibold tracking-wide text-ink-3 first:mt-0">
+                    {block.text}
+                  </p>
+                {:else if block.kind === 'break'}
+                  <div class="h-3" aria-hidden="true"></div>
+                {:else}
+                  <p class="text-base leading-relaxed text-ink-1/90">{block.text}</p>
+                {/if}
+              {/each}
+            </div>
           {:else}
             <p class="text-sm text-ink-2">
               {lyricsIsInstrumental ? 'This is an instrumental track.' : 'No lyrics available for this song.'}

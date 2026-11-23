@@ -2,8 +2,10 @@
   import type { Snippet } from 'svelte';
   import type { MixtapeDetail } from '../../services/api/mixtapes';
   import { shortenAddress } from '../../utils/address';
+  import { toast } from '../../stores/toast.svelte';
   import MixtapeCollage from '../ui/MixtapeCollage.svelte';
   import Button from '../ui/Button.svelte';
+  import IconButton from '../ui/IconButton.svelte';
   import Icon from '../ui/Icon.svelte';
 
   /**
@@ -28,6 +30,25 @@
   let { mixtape, coverUrls, playback, ownerBanner, ownerChip, ownerActions, collectSlot }: Props = $props();
 
   let descriptionExpanded = $state(false);
+
+  $effect(() => {
+    mixtape.id;
+    descriptionExpanded = false;
+  });
+
+  async function handleShare() {
+    const url = `${window.location.origin}/mixtapes/${encodeURIComponent(mixtape.id)}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: mixtape.title, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        toast.success('Mixtape link copied.');
+      }
+    } catch {
+      // User cancelled native share.
+    }
+  }
 </script>
 
 <header class="flex flex-col gap-5">
@@ -42,11 +63,10 @@
 
     <div class="flex min-w-0 flex-col gap-4">
       <div class="space-y-1.5">
-        <p class="hidden text-xs font-medium uppercase tracking-wider text-ink-3 md:block">Mixtape</p>
         <h1 class="text-2xl font-semibold tracking-tight text-ink-1 sm:text-3xl lg:text-4xl">
           {mixtape.title}
         </h1>
-        <p class="tabular flex flex-wrap items-center gap-x-1 gap-y-1 text-sm text-ink-2">
+        <p class="tabular flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-ink-2">
           {#if mixtape.creator}
             <a
               href={`/artists/${encodeURIComponent(mixtape.creator)}`}
@@ -68,19 +88,19 @@
           >
             {mixtape.description}
           </p>
-          {#if !descriptionExpanded && mixtape.description.length > 120}
+          {#if mixtape.description.length > 120}
             <button
               type="button"
-              onclick={() => (descriptionExpanded = true)}
-              class="focus-ring -my-1 self-start rounded text-xs font-medium text-ink-1 hover:underline"
+              onclick={() => (descriptionExpanded = !descriptionExpanded)}
+              class="focus-ring -my-2 -ml-1 inline-flex min-h-11 items-center self-start rounded px-1 text-xs font-medium text-ink-1 hover:underline"
             >
-              More
+              {descriptionExpanded ? 'Show less' : 'More'}
             </button>
           {/if}
         {/if}
       </div>
 
-      <div class="flex flex-wrap items-center gap-2.5">
+      <div class="flex flex-wrap items-center gap-2">
         <Button
           variant="primary"
           disabled={!playback.canPlay}
@@ -90,6 +110,11 @@
           <Icon name={playback.isPlaying ? 'pause' : 'play'} size={18} />
           <span>{playback.isPlaying ? 'Pause' : 'Play'}</span>
         </Button>
+
+        <IconButton label="Share mixtape" variant="surface" onclick={handleShare}>
+          <Icon name="share" size={20} />
+        </IconButton>
+
         {@render ownerActions?.()}
       </div>
     </div>

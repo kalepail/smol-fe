@@ -6,6 +6,7 @@
   import MiniAudioPlayer from '../audio/MiniAudioPlayer.svelte';
   import Chip from '../ui/Chip.svelte';
   import Button from '../ui/Button.svelte';
+  import Icon from '../ui/Icon.svelte';
   import Loader from '../ui/Loader.svelte';
 
   interface Props {
@@ -49,28 +50,72 @@
       songs.length === 1
   );
 
+  const hasLyricsStep = $derived(Boolean(kvDo?.lyrics?.title || kvDo?.lyrics?.lyrics));
+  const hasImageStep = $derived(Boolean(kvDo?.image));
+  const readyCount = $derived(songs.filter((s) => s.status >= 4 && s.music_id).length);
+
   const stageLabel = $derived.by(() => {
     if (!showGenerationLoader) return '';
-    const hasLyrics = Boolean(kvDo?.lyrics?.title || kvDo?.lyrics?.lyrics);
-    const hasImage = Boolean(kvDo?.image);
-    const readyCount = songs.filter((s) => s.status >= 4 && s.music_id).length;
-
-    if (!hasLyrics) return 'Writing lyrics and title…';
-    if (!hasImage) return 'Painting pixel cover art…';
+    if (!hasLyricsStep) return 'Writing lyrics and title…';
+    if (!hasImageStep) return 'Painting pixel cover art…';
     if (expected === 1) return 'Recording track…';
     if (readyCount > 0 && readyCount < expected) {
       return `${readyCount} of ${expected} takes ready…`;
     }
     return `Recording ${expected} takes…`;
   });
+
+  const stages = $derived([
+    {
+      label: kvDo?.payload?.instrumental ? 'Title & style' : 'Lyrics & title',
+      state: hasLyricsStep ? 'done' : 'active',
+    },
+    {
+      label: 'Pixel cover art',
+      state: hasImageStep ? 'done' : hasLyricsStep ? 'active' : 'pending',
+    },
+    {
+      label: expected === 1 ? 'Recording track' : `Recording ${expected} takes`,
+      state: readyCount >= expected ? 'done' : hasImageStep ? 'active' : 'pending',
+    },
+  ] as const);
 </script>
 
 {#if showGenerationLoader}
-  <section aria-label="Generation progress" class="space-y-3 rounded-[var(--radius-control)] bg-surface-1 p-4 ring-1 ring-inset ring-line">
-    <div class="flex items-center gap-2.5 text-sm text-ink-1">
-      <Loader classNames="size-4" textColor="text-accent" />
-      <span class="font-medium">{stageLabel}</span>
+  <section
+    aria-label="Generation progress"
+    class="space-y-3.5 rounded-[var(--radius-control)] bg-surface-1 p-4 ring-1 ring-inset ring-line"
+  >
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-2.5 text-sm text-ink-1" aria-live="polite">
+        <Loader classNames="size-4" textColor="text-accent" />
+        <span class="font-medium">{stageLabel}</span>
+      </div>
+      <span class="text-xs text-ink-3">Safe to leave this page</span>
     </div>
+
+    <ol class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+      {#each stages as step (step.label)}
+        <li
+          class={`flex items-center gap-2 rounded-[calc(var(--radius-control)-2px)] px-2.5 py-2 text-xs ring-1 ring-inset ${
+            step.state === 'active'
+              ? 'bg-surface-2 text-ink-1 ring-accent/35'
+              : step.state === 'done'
+                ? 'bg-surface-2/60 text-ink-2 ring-line'
+                : 'bg-surface-2/30 text-ink-3 ring-line/60'
+          }`}
+        >
+          {#if step.state === 'done'}
+            <Icon name="check" size={14} class="shrink-0 text-success" />
+          {:else if step.state === 'active'}
+            <Loader classNames="size-3.5 shrink-0" textColor="text-accent" />
+          {:else}
+            <span class="size-2 shrink-0 rounded-full bg-surface-3" aria-hidden="true"></span>
+          {/if}
+          <span class="truncate font-medium">{step.label}</span>
+        </li>
+      {/each}
+    </ol>
 
     <div class={`grid gap-2.5 ${slotCount > 1 ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
       {#each Array.from({ length: slotCount }) as _, index (index)}
@@ -111,7 +156,7 @@
   <section aria-label="Takes" class="space-y-2.5">
     <div class="flex items-center justify-between">
       <h2 class="text-sm font-semibold text-ink-2">Takes</h2>
-      <span class="text-xs text-ink-3">{songs.length} takes</span>
+      <span class="tabular text-xs text-ink-3">{songs.length} takes</span>
     </div>
 
     <div class="grid gap-2.5 sm:grid-cols-2">

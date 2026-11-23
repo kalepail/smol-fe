@@ -4,7 +4,6 @@
   import type { MusicProvider, SmolDetailResponse } from '../types/domain';
   import SmolGenerator from './smol/SmolGenerator.svelte';
   import SmolDisplay from './smol/SmolDisplay.svelte';
-  import GenerationFailure from './create/GenerationFailure.svelte';
   import SmolTradeSection from './smol/SmolTradeSection.svelte';
   import SimilarSmols from './search/SimilarSmols.svelte';
   import Skeleton from './ui/Skeleton.svelte';
@@ -22,6 +21,7 @@
   import { QuotaExceededError } from '../utils/quota';
   import {
     DEFAULT_PROVIDER,
+    expectedTakeCount,
     normalizeProvider,
     providerOf,
     readStoredProvider,
@@ -74,7 +74,14 @@
   const chainVerified = $derived(Boolean(verifiedMarket && verifiedMarket.songId === id));
   const minted = $derived(Boolean(d1?.Mint_Token || d1?.Mint_Amm || chainVerified));
   const tradeReady = $derived(Boolean(id && ((d1?.Mint_Amm && d1?.Mint_Token) || chainVerified)));
-  const isOwner = $derived(Boolean(d1?.Address && d1.Address === userState.contractId));
+  const ownerAddress = $derived(d1?.Address ?? kv_do?.payload?.address ?? null);
+  const isOwner = $derived(
+    Boolean(
+      ownerAddress
+        ? userState.contractId && ownerAddress === userState.contractId
+        : !d1 && Boolean(kv_do)
+    )
+  );
   const tradeSongId = $derived(id ?? d1?.Id ?? null);
   const tradeTitle = $derived(
     kv_do?.lyrics?.title ?? kv_do?.description ?? d1?.Title ?? null
@@ -82,9 +89,16 @@
   const tradeImageUrl = $derived(
     tradeSongId ? `${import.meta.env.PUBLIC_API_URL}/image/${tradeSongId}.png` : null
   );
+  const expectedTakes = $derived(expectedTakeCount(activeProvider));
   const hasSongSnapshots = $derived(Boolean(kv_do?.songs?.length));
+  const hasAllExpectedSongs = $derived(
+    Boolean(kv_do?.songs && kv_do.songs.length >= expectedTakes)
+  );
   const hasIncompleteSongs = $derived(
-    Boolean(kv_do?.songs?.some((song) => !song.music_id || song.status < 4))
+    Boolean(
+      !hasAllExpectedSongs ||
+        kv_do?.songs?.some((song) => !song.music_id || song.status < 4)
+    )
   );
   const showGenerationLoader = $derived(
     Boolean(interval && (!hasSongSnapshots || hasIncompleteSongs))
@@ -164,8 +178,9 @@
   function hydrateGenerationState(response: SmolDetailResponse | null | undefined) {
     const status = response?.wf?.status;
     const songs = response?.kv_do?.songs ?? [];
+    const expected = expectedTakeCount(providerOf(response));
     const songsArePlaybackReady =
-      songs.length > 0 && songs.every((song) => song.music_id && song.status >= 4);
+      songs.length >= expected && songs.every((song) => song.music_id && song.status >= 4);
 
     if (isActiveWorkflow(status) && !songsArePlaybackReady) {
       failed = false;
@@ -617,21 +632,6 @@
     onClearQuotaError={() => (quotaError = null)}
   />
 {:else}
-  {#if failed}
-    <div class="app-container pt-6">
-      <GenerationFailure
-        isPolling={Boolean(interval)}
-        failure={kv_do?.failure}
-        provider={activeProvider}
-        {playlist}
-        {retryError}
-        onRetry={retryGen}
-        onEditPrompt={handleEditPrompt}
-        onRemovePlaylist={removePlaylist}
-      />
-    </div>
-  {/if}
-
   <SmolDisplay
     {id}
     {d1}
@@ -639,6 +639,10 @@
     {liked}
     bind:bestSong={best_song}
     {showGenerationLoader}
+    {failed}
+    isPolling={Boolean(interval)}
+    {playlist}
+    {retryError}
     {minting}
     {minted}
     {tradeReady}
@@ -651,9 +655,12 @@
     onTriggerMint={triggerMint}
     onOpenTradeModal={openTradeModal}
     onLikeChanged={(likedValue) => (liked = likedValue)}
+    onRetry={retryGen}
+    onEditPrompt={handleEditPrompt}
+    onRemovePlaylist={removePlaylist}
   />
 
-  {#if d1?.Public === 1}
+  {#if d1?.Public === 1 && kv_do?.nsfw?.safe !== false}
     <SimilarSmols {id} />
   {/if}
 {/if}

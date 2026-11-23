@@ -103,7 +103,7 @@ for (const viewport of [
       await expect(page.locator('#song-lyrics')).toHaveCount(0);
       await expect(page.locator('audio')).toHaveCount(1);
 
-      // 2-take Classic (vocal, owned) page: switcher visible, prominent Lyrics lifted above Collectible + Lyrics jump button
+      // 2-take Classic (vocal, owned) page: switcher & Collectible above compact Lyrics preview + Spotify-style Lyrics drawer
       await page.goto('/smol-2take');
       await expect(page.getByRole('heading', { name: 'Neon Arcade Runner' })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Lyrics', exact: true })).toBeVisible();
@@ -115,9 +115,13 @@ for (const viewport of [
       const collectibleBox = await collectibleSection.boundingBox();
       expect(lyricsBox).not.toBeNull();
       expect(collectibleBox).not.toBeNull();
-      expect(lyricsBox!.y).toBeLessThan(collectibleBox!.y);
+      expect(lyricsBox!.y).toBeGreaterThan(collectibleBox!.y);
       await page.getByRole('button', { name: 'Lyrics', exact: true }).click();
-      await expect(page.locator('#song-lyrics-heading')).toBeFocused();
+      const lyricsDrawer = page.locator('dialog[open]');
+      await expect(lyricsDrawer.getByRole('heading', { name: 'Lyrics', exact: true })).toBeVisible();
+      await expect(lyricsDrawer).toContainText('Pixel skies above the street');
+      await lyricsDrawer.getByRole('button', { name: 'Close' }).click();
+      await expect(page.locator('dialog[open]')).toHaveCount(0);
 
       await expect(page.getByRole('button', { name: 'Play take 1' })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Play take 2' })).toBeVisible();

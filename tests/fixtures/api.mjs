@@ -127,6 +127,11 @@ const smolFailed = loadJson('smol-failed.json');
 const smolFailedPolicy = loadJson('smol-failed-policy.json');
 const smolGenerating = loadJson('smol-generating.json');
 const smolMinted = loadJson('smol-minted.json');
+const smolPrivate = loadJson('smol-private.json');
+const smolFlagged = loadJson('smol-flagged.json');
+const smolGeneratingEarly = loadJson('smol-generating-early.json');
+const smolGeneratingPartial = loadJson('smol-generating-partial.json');
+const smolFailedConfig = loadJson('smol-failed-config.json');
 
 const DEFAULT_QUOTA = {
   classic: { limit: 10, used: 3, remaining: 7, resetAt: '2026-11-24T00:00:00.000Z' },
@@ -178,6 +183,11 @@ const routes = new Map([
   ['/smol-failed-policy', smolFailedPolicy],
   ['/smol-generating', smolGenerating],
   ['/smol-minted', smolMinted],
+  ['/smol-private', smolPrivate],
+  ['/smol-flagged', smolFlagged],
+  ['/smol-generating-early', smolGeneratingEarly],
+  ['/smol-generating-partial', smolGeneratingPartial],
+  ['/smol-failed-config', smolFailedConfig],
 ]);
 
 const requests = new Map();
@@ -186,6 +196,7 @@ const requestCookieHistory = [];
 let lastCreateBody = null;
 let lastRetryBody = null;
 let swapCalls = [];
+let publishCalls = [];
 let playBeacons = [];
 let loginCalls = [];
 let loginTokenSeq = 0;
@@ -249,6 +260,7 @@ createServer(async (req, res) => {
     lastCreateBody = null;
     lastRetryBody = null;
     swapCalls = [];
+    publishCalls = [];
     playBeacons = [];
     loginCalls = [];
     logoutCalls = 0;
@@ -274,6 +286,7 @@ createServer(async (req, res) => {
         lastCreateBody,
         lastRetryBody,
         swapCalls,
+        publishCalls,
         playBeacons,
         lastMixtapeBody: ownerMixtapes.lastMixtapeBody,
         ownerMutations: ownerMixtapes.mutationLog,
@@ -373,6 +386,12 @@ createServer(async (req, res) => {
 
   if (req.method === 'PUT' && /^\/[^/]+\/[^/]+$/.test(path)) {
     swapCalls.push(path);
+    res.writeHead(200, { ...headers, 'Content-Type': 'application/json' }).end(JSON.stringify({ ok: true }));
+    return;
+  }
+
+  if (req.method === 'PUT' && /^\/[^/]+$/.test(path) && !path.startsWith('/likes')) {
+    publishCalls.push(path);
     res.writeHead(200, { ...headers, 'Content-Type': 'application/json' }).end(JSON.stringify({ ok: true }));
     return;
   }

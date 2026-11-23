@@ -11,6 +11,7 @@
     provider: MusicProvider;
     playlist: string | null;
     retryError?: string | null;
+    canManage?: boolean;
     onRetry: (overrideProvider?: MusicProvider) => void;
     onEditPrompt: () => void;
     onRemovePlaylist: () => void;
@@ -22,18 +23,35 @@
     provider,
     playlist,
     retryError = null,
+    canManage = true,
     onRetry,
     onEditPrompt,
     onRemovePlaylist,
   }: Props = $props();
 
+  const INTERNAL_ERROR_RE =
+    /\b(CF_AI_GATEWAY_ID|CF_AIG_TOKEN|ELEVENLABS_API_KEY|API_KEY|BYOK is not configured|wrangler)\b/i;
+
   const retryable = $derived(failure ? failure.retryable : true);
   const alternateProvider = $derived(otherProviderOf(provider));
   const alternateLabel = $derived(PROVIDER_META[alternateProvider].label);
+
+  const safeTitle = $derived(failure?.title ?? 'Generation did not finish');
+  const safeMessage = $derived.by(() => {
+    const raw = failure?.message?.trim();
+    if (!raw) {
+      return 'Something interrupted this song before it could complete. You can try again or edit the prompt.';
+    }
+    if (INTERNAL_ERROR_RE.test(raw)) {
+      return `${PROVIDER_META[provider].label} is temporarily unavailable right now. Try switching to ${alternateLabel} or try again shortly.`;
+    }
+    return raw;
+  });
 </script>
 
-<div
+<section
   role="alert"
+  aria-label="Generation failed"
   class="rounded-[var(--radius-control)] bg-surface-1 p-5 ring-1 ring-inset ring-warning/35"
 >
   <div class="flex items-start gap-3">
@@ -42,10 +60,10 @@
     </div>
     <div class="min-w-0 flex-1">
       <h2 class="text-base font-semibold text-ink-1">
-        {failure?.title ?? 'Generation did not finish'}
+        {safeTitle}
       </h2>
-      <p class="mt-1 text-sm leading-relaxed text-ink-2">
-        {failure?.message ?? 'Something interrupted this song before it could complete. You can try again.'}
+      <p class="mt-1 max-w-[65ch] text-sm leading-relaxed text-ink-2">
+        {safeMessage}
       </p>
 
       {#if playlist}
@@ -65,31 +83,41 @@
         </p>
       {/if}
 
-      <div class="mt-4 flex flex-wrap items-center gap-2.5">
-        {#if retryable}
-          <Button
-            variant="primary"
-            loading={isPolling}
-            disabled={isPolling}
-            onclick={() => onRetry()}
-          >
-            <Icon name="refresh" size={16} />
-            <span>Try again</span>
-          </Button>
+      {#if canManage}
+        <div class="mt-4 flex flex-wrap items-center gap-2.5">
+          {#if retryable}
+            <Button
+              variant="primary"
+              loading={isPolling}
+              disabled={isPolling}
+              onclick={() => onRetry()}
+            >
+              <Icon name="refresh" size={16} />
+              <span>Try again</span>
+            </Button>
 
-          <Button
-            variant="secondary"
-            disabled={isPolling}
-            onclick={() => onRetry(alternateProvider)}
-          >
-            <span>Try with {alternateLabel}</span>
-          </Button>
-        {:else}
-          <Button variant="primary" onclick={onEditPrompt}>
-            <span>Edit prompt</span>
-          </Button>
-        {/if}
-      </div>
+            <Button
+              variant="secondary"
+              disabled={isPolling}
+              onclick={() => onRetry(alternateProvider)}
+            >
+              <span>Try with {alternateLabel}</span>
+            </Button>
+
+            <Button
+              variant="ghost"
+              disabled={isPolling}
+              onclick={onEditPrompt}
+            >
+              <span>Edit prompt</span>
+            </Button>
+          {:else}
+            <Button variant="primary" onclick={onEditPrompt}>
+              <span>Edit prompt</span>
+            </Button>
+          {/if}
+        </div>
+      {/if}
     </div>
   </div>
-</div>
+</section>

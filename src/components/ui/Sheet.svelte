@@ -10,6 +10,7 @@
     subtitle?: string;
     dismissible?: boolean;
     fullHeight?: boolean;
+    placement?: 'center' | 'right';
     maxWidth?: 'sm' | 'md' | 'lg' | 'xl';
     onClose: () => void;
     headerExtra?: Snippet;
@@ -23,6 +24,7 @@
     subtitle,
     dismissible = true,
     fullHeight = false,
+    placement = 'center',
     maxWidth = 'md',
     onClose,
     headerExtra,
@@ -31,6 +33,7 @@
   }: Props = $props();
 
   let dialogEl = $state<HTMLDialogElement | null>(null);
+  let backdropEl = $state<HTMLDivElement | null>(null);
 
   const widthClass: Record<NonNullable<Props['maxWidth']>, string> = {
     sm: 'sm:max-w-sm',
@@ -38,6 +41,23 @@
     lg: 'sm:max-w-2xl',
     xl: 'sm:max-w-4xl',
   };
+
+  const containerClass = $derived(
+    placement === 'right'
+      ? 'flex h-full w-full items-end justify-center sm:items-stretch sm:justify-end sm:p-0'
+      : 'flex h-full w-full items-end justify-center sm:items-center sm:p-4'
+  );
+
+  const panelClass = $derived.by(() => {
+    if (placement === 'right') {
+      return fullHeight
+        ? 'h-dvh pt-[env(safe-area-inset-top,0px)] sm:h-dvh sm:max-h-none sm:pt-0 sm:rounded-l-[var(--radius-sheet)] sm:rounded-r-none'
+        : 'max-h-[90dvh] rounded-t-[var(--radius-sheet)] sm:h-dvh sm:max-h-none sm:rounded-l-[var(--radius-sheet)] sm:rounded-r-none';
+    }
+    return fullHeight
+      ? 'h-dvh pt-[env(safe-area-inset-top,0px)] sm:h-auto sm:max-h-[90dvh] sm:pt-0 sm:rounded-[var(--radius-sheet)]'
+      : 'max-h-[90dvh] rounded-t-[var(--radius-sheet)] sm:rounded-[var(--radius-sheet)]';
+  });
 
   $effect(() => {
     const dialog = dialogEl;
@@ -68,7 +88,7 @@
 
   function handleBackdropClick(event: MouseEvent) {
     if (!dismissible) return;
-    if (event.target === dialogEl) {
+    if (event.target === dialogEl || event.target === backdropEl) {
       onClose();
     }
   }
@@ -81,13 +101,9 @@
   class="sheet-dialog fixed inset-0 m-0 h-dvh w-screen max-h-none max-w-none bg-transparent p-0 text-ink-1 backdrop:bg-black/70 backdrop:backdrop-blur-xs"
 >
   {#if open}
-    <div class="flex h-full w-full items-end justify-center sm:items-center sm:p-4">
+    <div bind:this={backdropEl} class={containerClass}>
       <div
-        class={`flex min-w-0 w-full flex-col overflow-hidden bg-surface-2 ring-1 ring-line-strong ${widthClass[maxWidth]} ${
-          fullHeight
-            ? 'h-dvh pt-[env(safe-area-inset-top,0px)] sm:h-auto sm:max-h-[90dvh] sm:pt-0 sm:rounded-[var(--radius-sheet)]'
-            : 'max-h-[90dvh] rounded-t-[var(--radius-sheet)] sm:rounded-[var(--radius-sheet)]'
-        }`}
+        class={`flex min-w-0 w-full flex-col overflow-hidden bg-surface-2 ring-1 ring-line-strong ${widthClass[maxWidth]} ${panelClass}`}
       >
         {#if !fullHeight}
           <div class="flex justify-center pt-2.5 pb-1 sm:hidden" aria-hidden="true">
