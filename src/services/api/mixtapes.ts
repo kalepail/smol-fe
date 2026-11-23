@@ -78,7 +78,7 @@ export async function listMixtapes(): Promise<MixtapeSummary[]> {
 
   const data: ApiMixtape[] = await response.json();
 
-  return data.map((mixtape) => {
+  return data.filter((mixtape) => mixtape.Smols.length > 0).map((mixtape) => {
     const coverUrls: (string | null)[] = [];
 
     for (let i = 0; i < Math.min(4, mixtape.Smols.length); i++) {
