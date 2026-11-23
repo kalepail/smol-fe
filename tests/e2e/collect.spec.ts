@@ -631,8 +631,22 @@ test.describe('Report 34 regressions @390', () => {
     await expect(page.getByRole('button', { name: /Buy all 8|Collect for/ })).toHaveCount(0);
   });
 
-  test('Pass4 #4 a waiting tab recovers when another tab\'s signing claim expires (no reload)', async ({ page, context }) => {
+  test('Pass4 #4 / Pass6 #2 a waiting tab recovers when another tab\'s claim expires and Continue reaches its own buy', async ({ page, context }) => {
     await signIn(context);
+    await context.addInitScript(() => {
+      const w = window as unknown as { __relays: string[][]; __smolCollectSeams: unknown };
+      w.__relays = [];
+      w.__smolCollectSeams = {
+        buy: {
+          assemble: async () => ({}),
+          expiration: async () => 66_000_000,
+          sign: async () => {},
+          relay: async (ids: string[]) => {
+            w.__relays.push(ids);
+          },
+        },
+      };
+    });
     const base = Date.now();
     await page.clock.install({ time: base });
     await seedFlow(context, 'collect-minted', [
@@ -646,6 +660,80 @@ test.describe('Report 34 regressions @390', () => {
     await page.clock.fastForward(25_000); // past tab A's leaseExpiresAt
     await expect(sheet.getByRole('button', { name: /^Continue/ })).toBeEnabled({ timeout: 5_000 });
     await expect(sheet.getByRole('button', { name: 'Waiting for passkey…' })).toHaveCount(0);
+
+    // Pass 6 #2: Continue reclaims the expired raw `signing` step (CAS on its
+    // stored owner + attempt + expiry) and reaches THIS tab's passkey and relay.
+    await sheet.getByRole('button', { name: /^Continue/ }).click();
+    await expect.poll(() => page.evaluate(() => (window as unknown as { __relays: string[][] }).__relays.length), { timeout: 10_000 }).toBe(1);
+    const stored = JSON.parse((await page.evaluate((k) => localStorage.getItem(k), `smol:collect:v1:${COLLECTOR}:collect-minted`))!);
+    expect(stored.steps[0].ownerTabId).not.toBe('tab-A');
+    expect(stored.steps[0].attemptId).not.toBe('a-1');
+    expect(['submitting', 'confirming']).toContain(stored.steps[0].status);
+  });
+
+  test('Pass6 #1 a late workflow-A failure never touches B\'s newer confirming workflow (mint/status on)', async ({ page, context }) => {
+    await signIn(context);
+    await context.addInitScript(() => {
+      (window as unknown as { __smolCollectSeams: unknown }).__smolCollectSeams = { mintStatus: true };
+    });
+    const flowKey = `smol:collect:v1:${COLLECTOR}:collect-mixed`;
+    const mintIds = mixedIds.slice(9);
+    await seedFlow(context, 'collect-mixed', [
+      { id: 'mint-1', kind: 'mint', trackIds: mintIds, titles: mixedTracks.slice(9).map((t) => t.Title), costStroops: KALE(300).toString(), status: 'confirming', since: Date.now(), ownerTabId: 'tab-A', attemptId: 'a-1', workflowIds: ['wf-A'] },
+    ]);
+    const cors = {
+      'access-control-allow-origin': 'http://127.0.0.1:4328',
+      'access-control-allow-credentials': 'true',
+      'access-control-allow-headers': 'Content-Type',
+      'access-control-allow-methods': 'POST, OPTIONS',
+    };
+    let statusCalls = 0;
+    let mintPosts = 0;
+    let releaseStatus!: () => void;
+    const statusHeld = new Promise<void>((r) => (releaseStatus = r));
+    await page.route('http://127.0.0.1:4329/mint/status', async (route) => {
+      if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+      statusCalls++;
+      await statusHeld;
+      await route.fulfill({
+        headers: cors,
+        contentType: 'application/json',
+        body: JSON.stringify({ revision: 'r', batches: [{ workflowId: 'wf-A', phase: 'failed', ids: mintIds }] }),
+      });
+    });
+    await page.route('http://127.0.0.1:4329/mint', async (route) => {
+      if (route.request().method() === 'POST') mintPosts++;
+      await route.fulfill({ status: 500, headers: cors, body: 'unexpected' });
+    });
+    await installStellarMock(page, () => ({ minted: mixedIds.slice(0, 9), balances: {}, kale: KALE(1_000) }));
+    await page.goto('/mixtapes/collect-mixed');
+    await expect.poll(() => statusCalls, { timeout: 15_000 }).toBeGreaterThan(0);
+
+    // Meanwhile tab B re-ran the same step as a newer attempt with workflow B.
+    const recordB = await page.evaluate((key) => {
+      const flow = JSON.parse(localStorage.getItem(key)!);
+      flow.updatedAt = Date.now();
+      flow.steps = flow.steps.map((s: Record<string, unknown>) => ({ ...s, status: 'confirming', ownerTabId: 'tab-B', attemptId: 'b-1', workflowIds: ['wf-B'], since: Date.now() }));
+      const value = JSON.stringify(flow);
+      localStorage.setItem(key, value);
+      return value;
+    }, flowKey);
+
+    releaseStatus(); // the stale workflow-A failure arrives now
+    await page.waitForTimeout(1_000);
+    expect(await page.evaluate((k) => localStorage.getItem(k), flowKey), "B's confirming workflow is untouched").toBe(recordB);
+    expect(mintPosts, 'no duplicate POST /mint').toBe(0);
+  });
+
+  test('Pass6 #3 reload mid-relay (persisted "submitting") settles to owned once the ledger confirms', async ({ page, context }) => {
+    await signIn(context);
+    await seedFlow(context, 'collect-minted', [
+      { id: 'buy-1', kind: 'buy', trackIds: mintedIds, titles: mintedTracks.map((t) => t.Title), costStroops: KALE(264).toString(), status: 'submitting', since: Date.now(), ownerTabId: 'tab-A', attemptId: 'a-1', expiresAtLedger: 99_999_999 },
+    ]);
+    await installStellarMock(page, () => ({ minted: mintedIds, balances: ownedBalances(mintedIds), kale: KALE(1_000) }));
+    await page.goto('/mixtapes/collect-minted');
+    await expect(card(page).getByRole('heading')).toHaveText('You own this mixtape', { timeout: 15_000 });
+    await expect(page.getByText('Sending…')).toHaveCount(0);
   });
 
   for (const scenarioName of ['stale passkey cancel', 'stale preflight HTTP 500'] as const) {

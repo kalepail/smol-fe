@@ -17,6 +17,8 @@ export interface CollectSeams {
   mint?: BoundarySeam;
   /** Use POST /chain/snapshot as if PUBLIC_CHAIN_SNAPSHOT=1. */
   serverSnapshot?: boolean;
+  /** Use POST /mint/status as if PUBLIC_MINT_STATUS=1. */
+  mintStatus?: boolean;
 }
 
 export function e2eSeams(): CollectSeams | undefined {

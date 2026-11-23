@@ -128,14 +128,16 @@ export async function submitMintBatch(params: {
  * that path to POST /mint/:id and answers 400, so any 400/404/405/501 marks it
  * unsupported and the SAME tick falls back to one batched chain read.
  */
-let mintStatusSupported = import.meta.env.PUBLIC_MINT_STATUS === '1';
+let mintStatusUnsupported = false;
+const mintStatusEnabled = () =>
+  !mintStatusUnsupported && (import.meta.env.PUBLIC_MINT_STATUS === '1' || Boolean(e2eSeams()?.mintStatus));
 
 async function readMintStatus(
   ids: string[],
   workflowIds: string[],
   signal: AbortSignal
 ): Promise<SettlementRead | null> {
-  if (!mintStatusSupported) return null;
+  if (!mintStatusEnabled()) return null;
   try {
     const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/mint/status`, {
       method: 'POST',
@@ -147,7 +149,7 @@ async function readMintStatus(
       signal,
     });
     if ([400, 404, 405, 501].includes(response.status)) {
-      mintStatusSupported = false;
+      mintStatusUnsupported = true;
       return null;
     }
     if (!response.ok) return null;

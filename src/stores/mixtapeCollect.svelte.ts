@@ -328,7 +328,37 @@ export function createCollectController(opts: {
    * expected status. Otherwise another tab (or a newer attempt) owns the record:
    * reload it for display and write/delete NOTHING.
    */
-  type StepGuard = { attemptId: string | undefined; ownerTabId?: string; statuses: FlowStep['status'][] };
+  /**
+   * Compared against the RAW stored record (never the normalised in-memory view,
+   * where an expired `signing` reads as `cancelled` and `submitting` as `confirming`).
+   */
+  type StepGuard = {
+    attemptId: string | undefined;
+    /** When set, the stored owner must equal `owner.id` exactly (incl. undefined). */
+    owner?: { id: string | undefined };
+    /** Raw stored statuses accepted. */
+    statuses: FlowStep['status'][];
+    /** A raw `signing` record is only matched once its lease has expired (reclaim). */
+    expiredSigningOnly?: boolean;
+    trackKey?: string;
+    workflowKey?: string;
+  };
+
+  const workflowKeyOf = (s: FlowStep) => (s.workflowIds ?? []).join(',');
+
+  /** Exact guard for a stored step as it is RIGHT NOW (captured synchronously). */
+  function captureGuard(stepId: string, statuses?: FlowStep['status'][]): StepGuard | null {
+    const raw = readSharedSteps(true)?.find((s) => s.id === stepId);
+    if (!raw) return null;
+    return {
+      attemptId: raw.attemptId,
+      owner: { id: raw.ownerTabId },
+      statuses: statuses ?? [raw.status],
+      expiredSigningOnly: true,
+      trackKey: raw.trackIds.join(','),
+      workflowKey: workflowKeyOf(raw),
+    };
+  }
 
   function writeIfStill(
     stepId: string,
@@ -340,8 +370,11 @@ export function createCollectController(opts: {
     if (
       !stored ||
       stored.attemptId !== guard.attemptId ||
-      (guard.ownerTabId !== undefined && stored.ownerTabId !== guard.ownerTabId) ||
-      !guard.statuses.includes(stored.status)
+      (guard.owner !== undefined && stored.ownerTabId !== guard.owner.id) ||
+      !guard.statuses.includes(stored.status) ||
+      (guard.expiredSigningOnly && stored.status === 'signing' && (stored.leaseExpiresAt ?? 0) > Date.now()) ||
+      (guard.trackKey !== undefined && stored.trackIds.join(',') !== guard.trackKey) ||
+      (guard.workflowKey !== undefined && workflowKeyOf(stored) !== guard.workflowKey)
     ) {
       steps = shared;
       return 'lost';
@@ -353,9 +386,8 @@ export function createCollectController(opts: {
     shared.map((s) => (s.id === id ? { ...s, ...patch } : s));
   const removeIn = (id: string) => (shared: FlowStep[]) => shared.filter((s) => s.id !== id);
 
-  /** Guard for a step exactly as this tab currently sees it. */
-  const asSeen = (step: FlowStep | undefined): StepGuard =>
-    step ? { attemptId: step.attemptId, statuses: [step.status] } : { attemptId: '\u0000none', statuses: [] };
+  /** A guard that never matches (nothing to write). */
+  const NO_MATCH: StepGuard = { attemptId: '\u0000none', statuses: [] };
 
   /** Clear finished progress, but never delete another tab's newer record. */
   function clearIfDone() {
@@ -861,9 +893,12 @@ export function createCollectController(opts: {
     const resumeStatus = step.status;
     // Claim the step for THIS tab + attempt and persist the claim before any signature.
     const attemptId = newAttemptId();
+    // Compare-and-set against the exact RAW stored step (attempt, owner, status;
+    // a persisted `signing` only once its lease has expired), read just now.
+    const claimGuard = captureGuard(step.id) ?? NO_MATCH;
     const claimed = writeIfStill(
       step.id,
-      asSeen(step),
+      claimGuard,
       patchIn(step.id, {
         status: 'signing',
         failure: undefined,
@@ -880,7 +915,7 @@ export function createCollectController(opts: {
     const signingStepId = step.id;
     // Every later write for this attempt must still find OUR attempt in the record.
     let phase: 'signing' | 'submitting' | 'confirming' = 'signing';
-    const mine = (): StepGuard => ({ attemptId, ownerTabId: TAB_ID, statuses: [phase] });
+    const mine = (): StepGuard => ({ attemptId, owner: { id: TAB_ID }, statuses: [phase] });
     // Heartbeat: only ever refreshes OUR live claim; never resurrects a taken-over step.
     const leaseTimer = setInterval(() => {
       if (phase === 'signing') {
@@ -1105,8 +1140,9 @@ export function createCollectController(opts: {
 
   async function confirmBuy(stepId: string, ids: string[]) {
     const gen = generation;
-    // Only resolve the attempt that was confirming when this loop started.
-    const guard: StepGuard = { attemptId: steps.find((s) => s.id === stepId)?.attemptId, statuses: ['confirming'] };
+    // Only resolve the exact attempt that was in flight when this loop started.
+    // Raw `submitting` (relay response lost / reload mid-relay) or `confirming`.
+    const guard = captureGuard(stepId, ['submitting', 'confirming']) ?? NO_MATCH;
     for (let attempt = 0; attempt < 8; attempt++) {
       await new Promise((r) => setTimeout(r, attempt === 0 ? 2_500 : 3_500));
       if (gen !== generation) return;
@@ -1135,6 +1171,13 @@ export function createCollectController(opts: {
     pollAbort = controller;
     const gen = generation;
     const since = Math.min(...confirming.map((s) => s.since ?? Date.now()));
+    // Guards captured NOW, per step: a late result for this poll's workflow can
+    // never touch a newer attempt (another tab's workflow) on the same step.
+    const guards = new Map<string, { guard: StepGuard; trackIds: string[] }>();
+    for (const st of confirming) {
+      const guard = captureGuard(st.id, ['submitting', 'confirming']);
+      if (guard) guards.set(st.id, { guard, trackIds: [...st.trackIds] });
+    }
     void (async () => {
       try {
         const { pollMintSettlement } = await import('../hooks/useMixtapeMinting');
@@ -1147,21 +1190,21 @@ export function createCollectController(opts: {
           onSettled: (settled) => {
             if (gen !== generation) return;
             for (const id of settled) settledMintIds.add(id);
-            void settleMints();
+            void settleMints(guards);
           },
           onFailed: (failed) => {
             if (gen !== generation) return;
-            for (const s of steps) {
-              if (s.kind === 'mint' && s.status === 'confirming' && s.trackIds.some((id) => failed.includes(id))) {
-                writeIfStill(s.id, asSeen(s), patchIn(s.id, { status: 'failed', failure: 'rejected' }));
+            for (const [stepId, { guard, trackIds }] of guards) {
+              if (trackIds.some((id) => failed.includes(id))) {
+                writeIfStill(stepId, guard, patchIn(stepId, { status: 'failed', failure: 'rejected' }));
               }
             }
           },
         });
         if (gen !== generation || controller.signal.aborted) return;
-        for (const s of steps) {
-          if (s.kind === 'mint' && s.status === 'confirming' && s.trackIds.some((id) => remaining.includes(id))) {
-            writeIfStill(s.id, asSeen(s), patchIn(s.id, { status: 'failed', failure: 'timeout' }));
+        for (const [stepId, { guard, trackIds }] of guards) {
+          if (trackIds.some((id) => remaining.includes(id))) {
+            writeIfStill(stepId, guard, patchIn(stepId, { status: 'failed', failure: 'timeout' }));
           }
         }
       } catch (error) {
@@ -1171,17 +1214,12 @@ export function createCollectController(opts: {
   }
 
   /** ONE batched post-settlement refresh, then close out settled mint steps. */
-  async function settleMints() {
-    const ids = steps
-      .filter((s) => s.kind === 'mint' && s.status === 'confirming')
-      .flatMap((s) => s.trackIds)
-      .filter((id) => settledMintIds.has(id));
-    if (ids.length === 0) return;
+  async function settleMints(guards: Map<string, { guard: StepGuard; trackIds: string[] }>) {
+    const ready = [...guards].filter(([, g]) => g.trackIds.every((id) => settledMintIds.has(id)));
+    if (ready.length === 0) return;
     await refresh({ markLoading: false });
-    for (const s of steps) {
-      if (s.kind === 'mint' && s.status === 'confirming' && s.trackIds.every((id) => settledMintIds.has(id))) {
-        writeIfStill(s.id, asSeen(s), patchIn(s.id, { status: 'done' }));
-      }
+    for (const [stepId, { guard }] of ready) {
+      writeIfStill(stepId, guard, patchIn(stepId, { status: 'done' }));
     }
     finishIfDone();
   }
@@ -1206,6 +1244,8 @@ export function createCollectController(opts: {
     if (!holder || locked.length === 0) return;
     const gen = generation;
     const ids = [...new Set(locked.flatMap((s) => s.trackIds))];
+    // Raw guards captured BEFORE the read: a record changed meanwhile is left alone.
+    const guards = new Map(locked.map((st) => [st.id, captureGuard(st.id) ?? NO_MATCH] as const));
     let latestLedger: number | null = null;
     let readIds = new Set<string>();
     try {
@@ -1241,7 +1281,7 @@ export function createCollectController(opts: {
       });
       const next = reconcileStep(step, { ok, ownedAll, latestLedger, now });
       if (next !== step) {
-        writeIfStill(step.id, asSeen(step), patchIn(step.id, { status: next.status, failure: next.failure }));
+        writeIfStill(step.id, guards.get(step.id) ?? NO_MATCH, patchIn(step.id, { status: next.status, failure: next.failure }));
       }
     }
     finishIfDone();
