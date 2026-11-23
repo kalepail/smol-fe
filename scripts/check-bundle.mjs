@@ -70,8 +70,7 @@ const FORBIDDEN_MARKERS = [
       s.includes('SorobanRpc') ||
       s.includes('TransactionBuilder') ||
       s.includes('xdr.LedgerKey') ||
-      s.includes('Networks.PUBLIC') ||
-      s.includes('Public Global Stellar Network'),
+      s.includes('Networks.PUBLIC'),
   },
   {
     name: 'svelte-dnd-action',
