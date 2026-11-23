@@ -7,11 +7,16 @@ import type { SmolDetailResponse } from '../types/domain';
 const { id } = Astro.params;
 const initialData = id ? await serverApiFetch<SmolDetailResponse>(Astro, `/${encodeURIComponent(id)}`) : null;
 const apiUrl = import.meta.env.PUBLIC_API_URL;
-const title = initialData?.kv_do?.lyrics?.title || initialData?.d1?.Title;
+const title = initialData?.kv_do?.lyrics?.title || initialData?.d1?.Title || 'Song';
 const description = initialData?.kv_do?.payload?.prompt || initialData?.kv_do?.description;
 const image_url = id ? `${apiUrl}/image/${id}.png` : null;
 const musicId = initialData?.d1?.Song_1;
-const song_url = musicId ? `${apiUrl}/song/${musicId}.mp3` : initialData?.kv_do?.songs?.[0]?.audio ?? null;
+const firstReady = initialData?.kv_do?.songs?.[0];
+const song_url = musicId
+  ? `${apiUrl}/song/${musicId}.mp3`
+  : firstReady && firstReady.status >= 4 && firstReady.music_id
+    ? `${apiUrl}/song/${firstReady.music_id}.mp3`
+    : null;
 ---
 
 <Layout {title} {description} {song_url} {image_url}>

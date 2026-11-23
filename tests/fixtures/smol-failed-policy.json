@@ -1,0 +1,23 @@
+{
+  "kv_do": {
+    "payload": {
+      "prompt": "Disallowed prompt text for testing policy rejection",
+      "instrumental": false,
+      "public": true,
+      "provider": "aisonggenerator"
+    },
+    "generation_meta": {
+      "requested_provider": "aisonggenerator",
+      "actual_provider": null
+    },
+    "image": false,
+    "failure": {
+      "code": "content_policy",
+      "title": "Prompt rejected by content policy",
+      "message": "Adjust the prompt or lyrics before creating this song.",
+      "retryable": false
+    }
+  },
+  "wf": { "status": "errored" },
+  "liked": false
+}

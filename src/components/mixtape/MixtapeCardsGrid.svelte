@@ -1,60 +1,49 @@
 <script lang="ts">
-    import type { MixtapeSummary } from "../../services/api/mixtapes";
+  import type { MixtapeSummary } from '../../services/api/mixtapes';
+  import MixtapeCollage from '../ui/MixtapeCollage.svelte';
+  import StateFeedback from '../ui/StateFeedback.svelte';
 
-    interface Props {
-        mixtapes?: MixtapeSummary[];
-    }
+  interface Props {
+    mixtapes?: MixtapeSummary[];
+  }
 
-    let { mixtapes = [] }: Props = $props();
+  let { mixtapes = [] }: Props = $props();
 </script>
 
-<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+{#if mixtapes.length === 0}
+  <StateFeedback
+    kind="empty"
+    icon="mixtapes"
+    title="No mixtapes yet"
+    message="Published mixtapes from the community will show up here."
+    actionLabel="Browse songs"
+    actionHref="/"
+  />
+{:else}
+  <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
     {#each mixtapes as mixtape (mixtape.id)}
-        <article class="flex flex-col rounded-2xl border border-slate-700 bg-slate-900/80 p-4 shadow-lg">
-            <a href={`/mixtapes/${mixtape.id}`} class="grid grid-cols-2 grid-rows-2 gap-1 rounded-xl overflow-hidden hover:ring-2 hover:ring-lime-500 transition-all">
-                {#each Array.from({ length: 4 }) as _, index}
-                    <div class="aspect-square bg-slate-900">
-                        {#if mixtape.coverUrls[index]}
-                            <img
-                                src={`${mixtape.coverUrls[index]}${mixtape.coverUrls[index]?.includes("?") ? "" : "?scale=4"}`}
-                                alt={mixtape.title}
-                                class="h-full w-full object-cover pixelated"
-                                loading="lazy"
-                                onerror={(e) => {
-                                    // @ts-ignore
-                                    e.currentTarget.style.display = 'none';
-                                }}
-                            />
-                        {:else}
-                            <div class="flex h-full w-full items-center justify-center text-xs text-slate-500">
-                                SMOL
-                            </div>
-                        {/if}
-                    </div>
-                {/each}
-            </a>
+      <article class="group flex flex-col min-w-0">
+        <a
+          href={`/mixtapes/${mixtape.id}`}
+          class="focus-ring flex flex-col gap-2.5 rounded-[var(--radius-media)]"
+        >
+          <MixtapeCollage coverUrls={mixtape.coverUrls} alt={mixtape.title} />
 
-            <div class="mt-4 flex flex-col gap-2">
-                <h3 class="text-lg font-semibold text-white">{mixtape.title}</h3>
-                <p class="line-clamp-3 text-sm text-slate-400">{mixtape.description}</p>
-                <p class="text-xs uppercase tracking-wide text-slate-500">
-                    {mixtape.trackCount} Smol{mixtape.trackCount === 1 ? "" : "s"}
-                </p>
-            </div>
-
-            <div class="mt-auto flex flex-col gap-2 pt-4">
-                <a
-                    class="rounded border border-slate-600 px-3 py-2 text-center text-sm text-slate-200 hover:bg-slate-800"
-                    href={`/mixtapes/${mixtape.id}`}
-                >View Mixtape</a>
-            </div>
-        </article>
+          <div class="min-w-0 space-y-0.5">
+            <h2 class="truncate text-[15px] font-medium leading-5 text-ink-1 group-hover:underline">
+              {mixtape.title}
+            </h2>
+            <p class="tabular text-[13px] text-ink-2">
+              {mixtape.trackCount} {mixtape.trackCount === 1 ? 'song' : 'songs'}
+            </p>
+            {#if mixtape.description}
+              <p class="line-clamp-2 text-xs leading-relaxed text-ink-3">
+                {mixtape.description}
+              </p>
+            {/if}
+          </div>
+        </a>
+      </article>
     {/each}
-
-    {#if mixtapes.length === 0}
-        <div class="col-span-full rounded border border-dashed border-slate-700 bg-slate-900/60 p-6 text-center text-sm text-slate-400">
-            No mixtapes yet. Publish one to see it here!
-        </div>
-    {/if}
-</div>
-
+  </div>
+{/if}

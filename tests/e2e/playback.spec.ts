@@ -41,7 +41,7 @@ async function snapshot(page: Page) {
   });
 }
 
-test('the persisted audio handles navigation, natural advancement, remote actions and take retry', async ({ page }) => {
+test('the persisted audio handles navigation, now playing sheet, natural advancement, remote actions and take retry', async ({ page }) => {
   await page.addInitScript(() => {
     window.playbackTest = { handlers: {}, positions: [], ended: [], swaps: [] };
     const setHandler = MediaSession.prototype.setActionHandler;
@@ -118,10 +118,16 @@ test('the persisted audio handles navigation, natural advancement, remote action
   await remote(page, 'play');
   await expect.poll(() => snapshot(page)).toMatchObject({ state: 'playing', paused: false });
 
-  await dock.getByRole('link').click();
+  // Expand NowPlayingSheet from mobile mini player and navigate to the song page.
+  await dock.getByRole('button', { name: 'Open now playing for First Track' }).tap();
+  const sheet = page.locator('dialog[open]');
+  await expect(sheet.getByRole('heading', { name: 'Now playing' })).toBeVisible();
+  await expect(page.locator('audio')).toHaveCount(1);
+  await sheet.getByRole('link', { name: 'First Track' }).click();
   await expect(page).toHaveURL('/first-smol');
   await expect(page.getByRole('button', { name: 'Play take 2' })).toBeVisible();
-  await page.getByRole('link', { name: 'Mixtapes', exact: true }).click();
+
+  await page.getByRole('navigation', { name: 'Mobile navigation' }).getByRole('link', { name: 'Mixtapes', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Mixtapes', exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(() => Object.keys(window.playbackTest.handlers).sort())).toEqual(actions);
   expect(await page.evaluate(() => window.playbackTest.swaps)).toEqual([
@@ -132,11 +138,12 @@ test('the persisted audio handles navigation, natural advancement, remote action
     '/song/first.mp3', '/song/second.mp3',
   ]);
   await expect.poll(() => snapshot(page)).toMatchObject({ sameElement: true, title: 'Third Track', paused: false });
+
   await page.getByRole('link', { name: 'SMOL', exact: true }).click();
   await expect(page).toHaveURL('/');
   await remote(page, 'pause');
   await remote(page, 'nexttrack');
-  await expect.poll(() => snapshot(page)).toMatchObject({ title: 'First Track', paused: false });
+  await expect.poll(() => snapshot(page)).toMatchObject({ title: 'Neon Arcade Runner', paused: false });
   await remote(page, 'previoustrack');
   await expect.poll(() => snapshot(page)).toMatchObject({ title: 'Third Track', paused: false });
   await page.evaluate(() => document.querySelector('audio')!.pause());
@@ -165,8 +172,8 @@ test('the persisted audio handles navigation, natural advancement, remote action
   await expect(page.locator('audio')).toHaveCount(1);
   await expect.poll(() => snapshot(page)).toMatchObject({ state: 'paused', paused: true });
 
-  await page.getByRole('link', { name: 'Mixtapes', exact: true }).click();
-  await page.getByRole('link', { name: 'View Mixtape' }).click();
+  await page.getByRole('navigation', { name: 'Mobile navigation' }).getByRole('link', { name: 'Mixtapes', exact: true }).click();
+  await page.getByRole('link', { name: /Fixture Mixtape/ }).click();
   await page.getByRole('button', { name: 'Play All' }).tap();
   await expect.poll(() => snapshot(page)).toMatchObject({
     sameElement: true, title: 'First Track', album: 'Fixture Mixtape', paused: false,
@@ -180,7 +187,7 @@ test('the persisted audio handles navigation, natural advancement, remote action
   }))).toEqual({ state: 'none', metadata: null, src: null });
 });
 
-test('song, mixtape and artist islands reuse their SSR response', async ({ page, request }) => {
+test('song, mixtape, artist and playlist islands reuse their single SSR response (G3)', async ({ page, request }) => {
   await request.post(`${api}/__reset`);
   await page.goto('/first-smol');
   await expect(page.getByRole('button', { name: 'Play take 1' })).toBeVisible();
@@ -189,11 +196,15 @@ test('song, mixtape and artist islands reuse their SSR response', async ({ page,
   await page.goto('/artists/fixture-artist');
   await expect(page.getByRole('heading', { name: 'Fixture Artist' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Play First Track' })).toBeVisible();
+  await page.goto('/playlist/arcade');
+  await expect(page.getByRole('heading', { name: 'arcade' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Play First Track' })).toBeVisible();
 
   const counts = await (await request.get(`${api}/__requests`)).json();
   expect(counts).toMatchObject({
     '/first-smol': 1,
     '/mixtapes/fixture-mixtape': 1,
     '/artists/fixture-artist/smols': 1,
+    '/playlist/arcade': 1,
   });
 });

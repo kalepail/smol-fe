@@ -1,28 +1,17 @@
 <script lang="ts">
-  import { mixtapeModeState, mixtapeDraftHasContent, exitMixtapeMode } from '../../stores/mixtape.svelte';
-  import MixtapeBuilder from './builder/MixtapeBuilder.svelte';
+  import { mixtapeModeState } from '../../stores/mixtape.svelte';
 
-  function handleKeydown(event: KeyboardEvent) {
-    if (!mixtapeModeState.active) return;
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      handleClose();
-    }
-  }
+  let BuilderSheetComp = $state<typeof import('./MixtapeBuilderSheet.svelte').default | null>(null);
 
-  function handleClose() {
-    if (mixtapeDraftHasContent.current) {
-      const confirmed = confirm('Exit Mixtape Mode? Your draft will stay saved locally.');
-      if (!confirmed) return;
-    }
-    exitMixtapeMode();
-  }
+  // Lazy-load Sheet + MixtapeBuilder + svelte-dnd-action ONLY when Mixtape Mode opens.
+  $effect(() => {
+    if (!mixtapeModeState.active || BuilderSheetComp) return;
+    void import('./MixtapeBuilderSheet.svelte').then((mod) => {
+      BuilderSheetComp = mod.default;
+    });
+  });
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
-
-{#if mixtapeModeState.active}
-  <div class="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-3">
-    <MixtapeBuilder />
-  </div>
+{#if mixtapeModeState.active && BuilderSheetComp}
+  <BuilderSheetComp />
 {/if}

@@ -10,8 +10,8 @@ const initialData = address
   ? await serverApiFetch<ArtistSmolsResponse>(Astro, `/artists/${encodeURIComponent(address)}/smols?limit=100`)
   : null;
 const displayName = initialData?.artist?.Username || shortenAddress(address);
-const title = displayName ? `Smol - ${displayName}` : 'Smol - Artist';
-const description = `Public smols by ${displayName || 'artist'}`;
+const title = displayName || 'Artist';
+const description = `Public songs by ${displayName || 'artist'}`;
 ---
 
 <Layout {title} {description}>

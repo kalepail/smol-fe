@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { MixtapeDraft } from '../../../types/domain';
+  import Button from '../../ui/Button.svelte';
 
   interface Props {
     draft: MixtapeDraft;
@@ -22,68 +23,68 @@
     onDescriptionChange,
     onDiscard,
     onSaveDraft,
-    onPublish
+    onPublish,
   }: Props = $props();
 </script>
 
-<aside class="flex min-h-0 flex-col gap-4 overflow-y-auto rounded-xl border border-slate-700 bg-slate-900/60 p-4">
-  <label class="flex flex-col gap-2">
-    <span class="text-sm font-medium text-slate-200">Title</span>
+<aside class="flex flex-col gap-4 rounded-[var(--radius-control)] bg-surface-1 p-4 ring-1 ring-inset ring-line">
+  <label class="flex flex-col gap-1.5">
+    <span class="text-sm font-medium text-ink-2">Title</span>
     <input
-      class="w-full rounded border border-slate-700 bg-slate-800 px-3 py-2 text-white focus:border-lime-400 focus:outline-none"
+      class="input-ring min-h-11 w-full rounded-[var(--radius-control)] bg-canvas px-3.5 py-2 text-base text-ink-1 ring-1 ring-inset ring-line-strong placeholder:text-ink-3"
       placeholder="Give your mixtape a name"
       value={draft.title}
       oninput={(event) => onTitleChange(event.currentTarget.value)}
     />
   </label>
 
-  <label class="flex flex-col gap-2">
-    <span class="text-sm font-medium text-slate-200">Description</span>
+  <label class="flex flex-col gap-1.5">
+    <span class="text-sm font-medium text-ink-2">Description</span>
     <textarea
-      class="min-h-[96px] w-full rounded border border-slate-700 bg-slate-800 px-3 py-2 text-white focus:border-lime-400 focus:outline-none"
-      placeholder="Say something about the vibe, inspiration, or story."
+      class="input-ring min-h-[96px] w-full rounded-[var(--radius-control)] bg-canvas px-3.5 py-2.5 text-base text-ink-1 ring-1 ring-inset ring-line-strong placeholder:text-ink-3"
+      placeholder="Say something about the vibe or story."
       value={draft.description}
       oninput={(event) => onDescriptionChange(event.currentTarget.value)}
     ></textarea>
   </label>
 
-  <div class="flex flex-col gap-2">
-    <span class="text-sm font-semibold text-slate-200">Draft status</span>
-    <p class="text-xs text-slate-400">
-      Drafts are saved locally. Publish to mint a shareable mixtape when the backend is ready.
-    </p>
-    {#if statusMessage}
-      <div
-        class={`rounded px-3 py-2 text-sm ${
-          statusTone === 'error'
-            ? 'bg-red-900/60 text-red-200'
-            : statusTone === 'success'
-              ? 'bg-lime-900/50 text-lime-200'
-              : 'bg-slate-800 text-slate-200'
-        }`}
-      >
-        {statusMessage}
-      </div>
-    {/if}
-  </div>
+  <p class="text-xs leading-relaxed text-ink-3">
+    Drafts save locally in your browser until you publish.
+  </p>
 
-  <div class="mt-auto flex flex-col gap-2">
-    <button
-      class="rounded border border-slate-600 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800"
-      onclick={onDiscard}
-    >Discard Draft</button>
-
-    <button
-      class="rounded border border-lime-400/60 px-3 py-2 text-sm text-lime-200 hover:bg-lime-500/10"
-      onclick={onSaveDraft}
-    >Save Draft & Exit</button>
-
-    <button
-      class="rounded bg-lime-400 px-3 py-2 text-sm font-semibold text-slate-950 hover:bg-lime-300 disabled:opacity-60"
-      onclick={onPublish}
-      disabled={draft.tracks.length === 0 || publishing}
+  {#if statusMessage}
+    <p
+      role={statusTone === 'error' ? 'alert' : 'status'}
+      class={`rounded-[var(--radius-control)] px-3 py-2 text-sm ring-1 ring-inset ${
+        statusTone === 'error'
+          ? 'bg-danger/15 text-danger ring-danger/35'
+          : statusTone === 'success'
+            ? 'bg-success/15 text-success ring-success/35'
+            : 'bg-surface-2 text-ink-1 ring-line'
+      }`}
     >
-      {publishing ? 'Publishing…' : 'Publish Mixtape'}
-    </button>
+      {statusMessage}
+    </p>
+  {/if}
+
+  <div class="mt-auto flex flex-col gap-2 pt-2">
+    <Button
+      variant="primary"
+      fullWidth
+      loading={publishing}
+      disabled={draft.tracks.length === 0 || publishing}
+      onclick={onPublish}
+    >
+      {publishing ? 'Publishing…' : 'Publish mixtape'}
+    </Button>
+
+    <div class="grid grid-cols-2 gap-2">
+      <Button variant="secondary" fullWidth onclick={onSaveDraft}>
+        Save draft
+      </Button>
+      <Button variant="ghost" fullWidth onclick={onDiscard}>
+        Discard
+      </Button>
+    </div>
   </div>
 </aside>

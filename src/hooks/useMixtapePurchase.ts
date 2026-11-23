@@ -1,8 +1,9 @@
 import { Client as SmolClient } from 'smol-sdk';
-import { getDomain } from 'tldts';
 import type { Smol } from '../types/domain';
 import { rpc } from '../utils/base';
 import { logger } from '../utils/logger';
+import { getWebAuthnRpId } from '../utils/rpId';
+import { getConnectedAccount } from '../utils/wallet';
 
 interface PurchaseBatchParams {
   tokensOut: string[];
@@ -34,9 +35,9 @@ export function useMixtapePurchase() {
     });
 
     const { sequence } = await rpc.getLatestLedger();
-    const { account, send } = await import('../utils/passkey-kit');
+    const { account, send } = await getConnectedAccount();
     await account.sign(tx, {
-      rpId: getDomain(window.location.hostname) ?? undefined,
+      rpId: getWebAuthnRpId(),
       keyId: userKeyId,
       expiration: sequence + 60,
     });

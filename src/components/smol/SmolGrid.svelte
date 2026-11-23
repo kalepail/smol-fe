@@ -1,21 +1,27 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import type { Smol } from '../../types/domain';
+  import type { ArtistProfile, SmolListResponse } from '../../types/api';
   import SmolCard from './SmolCard.svelte';
+  import Skeleton from '../ui/Skeleton.svelte';
+  import StateFeedback from '../ui/StateFeedback.svelte';
+  import Button from '../ui/Button.svelte';
+  import Loader from '../ui/Loader.svelte';
   import { playSmolQueue, setTrackLiked } from '../../stores/audio.svelte';
-  import { mixtapeDraftState, mixtapeModeState, addTrack } from '../../stores/mixtape.svelte';
+  import { mixtapeModeState, addTrack } from '../../stores/mixtape.svelte';
   import { userState } from '../../stores/user.svelte';
+  import { openAuthSheet } from '../../stores/authSheet.svelte';
+  import { toast } from '../../stores/toast.svelte';
   import { fetchLikedSmols } from '../../services/api/smols';
   import { fetchWithTimeout, throwIfNotOk } from '../../services/api/fetch';
-  import { useVisibilityTracking } from '../../hooks/useVisibilityTracking';
   import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
   import { toMixtapeTrack } from '../../utils/track';
   import { logger } from '../../utils/logger';
-  import type { ArtistProfile, SmolListResponse } from '../../types/api';
 
   interface Props {
     playlist?: string | null;
     endpoint?: string;
+    heading?: string;
     initialData?: SmolListResponse | null;
     emptyTitle?: string;
     emptyDescription?: string;
@@ -24,9 +30,10 @@
   let {
     playlist = null,
     endpoint = '',
+    heading,
     initialData = null,
-    emptyTitle = 'No smols yet',
-    emptyDescription = ''
+    emptyTitle = 'No songs yet',
+    emptyDescription = '',
   }: Props = $props();
 
   let results = $state<Smol[]>([]);
@@ -36,13 +43,13 @@
   let error = $state<string | null>(null);
   let likes = $state<string[]>([]);
   let draggingId = $state<string | null>(null);
-  let visibleCards = $state<Record<string, boolean>>({});
   let loadingMore = $state(false);
   let paginationError = $state<string | null>(null);
   let scrollTrigger = $state<HTMLDivElement | null>(null);
 
-  const visibilityHook = useVisibilityTracking();
   const scrollHook = useInfiniteScroll();
+  const isAuthOnlyEndpoint = $derived(endpoint === 'created' || endpoint === 'liked');
+  const needsAuth = $derived(isAuthOnlyEndpoint && !userState.contractId);
 
   function buildSmolListUrl(cursorValue?: string | null) {
     const cleanEndpoint = endpoint.replace(/^\/+/, '');
@@ -75,27 +82,25 @@
       return {
         smols: data,
         nextCursor: null,
-        hasMore: false
+        hasMore: false,
       };
     }
 
     return {
       smols: applyUsernames(data.smols || [], data.users),
       nextCursor: data.pagination?.nextCursor || null,
-      hasMore: data.pagination?.hasMore || false
+      hasMore: data.pagination?.hasMore || false,
     };
   }
 
-  const observeVisibility = visibilityHook.createVisibilityObserver(
-    (id) => {
-      visibleCards[id] = true;
-    },
-    (id) => {
-      visibleCards[id] = false;
-    }
-  );
-
   async function fetchInitialData(seed: SmolListResponse | null = null) {
+    if (isAuthOnlyEndpoint && !userState.contractId) {
+      results = [];
+      loading = false;
+      error = null;
+      return;
+    }
+
     loading = true;
     error = null;
     paginationError = null;
@@ -106,7 +111,8 @@
         await throwIfNotOk(response, url.toString());
         return response.json();
       });
-      const likedPromise = userState.contractId
+      const skipLikesFetch = endpoint === 'liked';
+      const likedPromise = !skipLikesFetch && userState.contractId
         ? fetchLikedSmols().catch(() => [] as string[])
         : Promise.resolve([]);
 
@@ -117,7 +123,9 @@
       hasMore = data.hasMore;
 
       likes = likedIds;
-      if (likedIds.length > 0) {
+      if (skipLikesFetch) {
+        results = results.map((smol) => ({ ...smol, Liked: true }));
+      } else if (likedIds.length > 0) {
         const likedIdSet = new Set(likedIds);
         results = results.map((smol) => ({
           ...smol,
@@ -125,7 +133,7 @@
         }));
       }
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to load';
+      error = err instanceof Error ? err.message : 'Could not load songs.';
       logger.error('smol', 'Failed to fetch initial data:', err);
     } finally {
       loading = false;
@@ -134,16 +142,21 @@
 
   onMount(() => {
     void fetchInitialData(initialData);
-    if (playlist) localStorage.setItem('smol:playlist', playlist);
+    if (playlist) {
+      try {
+        localStorage.setItem('smol:playlist', playlist);
+      } catch {
+        // Ignore storage errors.
+      }
+    }
   });
 
-  // Infinite scroll observer - set up when scrollTrigger is available
   $effect(() => {
     if (!scrollTrigger) return;
 
     const scrollObserver = scrollHook.createScrollObserver(() => {
-      if (hasMore && !loadingMore && !loading) {
-        loadMore();
+      if (hasMore && !loadingMore && !loading && !paginationError) {
+        void loadMore();
       }
     });
 
@@ -156,19 +169,14 @@
 
   function addToMixtape(smol: Smol) {
     addTrack(toMixtapeTrack(smol));
+    toast.success(`Added "${smol.Title}" to mixtape draft.`);
   }
 
   function handleDragStart(event: DragEvent, smol: Smol) {
     if (!mixtapeModeState.active || smol.Public === 0) return;
-
-    const payload = {
-      type: 'smol' as const,
-      track: toMixtapeTrack(smol),
-    };
-
     draggingId = smol.Id;
-
     if (event.dataTransfer) {
+      const payload = { type: 'smol' as const, track: toMixtapeTrack(smol) };
       event.dataTransfer.effectAllowed = 'copy';
       event.dataTransfer.setData('application/json', JSON.stringify(payload));
       event.dataTransfer.setData('text/plain', payload.track.title);
@@ -188,13 +196,7 @@
   }
 
   async function loadMore() {
-    if (loadingMore || !hasMore) return;
-
-    if (!cursor) {
-      paginationError = 'More smols are unavailable right now.';
-      hasMore = false;
-      return;
-    }
+    if (loadingMore || !hasMore || !cursor) return;
 
     loadingMore = true;
     paginationError = null;
@@ -202,7 +204,7 @@
     try {
       const url = buildSmolListUrl(cursor);
       const response = await fetchWithTimeout(url, {
-        credentials: 'include'
+        credentials: 'include',
       });
 
       await throwIfNotOk(response, url.toString());
@@ -211,15 +213,14 @@
       const likedIdSet = new Set(likes);
       const smolsWithLikes = data.smols.map((smol: Smol) => ({
         ...smol,
-        Liked: likedIdSet.has(smol.Id),
+        Liked: endpoint === 'liked' ? true : likedIdSet.has(smol.Id),
       }));
 
       results = [...results, ...smolsWithLikes];
       cursor = data.nextCursor;
       hasMore = data.hasMore;
     } catch (err) {
-      paginationError = err instanceof Error ? err.message : 'Failed to load more smols';
-      hasMore = false;
+      paginationError = err instanceof Error ? err.message : 'Could not load more songs.';
       logger.error('smol', 'Failed to load more smols:', err);
     } finally {
       loadingMore = false;
@@ -227,62 +228,78 @@
   }
 </script>
 
-{#if loading}
-  <div class="flex justify-center items-center py-20">
-    <div class="text-lime-500">Loading...</div>
-  </div>
-{:else if error}
-  <div class="flex justify-center items-center px-2 py-20 text-center">
-    <div>
-      <div class="text-red-500">{error}</div>
-      <button
-        class="mt-4 rounded border border-lime-400 px-3 py-1 text-sm text-lime-300 hover:bg-lime-400/10"
-        onclick={() => fetchInitialData()}
-      >
-        Retry
-      </button>
+<section class="app-container py-5 sm:py-6">
+  {#if heading}
+    <header class="mb-5">
+      <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight text-ink-1">{heading}</h1>
+    </header>
+  {/if}
+
+  {#if needsAuth}
+    <div class="py-12">
+      <StateFeedback
+        kind="empty"
+        icon="user"
+        title={endpoint === 'liked' ? 'Sign in to see liked songs' : 'Sign in to see your songs'}
+        message="Your created and liked tracks follow your SMOL passkey account."
+        actionLabel="Sign in"
+        onAction={() => openAuthSheet('signin')}
+      />
     </div>
-  </div>
-{:else if results.length === 0}
-  <div class="flex justify-center px-2 py-20 text-center">
-    <div>
-      <h2 class="text-lg font-semibold text-white">{emptyTitle}</h2>
-      {#if emptyDescription}
-        <p class="mt-2 text-sm text-slate-400">{emptyDescription}</p>
-      {/if}
+  {:else if loading}
+    <Skeleton variant="card" count={12} />
+  {:else if error}
+    <div class="py-12">
+      <StateFeedback
+        kind="error"
+        title="Could not load songs"
+        message={error}
+        actionLabel="Try again"
+        onAction={() => void fetchInitialData()}
+      />
     </div>
-  </div>
-{:else}
-  <div
-    class="relative grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-2 m-2 pb-10"
-  >
-    {#each results as smol (smol.Id)}
-      <div use:observeVisibility={smol.Id}>
+  {:else if results.length === 0}
+    <div class="py-12">
+      <StateFeedback
+        kind="empty"
+        title={emptyTitle}
+        message={emptyDescription || (endpoint === 'liked' ? 'Songs you like will show up here.' : 'Create or explore songs to fill this space.')}
+        actionLabel={endpoint === 'created' ? 'Create a song' : 'Browse songs'}
+        actionHref={endpoint === 'created' ? '/create' : '/'}
+      />
+    </div>
+  {:else}
+    <div
+      class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+    >
+      {#each results as smol (smol.Id)}
         <SmolCard
           {smol}
           onPlay={() => playSmolQueue(results, smol, { wrap: true, album: playlist ?? undefined })}
-          isVisible={!!visibleCards[smol.Id]}
           onLikeChanged={(liked) => handleLikeChanged(smol, liked)}
           onAddToMixtape={() => addToMixtape(smol)}
           onDragStart={(e) => handleDragStart(e, smol)}
           onDragEnd={handleDragEnd}
           isDragging={draggingId === smol.Id}
         />
-      </div>
-    {/each}
-  </div>
-{/if}
+      {/each}
+    </div>
+  {/if}
 
-{#if paginationError}
-  <div class="flex justify-center px-2 pb-20 text-center text-sm text-red-400">
-    {paginationError}
-  </div>
-{/if}
+  {#if paginationError}
+    <div class="mt-8 flex flex-col items-center gap-3 text-center">
+      <p class="text-sm text-danger">{paginationError}</p>
+      <Button variant="secondary" size="sm" onclick={loadMore}>
+        Retry loading more
+      </Button>
+    </div>
+  {/if}
 
-{#if (hasMore && cursor) || loadingMore}
-  <div bind:this={scrollTrigger} class="flex justify-center mb-20 py-8">
-    {#if loadingMore}
-      <div class="text-lime-500">Loading...</div>
-    {/if}
-  </div>
-{/if}
+  {#if (hasMore && cursor) || loadingMore}
+    <div bind:this={scrollTrigger} class="flex justify-center py-8">
+      {#if loadingMore}
+        <Loader classNames="size-6" textColor="text-ink-2" />
+      {/if}
+    </div>
+  {/if}
+</section>

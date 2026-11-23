@@ -2,11 +2,14 @@
   import { playSmolQueue, setTrackLiked } from '../../stores/audio.svelte';
   import { toMixtapeTrack } from '../../utils/track';
   import SmolCard from '../smol/SmolCard.svelte';
+  import Skeleton from '../ui/Skeleton.svelte';
   import type { SearchResult } from '../../types/domain';
   import { searchSimilarSmols } from '../../services/api/search';
   import { fetchLikedSmols } from '../../services/api/smols';
+  import { ApiError } from '../../services/api/fetch';
   import { addTrack } from '../../stores/mixtape.svelte';
   import { userState } from '../../stores/user.svelte';
+  import { toast } from '../../stores/toast.svelte';
 
   interface Props {
     id: string;
@@ -17,10 +20,12 @@
   let results = $state<SearchResult[]>([]);
   let loading = $state(false);
   let loaded = $state(false);
+  let indexing = $state(false);
   let error = $state<string | null>(null);
 
   function addToMixtape(smol: SearchResult) {
     addTrack(toMixtapeTrack(smol));
+    toast.success(`Added "${smol.Title}" to mixtape draft.`);
   }
 
   function handleLikeChanged(smol: SearchResult, liked: boolean) {
@@ -35,14 +40,12 @@
     if (!id) return;
 
     loading = true;
+    indexing = false;
     error = null;
 
     try {
       const [response, likedIds] = await Promise.all([
-        searchSimilarSmols({
-          id,
-          limit: 8,
-        }),
+        searchSimilarSmols({ id, limit: 6 }),
         userState.contractId ? fetchLikedSmols().catch(() => [] as string[]) : Promise.resolve([]),
       ]);
 
@@ -53,7 +56,11 @@
       }));
       loaded = true;
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to load similar smols';
+      if (err instanceof ApiError && err.status === 409) {
+        indexing = true;
+      } else {
+        error = err instanceof Error ? err.message : 'Could not load similar songs.';
+      }
       results = [];
       loaded = true;
     } finally {
@@ -66,39 +73,37 @@
     results = [];
     loading = false;
     loaded = false;
+    indexing = false;
     error = null;
     void loadSimilar();
   });
 </script>
 
-<section class="px-2 py-8 pb-24">
-  <div class="max-w-[1024px] mx-auto">
-    <div class="mb-4">
-      <h2 class="text-xl font-bold text-lime-400">More Like This</h2>
+<section class="app-container border-t border-line py-8">
+  <h2 class="mb-4 text-xl font-semibold text-ink-1">More like this</h2>
+
+  {#if loading}
+    <Skeleton variant="card" count={6} />
+  {:else if indexing}
+    <p class="rounded-[var(--radius-control)] bg-surface-1 px-4 py-3 text-sm text-ink-2 ring-1 ring-inset ring-line">
+      Indexing similar songs. Check back in a moment.
+    </p>
+  {:else if error}
+    <p class="rounded-[var(--radius-control)] bg-danger/10 px-4 py-3 text-sm text-danger ring-1 ring-inset ring-danger/30">
+      {error}
+    </p>
+  {:else if loaded && results.length === 0}
+    <p class="text-sm text-ink-2">No similar songs found yet.</p>
+  {:else if results.length > 0}
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-6">
+      {#each results as smol (smol.Id)}
+        <SmolCard
+          {smol}
+          onPlay={() => playSmolQueue(results, smol)}
+          onLikeChanged={(liked) => handleLikeChanged(smol, liked)}
+          onAddToMixtape={() => addToMixtape(smol)}
+        />
+      {/each}
     </div>
-
-    {#if error}
-      <div class="mb-4 rounded-lg border border-rose-500/40 bg-rose-950/30 px-4 py-3 text-rose-200">
-        {error}
-      </div>
-    {/if}
-
-    {#if loaded && !error && results.length === 0}
-      <div class="rounded-lg border border-slate-700 bg-slate-900 px-4 py-6 text-slate-300">
-        No similar smols found.
-      </div>
-    {:else if results.length > 0}
-      <div class="relative grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2">
-        {#each results as smol (smol.Id)}
-          <SmolCard
-            smol={smol}
-            onPlay={() => playSmolQueue(results, smol)}
-            isVisible={true}
-            onLikeChanged={(liked) => handleLikeChanged(smol, liked)}
-            onAddToMixtape={() => addToMixtape(smol)}
-          />
-        {/each}
-      </div>
-    {/if}
-  </div>
+  {/if}
 </section>

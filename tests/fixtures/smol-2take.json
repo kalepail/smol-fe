@@ -1,0 +1,40 @@
+{
+  "d1": {
+    "Id": "smol-2take",
+    "Title": "Neon Arcade Runner",
+    "Address": "CFIXTUREUSER0000000000000000000000000000000000000000000001",
+    "Username": "Fixture Artist",
+    "Song_1": "take-1",
+    "Song_2": "take-2",
+    "Public": 1,
+    "Instrumental": 0,
+    "Created_At": "2026-11-20T12:00:00Z",
+    "Requested_Provider": "aisonggenerator",
+    "Actual_Provider": "aisonggenerator"
+  },
+  "kv_do": {
+    "payload": {
+      "prompt": "Upbeat 80s synthwave anthem about a pixel cat running a midnight arcade",
+      "instrumental": false,
+      "public": true,
+      "provider": "aisonggenerator"
+    },
+    "generation_meta": {
+      "requested_provider": "aisonggenerator",
+      "actual_provider": "aisonggenerator"
+    },
+    "description": "A glowing pixel cat behind a glowing synth cabinet in a midnight arcade.",
+    "image": true,
+    "nsfw": { "safe": true, "categories": [] },
+    "lyrics": {
+      "title": "Neon Arcade Runner",
+      "style": ["Synthwave", "Chiptune", "Upbeat"],
+      "lyrics": "Coins drop slow in the midnight glow\nCRT screens hum down the row\nPaws on the keys, tempo climbs\nChasing high scores out of time\n\nNeon lights reflect in green\nFastest beat you have ever seen\nPress start now, never slow\nRunning through the afterglow\n\nPixel skies above the street\nAnalog bass under our feet"
+    },
+    "songs": [
+      { "music_id": "take-1", "status": 4, "audio": "http://127.0.0.1:4329/song/take-1.mp3" },
+      { "music_id": "take-2", "status": 4, "audio": "http://127.0.0.1:4329/song/take-2.mp3" }
+    ]
+  },
+  "liked": false
+}

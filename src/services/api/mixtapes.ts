@@ -1,4 +1,4 @@
-import type { MixtapeDraft, SmolDetailResponse, SongData } from '../../types/domain';
+import type { MixtapeDraft } from '../../types/domain';
 import { fetchWithTimeout, LONG_TIMEOUT, throwIfNotOk } from './fetch';
 
 export interface MixtapeSummary {
@@ -35,23 +35,17 @@ interface ApiMixtape {
   Created_At: string;
 }
 
-export interface SmolTrackData {
-  id: string;
-  title: string | null;
-  creator: string | null;
-  coverUrl: string | null;
-  audioUrl: string | null;
-  lyrics: {
-    title?: string;
-    style?: string[];
-  } | null;
+export interface ApiMixtapeDetail {
+  Id: string;
+  Title: string;
+  Desc: string;
+  Address: string;
+  Created_At: string;
+  Smols: MixtapeSmolData[];
 }
 
 const API_URL = import.meta.env.PUBLIC_API_URL!;
 
-/**
- * Publish a new mixtape
- */
 export async function publishMixtape(draft: MixtapeDraft): Promise<{ id: string }> {
   const endpoint = `${API_URL}/mixtapes`;
   const response = await fetchWithTimeout(endpoint, {
@@ -74,9 +68,6 @@ export async function publishMixtape(draft: MixtapeDraft): Promise<{ id: string 
   return data;
 }
 
-/**
- * List all mixtapes
- */
 export async function listMixtapes(): Promise<MixtapeSummary[]> {
   const endpoint = `${API_URL}/mixtapes`;
   const response = await fetchWithTimeout(endpoint, {
@@ -87,49 +78,29 @@ export async function listMixtapes(): Promise<MixtapeSummary[]> {
 
   const data: ApiMixtape[] = await response.json();
 
-  const mixtapes = await Promise.all(
-    data.map(async (mixtape) => {
-      const coverUrls: (string | null)[] = [];
+  return data.map((mixtape) => {
+    const coverUrls: (string | null)[] = [];
 
-      for (let i = 0; i < Math.min(4, mixtape.Smols.length); i++) {
-        const smolId = mixtape.Smols[i];
-        if (smolId) {
-          coverUrls.push(`${API_URL}/image/${smolId}.png`);
-        } else {
-          coverUrls.push(null);
-        }
-      }
+    for (let i = 0; i < Math.min(4, mixtape.Smols.length); i++) {
+      const smolId = mixtape.Smols[i];
+      coverUrls.push(smolId ? `${API_URL}/image/${smolId}.png` : null);
+    }
 
-      while (coverUrls.length < 4) {
-        coverUrls.push(null);
-      }
+    while (coverUrls.length < 4) {
+      coverUrls.push(null);
+    }
 
-      return {
-        id: mixtape.Id,
-        title: mixtape.Title,
-        description: mixtape.Desc,
-        trackCount: mixtape.Smols.length,
-        coverUrls,
-        updatedAt: mixtape.Created_At,
-      };
-    })
-  );
-
-  return mixtapes;
+    return {
+      id: mixtape.Id,
+      title: mixtape.Title,
+      description: mixtape.Desc,
+      trackCount: mixtape.Smols.length,
+      coverUrls,
+      updatedAt: mixtape.Created_At,
+    };
+  });
 }
 
-export interface ApiMixtapeDetail {
-  Id: string;
-  Title: string;
-  Desc: string;
-  Address: string;
-  Created_At: string;
-  Smols: MixtapeSmolData[];
-}
-
-/**
- * Get mixtape detail by ID
- */
 export async function getMixtapeDetail(
   id: string,
   signal?: AbortSignal
@@ -150,15 +121,10 @@ export async function getMixtapeDetail(
 }
 
 export function toMixtapeDetail(data: ApiMixtapeDetail): MixtapeDetail {
-  // Generate cover URLs from the first 4 tracks
   const coverUrls: (string | null)[] = [];
   for (let i = 0; i < Math.min(4, data.Smols.length); i++) {
     const smol = data.Smols[i];
-    if (smol?.Id) {
-      coverUrls.push(`${API_URL}/image/${smol.Id}.png`);
-    } else {
-      coverUrls.push(null);
-    }
+    coverUrls.push(smol?.Id ? `${API_URL}/image/${smol.Id}.png` : null);
   }
   while (coverUrls.length < 4) {
     coverUrls.push(null);
@@ -174,47 +140,4 @@ export function toMixtapeDetail(data: ApiMixtapeDetail): MixtapeDetail {
     creator: data.Address,
     tracks: data.Smols,
   };
-}
-
-/**
- * Get smol track data by ID.
- *
- * Returns `null` when the request fails (network error, non-ok status, etc.)
- * so callers can degrade gracefully instead of crashing.
- */
-export async function getSmolTrackData(smolId: string): Promise<SmolTrackData | null> {
-  try {
-    const endpoint = `${API_URL}/${smolId}`;
-    const response = await fetchWithTimeout(endpoint);
-
-    await throwIfNotOk(response, endpoint);
-
-    const data: SmolDetailResponse = await response.json();
-    const d1 = data?.d1;
-    const kv_do = data?.kv_do;
-
-    const bestSong = d1?.Song_1;
-    const songs: SongData[] = kv_do?.songs || [];
-    const bestSongData = songs.find((s) => s.music_id === bestSong);
-
-    return {
-      id: smolId,
-      title: kv_do?.lyrics?.title ?? kv_do?.description ?? d1?.Title ?? null,
-      creator: d1?.Address ?? null,
-      coverUrl: `${API_URL}/image/${smolId}.png` as string,
-      audioUrl: (bestSongData && bestSongData.status < 4
-        ? bestSongData.audio
-        : bestSongData?.music_id
-          ? `${API_URL}/song/${bestSongData.music_id}.mp3`
-          : null) ?? null,
-      lyrics: kv_do?.lyrics
-        ? {
-            title: kv_do.lyrics.title,
-            style: kv_do.lyrics.style,
-          }
-        : null,
-    };
-  } catch {
-    return null;
-  }
 }

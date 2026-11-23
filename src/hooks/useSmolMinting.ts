@@ -1,5 +1,5 @@
 import { logger } from '../utils/logger';
-import { createMintTransaction, submitMintTransaction, MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from '../utils/mint';
+import { MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from '../utils/mintConstants';
 
 interface MintParams {
   id: string;
@@ -13,8 +13,8 @@ interface MintParams {
 }
 
 export function useSmolMinting() {
-  let mintInterval: NodeJS.Timeout | null = null;
-  let mintTimeout: NodeJS.Timeout | null = null;
+  let mintInterval: ReturnType<typeof setInterval> | null = null;
+  let mintTimeout: ReturnType<typeof setTimeout> | null = null;
 
   function clearMintPolling() {
     if (mintInterval) {
@@ -32,6 +32,7 @@ export function useSmolMinting() {
     onPollStatus: () => Promise<void>
   ): Promise<void> {
     try {
+      const { createMintTransaction, submitMintTransaction } = await import('../utils/mint');
       const xdrString = await createMintTransaction(params);
       await submitMintTransaction(params.id, xdrString, import.meta.env.PUBLIC_API_URL!);
 

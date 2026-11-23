@@ -2,6 +2,8 @@
  * Core domain types for the Smol application
  */
 
+export type MusicProvider = 'aisonggenerator' | 'elevenlabs';
+
 export interface Smol {
   Id: string;
   Title: string;
@@ -10,11 +12,15 @@ export interface Smol {
   artist?: string;
   author?: string;
   Song_1?: string;
+  Song_2?: string | null;
   Liked?: boolean;
   Address?: string;
   Public?: number;
   Mint_Token?: string;
   Mint_Amm?: string;
+  Created_At?: string;
+  Plays?: number;
+  Views?: number;
   lyrics?: {
     title?: string;
     style?: string[];
@@ -60,6 +66,11 @@ export interface MixtapeModeState {
   active: boolean;
 }
 
+export interface GenerationMeta {
+  requested_provider: MusicProvider;
+  actual_provider: MusicProvider | null;
+}
+
 /**
  * API response types for Smol detail endpoint
  */
@@ -73,16 +84,29 @@ export interface SmolDetailResponse {
     artist?: string;
     author?: string;
     Song_1?: string;
+    Song_2?: string | null;
     Public?: number;
     Mint_Token?: string;
     Mint_Amm?: string;
     Instrumental?: number;
+    Created_At?: string;
+    Requested_Provider?: MusicProvider | null;
+    Actual_Provider?: MusicProvider | null;
   };
   kv_do?: {
     payload?: {
       prompt?: string;
       instrumental?: boolean;
+      public?: boolean;
+      playlist?: string;
+      provider?: MusicProvider;
     };
+    requested_provider?: MusicProvider;
+    active_provider?: MusicProvider;
+    actual_provider?: MusicProvider | null;
+    fallback_from?: MusicProvider;
+    fallback_reason?: string;
+    generation_meta?: GenerationMeta;
     description?: string;
     nsfw?: {
       safe: boolean;

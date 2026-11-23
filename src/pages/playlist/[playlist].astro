@@ -1,12 +1,17 @@
 ---
-import Home from "../../components/Home.svelte";
-import Leaderboard from "../../components/Leaderboard.svelte";
-import Layout from "../../layouts/Layout.astro";
+import Home from '../../components/Home.svelte';
+import Leaderboard from '../../components/Leaderboard.svelte';
+import Layout from '../../layouts/Layout.astro';
+import { serverApiFetch } from '../../services/api/server';
+import type { SmolListResponse } from '../../types/api';
 
-const { playlist } = Astro.params;
+const { playlist = '' } = Astro.params;
+const initialData = playlist
+  ? await serverApiFetch<SmolListResponse>(Astro, `/playlist/${encodeURIComponent(playlist)}?limit=100`)
+  : null;
 ---
 
-<Layout title={`Smol – ${playlist}`}>
-	<Leaderboard {playlist} client:only="svelte" />
-	<Home {playlist} endpoint={`playlist/${playlist}`} client:only="svelte" />
+<Layout title={playlist || 'Playlist'}>
+  <Leaderboard {playlist} {initialData} client:only="svelte" />
+  <Home {playlist} endpoint={`playlist/${encodeURIComponent(playlist)}`} {initialData} client:only="svelte" />
 </Layout>

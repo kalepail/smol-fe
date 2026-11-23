@@ -1,27 +1,30 @@
 import Cookies from 'js-cookie';
-import { getDomain } from 'tldts';
+import { navigate } from 'astro:transitions/client';
 import { setUserAuth, clearUserAuth, userState } from '../stores/user.svelte';
-
-interface ConnectResult {
-  rawResponse: unknown;
-  keyIdBase64: string;
-  contractId: string;
-}
-
-interface CreateResult extends ConnectResult {
-  signedTx: string;
-}
+import { resetBalance } from '../stores/balance.svelte';
+import { getAuthCookieDomain, getWebAuthnRpId } from '../utils/rpId';
 
 export function useAuthentication() {
+  function cookieOptions() {
+    const domain = getAuthCookieDomain();
+    const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+    return {
+      path: '/',
+      secure: isHttps,
+      sameSite: 'Lax' as const,
+      ...(domain ? { domain } : {}),
+    };
+  }
+
   async function login() {
     const { account } = await import('../utils/passkey-kit');
-    const rpId = getDomain(window.location.hostname);
+    const rpId = getWebAuthnRpId();
     const {
       rawResponse,
       keyIdBase64,
       contractId: cid,
     } = await account.connectWallet({
-      rpId: rpId !== null ? rpId : undefined,
+      rpId,
     });
 
     const jwt = await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {
@@ -37,32 +40,28 @@ export function useAuthentication() {
       }),
     }).then(async (res) => {
       if (res.ok) return res.text();
-      throw await res.text();
+      throw new Error((await res.text()) || 'Sign in failed.');
     });
 
     setUserAuth(cid, keyIdBase64);
-    // Mark wallet as connected since connectWallet was just called
     userState.walletConnected = true;
 
     Cookies.set('smol_token', jwt, {
-      path: '/',
-      secure: true,
-      sameSite: 'Lax',
-      domain: '.smol.xyz',
+      ...cookieOptions(),
       expires: 30,
     });
   }
 
   async function signUp(username: string) {
     const { account, send } = await import('../utils/passkey-kit');
-    const rpId = getDomain(window.location.hostname);
+    const rpId = getWebAuthnRpId();
     const {
       rawResponse,
       keyIdBase64,
       contractId: cid,
       signedTx,
     } = await account.createWallet('smol.xyz', `SMOL — ${username}`, {
-      rpId: rpId !== null ? rpId : undefined,
+      rpId,
     });
 
     const jwt = await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {
@@ -79,51 +78,53 @@ export function useAuthentication() {
       }),
     }).then(async (res) => {
       if (res.ok) return res.text();
-      throw await res.text();
+      throw new Error((await res.text()) || 'Account creation failed.');
     });
 
     await send(signedTx);
 
     setUserAuth(cid, keyIdBase64);
-    // Mark wallet as connected since createWallet was just called (which internally connects)
     userState.walletConnected = true;
 
     Cookies.set('smol_token', jwt, {
-      path: '/',
-      secure: true,
-      sameSite: 'Lax',
-      domain: '.smol.xyz',
+      ...cookieOptions(),
       expires: 30,
     });
   }
 
   async function logout() {
     clearUserAuth();
+    resetBalance();
 
-    Cookies.remove('smol_token', {
-      path: '/',
-      secure: true,
-      sameSite: 'Lax',
-      domain: '.smol.xyz',
-    });
+    Cookies.remove('smol_token', cookieOptions());
+    Cookies.remove('smol_token', { path: '/' });
 
-    Object.keys(localStorage).forEach((key) => {
-      if (key.includes('smol:')) {
-        localStorage.removeItem(key);
-      }
-    });
+    try {
+      Object.keys(localStorage).forEach((key) => {
+        if (key.includes('smol:')) {
+          localStorage.removeItem(key);
+        }
+      });
 
-    Object.keys(sessionStorage).forEach((key) => {
-      if (key.includes('smol:')) {
-        sessionStorage.removeItem(key);
-      }
-    });
+      Object.keys(sessionStorage).forEach((key) => {
+        if (key.includes('smol:')) {
+          sessionStorage.removeItem(key);
+        }
+      });
+    } catch {
+      // Ignore storage errors.
+    }
 
-    await fetch(`${import.meta.env.PUBLIC_API_URL}/logout`, {
-      method: 'POST',
-    });
+    try {
+      await fetch(`${import.meta.env.PUBLIC_API_URL}/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch {
+      // Cookie is already cleared client-side.
+    }
 
-    location.reload();
+    await navigate('/');
   }
 
   return {

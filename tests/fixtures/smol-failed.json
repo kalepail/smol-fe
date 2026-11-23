@@ -1,0 +1,27 @@
+{
+  "kv_do": {
+    "payload": {
+      "prompt": "Driving cyberpunk drum and bass loop with brass stabs",
+      "instrumental": true,
+      "public": true,
+      "provider": "aisonggenerator"
+    },
+    "generation_meta": {
+      "requested_provider": "aisonggenerator",
+      "actual_provider": null
+    },
+    "image": true,
+    "lyrics": {
+      "title": "Overdrive Circuit",
+      "style": ["Drum & Bass", "Cyberpunk"]
+    },
+    "failure": {
+      "code": "generation_timeout",
+      "title": "Song generation timed out",
+      "message": "The music provider took too long to finish. Try again or switch models.",
+      "retryable": true
+    }
+  },
+  "wf": { "status": "errored" },
+  "liked": false
+}

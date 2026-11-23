@@ -1,9 +1,10 @@
 ---
 import { ClientRouter } from 'astro:transitions';
-import Header from '../components/Header.svelte'
-import MixtapeBuilderOverlay from '../components/mixtape/MixtapeBuilderOverlay.svelte'
-import BarAudioPlayer from '../components/audio/BarAudioPlayer.svelte'
-import '../styles/global.css'
+import TopBar from '../components/shell/TopBar.svelte';
+import TabBar from '../components/shell/TabBar.svelte';
+import MixtapeBuilderOverlay from '../components/mixtape/MixtapeBuilderOverlay.svelte';
+import PlayerDock from '../components/player/PlayerDock.svelte';
+import '../styles/global.css';
 
 interface Props {
 	title?: string;
@@ -14,10 +15,12 @@ interface Props {
 
 const {
 	title,
-	description = "Smol art onchain",
+	description = 'Smol art onchain',
 	song_url = null,
 	image_url,
 } = Astro.props;
+
+const pageTitle = title ? (title.includes('SMOL') ? title : `${title} · SMOL`) : 'SMOL';
 
 let _kid: string | null = null;
 let _cid: string | null = null;
@@ -37,91 +40,49 @@ if (token) {
 		// A malformed session cookie must not prevent the page from rendering.
 	}
 }
-
-const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY;
 ---
 
 <!doctype html>
 <html lang="en">
 	<head>
-		<meta charset="utf-8">
+		<meta charset="utf-8" />
 		<meta name="robots" content={Astro.url.hostname === 'smol.xyz' ? 'index, follow' : 'noindex, nofollow'} />
-		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-		<link rel="apple-touch-icon" href={image_url ? image_url : "https://smol.xyz/favicon.png"} />
-		<link rel="icon" type="image/png" href={image_url ? image_url : "https://smol.xyz/favicon.png"} />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<link rel="apple-touch-icon" href={image_url ? image_url : 'https://smol.xyz/favicon.png'} />
+		<link rel="icon" type="image/png" href={image_url ? image_url : 'https://smol.xyz/favicon.png'} />
 		<meta name="generator" content={Astro.generator} />
-		<meta name="mobile-web-app-capable" content="yes">
-		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-		<meta name="apple-mobile-web-app-title" content={title}>
-		<meta name="theme-color" content="#9ae600">
-		<link rel="manifest" href="/manifest.json">
+		<meta name="mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+		<meta name="apple-mobile-web-app-title" content={pageTitle} />
+		<meta name="theme-color" content="#9ae600" />
+		<link rel="manifest" href="/manifest.json" />
 		<ClientRouter />
 
-		{turnstileSiteKey && <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" is:inline></script>}
+		<title transition:animate="fade">{pageTitle}</title>
+		<meta name="description" content={description} />
+		<link rel="canonical" href={Astro.url} />
 
-		<title transition:animate="fade">{title}</title>
-		<meta name="description" content={description}>
-		<!-- <meta name="medium" content="audio"> -->
-		<link rel="canonical" href={Astro.url}>
-
-		<meta property="og:title" content={title} />
+		<meta property="og:title" content={pageTitle} />
 		<meta property="og:description" content={description} />
 		<meta property="og:type" content={song_url ? 'music.song' : 'website'} />
 		<meta property="og:url" content={Astro.url} />
-		<meta property="og:image" content={image_url ? `${image_url}?scale=16` : "https://smol.xyz/meta.png"} />
-		<!-- <meta property="og:image:width" content="1024">
-		<meta property="og:image:height" content="1024"> -->
-		<!-- <meta property="og:image:type" content="image/png"> -->
+		<meta property="og:image" content={image_url ? `${image_url}?scale=16` : 'https://smol.xyz/meta.png'} />
 		{song_url && <meta property="og:audio" content={song_url} />}
 		{song_url && <meta property="og:audio:type" content="audio/mpeg" />}
 
-		<!-- <link rel="alternate" type="application/json+oembed" href="//embed//"> -->
-
-		<!-- <meta property="og:video" content="">
-		<meta property="og:video:secure_url" content="">
-		<meta property="og:video:type" content="video/mp4">
-		<meta property="og:video:width" content="1024">
-		<meta property="og:video:height" content="1024">
-		<meta property="og:type" content="video.other"> -->
-
-		<!-- <meta name="twitter:card" content="player" /> -->
 		<meta name="twitter:card" content="summary_large_image" />
-		<!-- <meta name="twitter:site" content="@smolxyz"> -->
-		<meta name="twitter:title" content={title} />
+		<meta name="twitter:title" content={pageTitle} />
 		<meta name="twitter:description" content={description} />
-		<meta name="twitter:image" content={image_url ? `${image_url}?scale=16` : "https://smol.xyz/meta.png"} />
+		<meta name="twitter:image" content={image_url ? `${image_url}?scale=16` : 'https://smol.xyz/meta.png'} />
 		<meta name="twitter:url" content={Astro.url} />
-		<!-- <meta name="twitter:player" content="//embed//"> -->
-		<!-- <meta name="twitter:player:stream" content={song_url}>
-		<meta name="twitter:player:width" content="760">
-		<meta name="twitter:player:height" content="240"> -->
 	</head>
-	<body class="bg-slate-950 text-white">
-		<Header {_kid} {_cid} client:only="svelte" transition:persist="header" />
+	<body class="bg-canvas text-ink-1 antialiased">
+		<TopBar {_kid} {_cid} client:only="svelte" transition:persist="header" />
+		<main id="main">
+			<slot />
+		</main>
+		<PlayerDock client:only="svelte" transition:persist="audio-player" />
+		<TabBar client:only="svelte" transition:persist="tab-bar" />
 		<MixtapeBuilderOverlay client:only="svelte" transition:persist="mixtape-overlay" />
-		<BarAudioPlayer client:only="svelte" transition:persist="audio-player" />
-		<slot />
-
-		{turnstileSiteKey && <div class="cf-turnstile"></div>}
-
-		{turnstileSiteKey && (
-			<script>
-				import { turnstileCallback } from "../stores/turnstile.svelte";
-
-				const sitekey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY;
-
-				turnstile.ready(() => {
-					turnstile.render(".cf-turnstile", {
-						appearance: "interaction-only",
-						sitekey,
-						'response-field': false,
-						// @ts-ignore
-						'feedback-enabled': false,
-						callback: (token: string) => turnstileCallback(token),
-						'error-callback': (error: any) => console.error(error),
-					});
-				});
-			</script>
-		)}
 	</body>
 </html>

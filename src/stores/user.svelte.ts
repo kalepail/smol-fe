@@ -1,8 +1,4 @@
-/**
- * User authentication state using Svelte 5 runes
- */
-
-import { getDomain } from 'tldts';
+import { getWebAuthnRpId } from '../utils/rpId';
 import { logger } from '../utils/logger';
 
 export const userState = $state<{
@@ -15,54 +11,35 @@ export const userState = $state<{
   walletConnected: false,
 });
 
-// Derived state function
 export function isAuthenticated(): boolean {
   return userState.contractId !== null && userState.keyId !== null;
 }
 
-/**
- * Set contract ID
- */
 export function setContractId(id: string | null) {
   userState.contractId = id;
 }
 
-/**
- * Set key ID
- */
 export function setKeyId(id: string | null) {
   userState.keyId = id;
 }
 
-/**
- * Set both contract and key ID
- */
 export function setUserAuth(contractId: string | null, keyId: string | null) {
   userState.contractId = contractId;
   userState.keyId = keyId;
 }
 
-/**
- * Clear authentication
- */
 export function clearUserAuth() {
   userState.contractId = null;
   userState.keyId = null;
   userState.walletConnected = false;
 }
 
-/**
- * Ensure the passkey account wallet is connected
- * This should be called once during app initialization when user is authenticated
- */
 export async function ensureWalletConnected(): Promise<void> {
-  // Only connect if we have auth credentials and haven't connected yet
   if (userState.contractId && userState.keyId && !userState.walletConnected) {
     try {
       const { account } = await import('../utils/passkey-kit');
-      const rpId = getDomain(window.location.hostname) ?? undefined;
       await account.connectWallet({
-        rpId,
+        rpId: getWebAuthnRpId(),
         keyId: userState.keyId,
       });
       userState.walletConnected = true;
@@ -74,16 +51,10 @@ export async function ensureWalletConnected(): Promise<void> {
   }
 }
 
-/**
- * Get contract ID (read-only accessor)
- */
 export function getContractId(): string | null {
   return userState.contractId;
 }
 
-/**
- * Get key ID (read-only accessor)
- */
 export function getKeyId(): string | null {
   return userState.keyId;
 }

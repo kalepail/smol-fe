@@ -1,0 +1,22 @@
+{
+  "kv_do": {
+    "payload": {
+      "prompt": "Crisp retro space jazz flute over warm Rhodes chords",
+      "instrumental": true,
+      "public": true,
+      "provider": "elevenlabs"
+    },
+    "generation_meta": {
+      "requested_provider": "elevenlabs",
+      "actual_provider": null
+    },
+    "image": true,
+    "lyrics": {
+      "title": "Orbital Lounge",
+      "style": ["Jazz", "Retro"]
+    },
+    "songs": []
+  },
+  "wf": { "status": "running" },
+  "liked": false
+}

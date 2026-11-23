@@ -1,17 +1,19 @@
 <script lang="ts">
   import { onDestroy, untrack } from 'svelte';
+  import { SvelteSet } from 'svelte/reactivity';
   import type { MixtapeDetail } from '../../services/api/mixtapes';
   import type { Smol } from '../../types/domain';
   import MixtapeHeader from './MixtapeHeader.svelte';
   import MixtapeTracklist from './MixtapeTracklist.svelte';
   import PurchaseModal from './PurchaseModal.svelte';
+  import Skeleton from '../ui/Skeleton.svelte';
+  import StateFeedback from '../ui/StateFeedback.svelte';
   import { next, player, playQueue, previous, setTrackLiked, stop, toggle } from '../../stores/audio.svelte';
   import { toTrack, trackKey } from '../../utils/track';
   import { userState } from '../../stores/user.svelte';
-  import { useMixtapeMinting } from '../../hooks/useMixtapeMinting';
-  import { useMixtapePurchase } from '../../hooks/useMixtapePurchase';
-  import { useMixtapeBalances } from '../../hooks/useMixtapeBalances';
-  import { MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from '../../utils/mint';
+  import { openAuthSheet } from '../../stores/authSheet.svelte';
+  import { toast } from '../../stores/toast.svelte';
+  import { MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from '../../utils/mintConstants';
   import { getMixtapeDetail } from '../../services/api/mixtapes';
   import { fetchLikedSmols } from '../../services/api/smols';
   import { logger } from '../../utils/logger';
@@ -23,78 +25,68 @@
 
   let { id, initialData = null }: Props = $props();
 
-  // State
   let mixtape = $state<MixtapeDetail | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
   let mixtapeTracks = $state<Smol[]>([]);
 
-  let loadingTracks = $state(new Set<string>());
-
-  // Purchase modal state
   let showPurchaseModal = $state(false);
+  let balancesLoading = $state(false);
   let isPurchasing = $state(false);
   let purchaseCurrentStep = $state('');
-  let purchaseCompletedSteps = $state(new Set<string>());
+  const purchaseCompletedSteps = new SvelteSet<string>();
 
-  // Initialize hooks
-  const mintingHook = useMixtapeMinting();
-  const purchaseHook = useMixtapePurchase();
-  const balancesHook = useMixtapeBalances();
+  // Lazy-loaded Web3 hooks (never imported until user interacts with Buy Mixtape).
+  let mintingHookRef: ReturnType<typeof import('../../hooks/useMixtapeMinting').useMixtapeMinting> | null = null;
 
-  // Derived values
   const ownsQueue = $derived(player.queueId === id);
   const isPlayingAll = $derived(ownsQueue && (player.status === 'playing' || player.status === 'loading'));
   const canPlay = $derived(player.ready && mixtapeTracks.some((track) => Boolean(track.Song_1)));
 
   const fullyOwned = $derived(
-    mixtape && mixtapeTracks.length > 0
-      ? mixtapeTracks.every((track) => {
-          return (
+    Boolean(
+      mixtape &&
+        mixtapeTracks.length > 0 &&
+        mixtapeTracks.every(
+          (track) =>
             track?.Mint_Token &&
             track?.Mint_Amm &&
             track?.balance !== undefined &&
             track.balance > 0n
-          );
-        })
-      : false
+        )
+    )
   );
 
   const coverUrls = $derived(
     mixtape
       ? Array.from({ length: 4 }, (_, i) => {
           const track = mixtapeTracks[i];
-          return track?.Id
-            ? `${import.meta.env.PUBLIC_API_URL}/image/${track.Id}.png`
-            : null;
+          return track?.Id ? `${import.meta.env.PUBLIC_API_URL}/image/${track.Id}.png` : null;
         })
       : []
   );
 
   const tracksToMint = $derived(
     mixtapeTracks
-      .filter((track) => {
-        return track && !track.Mint_Token;
-      })
+      .filter((track) => track && !track.Mint_Token)
       .map((track) => ({
         id: track.Id,
-        title: track.Title || 'Unknown Track',
+        title: track.Title || 'Untitled track',
       }))
   );
 
   const tracksToPurchase = $derived(
     mixtapeTracks
-      .filter((track) => {
-        return (
+      .filter(
+        (track) =>
           track &&
           track.Mint_Token &&
           track.Mint_Amm &&
           (track.balance || 0n) === 0n
-        );
-      })
+      )
       .map((track) => ({
         id: track.Id,
-        title: track.Title || 'Unknown Track',
+        title: track.Title || 'Untitled track',
       }))
   );
 
@@ -116,16 +108,23 @@
     if (event.target instanceof Element && event.target.closest('input, textarea, select, button, a, [contenteditable]')) return;
 
     switch (event.key) {
-      case ' ': event.preventDefault(); toggle(); break;
-      case 'ArrowRight': event.preventDefault(); next(); break;
-      case 'ArrowLeft': event.preventDefault(); previous(); break;
+      case ' ':
+        event.preventDefault();
+        toggle();
+        break;
+      case 'ArrowRight':
+        event.preventDefault();
+        next();
+        break;
+      case 'ArrowLeft':
+        event.preventDefault();
+        previous();
+        break;
     }
   }
 
-  // Track last fetched ID to prevent duplicate fetches
   let lastFetchedMixtapeId = $state<string | null>(null);
 
-  // Fetch mixtape data
   async function fetchMixtapeData(mixtapeId: string, seed: MixtapeDetail | null) {
     loading = true;
     error = null;
@@ -141,44 +140,28 @@
       ]);
 
       if (!mixtapeData) {
-        throw new Error('Mixtape not found');
+        mixtape = null;
+        return;
       }
 
       mixtape = mixtapeData;
       const likedTrackIdSet = new Set(likedTrackIds);
 
-      // Initialize tracks
-      mixtapeTracks = mixtapeData.tracks.map((track) => {
-        const isLiked = likedTrackIdSet.has(track.Id);
-        return {
-          Id: track.Id,
-          Title: track.Title,
-          Address: track.Address,
-          Song_1: track.Song_1,
-          Mint_Token: track.Mint_Token,
-          Mint_Amm: track.Mint_Amm,
-          Public: track.Public,
-          Liked: isLiked,
-          minting: false,
-          balance: undefined,
-          lyrics: track.Tags?.length
-            ? {
-                style: track.Tags,
-              }
-            : undefined,
-        } as Smol;
-      });
-
-      // Fetch track balances if authenticated
-      if (userState.contractId) {
-        await balancesHook.refreshAllBalances(
-          mixtapeTracks,
-          userState.contractId,
-          handleBalanceUpdated
-        );
-      }
+      mixtapeTracks = mixtapeData.tracks.map((track) => ({
+        Id: track.Id,
+        Title: track.Title,
+        Address: track.Address,
+        Song_1: track.Song_1,
+        Mint_Token: track.Mint_Token,
+        Mint_Amm: track.Mint_Amm,
+        Public: track.Public,
+        Liked: likedTrackIdSet.has(track.Id),
+        minting: false,
+        balance: undefined,
+        lyrics: track.Tags?.length ? { style: track.Tags } : undefined,
+      }));
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to load mixtape';
+      error = err instanceof Error ? err.message : 'Could not load this mixtape.';
       logger.error('mixtape', 'Failed to fetch mixtape data:', err);
     } finally {
       loading = false;
@@ -186,7 +169,6 @@
   }
 
   $effect(() => {
-    // Only fetch if id actually changed
     if (id && id !== lastFetchedMixtapeId) {
       const mixtapeId = id;
       const seed = initialData?.id === mixtapeId ? initialData : null;
@@ -195,57 +177,8 @@
     }
   });
 
-  // Refetch balances when user state becomes available (handles full page refresh)
-  let balanceRefreshTimeout: ReturnType<typeof setTimeout> | null = null;
-  let lastBalanceRefreshKey = $state<string | null>(null);
-
-  $effect(() => {
-    const contractId = userState.contractId;
-    const tracksLength = mixtapeTracks.length;
-    const isLoading = loading;
-
-    // Use untrack to prevent this effect from re-running when balance updates
-    untrack(() => {
-      if (contractId && tracksLength > 0 && !isLoading) {
-        const hasUndefinedBalances = mixtapeTracks.some(
-          (track) => track?.Mint_Token && track?.balance === undefined
-        );
-
-        if (hasUndefinedBalances) {
-          // Create a key to track this specific balance fetch
-          const trackIds = mixtapeTracks
-            .filter((t) => t?.Mint_Token && t?.balance === undefined)
-            .map((t) => t.Id)
-            .sort()
-            .join(',');
-          const refreshKey = `${contractId}-${trackIds}`;
-
-          // Only refresh if we haven't already fetched these exact balances
-          if (refreshKey !== lastBalanceRefreshKey) {
-            // Debounce balance refresh to prevent rapid re-fetches
-            if (balanceRefreshTimeout) clearTimeout(balanceRefreshTimeout);
-
-            balanceRefreshTimeout = setTimeout(() => {
-              lastBalanceRefreshKey = refreshKey;
-              balancesHook.refreshAllBalances(
-                mixtapeTracks,
-                contractId,
-                handleBalanceUpdated
-              );
-            }, 300);
-          }
-        }
-      }
-    });
-
-    return () => {
-      if (balanceRefreshTimeout) clearTimeout(balanceRefreshTimeout);
-    };
-  });
-
   onDestroy(() => {
-    if (balanceRefreshTimeout) clearTimeout(balanceRefreshTimeout);
-    mintingHook.clearAllMintPolling();
+    mintingHookRef?.clearAllMintPolling();
   });
 
   function handleBalanceUpdated(trackId: string, balance: bigint) {
@@ -256,11 +189,25 @@
     }
   }
 
-  function handleMintStatusUpdate(
-    trackId: string,
-    mintToken: string,
-    mintAmm: string
-  ) {
+  async function refreshBalancesLazily() {
+    if (!userState.contractId) return;
+    balancesLoading = true;
+    try {
+      const { useMixtapeBalances } = await import('../../hooks/useMixtapeBalances');
+      const balancesHook = useMixtapeBalances();
+      await balancesHook.refreshAllBalances(
+        mixtapeTracks,
+        userState.contractId,
+        handleBalanceUpdated
+      );
+    } catch (err) {
+      logger.error('mixtape', 'Failed to refresh track balances:', err);
+    } finally {
+      balancesLoading = false;
+    }
+  }
+
+  async function handleMintStatusUpdate(trackId: string, mintToken: string, mintAmm: string) {
     if (isPurchasing) {
       purchaseCompletedSteps.add(`mint-${trackId}`);
     }
@@ -274,7 +221,9 @@
     }
 
     if (userState.contractId) {
-      balancesHook.updateTrackBalance(
+      const { useMixtapeBalances } = await import('../../hooks/useMixtapeBalances');
+      const balancesHook = useMixtapeBalances();
+      await balancesHook.updateTrackBalance(
         trackId,
         mintToken,
         userState.contractId,
@@ -285,10 +234,11 @@
 
   function handlePurchaseClick() {
     if (!userState.contractId || !userState.keyId) {
-      alert('Connect your wallet to purchase this mixtape');
+      openAuthSheet('signin', 'Sign in to buy tracks in this mixtape.');
       return;
     }
     showPurchaseModal = true;
+    void refreshBalancesLazily();
   }
 
   async function handlePurchaseConfirm() {
@@ -297,20 +247,30 @@
     const smolContractId = import.meta.env.PUBLIC_SMOL_CONTRACT_ID;
     if (!smolContractId) {
       logger.error('mixtape', 'Missing PUBLIC_SMOL_CONTRACT_ID env var');
-      alert('Purchasing is temporarily unavailable. Please try again later.');
+      toast.error('Purchasing is temporarily unavailable. Try again later.');
       return;
     }
 
     isPurchasing = true;
     purchaseCurrentStep = '';
-    purchaseCompletedSteps = new Set();
+    purchaseCompletedSteps.clear();
 
     try {
-      // Step 1: Mint all unminted tracks
+      const [{ useMixtapeMinting }, { useMixtapePurchase }, { useMixtapeBalances }] =
+        await Promise.all([
+          import('../../hooks/useMixtapeMinting'),
+          import('../../hooks/useMixtapePurchase'),
+          import('../../hooks/useMixtapeBalances'),
+        ]);
+
+      const mintingHook = useMixtapeMinting();
+      const purchaseHook = useMixtapePurchase();
+      const balancesHook = useMixtapeBalances();
+      mintingHookRef = mintingHook;
+
       if (tracksToMint.length > 0) {
         purchaseCurrentStep = 'mint';
 
-        // Mark tracks as minting
         for (const track of tracksToMint) {
           const index = mixtapeTracks.findIndex((t) => t?.Id === track.id);
           if (index !== -1 && mixtapeTracks[index]) {
@@ -326,66 +286,44 @@
             userKeyId: userState.keyId,
           },
           mixtape,
-          handleMintStatusUpdate,
-          (chunkIndex, error) => {
-            // Don't alert for user cancellations
-            if (error.name !== 'NotAllowedError') {
-              alert(`Batch ${chunkIndex + 1} failed: ${error.message}`);
+          (trackId, mintToken, mintAmm) => {
+            void handleMintStatusUpdate(trackId, mintToken, mintAmm);
+          },
+          (chunkIndex, batchError) => {
+            if (batchError.name !== 'NotAllowedError') {
+              toast.error(`Batch ${chunkIndex + 1} failed: ${batchError.message}`);
             }
           }
         );
 
-        // Wait for all tracks to be minted
         const startTime = Date.now();
         while (Date.now() - startTime < MINT_POLL_TIMEOUT) {
-          const allMinted = mixtapeTracks.every((track) => {
-            return track?.Mint_Token && track?.Mint_Amm;
-          });
-
+          const allMinted = mixtapeTracks.every((track) => track?.Mint_Token && track?.Mint_Amm);
           if (allMinted) break;
-
-          await new Promise((resolve) =>
-            setTimeout(resolve, MINT_POLL_INTERVAL)
-          );
+          await new Promise((resolve) => setTimeout(resolve, MINT_POLL_INTERVAL));
         }
 
-        const unmintedTracks = mixtapeTracks.filter((track) => {
-          return track && !track.Mint_Token;
-        });
-
+        const unmintedTracks = mixtapeTracks.filter((track) => track && !track.Mint_Token);
         if (unmintedTracks.length > 0) {
-          throw new Error(
-            `Some tracks are still minting. Please wait and try again.`
-          );
+          throw new Error('Some tracks are still minting. Wait a moment and try again.');
         }
 
         purchaseCompletedSteps.add('mint');
       }
 
-      // Refresh balances after minting
-      logger.info('mixtape', 'Refreshing balances after minting...');
       await balancesHook.refreshAllBalances(
         mixtapeTracks,
         userState.contractId,
         handleBalanceUpdated
       );
-      logger.info('mixtape', 'Balances refreshed');
 
-      // Build tokens array for swap_them_in
       const tokensOut: string[] = [];
       for (const track of mixtapeTracks) {
-        if (
-          track?.Mint_Token &&
-          track?.Mint_Amm &&
-          (track.balance || 0n) === 0n
-        ) {
+        if (track?.Mint_Token && track?.Mint_Amm && (track.balance || 0n) === 0n) {
           tokensOut.push(track.Mint_Token);
         }
       }
 
-      logger.info('mixtape', 'Tracks to purchase:', tokensOut.length);
-
-      // Step 2: Purchase remaining tracks
       if (tokensOut.length > 0) {
         purchaseCurrentStep = 'purchase';
         await purchaseHook.purchaseTracksInBatches(
@@ -403,64 +341,43 @@
         purchaseCompletedSteps.add('purchase');
       }
 
-      // Refresh balances after purchase
       await balancesHook.refreshAllBalances(
         mixtapeTracks,
         userState.contractId,
         handleBalanceUpdated
       );
 
-      // Final step
       purchaseCurrentStep = 'complete';
       purchaseCompletedSteps.add('complete');
-
-      // Clean up polling - minting is complete
       mintingHook.clearAllMintPolling();
+      toast.success('Mixtape purchased.');
 
       setTimeout(() => {
         showPurchaseModal = false;
         isPurchasing = false;
         purchaseCurrentStep = '';
-        purchaseCompletedSteps = new Set();
-      }, 2000);
-    } catch (error) {
-      logger.error('mixtape', 'Purchase error:', error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const errorName = error instanceof Error ? error.name : '';
+        purchaseCompletedSteps.clear();
+      }, 1500);
+    } catch (err) {
+      logger.error('mixtape', 'Purchase error:', err);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      const errorName = err instanceof Error ? err.name : '';
 
-      // Check if user cancelled the transaction
       const isCancellation =
         errorName === 'NotAllowedError' ||
         errorMessage.toLowerCase().includes('abort') ||
         errorMessage.toLowerCase().includes('cancel') ||
         errorMessage.toLowerCase().includes('not allowed');
 
-      if (isCancellation) {
-        // User cancelled - reset to initial state but keep modal open so they can retry
-        mintingHook.clearAllMintPolling();
-        isPurchasing = false;
-        purchaseCurrentStep = '';
-        purchaseCompletedSteps = new Set();
+      mintingHookRef?.clearAllMintPolling();
+      isPurchasing = false;
+      purchaseCurrentStep = '';
+      purchaseCompletedSteps.clear();
+      mixtapeTracks = mixtapeTracks.map((track) => (track ? { ...track, minting: false } : track));
 
-        // Reset minting state for tracks
-        mixtapeTracks = mixtapeTracks.map(track => {
-          if (track) {
-            return { ...track, minting: false };
-          }
-          return track;
-        });
-      } else {
-        // Real error - show alert and close modal
-        alert(`Purchase failed: ${errorMessage}`);
-
-        // Clean up polling intervals/timeouts
-        mintingHook.clearAllMintPolling();
-
-        // Reset modal state and close
+      if (!isCancellation) {
+        toast.error(`Purchase failed: ${errorMessage}`);
         showPurchaseModal = false;
-        isPurchasing = false;
-        purchaseCurrentStep = '';
-        purchaseCompletedSteps = new Set();
       }
     }
   }
@@ -475,58 +392,65 @@
 
 <svelte:window onkeydown={handleKeyboard} />
 
-{#if loading}
-  <div class="mx-auto max-w-4xl px-4 py-16 text-center">
-    <p class="text-lime-500">Loading...</p>
-  </div>
-{:else if error}
-  <div class="mx-auto max-w-4xl px-4 py-16 text-center">
-    <p class="text-red-500">{error}</p>
-  </div>
-{:else if !mixtape}
-  <div class="mx-auto max-w-4xl px-4 py-16 text-center text-slate-400">
-    <p>
-      We couldn't find that mixtape. Double-check the link or publish a new
-      one.
-    </p>
-  </div>
-{:else}
-  <div
-    class="mx-auto flex max-w-4xl flex-col gap-4 px-2 py-4 md:gap-8 md:px-4 md:py-8"
-  >
-    <MixtapeHeader
-      {mixtape}
-      {coverUrls}
-      {loadingTracks}
-      {isPlayingAll}
-      {canPlay}
-      {fullyOwned}
-      {isPurchasing}
-      onPlayAll={() => startMixtape()}
-      onStopPlayAll={stop}
-      onPurchaseClick={handlePurchaseClick}
-    />
+<section class="app-container py-6 sm:py-8">
+  {#if loading}
+    <Skeleton variant="hero" />
+  {:else if error}
+    <div class="py-12">
+      <StateFeedback
+        kind="error"
+        title="Could not load mixtape"
+        message={error}
+        actionLabel="Try again"
+        onAction={() => void fetchMixtapeData(id, null)}
+      />
+    </div>
+  {:else if !mixtape}
+    <div class="py-12">
+      <StateFeedback
+        kind="empty"
+        icon="mixtapes"
+        title="Mixtape not found"
+        message="Double-check the link or browse published mixtapes."
+        actionLabel="Browse mixtapes"
+        actionHref="/mixtapes"
+      />
+    </div>
+  {:else}
+    <div class="space-y-8">
+      <MixtapeHeader
+        {mixtape}
+        {coverUrls}
+        {isPlayingAll}
+        {canPlay}
+        {fullyOwned}
+        {isPurchasing}
+        onPlayAll={() => startMixtape()}
+        onStopPlayAll={stop}
+        onPurchaseClick={handlePurchaseClick}
+      />
 
-    <MixtapeTracklist
-      {mixtape}
-      {mixtapeTracks}
-      {loadingTracks}
-      onTrackClick={startMixtape}
-      onLikeChanged={handleLikeChanged}
-    />
-  </div>
-{/if}
+      <MixtapeTracklist
+        {mixtape}
+        {mixtapeTracks}
+        onTrackClick={startMixtape}
+        onLikeChanged={handleLikeChanged}
+      />
+    </div>
+  {/if}
+</section>
 
 <PurchaseModal
   isOpen={showPurchaseModal}
+  {balancesLoading}
   {tracksToMint}
   {tracksToPurchase}
   isProcessing={isPurchasing}
   currentStep={purchaseCurrentStep}
   completedSteps={purchaseCompletedSteps}
-  on:close={() => {
-    mintingHook.clearAllMintPolling();
+  onClose={() => {
+    mintingHookRef?.clearAllMintPolling();
     showPurchaseModal = false;
   }}
-  on:confirm={handlePurchaseConfirm}
+  onConfirm={handlePurchaseConfirm}
 />

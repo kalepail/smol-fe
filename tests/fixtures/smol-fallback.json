@@ -1,0 +1,39 @@
+{
+  "d1": {
+    "Id": "smol-fallback",
+    "Title": "Midnight Harbor Signal",
+    "Address": "CFIXTUREUSER0000000000000000000000000000000000000000000001",
+    "Username": "Fixture Artist",
+    "Song_1": "fallback-1",
+    "Song_2": null,
+    "Public": 1,
+    "Instrumental": 0,
+    "Created_At": "2026-11-23T15:00:00Z",
+    "Requested_Provider": "aisonggenerator",
+    "Actual_Provider": "elevenlabs"
+  },
+  "kv_do": {
+    "payload": {
+      "prompt": "Dreamy coastal indie rock track about lighthouse signals at midnight",
+      "instrumental": false,
+      "public": true,
+      "provider": "aisonggenerator"
+    },
+    "generation_meta": {
+      "requested_provider": "aisonggenerator",
+      "actual_provider": "elevenlabs"
+    },
+    "description": "A pixel lighthouse casting a beam across dark midnight waves.",
+    "image": true,
+    "nsfw": { "safe": true, "categories": [] },
+    "lyrics": {
+      "title": "Midnight Harbor Signal",
+      "style": ["Indie Rock", "Dream Pop"],
+      "lyrics": "Fog rolls in past the harbor wall\nSteady light answers every call\nSalt on the strings, tide runs deep\nWaking the boats from quiet sleep"
+    },
+    "songs": [
+      { "music_id": "fallback-1", "status": 4, "audio": "http://127.0.0.1:4329/song/fallback-1.mp3" }
+    ]
+  },
+  "liked": false
+}

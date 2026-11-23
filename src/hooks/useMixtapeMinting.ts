@@ -1,11 +1,12 @@
 import { Asset } from '@stellar/stellar-sdk/minimal';
 import { Client as SmolClient } from 'smol-sdk';
-import { getDomain } from 'tldts';
 import type { Smol } from '../types/domain';
 import type { MixtapeSmolData } from '../services/api/mixtapes';
 import { rpc } from '../utils/base';
 import { logger } from '../utils/logger';
-import { MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from '../utils/mint';
+import { MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from '../utils/mintConstants';
+import { getWebAuthnRpId } from '../utils/rpId';
+import { getConnectedAccount } from '../utils/wallet';
 
 interface MintingState {
   mintIntervals: Map<string, NodeJS.Timeout>;
@@ -155,9 +156,9 @@ export function useMixtapeMinting() {
     });
 
     const { sequence } = await rpc.getLatestLedger();
-    const { account } = await import('../utils/passkey-kit');
+    const { account } = await getConnectedAccount();
     at = await account.sign(at, {
-      rpId: getDomain(window.location.hostname) ?? undefined,
+      rpId: getWebAuthnRpId(),
       keyId: userKeyId,
       expiration: sequence + 60,
     });

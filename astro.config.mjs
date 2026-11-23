@@ -1,15 +1,19 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import svelte from '@astrojs/svelte';
-// import { nodeModulesPolyfillPlugin } from 'esbuild-plugins-node-modules-polyfill';
 import cloudflare from '@astrojs/cloudflare';
 import tailwindcss from '@tailwindcss/vite';
 import mkcert from 'vite-plugin-mkcert';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
+const useMkcert = !process.env.SMOL_E2E && !process.argv.includes('build');
+
 // https://astro.build/config
 export default defineConfig({
   output: 'server',
+  devToolbar: {
+    enabled: !process.env.SMOL_E2E,
+  },
   integrations: [svelte()],
   adapter: cloudflare({
     imageService: 'passthrough',
@@ -17,25 +21,15 @@ export default defineConfig({
     platformProxy: { enabled: false },
   }),
   server: {
-    host: 'app.smol.xyz'
+    host: 'app.smol.xyz',
   },
   vite: {
-    // optimizeDeps: {
-    //   esbuildOptions: {
-    //     define: {
-    //       global: 'globalThis',
-    //     },
-    //     plugins: [
-    //       nodeModulesPolyfillPlugin()
-    //     ]
-    //   }
-    // },
     plugins: [
       nodePolyfills({
-        include: ['buffer']
+        include: ['buffer'],
       }),
-      ...(process.env.SMOL_E2E ? [] : [mkcert()]),
-      tailwindcss()
+      ...(useMkcert ? [mkcert()] : []),
+      tailwindcss(),
     ],
   },
 });

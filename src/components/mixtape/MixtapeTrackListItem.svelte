@@ -1,93 +1,71 @@
 <script lang="ts">
-    import { createEventDispatcher } from "svelte";
-    import { SHADOW_PLACEHOLDER_ITEM_ID } from "svelte-dnd-action";
-    import type { MixtapeTrack } from "../../types/domain";
+  import { SHADOW_PLACEHOLDER_ITEM_ID } from 'svelte-dnd-action';
+  import type { MixtapeTrack } from '../../types/domain';
+  import CoverArt from '../ui/CoverArt.svelte';
+  import IconButton from '../ui/IconButton.svelte';
+  import Icon from '../ui/Icon.svelte';
+  import Chip from '../ui/Chip.svelte';
 
-    interface Props {
-        track: MixtapeTrack;
-        index: number;
-        total: number;
-    }
+  interface Props {
+    track: MixtapeTrack;
+    index: number;
+    total: number;
+    onMove: (direction: 'up' | 'down') => void;
+    onRemove: () => void;
+  }
 
-    let { track, index, total }: Props = $props();
+  let { track, index, total, onMove, onRemove }: Props = $props();
 
-    const dispatch = createEventDispatcher<{
-        move: { direction: "up" | "down" };
-        remove: void;
-    }>();
-
-    function moveUp() {
-        dispatch("move", { direction: "up" });
-    }
-
-    function moveDown() {
-        dispatch("move", { direction: "down" });
-    }
-
-    function remove() {
-        dispatch("remove");
-    }
-
-    const positionLabel = index + 1;
-    const isPlaceholder = track.id === SHADOW_PLACEHOLDER_ITEM_ID;
-    const isPrivate = track.public === 0;
+  const isPlaceholder = $derived(track.id === SHADOW_PLACEHOLDER_ITEM_ID);
+  const isPrivate = $derived(track.public === 0);
 </script>
 
 <li
-    class={`flex items-center gap-3 p-3 rounded bg-slate-800/80 ${
-        isPlaceholder ? "opacity-60" : ""
-    }`}
-    data-mixtape-track-id={track.id}
+  class={`flex items-center gap-2.5 rounded-[var(--radius-control)] bg-surface-2 p-2.5 ring-1 ring-inset ring-line ${
+    isPlaceholder ? 'opacity-60' : ''
+  }`}
+  data-mixtape-track-id={track.id}
 >
-    <div class="relative w-12 h-12 shrink-0 rounded overflow-hidden bg-slate-700">
-        {#if isPlaceholder}
-            <div class="absolute inset-0 animate-pulse bg-slate-600/60"></div>
-        {:else if track.coverUrl}
-            <img
-                src={`${track.coverUrl}${track.coverUrl.includes("?") ? "" : "?scale=4"}`}
-                alt={track.title}
-                class="w-full h-full object-cover"
-                loading="lazy"
-            />
-        {:else}
-            <div class="flex items-center justify-center w-full h-full text-xs text-slate-400">
-                {positionLabel}
-            </div>
-        {/if}
-    </div>
+  <CoverArt src={track.coverUrl} alt="" scale={4} class="size-11 shrink-0" />
 
-    <div class="flex flex-col flex-1 min-w-0">
-        <span class="font-semibold truncate">{track.title ?? "Loading..."}</span>
-        {#if track.creator}
-            <span class="text-xs text-slate-400 truncate">{track.creator}</span>
-        {/if}
-        {#if isPrivate}
-            <span class="mt-1 w-fit rounded bg-slate-700 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-slate-300">
-                Private
-            </span>
-        {/if}
-    </div>
+  <div class="flex min-w-0 flex-1 flex-col">
+    <span class="truncate text-sm font-medium text-ink-1">
+      {track.title ?? 'Untitled track'}
+    </span>
+    {#if track.creator}
+      <span class="truncate text-xs text-ink-2">{track.creator}</span>
+    {/if}
+    {#if isPrivate}
+      <div class="mt-1">
+        <Chip tone="neutral" class="py-0 text-[10px]">Private</Chip>
+      </div>
+    {/if}
+  </div>
 
-    <div class="flex items-center gap-2">
-        <button
-            class="px-2 py-1 bg-slate-700 rounded hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed"
-            onclick={moveUp}
-            disabled={index === 0 || isPlaceholder}
-            aria-label="Move track up"
-        >↑</button>
+  <div class="flex shrink-0 items-center">
+    <IconButton
+      label="Move track up"
+      disabled={index === 0 || isPlaceholder}
+      onclick={() => onMove('up')}
+    >
+      <Icon name="arrow-up" size={16} />
+    </IconButton>
 
-        <button
-            class="px-2 py-1 bg-slate-700 rounded hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed"
-            onclick={moveDown}
-            disabled={index === total - 1 || isPlaceholder}
-            aria-label="Move track down"
-        >↓</button>
+    <IconButton
+      label="Move track down"
+      disabled={index === total - 1 || isPlaceholder}
+      onclick={() => onMove('down')}
+    >
+      <Icon name="arrow-down" size={16} />
+    </IconButton>
 
-        <button
-            class="px-2 py-1 bg-red-600/70 rounded hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed"
-            onclick={remove}
-            disabled={isPlaceholder}
-            aria-label="Remove track"
-        >✕</button>
-    </div>
+    <IconButton
+      label="Remove track"
+      variant="danger"
+      disabled={isPlaceholder}
+      onclick={onRemove}
+    >
+      <Icon name="x" size={16} />
+    </IconButton>
+  </div>
 </li>

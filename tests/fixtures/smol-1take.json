@@ -1,0 +1,38 @@
+{
+  "d1": {
+    "Id": "smol-1take",
+    "Title": "Velvet Rain Echo",
+    "Address": "CFIXTUREUSER0000000000000000000000000000000000000000000001",
+    "Username": "Fixture Artist",
+    "Song_1": "el-only-1",
+    "Song_2": null,
+    "Public": 1,
+    "Instrumental": 1,
+    "Created_At": "2026-11-23T14:30:00Z",
+    "Requested_Provider": "elevenlabs",
+    "Actual_Provider": "elevenlabs"
+  },
+  "kv_do": {
+    "payload": {
+      "prompt": "Warm rainy-day solo piano and lo-fi tape crackle instrumental",
+      "instrumental": true,
+      "public": true,
+      "provider": "elevenlabs"
+    },
+    "generation_meta": {
+      "requested_provider": "elevenlabs",
+      "actual_provider": "elevenlabs"
+    },
+    "description": "Rain streaking across a warm windowpane next to an upright piano.",
+    "image": true,
+    "nsfw": { "safe": true, "categories": [] },
+    "lyrics": {
+      "title": "Velvet Rain Echo",
+      "style": ["Lo-Fi", "Piano", "Ambient"]
+    },
+    "songs": [
+      { "music_id": "el-only-1", "status": 4, "audio": "http://127.0.0.1:4329/song/el-only-1.mp3" }
+    ]
+  },
+  "liked": true
+}

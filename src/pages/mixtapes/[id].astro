@@ -7,7 +7,7 @@ import { serverApiFetch } from '../../services/api/server';
 const { id } = Astro.params;
 const data = id ? await serverApiFetch<ApiMixtapeDetail>(Astro, `/mixtapes/${encodeURIComponent(id)}`) : null;
 const initialData = data ? toMixtapeDetail(data) : null;
-const title = initialData ? `${initialData.title} – Smol` : 'Smol – Mixtape';
+const title = initialData ? initialData.title : 'Mixtape';
 const description = initialData?.description || 'Smol art onchain';
 const image_url = initialData?.coverUrls[0] ?? null;
 ---
