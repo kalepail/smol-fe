@@ -4,6 +4,7 @@
     saveStoredProvider,
     type MusicProvider,
   } from '../../utils/takes';
+  import type { QuotaSummary } from '../../utils/quota';
   import SegmentedControl, { type SegmentOption } from '../ui/SegmentedControl.svelte';
   import IconButton from '../ui/IconButton.svelte';
   import Icon from '../ui/Icon.svelte';
@@ -12,25 +13,27 @@
   interface Props {
     provider: MusicProvider;
     disabled?: boolean;
+    quota?: QuotaSummary | null;
     onChange?: (provider: MusicProvider) => void;
   }
 
-  let { provider = $bindable(), disabled = false, onChange }: Props = $props();
+  let { provider = $bindable(), disabled = false, quota = null, onChange }: Props = $props();
 
   let infoOpen = $state(false);
 
-  const options: SegmentOption<MusicProvider>[] = [
-    {
-      value: 'aisonggenerator',
-      label: PROVIDER_META.aisonggenerator.label,
-      sublabel: PROVIDER_META.aisonggenerator.takeCopy,
-    },
-    {
-      value: 'elevenlabs',
-      label: PROVIDER_META.elevenlabs.label,
-      sublabel: PROVIDER_META.elevenlabs.takeCopy,
-    },
-  ];
+  const options = $derived.by<SegmentOption<MusicProvider>[]>(() =>
+    (['aisonggenerator', 'elevenlabs'] as const).map((id) => {
+      const meta = PROVIDER_META[id];
+      const entry = quota?.[id] ?? null;
+      return {
+        value: id,
+        label: meta.label,
+        sublabel: meta.takeCopy,
+        meta: entry ? `${entry.remaining} left today` : undefined,
+        metaTone: entry && entry.remaining <= 0 ? 'warning' : 'neutral',
+      };
+    })
+  );
 
   function handleChange(next: MusicProvider) {
     provider = next;

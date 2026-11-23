@@ -10,6 +10,7 @@
     failure?: NonNullable<SmolDetailResponse['kv_do']>['failure'];
     provider: MusicProvider;
     playlist: string | null;
+    retryError?: string | null;
     onRetry: (overrideProvider?: MusicProvider) => void;
     onEditPrompt: () => void;
     onRemovePlaylist: () => void;
@@ -20,6 +21,7 @@
     failure,
     provider,
     playlist,
+    retryError = null,
     onRetry,
     onEditPrompt,
     onRemovePlaylist,
@@ -52,6 +54,15 @@
             {playlist}
           </Chip>
         </div>
+      {/if}
+
+      {#if retryError}
+        <p
+          role="alert"
+          class="mt-3 rounded-[var(--radius-control)] bg-danger/15 px-3 py-2 text-xs leading-relaxed text-danger ring-1 ring-inset ring-danger/35"
+        >
+          {retryError}
+        </p>
       {/if}
 
       <div class="mt-4 flex flex-wrap items-center gap-2.5">

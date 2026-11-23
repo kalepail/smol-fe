@@ -31,6 +31,79 @@ let fallbackUsed = false;
 let resumePosition: number | undefined;
 let stallTimer: ReturnType<typeof setTimeout> | undefined;
 const STALL_TIMEOUT = 12_000;
+const PLAY_BEACON_MS = 4_000;
+let playSessionMusicId: string | null = null;
+let playBeaconSent = false;
+let playAccumulatedMs = 0;
+let playSegmentStartMs: number | null = null;
+let playBeaconTimer: ReturnType<typeof setTimeout> | undefined;
+
+function clearPlayBeaconTimer() {
+  if (playBeaconTimer !== undefined) {
+    clearTimeout(playBeaconTimer);
+    playBeaconTimer = undefined;
+  }
+}
+
+function pausePlayBeacon() {
+  clearPlayBeaconTimer();
+  if (playSegmentStartMs !== null) {
+    playAccumulatedMs += Math.max(0, Date.now() - playSegmentStartMs);
+    playSegmentStartMs = null;
+  }
+}
+
+function resetPlayBeacon(musicId: string | null) {
+  clearPlayBeaconTimer();
+  playSessionMusicId = musicId;
+  playBeaconSent = false;
+  playAccumulatedMs = 0;
+  playSegmentStartMs = null;
+}
+
+function sendPlayBeacon(musicId: string) {
+  const apiUrl = import.meta.env.PUBLIC_API_URL?.replace(/\/$/, '');
+  if (!apiUrl || !musicId) return;
+  try {
+    void fetch(`${apiUrl}/plays/${encodeURIComponent(musicId)}`, {
+      method: 'POST',
+      credentials: 'include',
+      keepalive: true,
+    }).catch(() => {
+      // Play beacon is strictly best-effort and fail-silent.
+    });
+  } catch {
+    // Ignore synchronous environment errors.
+  }
+}
+
+function resumePlayBeacon() {
+  if (!audio || !state.track || playBeaconSent) return;
+  if (audio.paused || audio.ended || state.buffering || state.status !== 'playing') return;
+  const musicId = playSessionMusicId ?? state.track.musicId;
+  if (!musicId) return;
+  playSessionMusicId = musicId;
+
+  if (playSegmentStartMs === null) {
+    playSegmentStartMs = Date.now();
+  }
+  const elapsed = playAccumulatedMs + Math.max(0, Date.now() - playSegmentStartMs);
+  const remaining = PLAY_BEACON_MS - elapsed;
+  if (remaining <= 0) {
+    clearPlayBeaconTimer();
+    playAccumulatedMs = elapsed;
+    playSegmentStartMs = null;
+    playBeaconSent = true;
+    sendPlayBeacon(musicId);
+    return;
+  }
+
+  clearPlayBeaconTimer();
+  playBeaconTimer = setTimeout(() => {
+    playBeaconTimer = undefined;
+    resumePlayBeacon();
+  }, remaining);
+}
 
 function syncTime() {
   if (!audio) return;
@@ -96,6 +169,7 @@ function loadSource(src: string, autoplay: boolean, position = 0) {
   if (!audio) return;
   ++playRequest;
   clearBuffering();
+  pausePlayBeacon();
   wantsPlayback = autoplay;
   resumePosition = position > 0 ? position : undefined;
   state.status = autoplay ? 'loading' : 'paused';
@@ -113,6 +187,7 @@ function loadSource(src: string, autoplay: boolean, position = 0) {
 function fail(message: string) {
   ++playRequest;
   clearBuffering();
+  pausePlayBeacon();
   wantsPlayback = false;
   audio?.pause();
   state.status = 'error';
@@ -135,6 +210,7 @@ function recover() {
 function handleBuffering() {
   if (!audio || !wantsPlayback || audio.paused || audio.ended || audio.readyState >= audio.HAVE_FUTURE_DATA) return;
   state.buffering = true;
+  pausePlayBeacon();
   stallTimer ??= setTimeout(() => {
     stallTimer = undefined;
     if (audio && wantsPlayback && !audio.paused && audio.readyState < audio.HAVE_FUTURE_DATA) recover();
@@ -154,6 +230,7 @@ function handlePause() {
   ++playRequest;
   wantsPlayback = false;
   clearBuffering();
+  pausePlayBeacon();
   state.status = 'paused';
   if (media) media.playbackState = 'paused';
   syncPosition();
@@ -176,10 +253,12 @@ function handlePlaying() {
   state.status = 'playing';
   if (media) media.playbackState = 'playing';
   syncPosition();
+  resumePlayBeacon();
 }
 
 function handleEnded() {
   if (!audio?.ended || !state.track || !wantsPlayback) return;
+  pausePlayBeacon();
   if (selectAdjacent(1)) return;
   wantsPlayback = false;
   clearBuffering();
@@ -236,6 +315,9 @@ export function attach(element: HTMLAudioElement) {
     clearBuffering();
     applyResumePosition();
     syncTime();
+    if (!element.paused && !element.ended && state.status === 'playing') {
+      resumePlayBeacon();
+    }
   });
   element.addEventListener('error', () => {
     if (element.error && state.track) recover();
@@ -246,7 +328,13 @@ export function attach(element: HTMLAudioElement) {
     applyResumePosition();
     syncPosition();
   });
-  element.addEventListener('seeked', syncPosition);
+  element.addEventListener('seeking', pausePlayBeacon);
+  element.addEventListener('seeked', () => {
+    syncPosition();
+    if (!element.paused && !element.ended && !state.buffering && state.status === 'playing') {
+      resumePlayBeacon();
+    }
+  });
   element.addEventListener('ratechange', syncPosition);
   watchAudioOutput(element);
 
@@ -274,6 +362,7 @@ function select(index: number) {
   state.track = track;
   fallbackUsed = false;
   preventAutomaticResume = false;
+  resetPlayBeacon(track.musicId);
   publishMetadata();
   loadSource(track.src, true);
 }
@@ -369,6 +458,7 @@ export function stop() {
   ++playRequest;
   wantsPlayback = false;
   clearBuffering();
+  resetPlayBeacon(null);
   resumePosition = undefined;
   audio.pause();
   audio.removeAttribute('src');

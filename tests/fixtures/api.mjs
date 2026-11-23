@@ -125,9 +125,15 @@ const smolFailedPolicy = loadJson('smol-failed-policy.json');
 const smolGenerating = loadJson('smol-generating.json');
 const smolMinted = loadJson('smol-minted.json');
 
+const DEFAULT_QUOTA = {
+  classic: { limit: 10, used: 3, remaining: 7, resetAt: '2026-11-24T00:00:00.000Z' },
+  elevenlabs: { limit: 3, used: 1, remaining: 2, resetAt: '2026-11-24T00:00:00.000Z' },
+};
+
 const routes = new Map([
   ['/__ready', {}],
   ['/', list],
+  ['/quota', DEFAULT_QUOTA],
   ['/created', list],
   ['/liked', { ...list, smols: tracks.slice(0, 3) }],
   ['/playlist/arcade', list],
@@ -173,6 +179,7 @@ const requests = new Map();
 let lastCreateBody = null;
 let lastRetryBody = null;
 let swapCalls = [];
+let playBeacons = [];
 
 function readBody(req) {
   return new Promise((resolve) => {
@@ -209,6 +216,7 @@ createServer(async (req, res) => {
     lastCreateBody = null;
     lastRetryBody = null;
     swapCalls = [];
+    playBeacons = [];
     res.writeHead(200, headers).end();
     return;
   }
@@ -221,7 +229,14 @@ createServer(async (req, res) => {
 
   if (path === '/__mutations') {
     res.writeHead(200, { ...headers, 'Content-Type': 'application/json' })
-      .end(JSON.stringify({ lastCreateBody, lastRetryBody, swapCalls }));
+      .end(JSON.stringify({ lastCreateBody, lastRetryBody, swapCalls, playBeacons }));
+    return;
+  }
+
+  if (req.method === 'POST' && path.startsWith('/plays/')) {
+    const musicId = decodeURIComponent(path.slice('/plays/'.length));
+    playBeacons.push(musicId);
+    res.writeHead(204, headers).end();
     return;
   }
 

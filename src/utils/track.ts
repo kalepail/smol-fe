@@ -5,6 +5,7 @@ const API_URL = import.meta.env.PUBLIC_API_URL;
 export interface Track {
   key: string;
   smolId: string;
+  musicId: string;
   src: string;
   fallbackSrc?: string;
   title: string;
@@ -39,6 +40,7 @@ export function toTrack(smol: Smol, take?: SongData): Track | null {
   return {
     key: trackKey(smol.Id, musicId),
     smolId: smol.Id,
+    musicId,
     src,
     fallbackSrc: complete && take?.audio !== src ? take?.audio : undefined,
     title,

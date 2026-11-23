@@ -68,6 +68,7 @@
 
   let moreOpen = $state(false);
   let lyricsExpanded = $state(false);
+  let lyricsHeading = $state<HTMLHeadingElement | null>(null);
 
   const detail = $derived<SmolDetailResponse>({ d1, kv_do, liked });
   const activeProvider = $derived(providerOf(detail));
@@ -125,11 +126,22 @@
 
   const isInMixtape = $derived(Boolean(id && mixtapeTrackIds.current.has(id)));
   const rawLyrics = $derived(kv_do?.lyrics?.lyrics?.trim() ?? '');
-  const lyricLines = $derived(rawLyrics ? rawLyrics.split('\n') : []);
-  const lyricsTruncated = $derived(!lyricsExpanded && lyricLines.length > 8);
+  const hasLyrics = $derived(!isInstrumental && rawLyrics.length > 0);
+  const lyricLines = $derived(hasLyrics ? rawLyrics.split('\n') : []);
+  const lyricsTruncated = $derived(!lyricsExpanded && lyricLines.length > 10);
   const displayedLyrics = $derived(
-    lyricsTruncated ? lyricLines.slice(0, 8).join('\n') : rawLyrics
+    lyricsTruncated ? lyricLines.slice(0, 10).join('\n') : rawLyrics
   );
+
+  function scrollToLyrics() {
+    if (!lyricsHeading) return;
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    lyricsHeading.scrollIntoView({
+      behavior: reducedMotion ? 'auto' : 'smooth',
+      block: 'start',
+    });
+    lyricsHeading.focus({ preventScroll: true });
+  }
 
   const formattedCreatedAt = $derived.by(() => {
     if (!d1?.Created_At) return null;
@@ -293,6 +305,18 @@
           {/if}
         </Button>
 
+        {#if hasLyrics}
+          <Button
+            variant="secondary"
+            size="md"
+            class="rounded-full"
+            onclick={scrollToLyrics}
+          >
+            <Icon name="lyrics" size={18} />
+            <span>Lyrics</span>
+          </Button>
+        {/if}
+
         {#if d1?.Id}
           <LikeButton
             smolId={d1.Id}
@@ -336,6 +360,53 @@
         {onSelectBestSong}
       />
 
+      <!-- Lyrics section (prominently lifted above Collectible for vocal songs; strictly omitted for instrumentals) -->
+      {#if hasLyrics}
+        <section
+          id="song-lyrics"
+          aria-labelledby="song-lyrics-heading"
+          class="scroll-mt-20 rounded-[var(--radius-control)] bg-surface-1 p-4 sm:p-5 ring-1 ring-inset ring-line"
+        >
+          <div class="mb-3 flex items-center justify-between gap-2">
+            <h2
+              id="song-lyrics-heading"
+              bind:this={lyricsHeading}
+              tabindex="-1"
+              class="focus-ring rounded text-base font-semibold text-ink-1"
+            >
+              Lyrics
+            </h2>
+            <Button variant="ghost" size="sm" class="min-h-11" onclick={() => copyText(rawLyrics, 'Lyrics')}>
+              <Icon name="copy" size={15} />
+              <span>Copy</span>
+            </Button>
+          </div>
+
+          <p class="max-w-[65ch] whitespace-pre-wrap text-base leading-relaxed text-ink-1/90">
+            {displayedLyrics}
+          </p>
+
+          {#if lyricLines.length > 10}
+            <button
+              type="button"
+              class="focus-ring mt-3 inline-flex min-h-11 items-center rounded text-sm font-medium text-ink-2 hover:text-ink-1"
+              onclick={() => (lyricsExpanded = !lyricsExpanded)}
+            >
+              {lyricsExpanded ? 'Show less' : `Show all ${lyricLines.length} lines`}
+            </button>
+          {/if}
+        </section>
+      {/if}
+
+      <!-- Style tags -->
+      {#if kv_do?.lyrics?.style?.length}
+        <div class="flex flex-wrap gap-1.5" aria-label="Style tags">
+          {#each kv_do.lyrics.style as tag (tag)}
+            <Chip tone="neutral">{tag}</Chip>
+          {/each}
+        </div>
+      {/if}
+
       <!-- Collectible / Mint & Trade surface -->
       {#if kv_do?.nsfw?.safe !== false && (d1?.Id || minted)}
         <section
@@ -373,42 +444,6 @@
             >
               <span>{minting ? 'Minting…' : 'Mint'}</span>
             </Button>
-          {/if}
-        </section>
-      {/if}
-
-      <!-- Style tags -->
-      {#if kv_do?.lyrics?.style?.length}
-        <div class="flex flex-wrap gap-1.5" aria-label="Style tags">
-          {#each kv_do.lyrics.style as tag (tag)}
-            <Chip tone="neutral">{tag}</Chip>
-          {/each}
-        </div>
-      {/if}
-
-      <!-- Lyrics section (hidden for instrumentals) -->
-      {#if !isInstrumental && rawLyrics}
-        <section class="border-t border-line pt-5">
-          <div class="mb-3 flex items-center justify-between gap-2">
-            <h2 class="text-base font-semibold text-ink-1">Lyrics</h2>
-            <Button variant="ghost" size="sm" class="min-h-11" onclick={() => copyText(rawLyrics, 'Lyrics')}>
-              <Icon name="copy" size={15} />
-              <span>Copy</span>
-            </Button>
-          </div>
-
-          <p class="max-w-[65ch] whitespace-pre-wrap text-base leading-relaxed text-ink-1/90">
-            {displayedLyrics}
-          </p>
-
-          {#if lyricLines.length > 8}
-            <button
-              type="button"
-              class="focus-ring mt-3 inline-flex min-h-11 items-center rounded text-sm font-medium text-ink-2 hover:text-ink-1"
-              onclick={() => (lyricsExpanded = !lyricsExpanded)}
-            >
-              {lyricsExpanded ? 'Show less' : `Show all ${lyricLines.length} lines`}
-            </button>
           {/if}
         </section>
       {/if}

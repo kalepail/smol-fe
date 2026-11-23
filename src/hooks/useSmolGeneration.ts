@@ -1,5 +1,6 @@
 import type { MusicProvider, SmolDetailResponse } from '../types/domain';
 import { DEFAULT_PROVIDER } from '../utils/takes';
+import { extractErrorMessage, parseQuotaExceededError } from '../utils/quota';
 
 export interface GenerationStatus {
   status?: 'queued' | 'running' | 'paused' | 'errored' | 'terminated' | 'complete' | 'waiting' | 'waitingForPause' | 'unknown';
@@ -32,8 +33,10 @@ export function useSmolGeneration() {
       body: JSON.stringify(body),
     }).then(async (res) => {
       if (res.ok) return res.text();
-      const message = await res.text();
-      throw new Error(message || 'Failed to start generation.');
+      const bodyText = await res.text();
+      const quotaErr = parseQuotaExceededError(res.status, bodyText, res.headers.get('Retry-After'));
+      if (quotaErr) throw quotaErr;
+      throw new Error(extractErrorMessage(bodyText, 'Failed to start generation.'));
     });
 
     if (id) {
@@ -58,8 +61,10 @@ export function useSmolGeneration() {
       ),
     }).then(async (res) => {
       if (res.ok) return res.text();
-      const message = await res.text();
-      throw new Error(message || 'Failed to retry generation.');
+      const bodyText = await res.text();
+      const quotaErr = parseQuotaExceededError(res.status, bodyText, res.headers.get('Retry-After'));
+      if (quotaErr) throw quotaErr;
+      throw new Error(extractErrorMessage(bodyText, 'Failed to retry generation.'));
     });
 
     if (newId) {

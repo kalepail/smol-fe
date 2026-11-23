@@ -22,6 +22,7 @@
   let scrub = $state<{ key: string; seconds: number } | null>(null);
   let lyricsExpanded = $state(false);
   let lyricsText = $state<string | null>(null);
+  let lyricsIsInstrumental = $state(false);
   let lyricsLoading = $state(false);
   let loadedLyricsSmolId = $state<string | null>(null);
 
@@ -38,6 +39,7 @@
     if (id !== loadedLyricsSmolId) {
       lyricsExpanded = false;
       lyricsText = null;
+      lyricsIsInstrumental = false;
       loadedLyricsSmolId = null;
     }
   });
@@ -61,7 +63,9 @@
       });
       if (response.ok) {
         const data = await response.json();
-        lyricsText = data?.kv_do?.lyrics?.lyrics?.trim() || null;
+        const instrumental = Boolean(data?.kv_do?.payload?.instrumental || data?.d1?.Instrumental);
+        lyricsIsInstrumental = instrumental;
+        lyricsText = instrumental ? null : (data?.kv_do?.lyrics?.lyrics?.trim() || null);
       }
       loadedLyricsSmolId = track.smolId;
     } catch {
@@ -295,7 +299,9 @@
               {lyricsText}
             </p>
           {:else}
-            <p class="text-sm text-ink-2">No lyrics available for this song.</p>
+            <p class="text-sm text-ink-2">
+              {lyricsIsInstrumental ? 'This is an instrumental track.' : 'No lyrics available for this song.'}
+            </p>
           {/if}
         </div>
       {/if}

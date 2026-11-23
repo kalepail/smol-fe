@@ -3,6 +3,8 @@
     value: V;
     label: string;
     sublabel?: string;
+    meta?: string;
+    metaTone?: 'neutral' | 'warning';
     badge?: string;
     disabled?: boolean;
     disabledReason?: string;
@@ -72,6 +74,15 @@
         </span>
         {#if option.sublabel}
           <span class="mt-0.5 text-xs text-ink-2 leading-tight">{option.sublabel}</span>
+        {/if}
+        {#if option.meta}
+          <span
+            class={`tabular mt-0.5 text-[11px] font-medium leading-tight ${
+              option.metaTone === 'warning' ? 'text-warning' : 'text-ink-3'
+            }`}
+          >
+            {option.meta}
+          </span>
         {/if}
       </label>
     {/each}

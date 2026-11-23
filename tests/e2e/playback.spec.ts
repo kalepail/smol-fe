@@ -208,3 +208,93 @@ test('song, mixtape, artist and playlist islands reuse their single SSR response
     '/playlist/arcade': 1,
   });
 });
+
+test('Q11 play beacon fires POST /plays/:musicId once after 4s real cumulative playback and survives pause/resume/scrub', async ({
+  page,
+}) => {
+  // Strip the 45-byte ID3v2 header + 182-byte Info frame from tone.mp3 and repeat pure MPEG frames (~10s).
+  const rawFrames = fixture.subarray(227);
+  const longFixture = Buffer.concat(Array.from({ length: 5 }, () => rawFrames));
+
+  await page.route('**/song/*.mp3', async (route) => {
+    const range = /^bytes=(\d+)-(\d*)$/.exec(route.request().headers().range ?? '');
+    const headers = { 'accept-ranges': 'bytes' };
+    if (!range) {
+      await route.fulfill({ headers, body: longFixture, contentType: 'audio/mpeg' });
+      return;
+    }
+    const start = Number(range[1]);
+    const end = range[2] ? Math.min(Number(range[2]), longFixture.length - 1) : longFixture.length - 1;
+    await route.fulfill({
+      status: 206,
+      headers: { ...headers, 'content-range': `bytes ${start}-${end}/${longFixture.length}` },
+      body: longFixture.subarray(start, end + 1),
+      contentType: 'audio/mpeg',
+    });
+  });
+
+  const beaconRequests: { url: string; method: string }[] = [];
+  const pageErrors: string[] = [];
+  page.on('pageerror', (err) => pageErrors.push(err.message));
+
+  // Verify fail-silent behavior even if the backend returns 500 on POST /plays/:musicId
+  await page.route('**/plays/*', async (route) => {
+    beaconRequests.push({ url: route.request().url(), method: route.request().method() });
+    await route.fulfill({
+      status: 500,
+      headers: {
+        'Access-Control-Allow-Origin': 'http://127.0.0.1:4328',
+        'Access-Control-Allow-Credentials': 'true',
+      },
+      body: 'transient error',
+    });
+  });
+
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Play First Track' }).tap();
+  await expect.poll(async () => page.evaluate(() => {
+    const a = document.querySelector('audio');
+    return Boolean(a && !a.paused && a.currentTime > 0);
+  })).toBe(true);
+
+  // Play ~2.0s -> below 4s threshold, 0 beacons
+  await page.waitForTimeout(2000);
+  expect(beaconRequests).toHaveLength(0);
+
+  // Pause for 2.2s -> wall clock > 4.2s, cumulative playback still ~2.0s -> 0 beacons
+  await page.evaluate(() => document.querySelector('audio')!.pause());
+  await page.waitForTimeout(2200);
+  expect(beaconRequests).toHaveLength(0);
+
+  // Scrub forward past 4s while paused -> scrubbing must NOT trigger beacon
+  await page.evaluate(() => {
+    const a = document.querySelector('audio')!;
+    a.currentTime = Math.min(5, Math.max(0, a.duration - 1));
+  });
+  await page.waitForTimeout(400);
+  expect(beaconRequests).toHaveLength(0);
+
+  // Seek back to 0.5s and resume -> crossing 4s real cumulative playback fires ONCE
+  await page.evaluate(() => {
+    const a = document.querySelector('audio')!;
+    a.currentTime = 0.5;
+    return a.play();
+  });
+
+  await expect.poll(() => beaconRequests.length, { timeout: 4500 }).toBe(1);
+  expect(beaconRequests[0]).toMatchObject({
+    method: 'POST',
+    url: `${api}/plays/first`,
+  });
+
+  // Pause, scrub, resume and continue playing -> strictly deduplicated per session (still 1)
+  await page.evaluate(() => {
+    const a = document.querySelector('audio')!;
+    a.pause();
+    a.currentTime = 1.5;
+    return a.play();
+  });
+  await page.waitForTimeout(1500);
+  expect(beaconRequests).toHaveLength(1);
+  expect(pageErrors).toEqual([]);
+});

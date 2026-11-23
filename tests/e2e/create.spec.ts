@@ -17,10 +17,16 @@ for (const viewport of [
     test.use({ viewport: { width: viewport.width, height: viewport.height } });
 
     test('logged-out create prompts sign-in via AuthSheet without native dialogs', async ({ page }) => {
+      const quotaRequests: string[] = [];
+      page.on('request', (req) => {
+        if (req.url().endsWith('/quota')) quotaRequests.push(req.url());
+      });
       await page.goto('/create');
       await expect(page.getByRole('heading', { name: 'Create a song' })).toBeVisible();
+      await expect(page.getByText(/left today/)).toHaveCount(0);
       await page.getByRole('button', { name: 'Sign in to create' }).click();
       await expect(page.locator('dialog[open]').getByRole('heading', { name: /Sign in to SMOL/ })).toBeVisible();
+      expect(quotaRequests).toHaveLength(0);
     });
 
     test('composer sends canonical provider, never truncates prompt, and respects 1-take / 2-take / fallback / retry', async ({
@@ -46,10 +52,12 @@ for (const viewport of [
 
       await page.goto('/create');
 
-      // Default provider is aisonggenerator (Classic)
+      // Default provider is aisonggenerator (Classic) with subtle quota counts per model
       const classicRadio = page.locator('input[type="radio"][name="provider"][value="aisonggenerator"]');
       const elevenLabsRadio = page.locator('input[type="radio"][name="provider"][value="elevenlabs"]');
       await expect(classicRadio).toBeChecked();
+      await expect(page.locator('label', { hasText: 'Classic' })).toContainText('7 left today');
+      await expect(page.locator('label', { hasText: 'ElevenLabs' })).toContainText('2 left today');
       await expect(page.getByText(/Classic creates 2 takes/)).toBeVisible();
 
       // Enter 420-char prompt, toggle Instrumental (limit 380) -> text is NEVER truncated!
@@ -83,17 +91,32 @@ for (const viewport of [
       });
       expect(mutationsAfterCreate.lastCreateBody.address).toBeUndefined();
 
-      // 1-take ElevenLabs page: no take switcher, no "Use as main take", no swap PUT
+      // 1-take ElevenLabs (instrumental) page: no take switcher, no "Use as main take", no Lyrics box/button
       await page.goto('/smol-1take');
       await expect(page.getByRole('heading', { name: 'Velvet Rain Echo' })).toBeVisible();
       await expect(page.locator('article header').getByText('ElevenLabs', { exact: true })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Use as main take' })).toHaveCount(0);
       await expect(page.getByRole('button', { name: 'Play take 2' })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Lyrics', exact: true })).toHaveCount(0);
+      await expect(page.locator('#song-lyrics')).toHaveCount(0);
       await expect(page.locator('audio')).toHaveCount(1);
 
-      // 2-take Classic page (owned): switcher visible, clicking "Use as main take" calls swap PUT
+      // 2-take Classic (vocal, owned) page: switcher visible, prominent Lyrics lifted above Collectible + Lyrics jump button
       await page.goto('/smol-2take');
       await expect(page.getByRole('heading', { name: 'Neon Arcade Runner' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Lyrics', exact: true })).toBeVisible();
+      const lyricsSection = page.locator('#song-lyrics');
+      await expect(lyricsSection).toBeVisible();
+      await expect(lyricsSection).toContainText('Coins drop slow in the midnight glow');
+      const collectibleSection = page.locator('section[aria-label="Collectible"]');
+      const lyricsBox = await lyricsSection.boundingBox();
+      const collectibleBox = await collectibleSection.boundingBox();
+      expect(lyricsBox).not.toBeNull();
+      expect(collectibleBox).not.toBeNull();
+      expect(lyricsBox!.y).toBeLessThan(collectibleBox!.y);
+      await page.getByRole('button', { name: 'Lyrics', exact: true }).click();
+      await expect(page.locator('#song-lyrics-heading')).toBeFocused();
+
       await expect(page.getByRole('button', { name: 'Play take 1' })).toBeVisible();
       await expect(page.getByRole('button', { name: 'Play take 2' })).toBeVisible();
       await page.getByRole('button', { name: 'Use as main take' }).click();
@@ -230,6 +253,119 @@ for (const viewport of [
       await toastStatus.getByRole('button', { name: 'Dismiss notification' }).click();
       await expect(toastStatus).toHaveCount(0);
       await expect(sheet.getByRole('heading', { name: 'Now playing' })).toBeVisible();
+    });
+
+    test('quota 0-remaining, graceful /quota fallback, and 429 quota_exceeded on submit & retry', async ({
+      page,
+      context,
+    }) => {
+      await context.addCookies([
+        {
+          name: 'smol_token',
+          value: fakeSmolJwt(),
+          url: 'http://127.0.0.1:4328',
+        },
+      ]);
+
+      // 1. Graceful fallback when GET /quota is unavailable
+      await page.route(`${api}/quota`, async (route) => {
+        await route.fulfill({ status: 503, body: 'unavailable' });
+      });
+      await page.goto('/create');
+      await expect(page.getByRole('heading', { name: 'Create a song' })).toBeVisible();
+      await expect(page.getByText(/left today/)).toHaveCount(0);
+      await page.locator('#song-prompt').fill('Warm analog synth beat');
+      await expect(page.getByRole('button', { name: 'Create song' })).toBeEnabled();
+      await page.unroute(`${api}/quota`);
+
+      // 2. 0 remaining on ElevenLabs disables submit, shows reset time, and offers switching to Classic
+      const resetAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+      await page.route(`${api}/quota`, async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          headers: {
+            'Access-Control-Allow-Origin': 'http://127.0.0.1:4328',
+            'Access-Control-Allow-Credentials': 'true',
+          },
+          body: JSON.stringify({
+            classic: { limit: 10, used: 2, remaining: 8, resetAt },
+            elevenlabs: { limit: 3, used: 3, remaining: 0, resetAt },
+          }),
+        });
+      });
+
+      await page.goto('/create');
+      await expect(page.locator('label', { hasText: 'Classic' })).toContainText('8 left today');
+      await expect(page.locator('label', { hasText: 'ElevenLabs' })).toContainText('0 left today');
+
+      await page.locator('#song-prompt').fill('Midnight pixel ballad');
+      await page.locator('label', { hasText: 'ElevenLabs' }).click();
+      await expect(page.getByRole('alert')).toContainText(/used all 3 ElevenLabs songs for today.*Resets/i);
+      await expect(page.getByRole('button', { name: 'Daily ElevenLabs limit reached' })).toBeDisabled();
+
+      // Quick switch back to Classic re-enables Create song
+      await page.getByRole('button', { name: 'Switch to Classic (8 left)' }).click();
+      await expect(page.locator('input[type="radio"][name="provider"][value="aisonggenerator"]')).toBeChecked();
+      await expect(page.getByRole('button', { name: 'Create song' })).toBeEnabled();
+
+      // 3. 429 quota_exceeded on POST / submit preserves prompt, updates quota UI to 0 left, and shows inline + toast
+      await page.route(`${api}/`, async (route) => {
+        if (route.request().method() === 'POST') {
+          await route.fulfill({
+            status: 429,
+            contentType: 'application/json',
+            headers: {
+              'Access-Control-Allow-Origin': 'http://127.0.0.1:4328',
+              'Access-Control-Allow-Credentials': 'true',
+            },
+            body: JSON.stringify({
+              error: 'Daily Classic quota exceeded',
+              code: 'quota_exceeded',
+              provider: 'classic',
+              limit: 10,
+              used: 10,
+              remaining: 0,
+              resetAt,
+            }),
+          });
+          return;
+        }
+        await route.continue();
+      });
+
+      await page.getByRole('button', { name: 'Create song' }).click();
+      await expect(page.locator('#song-prompt')).toHaveValue('Midnight pixel ballad');
+      await expect(page.locator('label', { hasText: 'Classic' })).toContainText('0 left today');
+      await expect(page.locator('form [role="alert"]')).toContainText(/used all 10 Classic songs for today.*Resets/i);
+      await expect(page.getByRole('button', { name: 'Daily Classic limit reached' })).toBeDisabled();
+      await expect(page.locator('.toast-stack [role="status"]').last()).toContainText(/Classic/i);
+
+      // 4. 429 quota_exceeded on POST /retry/:id with override_provider shows inline feedback + toast
+      await page.route(`${api}/retry/**`, async (route) => {
+        await route.fulfill({
+          status: 429,
+          contentType: 'application/json',
+          headers: {
+            'Access-Control-Allow-Origin': 'http://127.0.0.1:4328',
+            'Access-Control-Allow-Credentials': 'true',
+          },
+          body: JSON.stringify({
+            error: 'Daily ElevenLabs quota exceeded',
+            code: 'quota_exceeded',
+            provider: 'elevenlabs',
+            limit: 3,
+            used: 3,
+            remaining: 0,
+            resetAt,
+          }),
+        });
+      });
+
+      await page.goto('/smol-failed');
+      await page.getByRole('button', { name: 'Try with ElevenLabs' }).click();
+      await expect(page.locator('main [role="alert"]').first()).toContainText(/used all 3 ElevenLabs songs for today.*Resets/i);
+      await expect(page.locator('.toast-stack [role="status"]').last()).toContainText(/ElevenLabs/i);
     });
   });
 }

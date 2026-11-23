@@ -15,9 +15,11 @@
   import { confirmAction } from '../stores/confirm.svelte';
   import { openAuthSheet } from '../stores/authSheet.svelte';
   import { trackGeneration, stopTrackingGeneration } from '../stores/generations.svelte';
+  import { applyQuotaExceeded, decrementQuota, refreshQuota } from '../stores/quota.svelte';
   import { useSmolGeneration } from '../hooks/useSmolGeneration';
   import { useSmolMinting } from '../hooks/useSmolMinting';
   import { fetchWithTimeout, throwIfNotOk } from '../services/api/fetch';
+  import { QuotaExceededError } from '../utils/quota';
   import {
     DEFAULT_PROVIDER,
     normalizeProvider,
@@ -52,6 +54,8 @@
   let pollGeneration = 0;
   let submittingGeneration = $state(false);
   let failed = $state(false);
+  let quotaError = $state<string | null>(null);
+  let retryError = $state<string | null>(null);
   let pendingCreatedId = $state<string | null>(null);
   let playlist = $state<string | null>(null);
   let minting = $state(false);
@@ -191,6 +195,7 @@
       lastFetchedId = smolId;
       mintStartedInSession = false;
       minting = false;
+      retryError = null;
       untrack(() => {
         if (seed) applySmolData(seed);
         else void fetchSmolData(smolId);
@@ -347,19 +352,24 @@
     kv_do = undefined;
     failed = false;
     error = null;
+    quotaError = null;
     submittingGeneration = true;
 
     stopPolling();
 
     try {
+      const submittedProvider = provider;
       const newId = await generationHook.postGen(
         prompt,
         is_public,
         is_instrumental,
         playlist,
-        provider
+        submittedProvider
       );
       if (!newId) return;
+
+      decrementQuota(submittedProvider);
+      void refreshQuota(userState.contractId);
 
       pendingCreatedId = newId;
       // Set lastFetchedId before setting id so the route $effect does not fire a second GET.
@@ -371,7 +381,11 @@
       trackGeneration(newId);
       await getGen();
     } catch (err) {
-      if (!id || !isTransientCreatedSmol404(id, (err as Error & { status?: number }).status)) {
+      if (err instanceof QuotaExceededError) {
+        applyQuotaExceeded(err, userState.contractId);
+        quotaError = err.message;
+        toast.error(err.message);
+      } else if (!id || !isTransientCreatedSmol404(id, (err as Error & { status?: number }).status)) {
         const msg = err instanceof Error ? err.message : 'Could not start song generation.';
         toast.error(msg);
         logger.error('smol', 'Failed to generate smol:', err);
@@ -384,11 +398,16 @@
   async function retryGen(overrideProvider?: MusicProvider) {
     if (!id) return;
     const currentId = id;
+    retryError = null;
     stopPolling();
 
     try {
+      const targetProvider = overrideProvider ?? activeProvider;
       const newId = await generationHook.retryGen(currentId, overrideProvider);
       if (!newId) return;
+
+      decrementQuota(targetProvider);
+      void refreshQuota(userState.contractId);
 
       d1 = undefined;
       kv_do = undefined;
@@ -407,7 +426,15 @@
         }
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not retry generation.');
+      if (err instanceof QuotaExceededError) {
+        applyQuotaExceeded(err, userState.contractId);
+        retryError = err.message;
+        toast.error(err.message);
+      } else {
+        const msg = err instanceof Error ? err.message : 'Could not retry generation.';
+        retryError = msg;
+        toast.error(msg);
+      }
     }
   }
 
@@ -523,8 +550,10 @@
     {playlist}
     isGenerating={submittingGeneration}
     isAuthenticated={Boolean(userState.contractId)}
+    {quotaError}
     onSubmit={postGen}
     onRemovePlaylist={removePlaylist}
+    onClearQuotaError={() => (quotaError = null)}
   />
 {:else}
   {#if failed}
@@ -534,6 +563,7 @@
         failure={kv_do?.failure}
         provider={activeProvider}
         {playlist}
+        {retryError}
         onRetry={retryGen}
         onEditPrompt={handleEditPrompt}
         onRemovePlaylist={removePlaylist}
