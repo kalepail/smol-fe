@@ -33,7 +33,15 @@ import {
  * published payload (25d pass 3 P1-3). Otherwise the newer durable draft is kept and shown.
  */
 export function consumePublishedDraft(submitted: MixtapeDraft): 'cleared' | 'kept' {
-  const published = draftPayloadKey(submitted);
+  return consumeDraftIfUnchanged(draftPayloadKey(submitted));
+}
+
+/**
+ * Consume the create draft only while BOTH its durable copy and this tab's copy still have the
+ * given normalized payload. A newer durable draft (e.g. a song added in another tab) is kept and
+ * loaded here instead. Used after a create POST and after an "Edit X instead" save (pass 4 P1-2).
+ */
+export function consumeDraftIfUnchanged(published: string): 'cleared' | 'kept' {
   const durable = loadDraftFromStorage();
   if (durable && draftPayloadKey(durable) !== published) {
     mixtapeDraftState.draftId = durable.draftId || mixtapeDraftState.draftId;
@@ -69,7 +77,10 @@ export interface EditableMixtape {
 export interface StartEditOptions {
   /** Override the starting track list (e.g. the match's songs + the draft's new ones). */
   tracks?: MixtapeTrack[];
-  /** Started from the create draft ("Edit X instead"): a successful save consumes the draft. */
+  /**
+   * Started from the create draft ("Edit X instead"). A successful save consumes that draft only
+   * while it is still the payload that was moved into this edit (pass 4 P1-2).
+   */
   fromDraft?: boolean;
   /** "Review in editor first" from the merge sheet: saving also deletes this (reviewed) source copy. */
   mergeFrom?: MergeSourceSnapshot | null;
@@ -85,6 +96,9 @@ export interface StartEditOptions {
 export async function startEdit(mixtape: EditableMixtape, options: StartEditOptions = {}): Promise<'started' | 'cancelled'> {
   const owner = userState.contractId;
   if (!owner || mixtape.creator !== owner) return 'cancelled';
+  // Another tab may have parked a newer edit (even of this same mixtape) under this owner's key:
+  // adopt it before deciding anything, so opening never overwrites it with a fresh baseline.
+  adoptDivergentDurableEdit(owner);
   const current = currentEdit();
   if (current && editIsLocked(current.creator, current.mixtapeId)) return 'cancelled';
   if (current && current.mixtapeId === mixtape.id && !options.tracks && !options.mergeFrom && isEditSessionDirty(current)) {
@@ -122,6 +136,7 @@ export async function startEdit(mixtape: EditableMixtape, options: StartEditOpti
     baselineHiddenReason: mixtape.hiddenReason ?? null,
     privateTrackCount: Math.max(0, stored - publicCount),
     fromDraft: options.fromDraft === true,
+    originDraftKey: options.fromDraft ? draftPayloadKey(mixtapeDraftState) : null,
     mergeFrom: options.mergeFrom ?? null,
   };
   editSlots.byOwner[owner] = session;
@@ -145,10 +160,12 @@ export function cancelEditFor(owner: string, mixtapeId: string): boolean {
   // Cross-tab durable check (25d pass 3 P1-2): another tab of the SAME account may have parked a
   // different mixtape (or a newer edit of this one) under this owner's key meanwhile. Only remove
   // the stored value if it is still exactly ours; adopt another tab's different parked edit.
+  // Pass 4 P1-1: ANY divergent durable edit is adopted — a different mixtape OR a newer edit of
+  // this same one — never silently discarded.
   const durable = loadEditSlot(owner);
   if (!durable || (durable.mixtapeId === mixtapeId && durable.updatedAt === expectedUpdatedAt)) {
     persistEditSlot(owner, null);
-  } else if (durable.mixtapeId !== mixtapeId) {
+  } else {
     editSlots.byOwner[owner] = durable;
   }
   if (editIsLocked(owner, mixtapeId)) {
@@ -167,12 +184,31 @@ export function cancelEdit() {
   else clearEditConflict();
 }
 
-/** Close one specific edit slot after its successful save. A draft that fed it is consumed. */
+/**
+ * Close one specific edit slot after its successful save. A create draft that fed it ("Edit X
+ * instead") is consumed only if it is still exactly the payload that was moved (pass 4 P1-2).
+ */
 export function finishEditFor(owner: string, mixtapeId: string): boolean {
-  const consumedDraft = editSlots.byOwner[owner]?.mixtapeId === mixtapeId && editSlots.byOwner[owner]?.fromDraft === true;
+  const session = editSlots.byOwner[owner];
+  const originDraftKey = session?.mixtapeId === mixtapeId && session.fromDraft ? session.originDraftKey ?? null : null;
   const closed = cancelEditFor(owner, mixtapeId);
-  if (closed && consumedDraft) clearDraft();
+  if (closed && originDraftKey) consumeDraftIfUnchanged(originDraftKey);
   return closed;
+}
+
+/**
+ * Re-read this owner's durable edit and adopt it when it diverges from this tab's in-memory slot
+ * (another tab parked something newer). This tab's own pending keystrokes are flushed first, so a
+ * difference is always someone else's newer write.
+ */
+function adoptDivergentDurableEdit(owner: string) {
+  if (userState.contractId === owner) flushPendingPersist();
+  const durable = loadEditSlot(owner);
+  if (!durable) return;
+  const memory = editSlots.byOwner[owner];
+  if (memory && memory.mixtapeId === durable.mixtapeId && memory.updatedAt === durable.updatedAt) return;
+  if (memory && editIsLocked(owner, memory.mixtapeId)) return; // never swap a slot mid-save
+  editSlots.byOwner[owner] = durable;
 }
 
 /** Close the signed-in owner's edit after a successful save. */
@@ -248,4 +284,3 @@ export function getActiveSnapshot(): MixtapeDraft {
     updatedAt: session.updatedAt,
   };
 }
-

@@ -239,7 +239,10 @@
         myMixtapesState.items.some((item) => item.id === mixtape?.id)
     )
   );
-  const ssrVerified = $derived(Boolean(verifiedOwner && initialData && mixtape && mixtape.id === initialData.id));
+  // A later definitive /mine 401 revokes the SSR verification too (25d pass 4 P2-2).
+  const ssrVerified = $derived(
+    Boolean(verifiedOwner && initialData && mixtape && mixtape.id === initialData.id) && !myMixtapesState.authFailed
+  );
   const isOwner = $derived(cookieOwner && (ssrVerified || listedInMine));
   const isHidden = $derived(mixtape?.visibility === 'owner');
   const ownerList = $derived(

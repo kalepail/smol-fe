@@ -173,7 +173,7 @@ export async function cancelMixtapeEdit(dirty: boolean): Promise<boolean> {
 }
 
 export type SaveEditOutcome =
-  | { ok: true; receipt: MixtapeWriteReceipt; id: string }
+  | { ok: true; receipt: MixtapeWriteReceipt; id: string; stayOpen?: boolean }
   | { ok: false; error: MixtapeActionError | Error };
 
 function sameSubmission(
@@ -267,11 +267,20 @@ export async function saveMixtapeEdit(): Promise<SaveEditOutcome> {
     );
     invalidateMyMixtapes([id]);
     toast.info(`Saved "${title}". Your newer changes are still here — save again to keep them.`, { tag: LIFECYCLE_TAG });
-    return { ok: true, receipt, id };
+    return { ok: true, receipt, id, stayOpen: true };
   }
 
   finishEditFor(owner, id);
   invalidateMyMixtapes([id]);
+  // Another tab parked a newer edit for this account (pass 4 P1-1): it was adopted, not discarded.
+  const adopted = mixtapeEditState.session;
+  if (adopted && adopted.creator === owner) {
+    toast.info(
+      `Saved "${title}". Another tab has unsaved changes to "${adopted.title.trim() || 'a mixtape'}" — they’re kept in your editor.`,
+      { tag: LIFECYCLE_TAG, duration: 8000 }
+    );
+    return { ok: true, receipt, id };
+  }
 
   if (mergeFrom) {
     toast.success(`Saved "${title}". "${mergeFrom.title}" was kept — you can delete it anytime from Your mixtapes.`, {

@@ -41,7 +41,6 @@
   } from '../../services/mixtapeActions';
   import { isMatchReason, previewMixtapeChange, type MixtapePreview } from '../../utils/mixtapeCoaching';
   import { normalizeMixtapeText } from '../../utils/mixtapeVisibility';
-  import { draftPayloadKey } from '../../stores/mixtape/operations';
   import { logger } from '../../utils/logger';
   import Sheet from '../ui/Sheet.svelte';
   import DockedPanel from '../ui/DockedPanel.svelte';
@@ -64,25 +63,34 @@
   let titleError = $state<string | null>(null);
   /** Extra action for the status message (create_pending retry / create_conflict review — 25d P2-1). */
   let statusAction = $state<{ label: string; onClick?: () => void; href?: string; disabled?: boolean } | null>(null);
-  let retryTimer: ReturnType<typeof setTimeout> | null = null;
   /**
-   * 503 create_pending Retry-After window for ONE normalized payload (25d pass 2 P2-1, pass 3
-   * P2-1): every publish path waits it out while the trimmed title/description and ordered songs
-   * are unchanged — typing (which resets status text) or whitespace-only edits never reopen it.
+   * 503 create_pending Retry-After deadlines, one per payload (25d pass 2–4 P2-1). Keyed like the
+   * backend's retry identity — NFKC, case-folded, whitespace-collapsed title and description plus
+   * the ordered songs — so case/whitespace edits are the same POST. A deadline is NEVER dropped by
+   * editing: change the title and change it back and the wait still holds, on every publish path,
+   * until it expires on its own.
    */
-  let retryGate = $state<{ key: string; until: number } | null>(null);
-  const payloadKey = $derived(draftPayloadKey(mixtapeDraftState));
-  const retryWait = $derived(Boolean(retryGate && retryGate.key === payloadKey));
-  $effect(() => {
-    // A genuinely different payload is a different create: drop the old wait.
-    if (retryGate && retryGate.key !== payloadKey) {
-      retryGate = null;
-      if (retryTimer) {
-        clearTimeout(retryTimer);
-        retryTimer = null;
-      }
-    }
-  });
+  function retryPayloadKey(draft: { title: string; description: string; tracks: { id: string }[] }): string {
+    return JSON.stringify([
+      normalizeMixtapeText(draft.title.trim() || 'Untitled mixtape'),
+      normalizeMixtapeText(draft.description),
+      draft.tracks.map((track) => track.id),
+    ]);
+  }
+  let retryDeadlines = $state<Record<string, number>>({});
+  const retryWait = $derived((retryDeadlines[retryPayloadKey(mixtapeDraftState)] ?? 0) > 0);
+  function holdRetry(key: string, waitMs: number) {
+    const until = Date.now() + waitMs;
+    retryDeadlines[key] = until;
+    setTimeout(() => {
+      if (retryDeadlines[key] === until) delete retryDeadlines[key];
+      if (statusAction?.label === 'Try again' && !retryWait) statusAction = { ...statusAction, disabled: false };
+    }, waitMs);
+  }
+  function retryBlocked(draft: { title: string; description: string; tracks: { id: string }[] }): boolean {
+    const until = retryDeadlines[retryPayloadKey(draft)];
+    return until !== undefined && until > Date.now();
+  }
 
   // Desktop (lg+) renders a non-modal docked panel; mobile keeps the bottom sheet (25d P2-8).
   let desktop = $state(typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches);
@@ -267,7 +275,7 @@
   function resetStatus() {
     statusMessage = null;
     statusAction = null;
-    // The Retry-After gate is NOT status text: it survives resets (see retryGate).
+    // The Retry-After deadlines are NOT status text: they survive resets (see retryDeadlines).
     showAuthAction = false;
     trackIssues = {};
     titleError = null;
@@ -319,7 +327,7 @@
 
 
   async function handlePublish() {
-    if (retryWait) return;
+    if (retryWait || retryBlocked(mixtapeDraftState)) return;
     resetStatus();
     publishing = true;
     const title = mixtapeDraftState.title.trim() || 'Untitled mixtape';
@@ -384,14 +392,7 @@
           // 503 create_pending: the same publish is still finishing. Offer a retry once Retry-After passes.
           statusTone = 'info';
           statusAction = { label: 'Try again', disabled: true, onClick: () => void handlePublish() };
-          const waitMs = error.retryAfterMs ?? 1000;
-          retryGate = { key: draftPayloadKey(submitted), until: Date.now() + waitMs };
-          if (retryTimer) clearTimeout(retryTimer);
-          retryTimer = setTimeout(() => {
-            retryTimer = null;
-            retryGate = null;
-            if (statusAction) statusAction = { ...statusAction, disabled: false };
-          }, error.retryAfterMs ?? 1000);
+          holdRetry(retryPayloadKey(submitted), error.retryAfterMs ?? 1000);
         } else if (error.kind === 'conflict' && error.conflictId) {
           // 409 create_conflict with the changed row: let the owner inspect it before re-publishing.
           const conflictId = error.conflictId;
@@ -477,7 +478,7 @@
   function handleSaveOutcome(outcome: Awaited<ReturnType<typeof saveMixtapeEdit>>) {
     if (outcome.ok) {
       // A defensive rebase kept newer local changes open: stay in the editor.
-      if (mixtapeEditState.session?.mixtapeId === outcome.id) return;
+      if (outcome.stayOpen) return;
       closeMixtapeSheet();
       // Stay on /mixtapes pages (they refresh); otherwise land on the saved mixtape.
       if (!currentPath().startsWith('/mixtapes')) void navigate(`/mixtapes/${encodeURIComponent(outcome.id)}`);

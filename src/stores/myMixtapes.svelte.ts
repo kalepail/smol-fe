@@ -18,12 +18,15 @@ export const myMixtapesState = $state<{
   status: MyMixtapesStatus;
   error: string | null;
   loadedAt: number;
+  /** The API definitively rejected the session (401): no owner verification may stand. */
+  authFailed: boolean;
 }>({
   owner: null,
   items: [],
   status: 'idle',
   error: null,
   loadedAt: 0,
+  authFailed: false,
 });
 
 /**
@@ -47,6 +50,7 @@ function resetFor(owner: string | null) {
   myMixtapesState.status = 'idle';
   myMixtapesState.error = null;
   myMixtapesState.loadedAt = 0;
+  myMixtapesState.authFailed = false;
 }
 
 /** Ensure the cache belongs to the current user; clears it on sign-out / account switch. */
@@ -83,10 +87,20 @@ export async function loadMyMixtapes(options: { force?: boolean } = {}): Promise
       myMixtapesState.items = items.filter((item) => item.creator === owner);
       myMixtapesState.status = 'ready';
       myMixtapesState.loadedAt = Date.now();
+      myMixtapesState.authFailed = false;
       return myMixtapesState.items;
     })
     .catch((error: unknown) => {
       if (!requests.isCurrent(run)) return myMixtapesState.items;
+      if (error instanceof MixtapeActionError && error.kind === 'auth') {
+        // 25d pass 4 P2-2: a definitive 401 revokes everything cached — no stale owner rows.
+        myMixtapesState.items = [];
+        myMixtapesState.status = 'error';
+        myMixtapesState.loadedAt = 0;
+        myMixtapesState.authFailed = true;
+        myMixtapesState.error = 'Sign in again to see your mixtapes.';
+        return [];
+      }
       // Keep showing what we had (SWR) — only surface the error when there is nothing.
       if (myMixtapesState.status !== 'ready') {
         myMixtapesState.status = 'error';

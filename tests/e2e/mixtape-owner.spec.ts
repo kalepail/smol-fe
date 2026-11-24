@@ -728,7 +728,7 @@ test.describe('25d regressions (390×844)', () => {
         await route.fulfill({
           status: 503,
           contentType: 'application/json',
-          headers: { ...cors, 'Retry-After': '3' },
+          headers: { ...cors, 'Retry-After': '4' },
           body: JSON.stringify({ error: 'Mixtape creation is still finishing; please retry', code: 'create_pending' }),
         });
       } else {
@@ -750,10 +750,20 @@ test.describe('25d regressions (390×844)', () => {
     await expect(builder.getByRole('button', { name: 'Publish mixtape (2)' })).toBeDisabled();
     expect(calls).toBe(1);
     // 25d pass 3 P2-1: a whitespace-only edit is the SAME payload — the wait still holds.
+    const publish = builder.getByRole('button', { name: 'Publish mixtape (2)' });
     await builder.getByLabel('Title').fill('Pending Mix ');
-    await expect(builder.getByRole('button', { name: 'Publish mixtape (2)' })).toBeDisabled();
+    await expect(publish).toBeDisabled();
+    // Pass 4 P2-1: so is a case/whitespace variant (the backend normalizes retry identity)…
+    await builder.getByLabel('Title').fill('pending   MIX');
+    await expect(publish).toBeDisabled();
+    // …while a genuinely different payload is a different create…
+    await builder.getByLabel('Title').fill('Pending Mix 2');
+    await expect(publish).toBeEnabled();
+    // …and changing it BACK still honors the original deadline.
+    await builder.getByLabel('Title').fill('Pending Mix');
+    await expect(publish).toBeDisabled();
     await page.waitForTimeout(500);
-    await expect(builder.getByRole('button', { name: 'Publish mixtape (2)' })).toBeDisabled();
+    await expect(publish).toBeDisabled();
     expect(calls).toBe(1);
     await expect(builder.getByRole('button', { name: 'Publish mixtape (2)' })).toBeEnabled({ timeout: 5_000 });
     await builder.getByRole('button', { name: 'Publish mixtape (2)' }).click();
@@ -1086,8 +1096,8 @@ test.describe('25d pass 3 regressions (390×844)', () => {
 
     // Meanwhile tab B (same account) parks an edit of ANOTHER mixtape under the same owner key.
     await tabB.locator('[data-owner-callout]').getByRole('button', { name: 'Add songs' }).click();
-    const discard = openDialog(tabB, 'Discard changes');
-    if (await discard.count()) await discard.getByRole('button', { name: 'Discard changes' }).click();
+    // B first adopts A's parked (dirty) edit, so it asks before switching mixtapes.
+    await openDialog(tabB, 'Discard changes').getByRole('button', { name: 'Discard changes' }).click();
     await openDialog(tabB).getByRole('button', { name: 'Back to mixtape' }).click();
     await openDialog(tabB).getByLabel('Title').fill('Wonder (B)');
     await openDialog(tabB).getByRole('button', { name: 'Close' }).click();
@@ -1210,5 +1220,107 @@ test.describe('25d pass 3 regressions (390×844)', () => {
     await expect(page.locator('main article')).toHaveCount(0);
     await failure.getByRole('button', { name: 'Try again' }).click();
     await expect(page.locator('main article').first()).toBeVisible();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 25d pass 4 regressions (2 × P1, 2 × P2)
+// ---------------------------------------------------------------------------
+
+test.describe('25d pass 4 regressions (390×844)', () => {
+  test('P1-1: reopening the SAME mixtape adopts another tab’s newer parked edit instead of overwriting it', async ({ page, context }) => {
+    const id = await signInAs(context, 'r1');
+    await page.goto(`/mixtapes/${id('night-drive')}`);
+    const tabB = await context.newPage();
+    await tabB.goto(`/mixtapes/${id('night-drive')}`);
+    await expect(tabB.getByRole('button', { name: 'Edit', exact: true })).toBeVisible();
+
+    // Tab A saves a title; its PUT is held.
+    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await openDialog(page).getByLabel('Title').fill('Night Drive (A)');
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    await page.route(`${api}/mixtapes/${id('night-drive')}`, async (route) => {
+      if (route.request().method() !== 'PUT') return route.continue();
+      await held;
+      await route.continue();
+    });
+    await openDialog(page).getByRole('button', { name: 'Save changes' }).click();
+    await expect(openDialog(page).getByRole('button', { name: 'Saving…' })).toBeVisible();
+
+    // Tab B parks a NEWER title for the SAME mixtape.
+    await tabB.getByRole('button', { name: 'Edit', exact: true }).click();
+    await openDialog(tabB).getByLabel('Title').fill('Night Drive (B)');
+    await openDialog(tabB).getByRole('button', { name: 'Close' }).click();
+
+    release();
+    await expect(toasts(page).filter({ hasText: 'Saved "Night Drive (A)". Another tab has unsaved changes to "Night Drive (B)"' })).toBeVisible();
+    await expect(page.locator('dialog[open]')).toHaveCount(0);
+    const key = 'smol:mixtape-edit:CMIXOWNERR1';
+    expect(await page.evaluate((k) => localStorage.getItem(k) ?? '', key)).toContain('Night Drive (B)');
+
+    // Reopening in A shows B's parked edit and never overwrites it with the fresh server baseline.
+    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await expect(openDialog(page).getByLabel('Title')).toHaveValue('Night Drive (B)');
+    expect(await page.evaluate((k) => localStorage.getItem(k) ?? '', key)).toContain('Night Drive (B)');
+    await tabB.close();
+  });
+
+  test('P1-2: saving from "Edit X instead" never erases a song another tab added to the Create draft', async ({ page, context }) => {
+    await signInAs(context, 'r2');
+    await seedDraft(page, {
+      title: 'Creasy again',
+      tracks: [
+        { id: 'first-smol', title: 'First Track' },
+        { id: 'second-smol', title: 'Second Track' },
+        { id: 'smol-minted', title: 'Starlight Mint Anthem' },
+      ],
+    });
+    await page.getByRole('button', { name: 'Open mixtape draft (3)' }).click();
+    const builder = openDialog(page);
+    await builder.getByRole('button', { name: 'Remove track' }).nth(2).click();
+    await builder.getByRole('button', { name: 'Edit "Creasy Drops" instead' }).click();
+    await expect(builder.getByRole('heading', { name: 'Editing · Creasy Drops' })).toBeVisible();
+    await builder.getByLabel('Title').fill('Creasy Drops (A)');
+
+    // Another tab adds Starlight Mint Anthem to the parked Create draft (durable write).
+    const tabB = await context.newPage();
+    await tabB.goto('/');
+    await tabB.evaluate(() => {
+      const draft = JSON.parse(localStorage.getItem('smol:mixtape-draft') || '{}');
+      draft.tracks.push({ id: 'smol-minted', title: 'Starlight Mint Anthem', coverUrl: null, creator: null, public: 1 });
+      draft.updatedAt = new Date().toISOString();
+      localStorage.setItem('smol:mixtape-draft', JSON.stringify(draft));
+    });
+
+    await builder.getByRole('button', { name: 'Save changes' }).click();
+    await expect(toasts(page).filter({ hasText: 'Saved "Creasy Drops (A)".' })).toBeVisible();
+    const durable = await page.evaluate(() => JSON.parse(localStorage.getItem('smol:mixtape-draft') || 'null'));
+    expect(durable?.tracks?.map((t: { id: string }) => t.id)).toEqual(['first-smol', 'second-smol', 'smol-minted']);
+    await expect(page.getByRole('button', { name: 'Open mixtape draft (3)' })).toBeVisible();
+    await tabB.close();
+  });
+
+  test('P2-2: an explicit /mixtapes/mine 401 revokes previously verified owner controls', async ({ page, context }) => {
+    const id = await signInAs(context, 'r4');
+    await page.goto(`/mixtapes/${id('creasy-v1')}`);
+    await expect(page.locator('section[data-owner-callout]')).toBeVisible();
+    await expect(page.locator('[data-owner-status="hidden"]')).toBeVisible();
+
+    // The session is revoked server-side: every later owner-list read is a definitive 401.
+    await page.route(`${api}/mixtapes/mine`, (route) =>
+      route.fulfill({ status: 401, contentType: 'text/plain', headers: cors, body: 'Unauthorized' })
+    );
+    const revoked = page.waitForResponse((res) => res.url() === `${api}/mixtapes/mine` && res.status() === 401);
+    // Any owner write refreshes the owner list (here: a title-only save).
+    await page.locator('[data-owner-callout]').getByRole('button', { name: 'Edit' }).click();
+    await openDialog(page).getByLabel('Title').fill('Creasy Drops (renamed)');
+    await openDialog(page).getByRole('button', { name: 'Save changes' }).click();
+    await revoked;
+
+    await expect(page.locator('[data-owner-callout]')).toHaveCount(0);
+    await expect(page.locator('[data-owner-status]')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /More actions for/ })).toHaveCount(0);
   });
 });

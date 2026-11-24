@@ -113,8 +113,10 @@ export interface MixtapeEditSession extends MixtapeDraft {
   baselineHiddenReason: string | null;
   /** Stored songs that are no longer public; they are dropped when the edit is saved. */
   privateTrackCount: number;
-  /** Started from the create draft via "Edit X instead": saving consumes that draft. */
+  /** Started from the create draft via "Edit X instead". */
   fromDraft: boolean;
+  /** Normalized payload of the create draft that fed this edit; only THAT draft is consumed on save. */
+  originDraftKey?: string | null;
   /** "Review in editor first" from the merge sheet: saving also deletes this source copy. */
   mergeFrom?: MergeSourceSnapshot | null;
 }
@@ -200,6 +202,7 @@ export function parseEditSession(value: unknown): MixtapeEditSession | null {
     baselineHiddenReason: typeof parsed.baselineHiddenReason === 'string' ? parsed.baselineHiddenReason : null,
     privateTrackCount: typeof parsed.privateTrackCount === 'number' && parsed.privateTrackCount > 0 ? parsed.privateTrackCount : 0,
     fromDraft: parsed.fromDraft === true,
+    originDraftKey: typeof parsed.originDraftKey === 'string' ? parsed.originDraftKey : null,
     mergeFrom,
   };
 }
