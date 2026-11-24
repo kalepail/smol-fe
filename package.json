@@ -19,31 +19,27 @@
     "@stellar/stellar-sdk": "^14.4.3",
     "buffer": "^6.0.3",
     "comet-sdk": "link:./ext/comet-sdk",
-    "js-cookie": "^3.0.5",
     "passkey-kit": "^0.12.0",
-    "smol-sdk": "link:./ext/smol-sdk",
-    "svelte-dnd-action": "^0.9.65"
+    "smol-sdk": "link:./ext/smol-sdk"
   },
   "devDependencies": {
     "@astrojs/cloudflare": "^12.6.9",
     "@astrojs/svelte": "^7.2.0",
     "@playwright/test": "^1.65.1",
     "@simplewebauthn/browser": "^13.2.2",
-    "@tailwindcss/vite": "^4.1.14",
-    "@types/js-cookie": "^3.0.6",
-    "@types/node": "^24.7.0",
+    "@tailwindcss/vite": "^4.3.5",
+    "@types/node": "^26.6.6",
     "astro": "^5.14.1",
-    "svelte": "^5.39.9",
-    "svelte-check": "^4.3.2",
-    "tailwindcss": "^4.1.14",
+    "svelte": "^5.59.1",
+    "svelte-check": "^4.7.8",
+    "tailwindcss": "^4.3.5",
     "typescript": "^5.9.3",
-    "vite-plugin-mkcert": "^1.17.9",
-    "vite-plugin-node-polyfills": "^0.24.0"
+    "vite-plugin-mkcert": "^2.1.0"
   },
   "pnpm": {
     "overrides": {
       "@stellar/stellar-sdk": "^14.4.3"
     }
   },
-  "packageManager": "pnpm@10.18.1"
+  "packageManager": "pnpm@10.34.9"
 }

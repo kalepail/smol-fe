@@ -89,7 +89,7 @@ smol-fe/
 
 ### Prerequisites
 
-- **Node.js** (v18 or higher recommended)
+- **Node.js** v22.19 or higher (required by `vite-plugin-mkcert` 2.1.0)
 - **pnpm** (v10.18.0+) - Required package manager
 
 ### Installation

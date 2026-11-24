@@ -132,6 +132,25 @@ const smolFlagged = loadJson('smol-flagged.json');
 const smolGeneratingEarly = loadJson('smol-generating-early.json');
 const smolGeneratingPartial = loadJson('smol-generating-partial.json');
 const smolFailedConfig = loadJson('smol-failed-config.json');
+// AE-3 robots states (FE-1 pass 2). Publishing updates D1 only, so a song that
+// was generated private and later published keeps `payload.public: false`.
+const smolPublishedWasPrivate = (() => {
+  const s = structuredClone(smolMinted);
+  s.d1.Id = 'smol-published-was-private';
+  s.d1.Public = 1;
+  s.kv_do.payload = { ...s.kv_do.payload, public: false };
+  s.kv_do.nsfw = { safe: true, categories: [] };
+  return s;
+})();
+// The safety check could not decide: `unknown: true` and no `safe` at all.
+const smolSafetyUnknown = (() => {
+  const s = structuredClone(smolMinted);
+  s.d1.Id = 'smol-safety-unknown';
+  s.d1.Public = 1;
+  s.kv_do.payload = { ...s.kv_do.payload, public: true };
+  s.kv_do.nsfw = { unknown: true, categories: [] };
+  return s;
+})();
 
 const DEFAULT_QUOTA = {
   classic: { limit: 10, used: 3, remaining: 7, resetAt: '2026-11-24T00:00:00.000Z' },
@@ -188,6 +207,8 @@ const routes = new Map([
   ['/smol-generating-early', smolGeneratingEarly],
   ['/smol-generating-partial', smolGeneratingPartial],
   ['/smol-failed-config', smolFailedConfig],
+  ['/smol-published-was-private', smolPublishedWasPrivate],
+  ['/smol-safety-unknown', smolSafetyUnknown],
 ]);
 
 const requests = new Map();

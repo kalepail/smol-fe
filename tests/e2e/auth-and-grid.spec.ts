@@ -1083,7 +1083,18 @@ test.describe('F4 SmolGrid auth reactivity & login credentials', () => {
       { name: 'smol_token', value: expiredSmolJwt(), url: FRONTEND_URL },
     ]);
 
-    await tabA.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Liked' }).click();
+    // ViewTransition to /liked through a same-origin link that does not depend
+    // on the signed-in header: the shell may ALREADY have read the expired
+    // cookie and signed out (the header's deferred KALE-balance load
+    // re-validates the live session right before it reads), which removes
+    // the Primary nav's Liked link.
+    await tabA.evaluate(() => {
+      const a = document.createElement('a');
+      a.href = '/liked';
+      a.textContent = 'liked';
+      document.body.appendChild(a);
+      a.click();
+    });
     await expect(tabA).toHaveURL('/liked');
     await expect(tabA.getByRole('heading', { name: 'Sign in to see liked songs' })).toBeVisible();
     await expect(tabA.getByRole('button', { name: 'Open account menu' })).toHaveCount(0);

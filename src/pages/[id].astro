@@ -3,6 +3,7 @@ import Smol from '../components/Smol.svelte';
 import Layout from '../layouts/Layout.astro';
 import { serverApiFetch } from '../services/api/server';
 import type { SmolDetailResponse } from '../types/domain';
+import { isIndexableSong } from '../utils/robots';
 
 const { id } = Astro.params;
 const initialData = id
@@ -19,8 +20,12 @@ const song_url = musicId
   : firstReady && firstReady.status >= 4 && firstReady.music_id
     ? `${apiUrl}/song/${firstReady.music_id}.mp3`
     : null;
+// AE-3: private (Public === 0), restricted (flagged) or unpublished songs are
+// never indexed — not even on smol.xyz, where an owner's or a shared link's
+// SSR would otherwise emit `index, follow`.
+const noindex = !isIndexableSong(initialData);
 ---
 
-<Layout {title} {description} {song_url} {image_url}>
+<Layout {title} {description} {song_url} {image_url} {noindex} nofollow={noindex}>
   <Smol {id} {initialData} client:only="svelte" />
 </Layout>

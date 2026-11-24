@@ -29,9 +29,14 @@
     error = null;
     submitting = true;
     try {
-      await authHook.login();
-      toast.success('Signed in.');
-      closeAuthSheet();
+      const outcome = await authHook.login();
+      if (outcome.committed) {
+        toast.success('Signed in.');
+        closeAuthSheet();
+      } else {
+        // A newer sign-in or a sign-out happened meanwhile and owns the session.
+        error = 'Your session changed while signing in, so this sign-in was cancelled. Try again.';
+      }
     } catch (err) {
       error = err instanceof Error ? err.message : 'Could not sign in with your passkey.';
     } finally {

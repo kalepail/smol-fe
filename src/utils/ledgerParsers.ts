@@ -7,6 +7,7 @@
  * - Comet record `balance` must be an i128 ≥ 0, `weight`/`scalar` i128 > 0.
  * - A Comet pool is only trusted when its executable is an audited hash.
  */
+import { Buffer } from './bufferGlobal.ts';
 import { scValToNative, xdr } from '@stellar/stellar-sdk/minimal';
 import type { CometFeeConfig, CometRecord } from './cometQuote.ts';
 

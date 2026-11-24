@@ -1,5 +1,8 @@
 import { getAuthCookieDomain } from '../../utils/rpId.ts';
 import { readRawCookie } from '../../utils/sessionToken.ts';
+import { AUTH_TRANSITION_CHANNEL, AUTH_TRANSITION_STORAGE_KEY, getSafeBroadcastChannelCtor } from './authEvents.ts';
+
+export { AUTH_TRANSITION_CHANNEL, AUTH_TRANSITION_STORAGE_KEY, subscribeAuthTransitions } from './authEvents.ts';
 
 export interface ConnectLoginPayload {
   type: 'connect';
@@ -54,18 +57,13 @@ export async function submitLogin(
  * Submit POST /logout with credentials included to clear the server-issued
  * smol_token cookie on explicit user-initiated logout.
  */
-export async function submitLogout(
-  apiUrl: string,
-  fetchImpl: typeof fetch = fetch,
-): Promise<void> {
+export async function submitLogout(apiUrl: string, fetchImpl: typeof fetch = fetch): Promise<void> {
   await fetchImpl(`${apiUrl}/logout`, {
     method: 'POST',
     credentials: 'include',
   });
 }
 
-export const AUTH_TRANSITION_STORAGE_KEY = 'smol_auth_transition';
-export const AUTH_TRANSITION_CHANNEL = 'smol-auth-transitions';
 export const AUTH_EPOCH_COOKIE_NAME = 'smol_auth_epoch';
 const AUTH_EPOCH_MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
@@ -81,16 +79,6 @@ function getSafeLocalStorage(): Storage | null {
   }
 }
 
-function getSafeBroadcastChannelCtor(): typeof BroadcastChannel | null {
-  try {
-    return typeof globalThis !== 'undefined' && 'BroadcastChannel' in globalThis
-      ? globalThis.BroadcastChannel
-      : null;
-  } catch {
-    return null;
-  }
-}
-
 function getSafeDocument(): Pick<Document, 'cookie'> | null {
   try {
     return typeof document !== 'undefined' ? document : null;
@@ -100,11 +88,10 @@ function getSafeDocument(): Pick<Document, 'cookie'> | null {
 }
 
 /**
- * Read the non-secret cross-origin session revision cookie (`smol_auth_epoch`).
- * Never contains tokens or user identifiers — only an opaque transition stamp
- * scoped identically to `smol_token` so sibling origins (e.g. smol.xyz and
- * next.smol.xyz) can observe explicit sign-in/sign-out even when both cookie
- * snapshots have no `smol_token`.
+ * Read the non-secret session revision cookie (`smol_auth_epoch`): an opaque
+ * stamp scoped like `smol_token`, moved on every explicit sign-in / sign-out,
+ * so an in-flight signup sees a competing transition from any tab or sibling
+ * origin even when neither cookie snapshot has a `smol_token`.
  */
 export function readAuthEpochCookie(doc?: Pick<Document, 'cookie'> | null): string | null {
   const target = doc !== undefined ? doc : getSafeDocument();
@@ -175,10 +162,12 @@ export function readAuthTransitionMarker(
 }
 
 /**
- * Publish a non-secret auth transition marker via:
- * 1. `smol_auth_epoch` cookie (cross-origin at session cookie scope),
+ * Announce an explicit sign-in / sign-out AFTER `smol_token` holds its new
+ * value (or is gone), via:
+ * 1. `smol_auth_epoch` cookie (sibling origins at the session cookie scope),
  * 2. `localStorage['smol_auth_transition']` (quota- and SecurityError-safe),
  * 3. `BroadcastChannel('smol-auth-transitions')` (works even when storage is denied/full).
+ * Other tabs then re-read the session cookie (`subscribeAuthTransitions`).
  */
 export function notifyAuthTransition(options?: {
   storage?: Pick<Storage, 'setItem'> | null;
@@ -209,9 +198,7 @@ export function notifyAuthTransition(options?: {
   }
 
   const ChannelCtor =
-    options?.BroadcastChannelCtor !== undefined
-      ? options.BroadcastChannelCtor
-      : getSafeBroadcastChannelCtor();
+    options?.BroadcastChannelCtor !== undefined ? options.BroadcastChannelCtor : getSafeBroadcastChannelCtor();
   if (ChannelCtor) {
     try {
       const channel = new ChannelCtor(AUTH_TRANSITION_CHANNEL);
@@ -280,63 +267,6 @@ export function observeAuthTransitions(options?: {
       }
       channel = null;
     },
-  };
-}
-
-type AuthEventTarget = Pick<Window, 'addEventListener' | 'removeEventListener'>;
-
-/**
- * Subscribe to explicit sign-in / sign-out / account switches made in OTHER
- * tabs (BroadcastChannel `smol-auth-transitions` + the localStorage
- * `smol_auth_transition` storage event) so a long-lived shell can reconcile
- * against the live session cookie immediately instead of on next navigation.
- * Returns an idempotent unsubscribe.
- */
-export function subscribeAuthTransitions(
-  onTransition: () => void,
-  options?: {
-    BroadcastChannelCtor?: typeof BroadcastChannel | null;
-    target?: AuthEventTarget | null;
-  },
-): () => void {
-  let channel: BroadcastChannel | null = null;
-  const ChannelCtor =
-    options?.BroadcastChannelCtor !== undefined
-      ? options.BroadcastChannelCtor
-      : getSafeBroadcastChannelCtor();
-  if (ChannelCtor) {
-    try {
-      channel = new ChannelCtor(AUTH_TRANSITION_CHANNEL);
-      channel.onmessage = (event: MessageEvent) => {
-        if (event?.data?.type === 'auth-transition') onTransition();
-      };
-    } catch {
-      channel = null;
-    }
-  }
-
-  const target =
-    options?.target !== undefined
-      ? options.target
-      : typeof window !== 'undefined'
-        ? window
-        : null;
-  const onStorage = (event: Event) => {
-    if ((event as StorageEvent).key === AUTH_TRANSITION_STORAGE_KEY) onTransition();
-  };
-  target?.addEventListener('storage', onStorage);
-
-  let closed = false;
-  return () => {
-    if (closed) return;
-    closed = true;
-    target?.removeEventListener('storage', onStorage);
-    try {
-      channel?.close();
-    } catch {
-      // Ignore close errors.
-    }
-    channel = null;
   };
 }
 

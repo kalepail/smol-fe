@@ -43,10 +43,12 @@
 
   let { initialMixtapes = null, initialView = 'all', initialMine = null, initialMineOwner = null }: Props = $props();
 
-  let mixtapes = $state<MixtapeSummary[]>(initialMixtapes ?? []);
-  let loading = $state(initialMixtapes === null && initialView === 'all');
+  // SSR seeds: intentionally captured once (later prop changes never reset local state).
+  const seed = untrack(() => ({ initialMixtapes, initialView, initialMine, initialMineOwner }));
+  let mixtapes = $state<MixtapeSummary[]>(seed.initialMixtapes ?? []);
+  let loading = $state(seed.initialMixtapes === null && seed.initialView === 'all');
   let error = $state<string | null>(null);
-  let view = $state<View>(initialView);
+  let view = $state<View>(seed.initialView);
 
   // Before the shell syncs `userState` from the cookie, trust the SSR session subject so the
   // All | Yours chips render server-side (no flash); afterwards follow the live user state.
@@ -65,8 +67,8 @@
 
   // Seed the owner store synchronously on the CLIENT (25d P2-6). Never on the server: module
   // state is shared across SSR requests, so SSR renders straight from the `initialMine` prop.
-  if (typeof window !== 'undefined' && initialMine && initialMineOwner) {
-    seedMyMixtapes(initialMine, initialMineOwner);
+  if (typeof window !== 'undefined' && seed.initialMine && seed.initialMineOwner) {
+    seedMyMixtapes(seed.initialMine, seed.initialMineOwner);
   }
 
   const storeReady = $derived(

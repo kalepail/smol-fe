@@ -11,6 +11,13 @@ export interface ChainScenario {
   kale: bigint;
   /** KALE reserve per pool (stroops). Default 100 KALE. */
   kaleReserve?: bigint;
+  /** Song-token reserve per pool (stroops). Default 990,000,000 tokens. */
+  trackReserve?: bigint;
+  /**
+   * Serve the pool's `SwapFeeConfig` in its instance storage (exact local quotes).
+   * Default true; `false` forces the trade sheet's simulation fallback.
+   */
+  feeConfig?: boolean;
   /** Every getLedgerEntries call returns HTTP 500 (C-02 regression). */
   fail?: boolean;
   delayMs?: number;
@@ -47,6 +54,20 @@ export interface ChainStats {
 
 const sym = (s: string) => xdr.ScVal.scvSymbol(s);
 const entry = (key: xdr.ScVal, val: xdr.ScVal) => new xdr.ScMapEntry({ key, val });
+
+/** Comet `SwapFeeConfig` (fees in 1e7 units): 0.3%–3% tracked on the KALE reserve. */
+function swapFeeConfig() {
+  return new xdr.ScMapEntry({
+    key: xdr.ScVal.scvVec([sym('SwapFeeConfig')]),
+    val: xdr.ScVal.scvMap([
+      entry(sym('high_util_balance'), nativeToScVal(100_000_000_000n, { type: 'i128' })),
+      entry(sym('low_util_balance'), nativeToScVal(1_000_000_000n, { type: 'i128' })),
+      entry(sym('max_fee'), nativeToScVal(300_000n, { type: 'i128' })),
+      entry(sym('min_fee'), nativeToScVal(30_000n, { type: 'i128' })),
+      entry(sym('tracked_token'), new Address(KALE_SAC).toScVal()),
+    ]),
+  });
+}
 
 function record(balance: bigint, index: number) {
   return xdr.ScVal.scvMap([
@@ -136,7 +157,7 @@ export async function installStellarMock(page: Page, getScenario: () => ChainSce
           val = xdr.ScVal.scvContractInstance(
             new xdr.ScContractInstance({
               executable: xdr.ContractExecutable.contractExecutableWasm(Buffer.from(hashHex, 'hex')),
-              storage: null,
+              storage: scenario.feeConfig === false ? null : [swapFeeConfig()],
             })
           );
         }
@@ -147,7 +168,7 @@ export async function installStellarMock(page: Page, getScenario: () => ChainSce
           const pair = minted.get(byPool.get(contract)!)!;
           val = xdr.ScVal.scvMap([
             entry(new Address(KALE_SAC).toScVal(), record(scenario.kaleReserve ?? 1_000_000_000n, 0)),
-            entry(new Address(pair.sac).toScVal(), record(9_900_000_000_000_000n, 1)),
+            entry(new Address(pair.sac).toScVal(), record(scenario.trackReserve ?? 9_900_000_000_000_000n, 1)),
           ]);
         } else if (name === 'Balance') {
           const holder = parts[1] ? Address.fromScVal(parts[1]).toString() : '';

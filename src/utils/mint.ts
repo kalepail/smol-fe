@@ -1,13 +1,19 @@
+import { Buffer } from './bufferGlobal';
 import { Asset } from '@stellar/stellar-sdk/minimal';
 import { Client as SmolClient } from 'smol-sdk';
 import { signWithPasskey } from './passkeySign';
+import { assertWalletAction, type WalletActionTicket } from './wallet';
 import { SMOL_ISSUER } from './smolIdentity';
 export { MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from './mintConstants';
 
 export interface MintOptions {
   id: string;
-  contractId: string;
-  keyId: string;
+  /**
+   * The session the user clicked Mint under. The mint is built for and signed
+   * by exactly this wallet; any session change aborts it before building or
+   * prompting (`WalletActionSupersededError`).
+   */
+  session: WalletActionTicket;
   smolContractId: string;
   rpcUrl: string;
   networkPassphrase: string;
@@ -29,7 +35,8 @@ export function buildMintFeeRule(creatorAddress: string, minterAddress: string, 
 }
 
 export async function createMintTransaction(options: MintOptions) {
-  const { id, contractId, keyId, smolContractId, rpcUrl, networkPassphrase, creatorAddress, kaleSacId } = options;
+  const { id, session, smolContractId, rpcUrl, networkPassphrase, creatorAddress, kaleSacId } = options;
+  const { contractId, keyId } = session;
 
   const salt = Buffer.from(id.padStart(64, '0'), 'hex');
 
@@ -46,6 +53,7 @@ export async function createMintTransaction(options: MintOptions) {
   const assetCode = id.padStart(64, '0').substring(0, 12);
   const asset = new Asset(assetCode, SMOL_ISSUER);
 
+  assertWalletAction(session); // before building
   let at = await smolClient.coin_it({
     user: contractId,
     asset_bytes: asset.toXDRObject().toXDR(),
@@ -53,7 +61,7 @@ export async function createMintTransaction(options: MintOptions) {
     fee_rule: buildMintFeeRule(creatorAddress, contractId, kaleSacId),
   });
 
-  at = await signWithPasskey(at, { keyId });
+  at = await signWithPasskey(at, { keyId, session }); // asserts before the prompt
 
   const xdrString = at.built?.toXDR();
 
@@ -64,7 +72,8 @@ export async function createMintTransaction(options: MintOptions) {
   return xdrString;
 }
 
-export async function submitMintTransaction(id: string, xdr: string, apiUrl: string) {
+export async function submitMintTransaction(id: string, xdr: string, apiUrl: string, session: WalletActionTicket) {
+  assertWalletAction(session); // still the minter's session: else never POST
   const response = await fetch(
     `${apiUrl}/mint/${id}`,
     {

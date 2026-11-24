@@ -13,6 +13,7 @@
  *   ordering and ids back. Keys requested in the same microtask are batched.
  *   `fresh` reads bypass an already-sent request (see ledgerCoalescer.ts).
  */
+import './bufferGlobal';
 import { xdr } from '@stellar/stellar-sdk/minimal';
 import { createSACBalanceLedgerKey } from './ledgerKeys';
 import { createLedgerCoalescer } from './ledgerCoalescer';

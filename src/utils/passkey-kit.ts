@@ -1,7 +1,14 @@
-import { PasskeyKit, SACClient } from 'passkey-kit';
+import './bufferGlobal';
+// Subpath imports, NOT the `passkey-kit` barrel: the barrel unconditionally
+// re-exports `PasskeyServer` → `@openzeppelin/relayer-plugin-channels` → the
+// FULL `@stellar/stellar-sdk` + axios, which shipped a second ~306 KB gz copy of
+// the Stellar XDR to every wallet route. The browser only needs the kit + SAC.
+import { PasskeyKit } from 'passkey-kit/src/kit';
+import { SACClient } from 'passkey-kit/src/sac';
 import { AssembledTransaction } from '@stellar/stellar-sdk/minimal/contract';
 import type { Tx } from '@stellar/stellar-sdk/minimal/contract';
 import { clearTurnstileToken, ensureTurnstileToken } from '../stores/turnstile.svelte';
+import { relayXdr } from './relayDispatch';
 
 export const account = new PasskeyKit({
   rpcUrl: import.meta.env.PUBLIC_RPC_URL,
@@ -17,7 +24,16 @@ export const sac = new SACClient({
 
 export const kale = sac.getSACClient(import.meta.env.PUBLIC_KALE_SAC_ID);
 
-export async function send<T>(txn: AssembledTransaction<T> | Tx | string) {
+export interface SendOptions {
+  /**
+   * The action's final, SYNCHRONOUS check (e.g. `walletDispatchGuard(ticket)`),
+   * run after the Turnstile token resolves and immediately before the relayer
+   * POST, with no await in between. If it throws, nothing is sent.
+   */
+  beforeDispatch?: () => void;
+}
+
+export async function send<T>(txn: AssembledTransaction<T> | Tx | string, opts: SendOptions = {}) {
   let xdr: string;
   if (txn instanceof AssembledTransaction) {
     xdr = txn.built!.toXDR();
@@ -27,27 +43,11 @@ export async function send<T>(txn: AssembledTransaction<T> | Tx | string) {
     xdr = txn;
   }
 
-  const token = await ensureTurnstileToken();
-
-  const relayerUrl = import.meta.env.PUBLIC_RELAYER_URL;
-  if (!relayerUrl) {
-    throw new Error('Relayer URL not configured');
-  }
-
-  const response = await fetch(relayerUrl, {
-    method: 'POST',
-    headers: {
-      'X-Turnstile-Response': token,
-    },
-    body: new URLSearchParams({ xdr }),
+  return relayXdr({
+    xdr,
+    relayerUrl: import.meta.env.PUBLIC_RELAYER_URL,
+    getToken: ensureTurnstileToken,
+    clearToken: clearTurnstileToken,
+    beforeDispatch: opts.beforeDispatch,
   });
-
-  clearTurnstileToken();
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Relayer proxy error: ${error}`);
-  }
-
-  return response.json();
 }

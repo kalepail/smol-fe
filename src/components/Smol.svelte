@@ -7,7 +7,7 @@
   import SmolTradeSection from './smol/SmolTradeSection.svelte';
   import SimilarSmols from './search/SimilarSmols.svelte';
   import StateFeedback from './ui/StateFeedback.svelte';
-  import { userState } from '../stores/user.svelte';
+  import { captureSessionTicket, userState } from '../stores/user.svelte';
   import { updateContractBalance } from '../stores/balance.svelte';
   import { toast } from '../stores/toast.svelte';
   import { confirmAction } from '../stores/confirm.svelte';
@@ -505,7 +505,10 @@
   async function triggerMint() {
     if (!id || minting || minted) return;
 
-    if (!userState.contractId || !userState.keyId) {
+    // The session this mint is for (captured at click): the mint is built for,
+    // signed by and submitted from exactly this wallet, or aborted.
+    const session = captureSessionTicket();
+    if (!session) {
       openAuthSheet('signin', 'Sign in to mint this song as a collectible.');
       return;
     }
@@ -553,8 +556,7 @@
       await mintingHook.triggerMint(
         {
           id,
-          contractId: userState.contractId,
-          keyId: userState.keyId,
+          session,
           smolContractId,
           rpcUrl: import.meta.env.PUBLIC_RPC_URL as string,
           networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE as string,

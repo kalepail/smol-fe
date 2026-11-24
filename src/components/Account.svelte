@@ -1,12 +1,12 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { userState } from '../stores/user.svelte';
+  import { captureSessionTicket, userState } from '../stores/user.svelte';
   import { balanceState, updateContractBalance } from '../stores/balance.svelte';
   import { openAuthSheet } from '../stores/authSheet.svelte';
   import { toast } from '../stores/toast.svelte';
   import { shortenAddress } from '../utils/address';
   import { formatKaleBalance } from '../utils/kaleFormatting';
-  import { getConnectedAccount } from '../utils/wallet';
+  import { assertWalletAction, assertWalletActionUnsent, getConnectedAccount, walletDispatchGuard } from '../utils/wallet';
   import { KALE_DECIMALS } from '../utils/mixtapePricing';
   import { logger } from '../utils/logger';
   import Button from './ui/Button.svelte';
@@ -97,23 +97,33 @@
       return;
     }
 
+    // The account this transfer belongs to, captured NOW: if the session changes
+    // (login as B, logout, another tab) while the wallet restores or the
+    // transfer builds / signs, it aborts. It never re-reads `userState`, so it
+    // can never build, prompt or relay for another account.
+    const session = captureSessionTicket();
+    if (!session) return;
+
     submitting = true;
     try {
       const [{ kale, send }, { signWithPasskey }] = await Promise.all([
-        getConnectedAccount(),
+        getConnectedAccount(session),
         import('../utils/passkeySign'),
       ]);
 
+      assertWalletAction(session); // before building
       let tx = await kale.transfer({
-        from: userState.contractId,
+        from: session.contractId,
         to: destination,
         amount: amountInUnits,
       });
 
-      tx = await signWithPasskey(tx, { keyId: userState.keyId });
+      tx = await signWithPasskey(tx, { keyId: session.keyId, session }); // asserts before the prompt
 
-      await send(tx);
-      await updateContractBalance(userState.contractId, { force: true });
+      assertWalletActionUnsent(session); // before Turnstile + relay
+      // …and again AFTER Turnstile, in the same tick as the relayer POST.
+      await send(tx, { beforeDispatch: walletDispatchGuard(session) });
+      await updateContractBalance(session.contractId, { force: true });
 
       const displayAmount = formatKaleBalance(amountInUnits);
       success = `Sent ${displayAmount} KALE to ${shortenAddress(destination, 4)}.`;

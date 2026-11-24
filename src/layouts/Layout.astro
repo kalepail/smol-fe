@@ -8,6 +8,7 @@ import {
 	readSessionCookieFromRequest,
 	resolveSessionCookieRead,
 } from '../utils/sessionToken';
+import { robotsContent } from '../utils/robots';
 import '../styles/global.css';
 
 interface Props {
@@ -17,6 +18,8 @@ interface Props {
 	image_url?: string | null;
 	/** Keep this page out of search indexes (e.g. a mixtape hidden from the Mixtapes page). */
 	noindex?: boolean;
+	/** With `noindex`: also don't follow links (private / restricted songs). */
+	nofollow?: boolean;
 }
 
 const {
@@ -25,7 +28,15 @@ const {
 	song_url = null,
 	image_url,
 	noindex = false,
+	nofollow = false,
 } = Astro.props;
+
+// E2E only (compiled out unless PUBLIC_E2E_SEAMS=1): the dev server can't be
+// reached as smol.xyz, so Playwright names the production host in a header to
+// exercise the indexable branch.
+const robotsHost =
+	(import.meta.env.PUBLIC_E2E_SEAMS === '1' && Astro.request.headers.get('x-smol-e2e-host')) || Astro.url.hostname;
+const robots = robotsContent({ hostname: robotsHost, noindex, nofollow });
 
 const pageTitle = title ? (title.includes('SMOL') ? title : `${title} · SMOL`) : 'SMOL';
 
@@ -47,7 +58,7 @@ if (session.shouldDeleteCookie) {
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
-		<meta name="robots" content={noindex ? 'noindex' : Astro.url.hostname === 'smol.xyz' ? 'index, follow' : 'noindex, nofollow'} />
+		<meta name="robots" content={robots} />
 		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 		<link rel="apple-touch-icon" href={image_url ? image_url : 'https://smol.xyz/favicon.png'} />
 		<link rel="icon" type="image/png" href={image_url ? image_url : 'https://smol.xyz/favicon.png'} />
