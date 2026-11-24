@@ -420,7 +420,10 @@
     // edit AND the identity of the draft they came from (25d pass 5 P1-1). A song added to Create
     // while the GET is in flight makes the durable draft differ, so Save keeps it.
     const draftTracks = mixtapeDraftState.tracks.filter((track) => track.public !== 0).map((track) => ({ ...track }));
-    const originDraftKey = draftPayloadKey(mixtapeDraftState);
+    // If any draft song is NOT carried into the edit (e.g. a private one), the edit must never
+    // consume the draft — Save then leaves Create untouched, skipped song included (pass 6 P2).
+    const originDraftKey =
+      draftTracks.length === mixtapeDraftState.tracks.length ? draftPayloadKey(mixtapeDraftState) : null;
     switching = true;
     let added = 0;
     try {

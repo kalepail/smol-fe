@@ -83,7 +83,7 @@ export interface StartEditOptions {
    * while it is still the payload that was moved into this edit (pass 4 P1-2).
    */
   fromDraft?: boolean;
-  /** The originating draft's payload key, captured by the caller before any await. */
+  /** The originating draft's payload key, captured by the caller before any await (null = never consume). */
   originDraftKey?: string | null;
   /** "Review in editor first" from the merge sheet: saving also deletes this (reviewed) source copy. */
   mergeFrom?: MergeSourceSnapshot | null;
@@ -154,7 +154,12 @@ export async function startEdit(mixtape: EditableMixtape, options: StartEditOpti
     privateTrackCount: Math.max(0, stored - publicCount),
     fromDraft: options.fromDraft === true,
     // Never recomputed from the live draft here (it may have changed during the detail GET).
-    originDraftKey: options.fromDraft ? options.originDraftKey ?? draftPayloadKey(mixtapeDraftState) : null,
+    // `null` from the caller means "never consume the draft" — only `undefined` falls back.
+    originDraftKey: options.fromDraft
+      ? options.originDraftKey !== undefined
+        ? options.originDraftKey
+        : draftPayloadKey(mixtapeDraftState)
+      : null,
     mergeFrom: options.mergeFrom ?? null,
   };
   editSlots.byOwner[owner] = session;

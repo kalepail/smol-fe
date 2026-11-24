@@ -1429,3 +1429,43 @@ test.describe('25d pass 5 regressions (1440×900)', () => {
     expect(durable?.tracks?.map((t: { id: string }) => t.id)).toEqual(['first-smol', 'second-smol', 'smol-minted']);
   });
 });
+
+// ---------------------------------------------------------------------------
+// 25d pass 6 regression (P2)
+// ---------------------------------------------------------------------------
+
+test.describe('25d pass 6 regression (390×844)', () => {
+  test('P2: "Edit instead" that skips a private draft song never consumes the Create draft on Save', async ({ page, context }) => {
+    await signInAs(context, 't1');
+    await page.goto('/');
+    await page.evaluate(() => {
+      const track = (id: string, title: string, isPublic: 0 | 1) => ({ id, title, coverUrl: null, creator: null, public: isPublic });
+      localStorage.setItem(
+        'smol:mixtape-draft',
+        JSON.stringify({
+          draftId: 'draft-private',
+          title: 'Creasy again',
+          description: '',
+          tracks: [track('first-smol', 'First Track', 1), track('second-smol', 'Second Track', 1), track('smol-minted', 'Starlight Mint Anthem', 0)],
+          updatedAt: new Date().toISOString(),
+        })
+      );
+    });
+    await page.reload();
+    await page.getByRole('button', { name: 'Open mixtape draft (3)' }).click();
+    const builder = openDialog(page);
+    await builder.getByRole('button', { name: 'Edit "Creasy Drops" instead' }).click();
+    await expect(builder.getByRole('heading', { name: 'Editing · Creasy Drops' })).toBeVisible();
+    await builder.getByLabel('Title').fill('Creasy Drops (T)');
+    await builder.getByRole('button', { name: 'Save changes' }).click();
+    await expect(toasts(page).filter({ hasText: 'Saved "Creasy Drops (T)".' })).toBeVisible();
+
+    const durable = await page.evaluate(() => JSON.parse(localStorage.getItem('smol:mixtape-draft') || 'null'));
+    expect(durable?.tracks?.map((t: { id: string; public?: number }) => [t.id, t.public])).toEqual([
+      ['first-smol', 1],
+      ['second-smol', 1],
+      ['smol-minted', 0],
+    ]);
+    await expect(page.getByRole('button', { name: 'Open mixtape draft (3)' })).toBeVisible();
+  });
+});
