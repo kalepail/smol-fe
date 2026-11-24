@@ -1324,3 +1324,108 @@ test.describe('25d pass 4 regressions (390×844)', () => {
     await expect(page.getByRole('button', { name: /More actions for/ })).toHaveCount(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// 25d pass 5 regressions (2 × P1, 1 × P2)
+// ---------------------------------------------------------------------------
+
+test.describe('25d pass 5 regressions (390×844)', () => {
+  test('P1-2: confirming "Discard changes" never overwrites a different edit another tab parked meanwhile', async ({ page, context }) => {
+    const id = await signInAs(context, 's2');
+    await page.goto(`/mixtapes/${id('night-drive')}`);
+    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await openDialog(page).getByLabel('Title').fill('Night Drive, unsaved');
+    await openDialog(page).getByRole('button', { name: 'Close' }).click();
+
+    // Tab A asks to discard Night Drive to open One Song Wonder — and leaves the prompt open.
+    await page.goto(`/mixtapes/${id('solo')}`);
+    await page.locator('[data-owner-callout]').getByRole('button', { name: 'Add songs' }).click();
+    const prompt = openDialog(page, 'Discard changes to "Night Drive, unsaved"?');
+    await expect(prompt).toBeVisible();
+
+    // Meanwhile tab B (same account) parks a dirty Creasy Drops edit.
+    const tabB = await context.newPage();
+    await tabB.goto(`/mixtapes/${id('creasy-v2')}`);
+    await tabB.getByRole('button', { name: 'Edit', exact: true }).click();
+    await openDialog(tabB, 'Discard changes').getByRole('button', { name: 'Discard changes' }).click();
+    await openDialog(tabB).getByLabel('Title').fill('Creasy (B)');
+    await openDialog(tabB).getByRole('button', { name: 'Close' }).click();
+    const key = 'smol:mixtape-edit:CMIXOWNERS2';
+    expect(await tabB.evaluate((k) => localStorage.getItem(k) ?? '', key)).toContain('Creasy (B)');
+
+    // A confirms the prompt that named Night Drive: B's newer, different edit must survive.
+    await prompt.getByRole('button', { name: 'Discard changes' }).click();
+    await expect(toasts(page).filter({ hasText: 'Another tab has newer unsaved changes to "Creasy (B)", so nothing was discarded.' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Editing · One Song Wonder/ })).toHaveCount(0);
+    const stored = await page.evaluate((k) => localStorage.getItem(k) ?? '', key);
+    expect(stored).toContain('Creasy (B)');
+    expect(stored).toContain(id('creasy-v2'));
+    await tabB.close();
+  });
+
+  test('P2: a /mine 401 on an SSR-seeded Yours page drops the SSR owner cards and menus', async ({ page, context }) => {
+    const id = await signInAs(context, 's3');
+    await page.goto('/mixtapes?view=yours');
+    await expect(page.locator(`[data-mixtape-card="${id('creasy-v1')}"]`)).toBeVisible();
+
+    // The session is revoked: browser owner-list reads now get a definitive 401.
+    await page.route(`${api}/mixtapes/mine`, (route) =>
+      route.fulfill({ status: 401, contentType: 'text/plain', headers: cors, body: 'Unauthorized' })
+    );
+    const revoked = page.waitForResponse((res) => res.url() === `${api}/mixtapes/mine` && res.status() === 401);
+    // Any owner write forces an owner-list refresh (here: a title edit from the card menu).
+    await page.locator(`[data-mixtape-card="${id('night-drive')}"]`).getByRole('button', { name: 'More actions for Night Drive' }).click();
+    await page.getByRole('menuitem', { name: 'Edit' }).click();
+    await openDialog(page).getByLabel('Title').fill('Night Drive (renamed)');
+    await openDialog(page).getByRole('button', { name: 'Save changes' }).click();
+    await revoked;
+
+    await expect(page.getByRole('alert').filter({ hasText: 'Couldn’t load your mixtapes' })).toContainText('Sign in again to see your mixtapes.');
+    await expect(page.locator('[data-mixtape-card]')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /More actions for/ })).toHaveCount(0);
+  });
+});
+
+test.describe('25d pass 5 regressions (1440×900)', () => {
+  test.use({ viewport: { width: 1440, height: 900 }, isMobile: false, hasTouch: false });
+
+  test('P1-1: a song added to Create while "Edit instead" loads the target survives Save', async ({ page, context }) => {
+    const id = await signInAs(context, 's1');
+    await seedDraft(page, {
+      title: 'Creasy again',
+      tracks: [
+        { id: 'first-smol', title: 'First Track' },
+        { id: 'second-smol', title: 'Second Track' },
+      ],
+    });
+    await page.getByRole('button', { name: /Mixtape draft/ }).click();
+    const builder = panel(page);
+
+    // Hold the target's detail GET that "Edit instead" issues.
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    let holding = false;
+    await page.route(`${api}/mixtapes/${id('creasy-v2')}`, async (route) => {
+      if (route.request().method() !== 'GET' || holding) return route.continue();
+      holding = true;
+      await held;
+      await route.continue();
+    });
+    await builder.getByRole('button', { name: 'Edit "Creasy Drops" instead' }).click();
+    await expect.poll(() => holding).toBe(true);
+
+    // While the GET is in flight, add a song from the page (non-modal panel) to the Create draft.
+    await page.locator('main').getByRole('button', { name: 'Add Starlight Mint Anthem to mixtape' }).click();
+    await expect
+      .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('smol:mixtape-draft') || '{}').tracks?.length))
+      .toBe(3);
+
+    release();
+    await expect(builder.getByRole('heading', { name: 'Editing · Creasy Drops' })).toBeVisible();
+    await builder.getByLabel('Title').fill('Creasy Drops (A)');
+    await builder.getByRole('button', { name: 'Save changes' }).click();
+    await expect(toasts(page).filter({ hasText: 'Saved "Creasy Drops (A)".' })).toBeVisible();
+    const durable = await page.evaluate(() => JSON.parse(localStorage.getItem('smol:mixtape-draft') || 'null'));
+    expect(durable?.tracks?.map((t: { id: string }) => t.id)).toEqual(['first-smol', 'second-smol', 'smol-minted']);
+  });
+});

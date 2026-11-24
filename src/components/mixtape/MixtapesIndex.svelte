@@ -72,7 +72,10 @@
   const storeReady = $derived(
     Boolean(sessionOwner) && myMixtapesState.status === 'ready' && myMixtapesState.owner === sessionOwner
   );
-  const ssrMine = $derived(initialMine && initialMineOwner && sessionOwner === initialMineOwner ? initialMine : null);
+  // A definitive /mine 401 voids the SSR seed too (25d pass 5 P2): never show stale owner rows.
+  const ssrMine = $derived(
+    !myMixtapesState.authFailed && initialMine && initialMineOwner && sessionOwner === initialMineOwner ? initialMine : null
+  );
   const mineReady = $derived(storeReady || ssrMine !== null);
   const mine = $derived(storeReady ? myMixtapesState.items : (ssrMine ?? []));
   const listed = $derived(mine.filter((item) => item.visibility !== 'owner'));

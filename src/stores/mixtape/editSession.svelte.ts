@@ -5,6 +5,7 @@
  */
 import type { MixtapeDraft, MixtapeTrack } from '../../types/domain';
 import { userState } from '../user.svelte';
+import { toast } from '../toast.svelte';
 import { loadDraftFromStorage, loadEditSlot, persistDraft, persistEditSlot } from './persistence';
 import {
   dedupeTracks,
@@ -82,6 +83,8 @@ export interface StartEditOptions {
    * while it is still the payload that was moved into this edit (pass 4 P1-2).
    */
   fromDraft?: boolean;
+  /** The originating draft's payload key, captured by the caller before any await. */
+  originDraftKey?: string | null;
   /** "Review in editor first" from the merge sheet: saving also deletes this (reviewed) source copy. */
   mergeFrom?: MergeSourceSnapshot | null;
   /** Ask before discarding a dirty edit of a different mixtape (UI supplies the dialog). */
@@ -105,8 +108,22 @@ export async function startEdit(mixtape: EditableMixtape, options: StartEditOpti
     return 'started';
   }
   if (current && isEditSessionDirty(current) && (current.mixtapeId !== mixtape.id || options.tracks) && options.confirmDiscard) {
+    // The confirmation covers ONLY the edit it names (25d pass 5 P1-2).
+    const named = { mixtapeId: current.mixtapeId, updatedAt: current.updatedAt };
     const ok = await options.confirmDiscard(current.title.trim() || current.baseline.title || 'this mixtape');
     if (!ok) return 'cancelled';
+    if (userState.contractId !== owner) return 'cancelled';
+    // Another tab may have parked a different (or newer) edit while the dialog was open: never
+    // replace what the owner didn't agree to discard — adopt it and say so.
+    const durable = loadEditSlot(owner);
+    if (durable && (durable.mixtapeId !== named.mixtapeId || durable.updatedAt !== named.updatedAt)) {
+      editSlots.byOwner[owner] = durable;
+      toast.info(
+        `Another tab has newer unsaved changes to "${durable.title.trim() || 'a mixtape'}", so nothing was discarded. They’re in your editor.`,
+        { tag: 'mixtape-lifecycle', duration: 8000 }
+      );
+      return 'cancelled';
+    }
   }
   // The account may have changed while the dialog was open.
   if (userState.contractId !== owner) return 'cancelled';
@@ -136,7 +153,8 @@ export async function startEdit(mixtape: EditableMixtape, options: StartEditOpti
     baselineHiddenReason: mixtape.hiddenReason ?? null,
     privateTrackCount: Math.max(0, stored - publicCount),
     fromDraft: options.fromDraft === true,
-    originDraftKey: options.fromDraft ? draftPayloadKey(mixtapeDraftState) : null,
+    // Never recomputed from the live draft here (it may have changed during the detail GET).
+    originDraftKey: options.fromDraft ? options.originDraftKey ?? draftPayloadKey(mixtapeDraftState) : null,
     mergeFrom: options.mergeFrom ?? null,
   };
   editSlots.byOwner[owner] = session;

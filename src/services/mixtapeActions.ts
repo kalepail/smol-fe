@@ -145,6 +145,8 @@ export async function openMixtapeEditor(
     view?: MixtapeSheetView;
     tracks?: (detail: MixtapeDetail) => MixtapeTrack[];
     fromDraft?: boolean;
+    /** Identity of the originating Create draft, captured BEFORE any await (pass 5 P1-1). */
+    originDraftKey?: string | null;
     mergeFrom?: MergeSourceSnapshot | null;
   } = {}
 ): Promise<'started' | 'cancelled' | 'failed'> {
@@ -153,6 +155,7 @@ export async function openMixtapeEditor(
   const result = await startEdit(toEditable(detail), {
     tracks: options.tracks?.(detail),
     fromDraft: options.fromDraft,
+    originDraftKey: options.originDraftKey,
     mergeFrom: options.mergeFrom,
     confirmDiscard: confirmDiscardEdit,
   });

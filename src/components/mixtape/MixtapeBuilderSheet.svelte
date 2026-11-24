@@ -41,6 +41,7 @@
   } from '../../services/mixtapeActions';
   import { isMatchReason, previewMixtapeChange, type MixtapePreview } from '../../utils/mixtapeCoaching';
   import { normalizeMixtapeText } from '../../utils/mixtapeVisibility';
+  import { draftPayloadKey } from '../../stores/mixtape/operations';
   import { logger } from '../../utils/logger';
   import Sheet from '../ui/Sheet.svelte';
   import DockedPanel from '../ui/DockedPanel.svelte';
@@ -415,12 +416,17 @@
 
   /** "Edit X instead": move the draft's songs into the matching mixtape (edit slot). */
   async function handleEditInstead(matchId: string) {
+    // ONE synchronous snapshot, taken before the target's detail GET: the songs moved into the
+    // edit AND the identity of the draft they came from (25d pass 5 P1-1). A song added to Create
+    // while the GET is in flight makes the durable draft differ, so Save keeps it.
     const draftTracks = mixtapeDraftState.tracks.filter((track) => track.public !== 0).map((track) => ({ ...track }));
+    const originDraftKey = draftPayloadKey(mixtapeDraftState);
     switching = true;
     let added = 0;
     try {
       const result = await openMixtapeEditor(matchId, {
         fromDraft: true,
+        originDraftKey,
         tracks: (detail) => {
           const matchTracks = detailToTracks(detail);
           const matchIds = new Set(matchTracks.map((track) => track.id));
