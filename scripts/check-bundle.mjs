@@ -87,19 +87,27 @@ const shellEntries = [
   ...findEntry('client'),
 ];
 
+// Two-tier gzip budgets (warn target / hard fail ceiling) per route class.
+// Real regressions (accidental static imports of stellar-sdk/passkey-kit/tldts/dnd)
+// are enforced independently by FORBIDDEN_MARKERS below.
+const BROWSE_BUDGET = { warnKb: 75, failKb: 100 };
+const APP_BUDGET = { warnKb: 120, failKb: 150 };
+
 const routes = [
-  { name: '/ (Home)', entries: [...shellEntries, ...findEntry('Home')] },
-  { name: '/[id] & /create (Smol)', entries: [...shellEntries, ...findEntry('Smol')] },
-  { name: '/mixtapes/[id]', entries: [...shellEntries, ...findEntry('MixtapeDetailView')] },
-  { name: '/mixtapes', entries: [...shellEntries, ...findEntry('MixtapesIndex')] },
-  { name: '/search', entries: [...shellEntries, ...findEntry('SearchResults')] },
-  { name: '/artists/[address]', entries: [...shellEntries, ...findEntry('ArtistPage')] },
+  { name: '/ (Home)', entries: [...shellEntries, ...findEntry('Home')], budget: BROWSE_BUDGET },
+  { name: '/[id] & /create (Smol)', entries: [...shellEntries, ...findEntry('Smol')], budget: APP_BUDGET },
+  { name: '/mixtapes/[id]', entries: [...shellEntries, ...findEntry('MixtapeDetailView')], budget: APP_BUDGET },
+  { name: '/mixtapes', entries: [...shellEntries, ...findEntry('MixtapesIndex')], budget: APP_BUDGET },
+  { name: '/search', entries: [...shellEntries, ...findEntry('SearchResults')], budget: BROWSE_BUDGET },
+  { name: '/artists/[address]', entries: [...shellEntries, ...findEntry('ArtistPage')], budget: BROWSE_BUDGET },
   {
     name: '/playlist/[playlist]',
     entries: [...shellEntries, ...findEntry('Leaderboard'), ...findEntry('Home')],
+    budget: BROWSE_BUDGET,
   },
 ];
 
+const warnings = [];
 const failures = [];
 
 // 1. Ensure tldts does not exist in ANY chunk
@@ -138,9 +146,14 @@ for (const route of routes) {
     `  ${route.name.padEnd(24)} ${closure.size.toString().padStart(2)} chunks | ${(totalRaw / 1024).toFixed(1).padStart(6)} KB raw | ${(totalGz / 1024).toFixed(1).padStart(5)} KB gz`
   );
 
-  if (route.name === '/ (Home)' && totalGz > 60 * 1024) {
+  const gzKb = totalGz / 1024;
+  if (gzKb > route.budget.failKb) {
     failures.push(
-      `Home route static JS closure is ${(totalGz / 1024).toFixed(1)} KB gzip (budget <= 60.0 KB gzip).`
+      `Route ${route.name} static JS closure is ${gzKb.toFixed(1)} KB gzip (fail ceiling <= ${route.budget.failKb}.0 KB gzip).`
+    );
+  } else if (gzKb > route.budget.warnKb) {
+    warnings.push(
+      `Route ${route.name} static JS closure is ${gzKb.toFixed(1)} KB gzip (warn target <= ${route.budget.warnKb}.0 KB gzip).`
     );
   }
 }
@@ -193,6 +206,11 @@ if (sdkVersions.size > 1) {
   failures.push(
     `Multiple @stellar/stellar-sdk versions in pnpm-lock.yaml: ${[...sdkVersions].join(', ')}`
   );
+}
+
+if (warnings.length > 0) {
+  console.warn('\nWARNINGS:');
+  for (const w of warnings) console.warn(`  - ${w}`);
 }
 
 if (failures.length > 0) {

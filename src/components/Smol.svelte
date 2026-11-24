@@ -6,7 +6,6 @@
   import SmolDisplay from './smol/SmolDisplay.svelte';
   import SmolTradeSection from './smol/SmolTradeSection.svelte';
   import SimilarSmols from './search/SimilarSmols.svelte';
-  import Skeleton from './ui/Skeleton.svelte';
   import StateFeedback from './ui/StateFeedback.svelte';
   import { userState } from '../stores/user.svelte';
   import { updateContractBalance } from '../stores/balance.svelte';
@@ -605,7 +604,24 @@
 
 {#if loading}
   <div class="app-container py-8">
-    <Skeleton variant="hero" />
+    <div class="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-10" aria-hidden="true">
+      <div class="space-y-4">
+        <div class="mx-auto aspect-square w-full max-w-[min(240px,30dvh)] animate-pulse rounded-[var(--radius-media)] bg-surface-1 lg:mx-0 lg:max-w-none"></div>
+        <div class="hidden h-44 w-full animate-pulse rounded-[var(--radius-control)] bg-surface-1 lg:block"></div>
+      </div>
+      <div class="space-y-4">
+        <div class="h-9 w-2/3 animate-pulse rounded bg-surface-1"></div>
+        <div class="h-4 w-1/3 animate-pulse rounded bg-surface-1"></div>
+        <div class="flex gap-2">
+          <div class="h-11 w-32 animate-pulse rounded-full bg-surface-1"></div>
+          <div class="h-11 w-24 animate-pulse rounded-full bg-surface-1"></div>
+          <div class="size-11 animate-pulse rounded-full bg-surface-1"></div>
+        </div>
+        <div class="h-20 w-full animate-pulse rounded-[var(--radius-control)] bg-surface-1"></div>
+        <div class="h-24 w-full animate-pulse rounded-[var(--radius-control)] bg-surface-1"></div>
+        <div class="h-36 w-full animate-pulse rounded-[var(--radius-control)] bg-surface-1"></div>
+      </div>
+    </div>
   </div>
 {:else if error}
   <div class="app-container py-16">

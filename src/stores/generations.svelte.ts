@@ -1,6 +1,5 @@
 import { navigate } from 'astro:transitions/client';
 import type { SmolDetailResponse } from '../types/domain';
-import { expectedTakeCount, providerOf } from '../utils/takes';
 import { toast } from './toast.svelte';
 
 interface TrackedGeneration {
@@ -64,7 +63,16 @@ function schedulePoll(entry: TrackedGeneration) {
 
       const data = (await response.json()) as SmolDetailResponse;
       const songs = data.kv_do?.songs ?? [];
-      const expected = expectedTakeCount(providerOf(data));
+      const provider =
+        data.kv_do?.generation_meta?.actual_provider ??
+        data.kv_do?.actual_provider ??
+        data.d1?.Actual_Provider ??
+        data.kv_do?.active_provider ??
+        data.kv_do?.generation_meta?.requested_provider ??
+        data.kv_do?.requested_provider ??
+        data.kv_do?.payload?.provider ??
+        data.d1?.Requested_Provider;
+      const expected = provider === 'elevenlabs' ? 1 : 2;
       const ready = songs.length >= expected && songs.every((song) => song.music_id && song.status >= 4);
       const published = Boolean(data.d1?.Id) && !data.wf;
       const wfStatus = data.wf?.status;
