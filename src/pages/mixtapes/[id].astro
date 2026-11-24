@@ -39,6 +39,8 @@ if (initialData && id && sessionSubject(Astro) === initialData.creator) {
   verifiedOwner = Array.isArray(mine) && mine.some((row) => row.Id === id && row.Address === initialData.creator);
 }
 const ssrOwnerCallout = verifiedOwner && noindex;
+// Marks the island that reads the KALE key in its batched snapshot: the header holds for it.
+const kalePageOwner = !initialNotFound;
 const noop = () => {};
 const title = initialData ? initialData.title : 'Mixtape not found';
 const description = initialData?.description || 'Smol art onchain';
@@ -51,5 +53,6 @@ const image_url = initialData?.coverUrls[0] ?? null;
       <MixtapeOwnerCallout mixtape={initialData} onEdit={noop} onAddSongs={noop} onMerge={noop} onDelete={noop} />
     </div>
   )}
+  {kalePageOwner && <template data-kale-page-owner></template>}
   <MixtapeDetailView id={id ?? ''} {initialData} {initialNotFound} {verifiedOwner} client:only="svelte" />
 </Layout>

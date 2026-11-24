@@ -149,7 +149,9 @@ for (const viewport of [
       await expect(page.getByRole('button', { name: 'Try again' })).toHaveCount(0);
 
       // G3 runtime check: logged-in navigation across non-wallet routes (including in-app nav to an already-minted song)
-      // never loads passkey-kit, Stellar SDK, or MixtapeBuilder chunks eagerly.
+      // never loads passkey-kit, the full Stellar SDK, or MixtapeBuilder chunks. The signed-in header KALE balance
+      // lazily imports the batched ledger reader (minimal SDK only) after hydration; its static closure stays
+      // SDK-free (enforced by scripts/check-bundle.mjs).
       await page.goto('/');
       await page.locator('a[href="/smol-minted"]').first().click();
       await expect(page).toHaveURL('/smol-minted');
@@ -160,7 +162,7 @@ for (const viewport of [
       await page.goto('/mixtapes/fixture-mixtape');
       await page.goto('/search?q=love');
       for (const scriptUrl of requestedScripts) {
-        expect(scriptUrl).not.toMatch(/passkey-kit|stellar-sdk|tldts|svelte-dnd-action|MixtapeBuilder\.svelte|MixtapeBuilderSheet|MintTradeModal/i);
+        expect(scriptUrl).not.toMatch(/passkey-kit|stellar-sdk(?!_minimal)|tldts|svelte-dnd-action|MixtapeBuilder\.svelte|MixtapeBuilderSheet|MintTradeModal/i);
       }
     });
 

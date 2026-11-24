@@ -19,6 +19,7 @@ import {
   observeAuthTransitions,
   readAuthEpochCookie,
   readAuthTransitionMarker,
+  subscribeAuthTransitions,
   submitLogin,
   submitLogout,
 } from '../../src/services/api/auth.ts';
@@ -1035,4 +1036,58 @@ test('SSR pages only opt into forwardAuth on authenticated endpoints (/[id] and 
     const content = readFileSync(resolve(ROOT, relPath), 'utf8');
     assert.doesNotMatch(content, /forwardAuth/, `${relPath} must not forward smol_token`);
   }
+});
+
+test('subscribeAuthTransitions fires on another tab\'s BroadcastChannel or storage transition, and unsubscribes cleanly (Report 49 P2-4)', () => {
+  const channels = new Set<FakeChannel>();
+  class FakeChannel {
+    name: string;
+    onmessage: ((event: MessageEvent) => void) | null = null;
+    constructor(name: string) {
+      this.name = name;
+      channels.add(this);
+    }
+    postMessage(data: unknown) {
+      for (const peer of channels) {
+        if (peer !== this && peer.name === this.name) peer.onmessage?.({ data } as MessageEvent);
+      }
+    }
+    close() {
+      channels.delete(this);
+    }
+  }
+  const listeners = new Map<string, Set<(event: Event) => void>>();
+  const target = {
+    addEventListener: (type: string, fn: (event: Event) => void) => {
+      if (!listeners.has(type)) listeners.set(type, new Set());
+      listeners.get(type)!.add(fn);
+    },
+    removeEventListener: (type: string, fn: (event: Event) => void) => listeners.get(type)?.delete(fn),
+  } as unknown as Pick<Window, 'addEventListener' | 'removeEventListener'>;
+  const emitStorage = (key: string) => {
+    for (const fn of listeners.get('storage') ?? []) fn({ key } as unknown as Event);
+  };
+
+  let fired = 0;
+  const unsubscribe = subscribeAuthTransitions(() => fired++, {
+    BroadcastChannelCtor: FakeChannel as unknown as typeof BroadcastChannel,
+    target,
+  });
+  notifyAuthTransition({
+    storage: null,
+    document: null,
+    BroadcastChannelCtor: FakeChannel as unknown as typeof BroadcastChannel,
+  });
+  assert.equal(fired, 1, 'BroadcastChannel transition');
+  emitStorage('unrelated');
+  assert.equal(fired, 1);
+  emitStorage(AUTH_TRANSITION_STORAGE_KEY);
+  assert.equal(fired, 2, 'storage transition');
+
+  unsubscribe();
+  unsubscribe();
+  assert.equal(channels.size, 0);
+  assert.equal(listeners.get('storage')?.size, 0);
+  emitStorage(AUTH_TRANSITION_STORAGE_KEY);
+  assert.equal(fired, 2);
 });

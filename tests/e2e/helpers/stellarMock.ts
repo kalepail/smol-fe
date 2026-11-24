@@ -22,6 +22,14 @@ export interface ChainScenario {
   kaleMalformed?: boolean;
   /** Ledger tip reported by getLedgerEntries / getHealth. Default 65,635,400. */
   latestLedger?: number;
+  /** KALE balance per holder address (falls back to `kale`). */
+  kaleByHolder?: Record<string, bigint>;
+  /**
+   * Hold matching getLedgerEntries responses until this settles. The scenario
+   * is captured when the request ARRIVES, so a held response carries the
+   * balances of that moment (an "older" read), whatever changes meanwhile.
+   */
+  hold?: Promise<unknown>;
 }
 
 export const AUDITED_COMET_HASH = '61e1fc5401a7b22418c2bd3bc5bd2c07241e4dae098c587c89f3f666aca12e37';
@@ -77,6 +85,7 @@ export async function installStellarMock(page: Page, getScenario: () => ChainSce
     const method = body.method as string;
     if (method in stats) (stats as unknown as Record<string, number>)[method]++;
     if (scenario.delayMs) await new Promise((r) => setTimeout(r, scenario.delayMs));
+    if (method === 'getLedgerEntries' && scenario.hold) await scenario.hold;
 
     if (method === 'getVersionInfo') {
       await route.fulfill({
@@ -141,7 +150,9 @@ export async function installStellarMock(page: Page, getScenario: () => ChainSce
             entry(new Address(pair.sac).toScVal(), record(9_900_000_000_000_000n, 1)),
           ]);
         } else if (name === 'Balance') {
-          const amount = contract === KALE_SAC ? scenario.kale : bySac.has(contract) ? scenario.balances[bySac.get(contract)!] : undefined;
+          const holder = parts[1] ? Address.fromScVal(parts[1]).toString() : '';
+          const kale = scenario.kaleByHolder?.[holder] ?? scenario.kale;
+          const amount = contract === KALE_SAC ? kale : bySac.has(contract) ? scenario.balances[bySac.get(contract)!] : undefined;
           if (amount !== undefined) {
             const malformed = contract === KALE_SAC && scenario.kaleMalformed;
             val = xdr.ScVal.scvMap([

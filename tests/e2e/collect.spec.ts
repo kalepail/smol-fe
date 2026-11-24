@@ -112,9 +112,13 @@ for (const vp of VIEWPORTS) {
       await expect(card(page).getByRole('button', { name: 'Mint 3 & buy 5 · 465 KALE' })).toBeEnabled();
       await expect(card(page).getByText('No second purchase')).toBeVisible();
       await expect(page.getByText('4/12 owned')).toBeVisible();
+      // The TopBar pill auto-loads KALE from that SAME read (no second call).
+      const headerPill = page.getByRole('button', { name: /Open account menu/i });
+      await expect(headerPill.locator('[data-header-balance]')).toHaveText('1K KALE');
+      await expect(headerPill).toHaveAttribute('title', '1,000 KALE');
       await assertNoHorizontalOverflow(page);
       await capture(page, `S3-mixed-${vp.tag}`);
-      expect(stats.getLedgerEntries, '12 tracks × (SAC, pool instance, pool records, balance) + KALE = 49 keys in ONE call').toBe(1);
+      expect(stats.getLedgerEntries, '12 tracks × (SAC, pool instance, pool records, balance) + KALE = 49 keys in ONE call, shared by the collector AND the header pill').toBe(1);
       expect(stats.keys[0]).toBe(49);
       expect(stats.getVersionInfo, 'archive capability checked once').toBe(1);
       expect(stats.getLatestLedger).toBe(0);

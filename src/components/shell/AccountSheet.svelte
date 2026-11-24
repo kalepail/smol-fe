@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { userState } from '../../stores/user.svelte';
   import { balanceState, updateContractBalance } from '../../stores/balance.svelte';
   import {
@@ -9,7 +10,7 @@
   } from '../../stores/mixtape.svelte';
   import { loadMyMixtapes, myMixtapesCounts, myMixtapesState } from '../../stores/myMixtapes.svelte';
   import { useAuthentication } from '../../hooks/useAuthentication';
-  import { formatKaleBalanceWithSuffix } from '../../utils/kaleFormatting';
+  import { formatKaleBalance } from '../../utils/kaleFormatting';
   import { shortenAddress } from '../../utils/address';
   import { toast } from '../../stores/toast.svelte';
   import Sheet from '../ui/Sheet.svelte';
@@ -27,7 +28,6 @@
 
   const authHook = useAuthentication();
   let signingOut = $state(false);
-  let balanceRequested = $state(false);
 
   const draftCount = $derived(mixtapeDraftState.tracks.length);
   const editSession = $derived(mixtapeEditState.session);
@@ -35,16 +35,28 @@
     myMixtapesState.status === 'ready' && myMixtapesState.owner === userState.contractId ? myMixtapesCounts.current : null
   );
 
-  // Same on-demand pattern as the balance: owner mixtapes load when the sheet opens (SWR).
+  // Owner mixtapes load when the sheet opens (SWR).
   $effect(() => {
     if (open && userState.contractId) void loadMyMixtapes();
   });
 
-  // Only load KALE balance on demand when the user actually opens the account sheet.
-  function loadBalanceOnDemand() {
+  // KALE balance: the TopBar already auto-loads it, so this is a free no-op
+  // while fresh (15s SWR) or in flight; otherwise it revalidates on open.
+  $effect(() => {
+    const wallet = userState.contractId;
+    if (open && wallet) untrack(() => void updateContractBalance(wallet));
+  });
+
+  const sheetBalance = $derived(
+    userState.contractId && balanceState.address === userState.contractId ? balanceState.balance : null
+  );
+
+  // A refresh failed but the last real value is still shown: say so, offer Retry.
+  const refreshFailed = $derived(sheetBalance !== null && balanceState.error && !balanceState.loading);
+
+  function refreshBalance() {
     if (!userState.contractId || balanceState.loading) return;
-    balanceRequested = true;
-    void updateContractBalance(userState.contractId);
+    void updateContractBalance(userState.contractId, { force: true });
   }
 
   async function copyAddress() {
@@ -97,24 +109,58 @@
           </Button>
         </div>
 
-        <div class="mt-3 flex items-center justify-between border-t border-line pt-3">
+        <div class="mt-3 flex items-center justify-between gap-2 border-t border-line pt-3">
           <span class="text-xs text-ink-2">KALE balance</span>
-          {#if balanceState.loading}
-            <Loader classNames="size-4" textColor="text-ink-2" />
-          {:else if balanceState.balance !== null}
-            <span class="tabular text-sm font-medium text-ink-1">
-              {formatKaleBalanceWithSuffix(balanceState.balance)}
+          {#if sheetBalance !== null}
+            <span class="flex min-w-0 items-center gap-1">
+              <span data-sheet-balance class="tabular truncate text-sm font-medium text-ink-1">
+                {formatKaleBalance(sheetBalance)} KALE
+              </span>
+              {#if refreshFailed}
+                <button
+                  type="button"
+                  data-sheet-balance-retry
+                  class="focus-ring -mr-2 inline-flex min-h-11 shrink-0 items-center gap-1 rounded-[var(--radius-control)] px-3 text-xs font-medium text-accent hover:bg-accent/10"
+                  onclick={refreshBalance}
+                >
+                  <Icon name="refresh" size={14} />
+                  <span>Retry</span>
+                </button>
+              {:else}
+                <button
+                  type="button"
+                  class="focus-ring -mr-2 inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-white/5 hover:text-ink-1 disabled:opacity-60"
+                  aria-label={balanceState.loading ? 'Refreshing KALE balance' : 'Refresh KALE balance'}
+                  title="Refresh"
+                  disabled={balanceState.loading}
+                  onclick={refreshBalance}
+                >
+                  <Icon name="refresh" size={16} class={balanceState.loading ? 'animate-spin' : ''} />
+                </button>
+              {/if}
+            </span>
+          {:else if balanceState.error && !balanceState.loading}
+            <span class="flex items-center gap-1">
+              <span class="text-sm text-ink-3">Unavailable</span>
+              <button
+                type="button"
+                class="focus-ring -mr-2 inline-flex min-h-11 items-center rounded-[var(--radius-control)] px-3 text-xs font-medium text-accent hover:bg-accent/10"
+                onclick={refreshBalance}
+              >
+                Retry
+              </button>
             </span>
           {:else}
-            <button
-              type="button"
-              class="focus-ring inline-flex min-h-11 items-center rounded-[var(--radius-control)] px-3 text-xs font-medium text-accent hover:bg-accent/10"
-              onclick={loadBalanceOnDemand}
-            >
-              {balanceRequested ? 'Retry' : 'Check balance'}
-            </button>
+            <span class="inline-flex min-h-11 items-center" aria-label="Loading KALE balance" role="status">
+              <Loader classNames="size-4" textColor="text-ink-2" />
+            </span>
           {/if}
         </div>
+        {#if refreshFailed}
+          <p data-sheet-balance-error role="status" class="mt-1 text-right text-xs text-ink-2">
+            Couldn't refresh. Showing the last known balance.
+          </p>
+        {/if}
       </div>
 
       <!-- Navigation links -->

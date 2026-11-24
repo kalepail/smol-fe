@@ -11,8 +11,12 @@
  *   instances and Comet `AllRecordData` maps for a whole mixtape.
  * - In-flight coalescing is per canonical key; each caller gets its own
  *   ordering and ids back. Keys requested in the same microtask are batched.
+ *   `fresh` reads bypass an already-sent request (see ledgerCoalescer.ts).
  */
-import { Address, xdr } from '@stellar/stellar-sdk/minimal';
+import { xdr } from '@stellar/stellar-sdk/minimal';
+import { createSACBalanceLedgerKey } from './ledgerKeys';
+import { createLedgerCoalescer } from './ledgerCoalescer';
+import { ledgerSession } from './ledgerSession';
 import { rpc } from './base';
 import { logger } from './logger';
 import {
@@ -38,39 +42,12 @@ export const MAX_LEDGER_KEYS_PER_CALL = 200;
 
 export type { LedgerEntryRead } from './ledgerReads';
 
-// ---------------------------------------------------------------------------
-// Key builders
-// ---------------------------------------------------------------------------
-
-function contractDataKey(contractId: string, key: xdr.ScVal): string {
-  return xdr.LedgerKey.contractData(
-    new xdr.LedgerKeyContractData({
-      contract: new Address(contractId).toScAddress(),
-      key,
-      durability: xdr.ContractDataDurability.persistent(),
-    })
-  ).toXDR('base64');
-}
-
-export function createSACBalanceLedgerKey(tokenContractId: string, holderAddress: string): string {
-  return contractDataKey(
-    tokenContractId,
-    xdr.ScVal.scvVec([xdr.ScVal.scvSymbol('Balance'), new Address(holderAddress).toScVal()])
-  );
-}
-
-export function createContractInstanceLedgerKey(contractId: string): string {
-  return contractDataKey(contractId, xdr.ScVal.scvLedgerKeyContractInstance());
-}
-
-/** Comet reserve map: persistent `["AllRecordData"]` → Map<address, record>. */
-export function createCometRecordsLedgerKey(poolId: string): string {
-  return contractDataKey(poolId, xdr.ScVal.scvVec([xdr.ScVal.scvSymbol('AllRecordData')]));
-}
-
-// ---------------------------------------------------------------------------
-// Coalesced reader
-// ---------------------------------------------------------------------------
+// Key builders (SDK built-ins; see ledgerKeys.ts)
+export {
+  createCometRecordsLedgerKey,
+  createContractInstanceLedgerKey,
+  createSACBalanceLedgerKey,
+} from './ledgerKeys';
 
 // ---------------------------------------------------------------------------
 // Reader capability: does an omitted persistent entry mean "absent"?
@@ -92,14 +69,15 @@ export function getReaderArchiveAware(): Promise<boolean> {
   return capability.isAware();
 }
 
-const inflight = new Map<string, Promise<LedgerEntryRead>>();
-let pending: Map<string, (read: LedgerEntryRead) => void> | null = null;
+// ---------------------------------------------------------------------------
+// Coalesced reader
+// ---------------------------------------------------------------------------
 
 function canonical(key: string): string {
   return xdr.LedgerKey.fromXDR(key, 'base64').toXDR('base64');
 }
 
-async function fetchChunk(keys: string[], resolvers: Map<string, (r: LedgerEntryRead) => void>) {
+async function fetchChunk(keys: string[]): Promise<Map<string, LedgerEntryRead>> {
   try {
     const [response, archiveAware] = await Promise.all([
       rpc.getLedgerEntries(...keys.map((k) => xdr.LedgerKey.fromXDR(k, 'base64'))),
@@ -121,50 +99,27 @@ async function fetchChunk(keys: string[], resolvers: Map<string, (r: LedgerEntry
     );
     const first = reads.get(keys[0]);
     if (first?.state === 'error') logger.error('rpc', first.error);
-    for (const key of keys) {
-      const read = reads.get(key)!;
+    for (const read of reads.values()) {
       if (read.state === 'found') capability.observe(read.liveUntilLedgerSeq);
-      resolvers.get(key)?.(read);
     }
+    return reads;
   } catch (error) {
     logger.error('rpc', 'getLedgerEntries failed:', error);
-    const message = error instanceof Error ? error.message : 'Ledger read failed';
-    for (const key of keys) resolvers.get(key)?.({ state: 'error', error: message });
+    throw error;
   }
 }
 
-function flush() {
-  const batch = pending;
-  pending = null;
-  if (!batch || batch.size === 0) return;
-  const keys = [...batch.keys()];
-  for (let i = 0; i < keys.length; i += MAX_LEDGER_KEYS_PER_CALL) {
-    void fetchChunk(keys.slice(i, i + MAX_LEDGER_KEYS_PER_CALL), batch);
-  }
-}
-
-function readOne(key: string): Promise<LedgerEntryRead> {
-  const existing = inflight.get(key);
-  if (existing) return existing;
-  if (!pending) {
-    pending = new Map();
-    queueMicrotask(flush);
-  }
-  const batch = pending;
-  const promise = new Promise<LedgerEntryRead>((resolve) => {
-    batch.set(key, resolve);
-  }).finally(() => {
-    inflight.delete(key);
-  });
-  inflight.set(key, promise);
-  return promise;
-}
+const coalescer = createLedgerCoalescer(fetchChunk, { maxPerCall: MAX_LEDGER_KEYS_PER_CALL, session: ledgerSession });
 
 /**
  * Read any set of ledger keys (base64 XDR). Keys requested together (or by
  * concurrent callers in the same tick) go out in ⌈unique/200⌉ calls.
+ * `fresh` (an explicit Refresh) never joins an already-sent older read.
  */
-export async function readLedgerEntries(keys: string[]): Promise<Map<string, LedgerEntryRead>> {
+export async function readLedgerEntries(
+  keys: string[],
+  opts: { fresh?: boolean } = {}
+): Promise<Map<string, LedgerEntryRead>> {
   const out = new Map<string, LedgerEntryRead>();
   const unique = new Map<string, string>();
   for (const key of keys) {
@@ -174,7 +129,7 @@ export async function readLedgerEntries(keys: string[]): Promise<Map<string, Led
       out.set(key, { state: 'error', error: error instanceof Error ? error.message : 'Invalid key' });
     }
   }
-  const reads = await Promise.all([...unique].map(async ([raw, key]) => [raw, await readOne(key)] as const));
+  const reads = await Promise.all([...unique].map(async ([raw, key]) => [raw, await coalescer.read(key, opts)] as const));
   for (const [raw, read] of reads) out.set(raw, read);
   return out;
 }
@@ -186,7 +141,10 @@ export async function readLedgerEntries(keys: string[]): Promise<Map<string, Led
 export type { BalanceBatchRequest, BalanceBatchResult } from './ledgerReads';
 export { knownBalance, toBalanceResult } from './ledgerReads';
 
-export async function getBatchSACBalances(requests: BalanceBatchRequest[]): Promise<BalanceBatchResult[]> {
+export async function getBatchSACBalances(
+  requests: BalanceBatchRequest[],
+  opts: { fresh?: boolean } = {}
+): Promise<BalanceBatchResult[]> {
   if (requests.length === 0) return [];
   const keys: (string | null)[] = requests.map((req) => {
     try {
@@ -195,7 +153,7 @@ export async function getBatchSACBalances(requests: BalanceBatchRequest[]): Prom
       return null;
     }
   });
-  const reads = await readLedgerEntries(keys.filter((k): k is string => Boolean(k)));
+  const reads = await readLedgerEntries(keys.filter((k): k is string => Boolean(k)), opts);
   return requests.map((req, i) => {
     const key = keys[i];
     if (!key) return { ...req, status: 'error', error: 'Invalid address' };

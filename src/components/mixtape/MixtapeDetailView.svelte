@@ -11,6 +11,7 @@
   import { next, player, playQueue, previous, setTrackLiked, toggle } from '../../stores/audio.svelte';
   import { toTrack, trackKey } from '../../utils/track';
   import { userState } from '../../stores/user.svelte';
+  import { claimKaleBalanceLoad, registerKalePageOwner } from '../../stores/balance.svelte';
   import { createCollectController } from '../../stores/mixtapeCollect.svelte';
   import { fetchMixtapeDetail } from '../../services/api/mixtapes';
   import { fetchLikedSmols } from '../../services/api/smols';
@@ -49,15 +50,22 @@
   let loading = $state(true);
   let error = $state<string | null>(null);
   let mixtapeTracks = $state<Smol[]>([]);
+  /**
+   * The detail the collector reads chain state for. Set as soon as the detail
+   * resolves on a first load (GET /likes only decorates the tracklist, so a
+   * slow /likes never delays the snapshot or the header's KALE balance); on
+   * later reloads it moves together with `mixtape`.
+   */
+  let chainDetail = $state<MixtapeDetail | null>(null);
 
   // Collector state (Report 30). Chain reads are dynamic imports inside the
   // controller, so this route's static closure stays free of the Stellar SDK.
   const collect = createCollectController({
     getMixtapeId: () => id,
-    getMixtapeTitle: () => mixtape?.title ?? 'this mixtape',
-    isReady: () => Boolean(mixtape && mixtape.id === id && !loading),
+    getMixtapeTitle: () => mixtape?.title ?? chainDetail?.title ?? 'this mixtape',
+    isReady: () => Boolean(chainDetail && chainDetail.id === id),
     getTracks: () =>
-      (mixtape?.tracks ?? []).map((track) => ({
+      (chainDetail?.tracks ?? []).map((track) => ({
         id: track.Id,
         title: track.Title || 'Untitled track',
         address: track.Address,
@@ -65,6 +73,32 @@
         mintAmm: track.Mint_Amm ?? null,
       })),
   });
+
+  // The collector's snapshot reads this wallet's KALE key in its one batched
+  // call. This island owns the route's KALE load: it registers as the page
+  // owner and claims the load NOW, synchronously on mount (the header holds on
+  // its behalf until then), so the shell's auto-load waits for the snapshot
+  // instead of splitting it into a separate 1-key read. The claim is held until
+  // the collector has read (value or error), the page can't read (not found /
+  // failed), the wallet changes, or the view unmounts; never released on a
+  // timer while the snapshot is still pending.
+  let kaleClaim: { wallet: string; release: () => void } | null = null;
+  /** The wallet this view already claimed for (never re-claims after settling). */
+  let kaleClaimedFor: string | null = null;
+  function releaseKaleClaim() {
+    if (!kaleClaim) return;
+    kaleClaim.release();
+    kaleClaim = null;
+  }
+  function claimKale(wallet: string) {
+    kaleClaimedFor = wallet;
+    kaleClaim = { wallet, release: claimKaleBalanceLoad(wallet) };
+  }
+  let unregisterKaleOwner: (() => void) | null = null;
+  if (typeof window !== 'undefined') {
+    unregisterKaleOwner = registerKalePageOwner();
+    if (userState.contractId) claimKale(userState.contractId);
+  }
 
   const ownsQueue = $derived(player.queueId === id);
   const isPlaying = $derived(ownsQueue && (player.status === 'playing' || player.status === 'loading'));
@@ -158,6 +192,14 @@
       const likedTrackIdsPromise = userState.contractId
         ? fetchLikedSmols().catch(() => [] as string[])
         : Promise.resolve([]);
+      // The collector starts as soon as the detail is known: never behind /likes.
+      void Promise.resolve(detailPromise).then(
+        (detail) => {
+          if (!detail || !detailReads.isCurrent(run)) return;
+          if (!chainDetail || chainDetail.id !== detail.id || !mixtape || mixtape.id !== detail.id) chainDetail = detail;
+        },
+        () => undefined
+      );
       const [mixtapeData, likedTrackIds] = await Promise.all([
         detailPromise,
         likedTrackIdsPromise,
@@ -167,6 +209,7 @@
       if (!mixtapeData) {
         if (options.quiet) return;
         mixtape = null;
+        chainDetail = null;
         return;
       }
 
@@ -179,6 +222,7 @@
         ownershipRefreshing = true;
       }
       mixtape = mixtapeData;
+      chainDetail = mixtapeData;
       // 25d P1-1: the collector's snapshot is stale for the new songs; read ownership afresh.
       if (trackSetChanged) startOwnershipRefresh();
       const likedTrackIdSet = new Set(likedTrackIds);
@@ -221,6 +265,22 @@
       }
       untrack(() => void fetchMixtapeData(mixtapeId, seed));
     }
+  });
+
+  $effect(() => {
+    const wallet = userState.contractId;
+    const settled = collect.hydrated || Boolean(error) || (!loading && !mixtape && !chainDetail);
+    untrack(() => {
+      if (kaleClaim && wallet !== kaleClaim.wallet) releaseKaleClaim();
+      if (!wallet) kaleClaimedFor = null;
+      // Signed in (or switched) on this page: own the new wallet's load too.
+      else if (kaleClaimedFor !== wallet && !settled) claimKale(wallet);
+      if (kaleClaim && settled) releaseKaleClaim();
+    });
+  });
+  $effect(() => () => {
+    releaseKaleClaim();
+    unregisterKaleOwner?.();
   });
 
   // ---------------------------------------------------------------------------

@@ -475,6 +475,13 @@ export function parseUnits(value: unknown): bigint | null {
  * malformed amount anywhere makes the whole snapshot untrusted (null → the
  * caller falls back to ledger reads). Never a known 0n from a bad string.
  */
+/** A server snapshot that names its wallet (`holder` / `wallet`) must name `holder`. */
+export function snapshotMatchesHolder(body: unknown, holder: string): boolean {
+  if (!body || typeof body !== 'object') return true;
+  const b = body as { holder?: unknown; wallet?: unknown };
+  return [b.holder, b.wallet].every((named) => typeof named !== 'string' || named === holder);
+}
+
 export function parseServerSnapshot(
   body: unknown,
   kaleSac: string,

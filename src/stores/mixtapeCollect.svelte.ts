@@ -42,6 +42,7 @@ import {
   expireForeignClaims,
   nextForeignClaimExpiry,
   parseServerSnapshot,
+  snapshotMatchesHolder,
   SIGNING_LEASE_MS,
   stepsFromPlan,
   summarizeMixtape,
@@ -58,8 +59,14 @@ import { fitsMaxIn } from '../utils/cometQuote';
 import { BUY_COST_KALE, BUY_COST_STROOPS, MINT_COST_KALE, MINT_COST_STROOPS } from '../utils/mixtapePricing';
 import { logger } from '../utils/logger';
 import { e2eSeams } from '../utils/collectSeams';
-import { userState } from './user.svelte';
-import { setKnownKaleBalance } from './balance.svelte';
+import { syncUserAuthFromCookie, userState } from './user.svelte';
+import {
+  beginKaleBalanceRead,
+  claimKaleBalanceLoad,
+  resetBalance,
+  setKaleBalanceError,
+  setKnownKaleBalance,
+} from './balance.svelte';
 import { openAuthSheet } from './authSheet.svelte';
 import { toast } from './toast.svelte';
 
@@ -81,8 +88,12 @@ type SnapshotResult = {
 };
 
 /** Optional server snapshot (Report 31 `POST /chain/snapshot`), else null. */
-async function readServerSnapshot(mixtapeId: string, signal?: AbortSignal): Promise<SnapshotResult | null> {
+async function readServerSnapshot(mixtapeId: string, holder: string, signal?: AbortSignal): Promise<SnapshotResult | null> {
   if (import.meta.env.PUBLIC_CHAIN_SNAPSHOT !== '1' && !e2eSeams()?.serverSnapshot) return null;
+  // The POST is credentialed: the server answers for whichever wallet the
+  // cookie names. Reconcile first so another tab's switch never sends this
+  // holder's request under the next wallet's cookie.
+  if (!holderStillSignedIn(holder)) throw new SnapshotAbortedError();
   try {
     const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/chain/snapshot`, {
       method: 'POST',
@@ -94,14 +105,40 @@ async function readServerSnapshot(mixtapeId: string, signal?: AbortSignal): Prom
     });
     if (!response.ok) return null;
     const body = (await response.json()) as unknown;
+    // The local session changed in flight: this read is obsolete.
+    if (!holderStillSignedIn(holder)) throw new SnapshotAbortedError();
+    // Still signed in as `holder`, but the server answered for another wallet:
+    // never publish it as this holder's data; fall back to the ledger batch.
+    if (!snapshotMatchesHolder(body, holder)) {
+      logger.warn('collect', 'Server snapshot named another holder; using ledger reads');
+      return null;
+    }
     const parsed = parseServerSnapshot(body, import.meta.env.PUBLIC_KALE_SAC_ID, Date.now());
     if (!parsed) logger.warn('collect', 'Malformed server snapshot; using ledger reads');
     return parsed ? { latestLedger: null, ...parsed } : null;
   } catch (error) {
-    if (signal?.aborted) throw error;
+    if (signal?.aborted || error instanceof SnapshotAbortedError) throw error;
     logger.warn('collect', 'Server snapshot unavailable; using ledger reads', error);
     return null;
   }
+}
+
+/** The holder signed out or switched while the chain module loaded: nothing was sent. */
+class SnapshotAbortedError extends Error {
+  constructor() {
+    super('Session changed before the snapshot was sent');
+    this.name = 'SnapshotAbortedError';
+  }
+}
+
+/**
+ * Reconcile against the live session cookie (as the shell does on focus) and
+ * confirm `holder` is still the signed-in wallet. Called after every lazy
+ * chain-module import, immediately before the wallet's ledger keys are sent.
+ */
+function holderStillSignedIn(holder: string): boolean {
+  if (syncUserAuthFromCookie()) resetBalance();
+  return userState.contractId === holder;
 }
 
 async function readSnapshot(input: {
@@ -112,10 +149,11 @@ async function readSnapshot(input: {
   serverFirst: boolean;
 }): Promise<SnapshotResult> {
   if (input.serverFirst) {
-    const server = await readServerSnapshot(input.mixtapeId);
+    const server = await readServerSnapshot(input.mixtapeId, input.holder);
     if (server) return server;
   }
   const { readMixtapeChainSnapshot } = await import('../utils/smolChainIdentity');
+  if (!holderStillSignedIn(input.holder)) throw new SnapshotAbortedError();
   return readMixtapeChainSnapshot({
     tracks: input.tracks.map((t) => ({ id: t.id, mintToken: t.mintToken, mintAmm: t.mintAmm })),
     holder: input.holder,
@@ -246,8 +284,14 @@ export function createCollectController(opts: {
   let resumeIntent = false;
   let pollAbort: AbortController | null = null;
   let mintPollKeyActive = '';
-  let refreshPromise: Promise<void> | null = null;
-  let refreshAgain = false;
+  /** The running refresh, scoped to the generation (wallet + mixtape + view) that started it. */
+  let refreshRun: { gen: number; again: boolean; promise: Promise<void> } | null = null;
+  /** Releases for this view's in-flight KALE claims (dropped on context change or unmount). */
+  const kaleClaims = new Set<() => void>();
+  function releaseKaleClaims() {
+    for (const release of kaleClaims) release();
+    kaleClaims.clear();
+  }
   const settledMintIds = new Set<string>();
 
   const signedIn = $derived(Boolean(userState.contractId));
@@ -470,6 +514,8 @@ export function createCollectController(opts: {
 
   function resetContext() {
     generation++;
+    // A departed wallet's (or mixtape's) pending snapshot never blocks the shell.
+    releaseKaleClaims();
     pollAbort?.abort();
     pollAbort = null;
     holdings.clear();
@@ -522,6 +568,7 @@ export function createCollectController(opts: {
   $effect(() => {
     return () => {
       generation++;
+      releaseKaleClaims(); // navigated away: a stalled snapshot never blocks the next page
       pollAbort?.abort();
     };
   });
@@ -574,22 +621,26 @@ export function createCollectController(opts: {
   // -------------------------------------------------------------------------
 
   async function refresh(opts2: { ids?: string[]; markLoading?: boolean } = {}): Promise<void> {
-    if (refreshPromise) {
-      refreshAgain = true;
-      return refreshPromise;
+    // Only a refresh of THIS generation is joined: a new wallet or mixtape
+    // never waits on the previous context's (possibly stalled) read.
+    if (refreshRun && refreshRun.gen === generation) {
+      refreshRun.again = true;
+      return refreshRun.promise;
     }
-    refreshPromise = (async () => {
+    const run = { gen: generation, again: false, promise: Promise.resolve() };
+    refreshRun = run;
+    run.promise = (async () => {
       let o = opts2;
       do {
-        refreshAgain = false;
+        run.again = false;
         await refreshOnce(o);
         // A request that arrived mid-flight gets one full, quiet re-read.
         o = { markLoading: false };
-      } while (refreshAgain);
+      } while (run.again && run.gen === generation);
     })().finally(() => {
-      refreshPromise = null;
+      if (refreshRun === run) refreshRun = null;
     });
-    return refreshPromise;
+    return run.promise;
   }
 
   async function refreshOnce(o: { ids?: string[]; markLoading?: boolean }) {
@@ -608,6 +659,12 @@ export function createCollectController(opts: {
       }
       if (kale.status !== 'known') kale = { status: 'loading' };
     }
+    // Own the shell's KALE load for this read (its KALE key rides the same
+    // batched call) and take a sequencing ticket BEFORE the read starts, so a
+    // newer Refresh always wins over this snapshot's value.
+    const releaseKale = claimKaleBalanceLoad(holder);
+    kaleClaims.add(releaseKale);
+    const kaleSeq = beginKaleBalanceRead(holder);
     try {
       const snap = await readSnapshot({
         mixtapeId: opts.getMixtapeId(),
@@ -616,10 +673,18 @@ export function createCollectController(opts: {
         includeKale: true,
         serverFirst: !o.ids,
       });
-      if (gen !== generation || holder !== userState.contractId) return; // late response
+      // Late response (navigated away, or wallet/mixtape switched): never
+      // publish it to the shared balance store or this view.
+      if (gen !== generation || holder !== userState.contractId) return;
+      publishKale(snap, holder, kaleSeq);
       applySnapshot(snap, subset.map((t) => t.id));
       checkFailures = snap.errors > 0 ? checkFailures + 1 : 0;
     } catch (error) {
+      // Signed out / switched: nothing sent, and the obsolete view resets.
+      // Never a silent abort while this view's session is still current.
+      if (error instanceof SnapshotAbortedError && (gen !== generation || holder !== userState.contractId)) return;
+      // The shell must not re-read the KALE key this failed batch just tried.
+      setKaleBalanceError(holder, { seq: kaleSeq });
       if (gen !== generation) return;
       logger.error('collect', 'Ownership check failed', error);
       for (const t of subset) {
@@ -635,11 +700,37 @@ export function createCollectController(opts: {
       if (kale.status !== 'known') kale = { status: 'error' };
       checkFailures++;
     } finally {
+      releaseKale();
+      kaleClaims.delete(releaseKale);
       if (gen === generation) {
         hydrated = true;
         refreshing = false;
       }
     }
+  }
+
+  /**
+   * A snapshot read whose KALE result (or failure) is published to the shared
+   * balance store under a ticket taken BEFORE the read starts, so the header
+   * shows what this read saw unless a newer read already landed.
+   */
+  async function readSnapshotPublishingKale(holder: string, input: Parameters<typeof readSnapshot>[0]): Promise<SnapshotResult> {
+    const gen = generation;
+    const kaleSeq = beginKaleBalanceRead(holder);
+    try {
+      const snap = await readSnapshot(input);
+      if (gen === generation) publishKale(snap, holder, kaleSeq); // never from a departed view
+      return snap;
+    } catch (error) {
+      if (!(error instanceof SnapshotAbortedError)) setKaleBalanceError(holder, { seq: kaleSeq });
+      throw error;
+    }
+  }
+
+  /** Share the snapshot's KALE result with the shell (store guards wallet + sequence). */
+  function publishKale(snap: Pick<SnapshotResult, 'kale'>, holder: string, seq: number) {
+    if (snap.kale?.status === 'known') setKnownKaleBalance(holder, snap.kale.balance, { seq });
+    else if (snap.kale?.status === 'error') setKaleBalanceError(holder, { seq });
   }
 
   function applySnapshot(snap: SnapshotResult, ids: string[]) {
@@ -652,7 +743,6 @@ export function createCollectController(opts: {
     }
     if (snap.kale?.status === 'known') {
       kale = { status: 'known', balance: snap.kale.balance, checkedAt: now };
-      if (userState.contractId) setKnownKaleBalance(userState.contractId, snap.kale.balance);
     } else if (snap.kale?.status === 'error') {
       kale = { status: 'error' };
     }
@@ -664,12 +754,16 @@ export function createCollectController(opts: {
     if (!holder) return;
     const gen = generation;
     kale = { status: 'loading', balance: kale.status === 'known' ? kale.balance : undefined };
+    const kaleSeq = beginKaleBalanceRead(holder);
     try {
       const { readMixtapeChainSnapshot } = await import('../utils/smolChainIdentity');
+      if (!holderStillSignedIn(holder)) return; // signed out / switched: zero RPCs
       const snap = await readMixtapeChainSnapshot({ tracks: [], holder, includeKale: true });
-      if (gen !== generation) return;
+      if (gen !== generation || holder !== userState.contractId) return;
+      publishKale(snap, holder, kaleSeq);
       applySnapshot({ ...snap, tracks: new Map() }, []);
     } catch {
+      setKaleBalanceError(holder, { seq: kaleSeq });
       if (gen === generation) kale = { status: 'error' };
     }
   }
@@ -942,8 +1036,9 @@ export function createCollectController(opts: {
     }, SIGNING_LEASE_MS / 4);
     try {
       // Pre-flight (C-15, freshness): re-read exactly this step's songs + KALE.
+      // Its KALE result is the newest the app has: publish it to the shell.
       const stepTracks = untrack(() => tracks).filter((t) => step.trackIds.includes(t.id));
-      const snap = await readSnapshot({
+      const snap = await readSnapshotPublishingKale(holder, {
         mixtapeId: opts.getMixtapeId(),
         tracks: stepTracks,
         holder,
@@ -1310,7 +1405,7 @@ export function createCollectController(opts: {
     let latestLedger: number | null = null;
     let readIds = new Set<string>();
     try {
-      const snap = await readSnapshot({
+      const snap = await readSnapshotPublishingKale(holder, {
         mixtapeId: opts.getMixtapeId(),
         tracks: untrack(() => tracks).filter((t) => ids.includes(t.id)),
         holder,

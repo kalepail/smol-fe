@@ -19,6 +19,10 @@ export interface CollectSeams {
   serverSnapshot?: boolean;
   /** Use POST /mint/status as if PUBLIC_MINT_STATUS=1. */
   mintStatus?: boolean;
+  /** Header KALE auto-load defer (ms), to hold the pending timer open in tests. */
+  balanceDeferMs?: number;
+  /** Stands in for the whole trade swap (build, passkey, send) in MintTradeModal. */
+  swap?: () => Promise<unknown>;
 }
 
 export function e2eSeams(): CollectSeams | undefined {

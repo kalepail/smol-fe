@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { untrack } from 'svelte';
   import { userState } from '../stores/user.svelte';
   import { balanceState, updateContractBalance } from '../stores/balance.svelte';
   import { openAuthSheet } from '../stores/authSheet.svelte';
   import { toast } from '../stores/toast.svelte';
   import { shortenAddress } from '../utils/address';
+  import { formatKaleBalance } from '../utils/kaleFormatting';
   import { getConnectedAccount } from '../utils/wallet';
   import { KALE_DECIMALS } from '../utils/mixtapePricing';
   import { logger } from '../utils/logger';
@@ -19,15 +20,27 @@
   let error = $state<string | null>(null);
   let success = $state<string | null>(null);
   // KALE is a SAC with a fixed 7 decimals: no decimals() simulation needed.
-  const kaleDecimals = KALE_DECIMALS;
   const decimalsFactor = 10n ** BigInt(KALE_DECIMALS);
   let showKaleInfo = $state(false);
 
-  onMount(() => {
-    if (userState.contractId && !balanceState.loading) {
-      void updateContractBalance(userState.contractId);
-    }
+  // Auto-load for the signed-in wallet (sign-in, account switch). A no-op
+  // while the shared 15s SWR value is fresh or a read is already in flight.
+  $effect(() => {
+    const wallet = userState.contractId;
+    if (wallet) untrack(() => void updateContractBalance(wallet));
   });
+
+  const accountBalance = $derived(
+    userState.contractId && balanceState.address === userState.contractId ? balanceState.balance : null
+  );
+
+  // A refresh failed but the last real value is still shown: say so, offer Retry.
+  const refreshFailed = $derived(accountBalance !== null && balanceState.error && !balanceState.loading);
+
+  function refreshBalance() {
+    if (!userState.contractId || balanceState.loading) return;
+    void updateContractBalance(userState.contractId, { force: true });
+  }
 
   function parseAmount(value: string | number): bigint | null {
     const sanitized = String(value).trim();
@@ -39,17 +52,6 @@
     } catch {
       return null;
     }
-  }
-
-  function formatKaleBalance(balance: bigint): string {
-    const whole = balance / decimalsFactor;
-    const fraction = balance % decimalsFactor;
-    const intWithCommas = whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-
-    if (fraction === 0n) return intWithCommas;
-
-    const fractionStr = fraction.toString().padStart(kaleDecimals, '0').replace(/0+$/, '');
-    return fractionStr ? `${intWithCommas}.${fractionStr}` : intWithCommas;
   }
 
   async function copyAddress() {
@@ -152,15 +154,40 @@
         </div>
         <p class="break-all font-mono text-xs text-ink-1">{userState.contractId}</p>
         <div class="border-t border-line pt-3">
-          <p class="text-xs text-ink-2">KALE balance</p>
-          {#if balanceState.loading}
-            <Skeleton variant="line" class="mt-1.5 w-32" />
-          {:else if typeof balanceState.balance === 'bigint'}
-            <p class="tabular mt-0.5 text-xl font-semibold text-ink-1">
-              {formatKaleBalance(balanceState.balance)} <span class="text-sm font-normal text-ink-2">KALE</span>
+          <div class="flex items-center justify-between gap-2">
+            <p class="text-xs text-ink-2">KALE balance</p>
+            {#if accountBalance !== null}
+              <Button
+                variant="ghost"
+                size="sm"
+                class="min-h-11"
+                disabled={balanceState.loading}
+                title={refreshFailed ? 'Retry loading your KALE balance' : 'Refresh KALE balance'}
+                onclick={refreshBalance}
+              >
+                <Icon name="refresh" size={14} class={balanceState.loading ? 'animate-spin' : ''} />
+                <span>{refreshFailed ? 'Retry' : 'Refresh'}</span>
+              </Button>
+            {:else if balanceState.error && !balanceState.loading}
+              <Button variant="ghost" size="sm" class="min-h-11" onclick={refreshBalance}>
+                <Icon name="refresh" size={14} />
+                <span>Retry</span>
+              </Button>
+            {/if}
+          </div>
+          {#if accountBalance !== null}
+            <p data-account-balance class="tabular mt-0.5 text-xl font-semibold text-ink-1">
+              {formatKaleBalance(accountBalance)} <span class="text-sm font-normal text-ink-2">KALE</span>
             </p>
-          {:else}
+            {#if refreshFailed}
+              <p data-account-balance-error role="status" class="mt-0.5 text-xs text-ink-2">
+                Couldn't refresh. Showing the last known balance.
+              </p>
+            {/if}
+          {:else if balanceState.error && !balanceState.loading}
             <p class="mt-0.5 text-sm text-ink-3">Unavailable</p>
+          {:else}
+            <Skeleton variant="line" class="mt-1.5 w-32" />
           {/if}
         </div>
       </div>

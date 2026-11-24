@@ -7,7 +7,7 @@
   import TradeBalances from './trade/TradeBalances.svelte';
   import TradeSimulation from './trade/TradeSimulation.svelte';
   import { userState } from '../stores/user.svelte';
-  import { setKnownKaleBalance } from '../stores/balance.svelte';
+  import { beginKaleBalanceRead, setKnownKaleBalance } from '../stores/balance.svelte';
   import { openAuthSheet } from '../stores/authSheet.svelte';
   import { toast } from '../stores/toast.svelte';
   import { logger } from '../utils/logger';
@@ -95,33 +95,102 @@
     };
   });
 
+  /**
+   * One trade snapshot read for the wallet active when it STARTS. The holder
+   * and the balance store's sequencing ticket are captured before the request,
+   * so a response for a wallet that is no longer active (account switch while
+   * in flight) is dropped instead of being labelled with the new wallet.
+   */
+  async function readSnapshotForActiveHolder(): Promise<CometTradeSnapshot | null> {
+    const requestedHolder = userState.contractId;
+    const kaleSeq = requestedHolder ? beginKaleBalanceRead(requestedHolder) : null;
+    const next = await readCometTradeSnapshot({
+      songId,
+      d1Token: mintTokenId || null,
+      d1Amm: ammId || null,
+      holder: requestedHolder,
+    });
+    if (requestedHolder !== userState.contractId) return null; // stale: another wallet's balances
+    if (requestedHolder && kaleSeq !== null && next.userKale !== null) {
+      setKnownKaleBalance(requestedHolder, next.userKale, { seq: kaleSeq });
+    }
+    return next;
+  }
+
+  /** The wallet whose balances and limits this dialog is showing (or loading). */
+  let loadedHolder: string | null = untrack(() => userState.contractId);
+  /** Bumped per (re)load: only the newest load may apply its snapshot. */
+  let loadGeneration = 0;
+
+  /** Forget everything derived from the previous holder: balances, limits, quote. */
+  function clearHolderState() {
+    snapshot = null;
+    cometClient = null;
+    userKaleBalance = 0n;
+    userMintBalance = 0n;
+    ammKaleBalance = 0n;
+    maxBuyAmount = 0n;
+    ammBuyCap = 0n;
+    maxSellAmount = 0n;
+    inputAmount = '';
+    simulationHook.invalidate();
+    simulationHook.clearTimer();
+    simulationLoading = false;
+    simulationError = null;
+    simulatedAmountOut = null;
+    // A previous holder's pending swap no longer belongs to this dialog.
+    submitting = false;
+  }
+
+  // Holder changed while open (account switch, sign-out, another tab): never
+  // keep showing (or trading against) the previous wallet's balances, quote or
+  // limits. Signed out: close. Another wallet: reload for it.
+  $effect(() => {
+    const holder = userState.contractId;
+    untrack(() => {
+      if (holder === loadedHolder) return;
+      const previous = loadedHolder;
+      loadedHolder = holder;
+      loadGeneration++;
+      clearHolderState();
+      if (!holder && previous) {
+        loading = false;
+        onClose();
+        return;
+      }
+      void initialize();
+    });
+  });
+
   function applySnapshot(next: CometTradeSnapshot) {
     snapshot = next;
     // The pool's KALE *reserve* (AllRecordData) bounds a buy, not its SAC balance.
     ammKaleBalance = next.kaleRecord.balance;
     userKaleBalance = next.userKale ?? 0n;
     userMintBalance = next.userMint ?? 0n;
-    if (currentContractId && next.userKale !== null) {
-      setKnownKaleBalance(currentContractId, next.userKale);
-    }
     recomputeLimits();
   }
 
   async function initialize() {
+    const load = ++loadGeneration;
     loading = true;
     loadError = null;
+    simulationLoading = false; // a previous load's simulation can no longer clear it
     simulationError = null;
     simulatedAmountOut = null;
     try {
       // Resolve + verify the canonical market BEFORE showing balances or quotes.
       // `ammId` / `mintTokenId` are D1 hints only; trading always uses the
       // verified canonical pair (C-15: D1 rows can be cross-wired or empty).
-      const next = await readCometTradeSnapshot({
-        songId,
-        d1Token: mintTokenId || null,
-        d1Amm: ammId || null,
-        holder: currentContractId,
-      });
+      const next = await readSnapshotForActiveHolder();
+      // Superseded (the holder-change effect started a newer load) or the
+      // wallet changed mid-read: the newer load owns the dialog.
+      if (load !== loadGeneration) return;
+      if (!next) {
+        // The wallet changed mid-read: start over for the active wallet.
+        await initialize();
+        return;
+      }
       cometClient = new CometClient({
         contractId: next.pool,
         rpcUrl: import.meta.env.PUBLIC_RPC_URL!,
@@ -130,23 +199,19 @@
       applySnapshot(next);
       onVerified?.({ sac: next.mintToken, pool: next.pool });
     } catch (error) {
+      if (load !== loadGeneration) return;
       logger.error('trade', error);
       loadError = error instanceof Error ? error.message : 'Failed to load trading data.';
     } finally {
-      loading = false;
+      if (load === loadGeneration) loading = false;
     }
   }
 
   async function refreshAllBalances() {
+    const load = loadGeneration;
     try {
-      applySnapshot(
-        await readCometTradeSnapshot({
-          songId,
-          d1Token: mintTokenId || null,
-          d1Amm: ammId || null,
-          holder: currentContractId,
-        })
-      );
+      const next = await readSnapshotForActiveHolder();
+      if (next && load === loadGeneration) applySnapshot(next);
     } catch (error) {
       logger.error('trade', 'Failed to refresh trade balances', error);
     }
@@ -229,26 +294,30 @@
     }
 
     simulationLoading = true;
+    // This simulation belongs to the holder, dialog load and request that
+    // started it: once any changes (account switch, reload, newer input), its
+    // result, error and loading cleanup never touch the current dialog.
+    const simHolder = currentContractId;
+    const dialogGen = loadGeneration;
+    let simNonce = -1;
+    const stillCurrent = () =>
+      dialogGen === loadGeneration &&
+      userState.contractId === simHolder &&
+      simNonce === simulationHook.getCurrentNonce();
 
     try {
-      const { amountOut, nonce } = await simulationHook.runSimulation(
-        cometClient,
-        mode,
-        amount,
-        tokenIn,
-        tokenOut,
-        currentContractId
-      );
-
-      if (nonce !== simulationHook.getCurrentNonce()) return;
+      const pending = simulationHook.runSimulation(cometClient, mode, amount, tokenIn, tokenOut, simHolder);
+      simNonce = simulationHook.getCurrentNonce(); // taken synchronously by runSimulation
+      const { amountOut } = await pending;
+      if (!stillCurrent()) return;
       simulatedAmountOut = amountOut;
     } catch (error) {
       logger.error('trade', 'Simulation failed', error);
-      if (simulationHook.getCurrentNonce()) {
+      if (stillCurrent()) {
         simulationError = error instanceof Error ? error.message : 'Simulation failed.';
       }
     } finally {
-      simulationLoading = false;
+      if (stillCurrent()) simulationLoading = false;
     }
   }
 
@@ -305,6 +374,13 @@
     if (!snapshot) return;
     const tokenIn = mode === 'buy' ? import.meta.env.PUBLIC_KALE_SAC_ID : snapshot.mintToken;
     const tokenOut = mode === 'buy' ? snapshot.mintToken : import.meta.env.PUBLIC_KALE_SAC_ID;
+    // The dialog generation and wallet this swap belongs to: if either changes
+    // before it settles (account switch, A→B→A), its completion, error and
+    // pending state never touch (or close) the dialog now showing.
+    const dialogGen = loadGeneration;
+    const submittingHolder = currentContractId;
+    const submittingMode = mode;
+    const stillCurrent = () => dialogGen === loadGeneration && userState.contractId === submittingHolder;
 
     try {
       await executionHook.executeSwap({
@@ -312,18 +388,21 @@
         tokenIn,
         tokenOut,
         amount,
-        userContractId: currentContractId,
+        userContractId: submittingHolder,
         userKeyId: currentKeyId,
       });
+      if (!stillCurrent()) return;
 
       await refreshAllBalances();
-      toast.success(mode === 'buy' ? `Bought ${DISPLAY_TOKEN_NAME}.` : `Sold ${DISPLAY_TOKEN_NAME}.`);
+      if (!stillCurrent()) return;
+      toast.success(submittingMode === 'buy' ? `Bought ${DISPLAY_TOKEN_NAME}.` : `Sold ${DISPLAY_TOKEN_NAME}.`);
       onComplete(userMintBalance);
     } catch (error) {
       logger.error('trade', 'Swap failed', error);
+      if (!stillCurrent()) return;
       simulationError = error instanceof Error ? error.message : 'Swap request failed.';
     } finally {
-      submitting = false;
+      if (stillCurrent()) submitting = false;
     }
   }
 

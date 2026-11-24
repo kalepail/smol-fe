@@ -283,6 +283,63 @@ export function observeAuthTransitions(options?: {
   };
 }
 
+type AuthEventTarget = Pick<Window, 'addEventListener' | 'removeEventListener'>;
+
+/**
+ * Subscribe to explicit sign-in / sign-out / account switches made in OTHER
+ * tabs (BroadcastChannel `smol-auth-transitions` + the localStorage
+ * `smol_auth_transition` storage event) so a long-lived shell can reconcile
+ * against the live session cookie immediately instead of on next navigation.
+ * Returns an idempotent unsubscribe.
+ */
+export function subscribeAuthTransitions(
+  onTransition: () => void,
+  options?: {
+    BroadcastChannelCtor?: typeof BroadcastChannel | null;
+    target?: AuthEventTarget | null;
+  },
+): () => void {
+  let channel: BroadcastChannel | null = null;
+  const ChannelCtor =
+    options?.BroadcastChannelCtor !== undefined
+      ? options.BroadcastChannelCtor
+      : getSafeBroadcastChannelCtor();
+  if (ChannelCtor) {
+    try {
+      channel = new ChannelCtor(AUTH_TRANSITION_CHANNEL);
+      channel.onmessage = (event: MessageEvent) => {
+        if (event?.data?.type === 'auth-transition') onTransition();
+      };
+    } catch {
+      channel = null;
+    }
+  }
+
+  const target =
+    options?.target !== undefined
+      ? options.target
+      : typeof window !== 'undefined'
+        ? window
+        : null;
+  const onStorage = (event: Event) => {
+    if ((event as StorageEvent).key === AUTH_TRANSITION_STORAGE_KEY) onTransition();
+  };
+  target?.addEventListener('storage', onStorage);
+
+  let closed = false;
+  return () => {
+    if (closed) return;
+    closed = true;
+    target?.removeEventListener('storage', onStorage);
+    try {
+      channel?.close();
+    } catch {
+      // Ignore close errors.
+    }
+    channel = null;
+  };
+}
+
 export interface CreateAccountSessionResult {
   jwt: string;
   committed: boolean;

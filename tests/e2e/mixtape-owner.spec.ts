@@ -961,14 +961,23 @@ test.describe('25d pass 2 regressions (390×844)', () => {
     await tabB.goto(`/mixtapes/${idB('night-drive')}`);
     await expect(tabB.getByRole('button', { name: 'Edit', exact: true })).toBeVisible();
 
-    // Both tabs were open before either edited.
+    // Both tabs were open before either edited. Tabs share one cookie jar and
+    // reconcile to the live session when focused (Report 49 P2-4), so each
+    // tab's account is the signed-in one while it edits.
+    const returnTo = (tab: Page) => tab.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await signInAs(context, 'b3');
+    await returnTo(page);
     await page.getByRole('button', { name: 'Edit', exact: true }).click();
     await openDialog(page).getByLabel('Title').fill('A title');
     await openDialog(page).getByRole('button', { name: 'Close' }).click();
+    await signInAs(context, 'b4');
+    await returnTo(tabB);
     await tabB.getByRole('button', { name: 'Edit', exact: true }).click();
     await openDialog(tabB).getByLabel('Title').fill('B title');
     await openDialog(tabB).getByRole('button', { name: 'Close' }).click();
     // ...and A edits again after B.
+    await signInAs(context, 'b3');
+    await returnTo(page);
     await page.getByRole('button', { name: /^Continue editing A title/ }).click();
     await openDialog(page).getByLabel('Description (optional)').fill('A again');
     await openDialog(page).getByRole('button', { name: 'Close' }).click();

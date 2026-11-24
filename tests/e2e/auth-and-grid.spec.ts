@@ -558,7 +558,12 @@ test.describe('F4 SmolGrid auth reactivity & login credentials', () => {
       Buffer.from(cookieAfterSwitch!.value.split('.')[1], 'base64url').toString('utf8'),
     ).sub;
     expect(decodedSub).toBe(otherContract);
-    await expect(tabA.getByRole('button', { name: 'Open account menu' })).toHaveCount(0);
+    // Report 49 P2-4: Tab A reconciles to the LIVE shared session (Tab B's
+    // sign-in) as soon as the auth transition arrives: never the uncommitted
+    // pending wallet, never a stale signed-out shell.
+    const pillA = tabA.getByRole('button', { name: /^Open account menu/ });
+    await expect(pillA).toContainText(`${otherContract.slice(0, 6)}...${otherContract.slice(-4)}`);
+    await expect(pillA).not.toContainText(`${pendingContract.slice(0, 6)}...${pendingContract.slice(-4)}`);
 
     await tabA.close();
     await tabB.close();
@@ -620,7 +625,10 @@ test.describe('F4 SmolGrid auth reactivity & login credentials', () => {
       Buffer.from(liveCookie!.value.split('.')[1], 'base64url').toString('utf8'),
     ).sub;
     expect(decodedSub).toBe(otherContract);
-    await expect(tabA.getByRole('button', { name: 'Open account menu' })).toHaveCount(0);
+    // Report 49 P2-4: Tab A follows the live shared session, never the prompt's wallet.
+    const pillA = tabA.getByRole('button', { name: /^Open account menu/ });
+    await expect(pillA).toContainText(`${otherContract.slice(0, 6)}...${otherContract.slice(-4)}`);
+    await expect(pillA).not.toContainText(`${promptContract.slice(0, 6)}...${promptContract.slice(-4)}`);
 
     // Non-secret transition marker in localStorage never contains any JWT or contract ID
     const storedMarker = await tabA.evaluate(() => localStorage.getItem('smol_auth_transition'));
@@ -1050,8 +1058,17 @@ test.describe('F4 SmolGrid auth reactivity & login credentials', () => {
     await expect(tabB.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible();
     await tabB.close();
 
-    // 3. Tab A navigates via Astro ViewTransition to /created -> must clear account menu & show sign-in prompt
-    await tabA.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Created' }).click();
+    // 3. Report 49 P2-4: Tab A reconciles on the cross-tab sign-out itself (no
+    //    navigation needed), then a ViewTransition to /created stays signed out.
+    await expect(tabA.getByRole('button', { name: 'Open account menu' })).toHaveCount(0);
+    await expect(tabA.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Created' })).toHaveCount(0);
+    await tabA.evaluate(() => {
+      const a = document.createElement('a');
+      a.href = '/created';
+      a.textContent = 'created';
+      document.body.appendChild(a);
+      a.click();
+    });
     await expect(tabA).toHaveURL('/created');
     await expect(tabA.getByRole('heading', { name: 'Sign in to see your songs' })).toBeVisible();
     await expect(tabA.getByRole('button', { name: 'Open account menu' })).toHaveCount(0);
