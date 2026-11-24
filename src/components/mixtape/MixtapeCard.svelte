@@ -4,6 +4,7 @@
   import { hiddenReasonLabel } from '../../utils/mixtapeCoaching';
   import MixtapeCollage from '../ui/MixtapeCollage.svelte';
   import Icon from '../ui/Icon.svelte';
+  import '../ui/ownerIcons';
   import MixtapeOwnerMenu, { type OwnerMenuItem } from './MixtapeOwnerMenu.svelte';
 
   /**

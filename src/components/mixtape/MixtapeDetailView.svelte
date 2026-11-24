@@ -23,6 +23,7 @@
   import type { MergeSource } from './MixtapeMergeSheet.svelte';
   import Button from '../ui/Button.svelte';
   import Icon from '../ui/Icon.svelte';
+  import '../ui/ownerIcons';
   import { toast } from '../../stores/toast.svelte';
   import { findOwnedMixtape, loadMyMixtapes, mixtapeChangeSignal, myMixtapesState } from '../../stores/myMixtapes.svelte';
   // Owner kit (callout, menu, merge sheet, lifecycle actions) is a dynamic import: creators only.
@@ -38,9 +39,11 @@
     id: string;
     initialData?: MixtapeDetail | null;
     initialNotFound?: boolean;
+    /** SSR verified (authenticated GET /mixtapes/mine) that the viewer owns `initialData`. */
+    verifiedOwner?: boolean;
   }
 
-  let { id, initialData = null, initialNotFound = false }: Props = $props();
+  let { id, initialData = null, initialNotFound = false, verifiedOwner = false }: Props = $props();
 
   let mixtape = $state<MixtapeDetail | null>(null);
   let loading = $state(true);
@@ -169,12 +172,15 @@
 
       const previous = mixtape && mixtape.id === mixtapeData.id ? mixtape.tracks.map((track) => track.Id).join(',') : null;
       const next = mixtapeData.tracks.map((track) => track.Id).join(',');
-      if (previous !== null && previous !== next && userState.contractId) {
-        // Gate the card BEFORE the new track set renders (same flush), then refresh below.
+      const trackSetChanged = previous !== null && previous !== next && Boolean(userState.contractId);
+      if (trackSetChanged) {
+        // Gate the card BEFORE the new track set renders (same flush).
         collectHeight = collectBox?.offsetHeight ?? collectHeight;
         ownershipRefreshing = true;
       }
       mixtape = mixtapeData;
+      // 25d P1-1: the collector's snapshot is stale for the new songs; read ownership afresh.
+      if (trackSetChanged) startOwnershipRefresh();
       const likedTrackIdSet = new Set(likedTrackIds);
 
       mixtapeTracks = mixtapeData.tracks.map((track) => ({
@@ -221,7 +227,20 @@
   // Owner surface (creator only)
   // ---------------------------------------------------------------------------
 
-  const isOwner = $derived(Boolean(mixtape && userState.contractId && userState.contractId === mixtape.creator));
+  // 25d pass 3 P2-3: the cookie's contract id is UNVERIFIED (an expired session still decodes).
+  // It only decides whether to ask; owner controls need verified ownership: the SSR /mine check
+  // for the initial mixtape, or the authenticated owner list (GET /mixtapes/mine) listing it.
+  const cookieOwner = $derived(Boolean(mixtape && userState.contractId && userState.contractId === mixtape.creator));
+  const listedInMine = $derived(
+    Boolean(
+      mixtape &&
+        myMixtapesState.status === 'ready' &&
+        myMixtapesState.owner === userState.contractId &&
+        myMixtapesState.items.some((item) => item.id === mixtape?.id)
+    )
+  );
+  const ssrVerified = $derived(Boolean(verifiedOwner && initialData && mixtape && mixtape.id === initialData.id));
+  const isOwner = $derived(cookieOwner && (ssrVerified || listedInMine));
   const isHidden = $derived(mixtape?.visibility === 'owner');
   const ownerList = $derived(
     isOwner && myMixtapesState.status === 'ready' && myMixtapesState.owner === userState.contractId ? myMixtapesState.items : []
@@ -233,9 +252,10 @@
   let mergeTargetId = $state<string | null>(null);
 
   $effect(() => {
-    if (!isOwner) return;
-    void loadMyMixtapes();
-    void loadOwnerKit();
+    if (cookieOwner) void loadMyMixtapes();
+  });
+  $effect(() => {
+    if (isOwner) void loadOwnerKit();
   });
 
   // Refresh after ANY owner write (25d P2-5): editing, deleting or merging a SIBLING can change
@@ -251,29 +271,24 @@
   });
 
   // 25d P1-1: when an owner save changes THIS mixtape's track set, the collector's ownership
-  // snapshot (keyed by wallet + mixtape, read once) is stale for the new songs. Ask the
+  // snapshot (keyed by wallet + mixtape, read once) is stale for the new songs. We ask the
   // collector for a fresh read through its public refresh(); its own files stay untouched.
-  let trackSetFor: { id: string; signature: string } | null = null;
-  $effect(() => {
-    const current = mixtape && mixtape.id === id ? mixtape : null;
-    const signature = current ? current.tracks.map((track) => track.Id).join(',') : null;
-    untrack(() => {
-      if (!current || signature === null) return;
-      const previous = trackSetFor;
-      trackSetFor = { id: current.id, signature };
-      if (previous && previous.id === current.id && previous.signature !== signature && userState.contractId) {
-        ownershipRefreshing = true;
-        void collect
-          .refresh()
-          .catch(() => undefined)
-          .finally(() => {
-            if (trackSetFor?.signature === signature) ownershipRefreshing = false;
-          });
-      } else if (ownershipRefreshing && (!previous || previous.signature === signature)) {
-        ownershipRefreshing = false;
-      }
-    });
-  });
+  /**
+   * 25d pass 3 P1-4: the placeholder is tied to the OUTSTANDING ownership read. Each start bumps
+   * a monotonic token; only that refresh's own completion — and only if it is still the newest —
+   * clears the flag. Nothing else (e.g. a title-only detail refresh with the same songs) can.
+   */
+  let ownershipRefreshToken = 0;
+  function startOwnershipRefresh() {
+    const token = ++ownershipRefreshToken;
+    ownershipRefreshing = true;
+    void collect
+      .refresh()
+      .catch(() => undefined)
+      .finally(() => {
+        if (token === ownershipRefreshToken) ownershipRefreshing = false;
+      });
+  }
 
   // SSR rendered a static copy of the owner callout (Report 24 §5.3); hand off to the live one.
   // Removed once the live owner state is known (the shell syncs `userState` from the same cookie),

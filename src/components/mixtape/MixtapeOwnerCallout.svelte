@@ -4,6 +4,7 @@
   import { mixtapeAdvice, type MixtapeHiddenReason } from '../../utils/mixtapeVisibility';
   import Button from '../ui/Button.svelte';
   import Icon from '../ui/Icon.svelte';
+  import '../ui/ownerIcons';
   import MixtapeCollage from '../ui/MixtapeCollage.svelte';
 
   /**

@@ -15,8 +15,8 @@
     clearDraft,
     getSnapshotDraft,
     updateTrackVisibility,
-    setCreatePublishing,
   } from '../../stores/mixtape.svelte';
+  import { consumePublishedDraft, setCreatePublishing } from '../../stores/mixtape/editSession.svelte';
   import { confirmAction } from '../../stores/confirm.svelte';
   import { openAuthSheet } from '../../stores/authSheet.svelte';
   import { toast } from '../../stores/toast.svelte';
@@ -38,10 +38,10 @@
     openMixtapeEditor,
     saveMineAnyway,
     saveMixtapeEdit,
-    saveWithoutDeletingSource,
   } from '../../services/mixtapeActions';
   import { isMatchReason, previewMixtapeChange, type MixtapePreview } from '../../utils/mixtapeCoaching';
   import { normalizeMixtapeText } from '../../utils/mixtapeVisibility';
+  import { draftPayloadKey } from '../../stores/mixtape/operations';
   import { logger } from '../../utils/logger';
   import Sheet from '../ui/Sheet.svelte';
   import DockedPanel from '../ui/DockedPanel.svelte';
@@ -65,8 +65,24 @@
   /** Extra action for the status message (create_pending retry / create_conflict review — 25d P2-1). */
   let statusAction = $state<{ label: string; onClick?: () => void; href?: string; disabled?: boolean } | null>(null);
   let retryTimer: ReturnType<typeof setTimeout> | null = null;
-  /** 503 create_pending Retry-After window: EVERY publish path waits it out (25d pass 2 P2-1). */
-  let retryWait = $state(false);
+  /**
+   * 503 create_pending Retry-After window for ONE normalized payload (25d pass 2 P2-1, pass 3
+   * P2-1): every publish path waits it out while the trimmed title/description and ordered songs
+   * are unchanged — typing (which resets status text) or whitespace-only edits never reopen it.
+   */
+  let retryGate = $state<{ key: string; until: number } | null>(null);
+  const payloadKey = $derived(draftPayloadKey(mixtapeDraftState));
+  const retryWait = $derived(Boolean(retryGate && retryGate.key === payloadKey));
+  $effect(() => {
+    // A genuinely different payload is a different create: drop the old wait.
+    if (retryGate && retryGate.key !== payloadKey) {
+      retryGate = null;
+      if (retryTimer) {
+        clearTimeout(retryTimer);
+        retryTimer = null;
+      }
+    }
+  });
 
   // Desktop (lg+) renders a non-modal docked panel; mobile keeps the bottom sheet (25d P2-8).
   let desktop = $state(typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches);
@@ -87,7 +103,7 @@
   const saveLocked = $derived(mixtapeIsSaving.current);
   const busy = $derived(publishing || saving || switching || saveLocked);
   const mergeFrom = $derived(edit?.mergeFrom ?? null);
-  const canSave = $derived(isDirty || Boolean(mergeFrom));
+  const canSave = $derived(isDirty);
   // Shared with the toast's "Load latest" so both entry points clear it (25d P2-2).
   const conflictActive = $derived(Boolean(edit && mixtapeEditConflict.mixtapeId === edit.mixtapeId));
 
@@ -242,7 +258,7 @@
     }
     if (edit) {
       const status = edit.baselineVisibility === 'owner' ? 'Hidden from the Mixtapes page' : 'Listed';
-      if (mergeFrom) return `${songs} · Merging "${mergeFrom.title}" into this mixtape`;
+      if (mergeFrom) return `${songs} · Adding songs from "${mergeFrom.title}" (it will be kept)`;
       return `${songs} · ${isDirty ? 'Unsaved changes' : status}`;
     }
     return trackCount > 0 ? `${songs} · Saved on this device` : 'Saved on this device';
@@ -251,11 +267,7 @@
   function resetStatus() {
     statusMessage = null;
     statusAction = null;
-    if (retryTimer) {
-      clearTimeout(retryTimer);
-      retryTimer = null;
-    }
-    retryWait = false;
+    // The Retry-After gate is NOT status text: it survives resets (see retryGate).
     showAuthAction = false;
     trackIssues = {};
     titleError = null;
@@ -305,10 +317,6 @@
     toast.info('Mixtape draft discarded.');
   }
 
-  /** The draft's publishable content, to compare what was POSTed with what is on screen. */
-  function draftFingerprint(draft: { title: string; description: string; tracks: { id: string }[] }) {
-    return JSON.stringify([draft.title.trim(), draft.description, draft.tracks.map((track) => track.id)]);
-  }
 
   async function handlePublish() {
     if (retryWait) return;
@@ -334,15 +342,19 @@
         );
       }
 
-      // Only consume the draft if it is still exactly what was published.
-      if (mixtapeDraftState.draftId === submitted.draftId && draftFingerprint(mixtapeDraftState) !== draftFingerprint(submitted)) {
+      // Only consume the draft if BOTH the durable (cross-tab) copy and this tab's copy are still
+      // exactly what was published; a newer draft (e.g. a song added in another tab) is kept.
+      if (consumePublishedDraft(submitted) === 'kept') {
+        closeMixtapeSheet();
         invalidateMyMixtapes([published.id]);
-        toast.info(`Published "${title}". Your newer changes are still in the draft.`, { tag: LIFECYCLE_TAG });
+        toast.info(`Published "${title}". Your draft has newer changes (maybe from another tab), so it was kept.`, {
+          tag: LIFECYCLE_TAG,
+          duration: 8000,
+        });
         await navigate(`/mixtapes/${encodeURIComponent(published.id)}`);
         return;
       }
 
-      clearDraft();
       closeMixtapeSheet();
       invalidateMyMixtapes([published.id]);
       if (published.deduplicated) {
@@ -372,10 +384,12 @@
           // 503 create_pending: the same publish is still finishing. Offer a retry once Retry-After passes.
           statusTone = 'info';
           statusAction = { label: 'Try again', disabled: true, onClick: () => void handlePublish() };
-          retryWait = true;
+          const waitMs = error.retryAfterMs ?? 1000;
+          retryGate = { key: draftPayloadKey(submitted), until: Date.now() + waitMs };
+          if (retryTimer) clearTimeout(retryTimer);
           retryTimer = setTimeout(() => {
             retryTimer = null;
-            retryWait = false;
+            retryGate = null;
             if (statusAction) statusAction = { ...statusAction, disabled: false };
           }, error.retryAfterMs ?? 1000);
         } else if (error.kind === 'conflict' && error.conflictId) {
@@ -471,21 +485,6 @@
     }
     const error = outcome.error;
     if (error instanceof MixtapeActionError && error.kind === 'revision_conflict') return; // banner via store
-    if (error instanceof MixtapeActionError && error.code?.startsWith('merge_source_')) {
-      // Reviewed merge: the source was NOT deleted; explain and let the owner review (25d pass 2 P1-1/P1-2).
-      statusTone = 'info';
-      statusMessage = error.message;
-      if (error.code === 'merge_source_missing') {
-        statusAction = {
-          label: 'Save without deleting',
-          onClick: () => {
-            saveWithoutDeletingSource();
-            void handleSave();
-          },
-        };
-      }
-      return;
-    }
     if (error instanceof MixtapeActionError && (error.kind === 'not_found' || error.kind === 'merged')) {
       closeMixtapeSheet();
       return;
@@ -611,8 +610,6 @@
         >
           {#if saving || saveLocked}
             <span>Saving…</span>
-          {:else if mergeFrom}
-            <span>Save & delete copy</span>
           {:else}
             <span>Save changes</span>
           {/if}

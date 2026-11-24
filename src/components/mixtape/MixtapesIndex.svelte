@@ -8,6 +8,7 @@
   import StateFeedback from '../ui/StateFeedback.svelte';
   import Button from '../ui/Button.svelte';
   import Icon from '../ui/Icon.svelte';
+  import '../ui/ownerIcons';
   import { userState } from '../../stores/user.svelte';
   import { openAuthSheet } from '../../stores/authSheet.svelte';
   import { toast } from '../../stores/toast.svelte';
@@ -28,6 +29,7 @@
   import { deleteMixtapeWithUndo, openMixtapeEditor } from '../../services/mixtapeActions';
   import { isMatchReason } from '../../utils/mixtapeCoaching';
   import { createLatestGate } from '../../utils/latestRequest';
+  import { logger } from '../../utils/logger';
 
   type View = 'all' | 'yours';
 
@@ -107,8 +109,13 @@
       mixtapes = list;
       error = null;
       loading = false;
-    } catch {
-      // keep what we show; the next write or reload retries
+    } catch (err) {
+      // 25d pass 3 P2-4: the NEWEST read is terminal — never leave All on placeholders. Keep cards
+      // we already show; with nothing to show, surface the error with Retry.
+      if (!allReads.isCurrent(run)) return;
+      loading = false;
+      if (mixtapes.length === 0) error = 'Couldn’t load mixtapes right now. Check your connection and try again.';
+      else logger.warn('mixtape', 'All refresh failed; keeping the current list', err);
     }
   }
 

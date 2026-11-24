@@ -10,7 +10,6 @@ import { navigate } from 'astro:transitions/client';
 import {
   deleteMixtape,
   fetchMixtapeDetail,
-  listMyMixtapes,
   mergeMixtape,
   MixtapeActionError,
   restoreMixtape,
@@ -21,24 +20,24 @@ import {
   type OwnedMixtape,
 } from './api/mixtapes';
 import {
-  appendEditTracks,
+  mixtapeEditConflict,
+  mixtapeEditState,
+  openMixtapeSheet,
+  type MergeSourceSnapshot,
+  type MixtapeSheetView,
+} from '../stores/mixtape.svelte';
+import {
   cancelEdit,
   cancelEditFor,
   clearEditConflict,
   finishEditFor,
-  mixtapeEditConflict,
-  mixtapeEditState,
-  openMixtapeSheet,
   rebaseEdit,
   setEditConflict,
   setEditMergeFrom,
   setEditSaving,
   startEdit,
   type EditableMixtape,
-  type MergeSourceSnapshot,
-  type MixtapeSheetView,
-} from '../stores/mixtape.svelte';
-import { checkMergeSourceDeletion } from '../stores/mixtape/operations';
+} from '../stores/mixtape/editSession.svelte';
 import type { MixtapeTrack } from '../types/domain';
 import { confirmAction } from '../stores/confirm.svelte';
 import { toast } from '../stores/toast.svelte';
@@ -189,122 +188,6 @@ function sameSubmission(
   );
 }
 
-function snapshotOf(row: OwnedMixtape): MergeSourceSnapshot {
-  return {
-    id: row.id,
-    title: row.title,
-    revision: row.revision,
-    trackIds: row.trackIds,
-    storedTrackCount: row.storedTrackCount,
-    publicTrackCount: row.publicTrackCount,
-  };
-}
-
-/** Fresh owner-list read of one mixtape: snapshot, null when gone, 'error' when unreadable. */
-async function readFreshSource(id: string): Promise<MergeSourceSnapshot | null | 'error'> {
-  try {
-    const mine = await listMyMixtapes();
-    const row = mine.find((item) => item.id === id);
-    return row ? snapshotOf(row) : null;
-  } catch {
-    return 'error';
-  }
-}
-
-const songsText = (n: number) => `${n} ${n === 1 ? 'song' : 'songs'}`;
-
-/**
- * Gate for "Save & delete copy" (25d pass 2 P1-1/P1-2): re-reads the source and only
- * allows deleting it when it is exactly the reviewed revision, has no private /
- * unavailable songs, and every one of its songs is in the target being saved.
- * Otherwise the source is kept, the edit is updated for re-review, and a
- * `merge_review` error explains what changed.
- */
-async function verifyMergeSource(
-  owner: string,
-  mixtapeId: string,
-  reviewed: MergeSourceSnapshot,
-  targetTrackIds: string[],
-  stage: 'before' | 'after'
-): Promise<{ ok: true } | { ok: false; error: MixtapeActionError }> {
-  const fresh = await readFreshSource(reviewed.id);
-  if (fresh === 'error') {
-    return {
-      ok: false,
-      error: new MixtapeActionError(
-        `Couldn’t check "${reviewed.title}" right now, so it was kept. Try again in a moment.`,
-        'network',
-        { code: 'merge_source_unverified' }
-      ),
-    };
-  }
-  const check = checkMergeSourceDeletion(reviewed, fresh, targetTrackIds);
-  if (check.ok) return { ok: true };
-  if (check.reason === 'gone') {
-    // Nothing left to delete: finish as a normal edit.
-    setEditMergeFrom(owner, mixtapeId, null);
-    return { ok: true };
-  }
-  if (check.reason === 'changed') {
-    if (stage === 'before') {
-      // Bring the source's newer songs into the editor for review; the delete waits for the next save.
-      const added = await tracksForIds(check.fresh.id, check.newTrackIds);
-      if (added) appendEditTracks(owner, mixtapeId, added);
-      setEditMergeFrom(owner, mixtapeId, check.fresh);
-    } else {
-      setEditMergeFrom(owner, mixtapeId, null);
-    }
-    return {
-      ok: false,
-      error: new MixtapeActionError(
-        stage === 'before'
-          ? `"${reviewed.title}" changed on another device, so it wasn’t deleted. ${
-              check.newTrackIds.length ? `Its ${songsText(check.newTrackIds.length)} were added here — review` : 'Review'
-            } and save again.`
-          : `"${reviewed.title}" changed while saving, so it was kept. Merge it again to review its latest songs.`,
-        'invalid',
-        { code: 'merge_source_changed' }
-      ),
-    };
-  }
-  if (check.reason === 'unavailable') {
-    setEditMergeFrom(owner, mixtapeId, null);
-    return {
-      ok: false,
-      error: new MixtapeActionError(
-        `"${reviewed.title}" has ${songsText(check.count)} that ${check.count === 1 ? 'isn’t' : 'aren’t'} public right now, so it can’t be deleted in this merge. Save to update this mixtape — "${reviewed.title}" will be kept.`,
-        'invalid',
-        { code: 'merge_source_unavailable' }
-      ),
-    };
-  }
-  return {
-    ok: false,
-    error: new MixtapeActionError(
-      `${songsText(check.missingIds.length)} from "${reviewed.title}" ${check.missingIds.length === 1 ? 'isn’t' : 'aren’t'} in this mixtape, so deleting "${reviewed.title}" would lose ${
-        check.missingIds.length === 1 ? 'it' : 'them'
-      }. Add ${check.missingIds.length === 1 ? 'it' : 'them'} back, or save without deleting.`,
-      'invalid',
-      { code: 'merge_source_missing' }
-    ),
-  };
-}
-
-/** Track rows (titles/covers) for some of a mixtape's song ids, via its fresh detail. */
-async function tracksForIds(mixtapeId: string, ids: string[]): Promise<MixtapeTrack[] | null> {
-  if (!ids.length) return [];
-  const result = await readFreshDetail(mixtapeId);
-  if (result.kind !== 'found') return null;
-  const wanted = new Set(ids);
-  return detailToTracks(result.detail).filter((track) => wanted.has(track.id));
-}
-
-/** Keep the edit as a normal edit (drop the pending source deletion). */
-export function saveWithoutDeletingSource() {
-  const session = mixtapeEditState.session;
-  if (session) setEditMergeFrom(session.creator, session.mixtapeId, null);
-}
-
 /**
  * PUT the open edit with `expectedRevision`. The edit slot is FROZEN while the
  * request is in flight and every completion is bound to the (owner, mixtape) that
@@ -333,19 +216,12 @@ export async function saveMixtapeEdit(): Promise<SaveEditOutcome> {
   const submittedTracks = session.tracks.map((track) => ({ ...track }));
   const slotIs = (s: { creator: string; mixtapeId: string } | null) => Boolean(s && s.creator === owner && s.mixtapeId === id);
 
+  // A reviewed merge only ever PUTs the target: the source is never deleted from the client
+  // (25d pass 3 P1-1 — no multi-request retire race can lose a song). The owner deletes it later.
+  const mergeFrom = session.mergeFrom ?? null;
   setEditSaving({ owner, mixtapeId: id });
   let receipt: MixtapeWriteReceipt;
-  let mergeFrom = session.mergeFrom ?? null;
   try {
-    if (mergeFrom) {
-      // Never PUT a merge whose source changed under the review: re-check first.
-      const gate = await verifyMergeSource(owner, id, mergeFrom, submitted.smols, 'before');
-      if (!gate.ok) {
-        setEditSaving(null);
-        return { ok: false, error: gate.error };
-      }
-      mergeFrom = mixtapeEditState.session && slotIs(mixtapeEditState.session) ? mixtapeEditState.session.mergeFrom ?? null : mergeFrom;
-    }
     receipt = await updateMixtape(id, submitted);
   } catch (error) {
     setEditSaving(null);
@@ -398,31 +274,13 @@ export async function saveMixtapeEdit(): Promise<SaveEditOutcome> {
   invalidateMyMixtapes([id]);
 
   if (mergeFrom) {
-    // Re-check right before deleting: the source must still be exactly what was reviewed.
-    const gate = await verifyMergeSource(owner, id, mergeFrom, submitted.smols, 'after');
-    if (!gate.ok) {
-      toast.info(`Saved "${title}". ${gate.error.message}`, { tag: LIFECYCLE_TAG, duration: 10_000 });
-      return { ok: true, receipt, id };
-    }
-    try {
-      await deleteMixtape(mergeFrom.id);
-      const source = mergeFrom;
-      removeOwnedLocally(source.id);
-      invalidateMyMixtapes([id, source.id]);
-      // Never leave the owner on the copy that was just deleted.
-      if (typeof window !== 'undefined' && window.location.pathname === `/mixtapes/${source.id}`) {
-        await navigate(`/mixtapes/${encodeURIComponent(id)}`);
-      }
-      toast.success(`Saved "${title}" and deleted the copy "${source.title}".`, {
-        tag: LIFECYCLE_TAG,
-        duration: UNDO_WINDOW_MS,
-        actionLabel: 'Undo',
-        focusAction: true,
-        onAction: () => void undoDelete(source.id, source.title),
-      });
-    } catch (error) {
-      lifecycleError(error, `Saved "${title}", but couldn’t delete "${mergeFrom.title}". Delete it from Your mixtapes.`);
-    }
+    toast.success(`Saved "${title}". "${mergeFrom.title}" was kept — you can delete it anytime from Your mixtapes.`, {
+      tag: LIFECYCLE_TAG,
+      duration: 10_000,
+      actionLabel: 'View yours',
+      focusAction: true,
+      onAction: () => void navigate('/mixtapes?view=yours'),
+    });
     return { ok: true, receipt, id };
   }
 
@@ -478,7 +336,7 @@ export async function loadLatestEdit(): Promise<boolean> {
   clearEditConflict();
   toast.info(
     pendingMerge
-      ? `Loaded the latest "${result.detail.title}". The merge with "${pendingMerge.title}" was cancelled — it’s kept as is. Merge again to review it.`
+      ? `Loaded the latest "${result.detail.title}". The songs from "${pendingMerge.title}" weren’t added — it’s kept as is. Merge again to review them.`
       : `Loaded the latest "${result.detail.title}".`,
     { tag: LIFECYCLE_TAG, duration: pendingMerge ? 10_000 : 4000 }
   );
@@ -619,22 +477,15 @@ export async function mergeMixtapes(
 }
 
 /**
- * Merge sheet "Review in editor first" (Report 24 §5.5): open the TARGET with
- * the source's missing songs appended; saving it also deletes the source copy.
+ * Merge sheet "Review in editor first" (Report 24 §5.5): open the TARGET with the source's
+ * missing songs appended. Saving PUTs the target only; the source is always kept (pass 3 P1-1).
+ * Only the direct "Merge & delete copy" retires a source — atomically, server-side.
  */
 export async function reviewMergeInEditor(source: { id: string; title: string }, targetId: string): Promise<boolean> {
   const sourceDetail = await loadFreshDetail(source.id);
   if (!sourceDetail) return false;
   const sourceTracks = detailToTracks(sourceDetail);
-  // Snapshot exactly what is being reviewed (25d pass 2 P1-2): revision + songs + private count.
-  const reviewed: MergeSourceSnapshot = {
-    id: sourceDetail.id,
-    title: sourceDetail.title,
-    revision: sourceDetail.revision ?? 0,
-    trackIds: sourceTracks.map((track) => track.id),
-    storedTrackCount: sourceDetail.storedTrackCount ?? sourceTracks.length,
-    publicTrackCount: sourceDetail.publicTrackCount ?? sourceTracks.length,
-  };
+  const reviewed: MergeSourceSnapshot = { id: sourceDetail.id, title: sourceDetail.title };
   const result = await openMixtapeEditor(targetId, {
     mergeFrom: reviewed,
     tracks: (detail) => {

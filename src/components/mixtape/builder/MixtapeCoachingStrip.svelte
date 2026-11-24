@@ -13,6 +13,7 @@
 
 <script lang="ts">
   import Icon from '../../ui/Icon.svelte';
+  import '../../ui/ownerIcons';
   import Button from '../../ui/Button.svelte';
 
   /**

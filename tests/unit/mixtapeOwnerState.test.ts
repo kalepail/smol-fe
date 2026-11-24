@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  checkMergeSourceDeletion,
+  draftPayloadKey,
   isEditSessionDirty,
   parseEditSlots,
   type MergeSourceSnapshot,
@@ -49,12 +49,11 @@ test('25d P1-2: edit slots are per owner; foreign / creator-less slots never sur
 });
 
 test('edit slot keeps mergeFrom and dirty tracking', () => {
-  const reviewed: MergeSourceSnapshot = { id: 'src', title: 'Old copy', revision: 4, trackIds: ['a', 'b'], storedTrackCount: 2, publicTrackCount: 2 };
+  const reviewed: MergeSourceSnapshot = { id: 'src', title: 'Old copy' };
   const slots = parseEditSlots({ CA: session('CA', 'm1', { mergeFrom: reviewed }) });
   assert.deepEqual(slots.CA.mergeFrom, reviewed);
-  // A pre-pass-2 merge source (id + title only) can't be verified, so its pending delete is dropped.
-  const legacy = parseEditSlots({ CA: { ...session('CA', 'm1'), mergeFrom: { id: 'src', title: 'Old copy' } } });
-  assert.equal(legacy.CA.mergeFrom, null);
+  const junk = parseEditSlots({ CA: { ...session('CA', 'm1'), mergeFrom: { title: 'no id' } } });
+  assert.equal(junk.CA.mergeFrom, null);
   assert.equal(isEditSessionDirty(slots.CA), true, 'title differs from baseline');
   assert.equal(isEditSessionDirty({ ...slots.CA, title: 'Server title' }), false);
 });
@@ -97,18 +96,13 @@ test('25d P2-1: Retry-After parsing for 503 create_pending', () => {
   assert.equal(parseRetryAfter('Tue, 24 Nov 2026 00:00:03 GMT', now), 3000);
 });
 
-test('25d pass 2 P1-1/P1-2: "Save & delete copy" may only delete the exact reviewed source', () => {
-  const reviewed: MergeSourceSnapshot = { id: 'src', title: 'Copy', revision: 2, trackIds: ['a', 'b'], storedTrackCount: 2, publicTrackCount: 2 };
-  // Exactly as reviewed and fully contained in the saved target.
-  assert.deepEqual(checkMergeSourceDeletion(reviewed, reviewed, ['x', 'a', 'b']), { ok: true });
-  // Source already gone: nothing to delete.
-  assert.deepEqual(checkMergeSourceDeletion(reviewed, null, ['a', 'b']), { ok: false, reason: 'gone' });
-  // Another client added a song to the source after review: keep it, surface the new song.
-  const newer = { ...reviewed, revision: 3, trackIds: ['a', 'b', 'c'], storedTrackCount: 3, publicTrackCount: 3 };
-  assert.deepEqual(checkMergeSourceDeletion(reviewed, newer, ['x', 'a', 'b']), { ok: false, reason: 'changed', fresh: newer, newTrackIds: ['c'] });
-  // Private / unavailable songs would be lost with the tombstone (the direct merge's 409 rule).
-  const withPrivate = { ...reviewed, storedTrackCount: 3 };
-  assert.deepEqual(checkMergeSourceDeletion(reviewed, withPrivate, ['a', 'b']), { ok: false, reason: 'unavailable', count: 1 });
-  // "Load latest" (or a manual removal) dropped source songs from the target: never delete.
-  assert.deepEqual(checkMergeSourceDeletion(reviewed, reviewed, ['x']), { ok: false, reason: 'missing', missingIds: ['a', 'b'] });
+test('25d pass 3 P1-3/P2-1: create payload key ignores whitespace-only edits, not real changes', () => {
+  const t = (id: string) => ({ id });
+  const base = { title: 'Pending Mix', description: 'Late night', tracks: [t('a'), t('b')] };
+  const key = draftPayloadKey(base);
+  assert.equal(draftPayloadKey({ ...base, title: 'Pending Mix ' }), key, 'trailing space is the same POST');
+  assert.equal(draftPayloadKey({ ...base, description: '  Late night\n' }), key);
+  assert.notEqual(draftPayloadKey({ ...base, title: 'Pending Mix 2' }), key);
+  assert.notEqual(draftPayloadKey({ ...base, tracks: [t('b'), t('a')] }), key, 'order matters');
+  assert.notEqual(draftPayloadKey({ ...base, tracks: [t('a'), t('b'), t('c')] }), key, 'another tab added a song');
 });

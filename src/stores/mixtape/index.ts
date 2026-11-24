@@ -24,19 +24,6 @@ export {
   clearDraft,
   loadDraft,
   getSnapshotDraft,
-  getActiveSnapshot,
-  startEdit,
-  cancelEdit,
-  finishEdit,
-  rebaseEdit,
-  setEditSaving,
-  setCreatePublishing,
-  setEditMergeFrom,
-  appendEditTracks,
-  cancelEditFor,
-  finishEditFor,
-  setEditConflict,
-  clearEditConflict,
   openMixtapeSheet,
   closeMixtapeSheet,
   setMixtapeSheetView,
@@ -47,6 +34,6 @@ export {
   type MixtapeSheetView,
   type MixtapeEditSession,
   type MergeSourceSnapshot,
-  type EditableMixtape,
-  type StartEditOptions,
 } from './state.svelte';
+// Edit lifecycle: import from './mixtape/editSession.svelte' (lazy code only — keeps it out of Home).
+export type { EditableMixtape, StartEditOptions } from './editSession.svelte';

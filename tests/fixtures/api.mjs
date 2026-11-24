@@ -253,6 +253,12 @@ createServer(async (req, res) => {
 
   // Owner lifecycle (GET /mixtapes/mine, /mixtapes/mx-*, PUT/DELETE/restore/merge, POST /mixtapes).
   if (path === '/mixtapes' && req.method === 'GET') {
+    // Test hook: for owner CMIXOWNERNOSSR the SERVER-side (SSR, no Origin header) list read fails,
+    // so the page must load All in the browser (25d pass 3 P2-4).
+    if (ownerMixtapes.sessionSub(req) === 'CMIXOWNERNOSSR' && !req.headers.origin) {
+      res.writeHead(503, { ...headers, 'Content-Type': 'text/plain' }).end('upstream unavailable');
+      return;
+    }
     const staticList = routes.get('/mixtapes');
     requests.set(path, (requests.get(path) ?? 0) + 1);
     res.writeHead(200, { ...headers, 'Content-Type': 'application/json' })

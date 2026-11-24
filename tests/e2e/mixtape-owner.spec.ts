@@ -477,7 +477,7 @@ test.describe('25d regressions (390×844)', () => {
 
     await page.getByRole('button', { name: /^Continue editing Chain Set \(2\)$/ }).click();
     // 25d pass 2 P1-6: hold the NEW ownership read; the stale costed CTA must never be offered meanwhile.
-    delayMs = 3_000;
+    delayMs = 9_000;
     await openDialog(page).getByRole('button', { name: 'Save changes' }).click();
     await expect(toasts(page).filter({ hasText: 'Saved. "Chain Set" is back on the Mixtapes page.' })).toBeVisible();
     await expect(page.getByText('2 songs').first()).toBeVisible();
@@ -486,8 +486,19 @@ test.describe('25d regressions (390×844)', () => {
     await expect(refreshing).toContainText('Refreshing holdings…');
     await expect(page.getByRole('button', { name: /Mint|Buy|Collect for|Complete/ })).toHaveCount(0);
     await expect(collectCard).toHaveCount(0);
+
+    // 25d pass 3 P1-4: a title-only save (same songs) while that read is still pending must NOT
+    // reveal the stale card — only the outstanding refresh's own completion may.
+    delayMs = 0;
+    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await openDialog(page).getByLabel('Title').fill('Chain Set (renamed)');
+    await openDialog(page).getByRole('button', { name: 'Save changes' }).click();
+    await expect(toasts(page).filter({ hasText: 'Saved "Chain Set (renamed)".' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Chain Set (renamed)', level: 1 })).toBeVisible();
+    await expect(refreshing).toBeVisible();
+    await expect(page.getByRole('button', { name: /Mint|Buy|Collect for|Complete/ })).toHaveCount(0);
     // Fresh ownership read for the new track set: the owned song counts immediately.
-    await expect(collectCard.getByRole('heading')).toHaveText(/You own 1 of 2/, { timeout: 15_000 });
+    await expect(collectCard.getByRole('heading')).toHaveText(/You own 1 of 2/, { timeout: 20_000 });
     expect(stats.getLedgerEntries).toBeGreaterThan(readsBefore);
   });
 
@@ -614,7 +625,7 @@ test.describe('25d regressions (390×844)', () => {
     await expect(toast.getByRole('button', { name: 'Open' })).toHaveCount(0);
   });
 
-  test('P2-4: a rejected merge freezes the stale preview; "Review in editor first" merges through the editor', async ({ page, context }) => {
+  test('P2-4: a rejected merge freezes the stale preview; "Review in editor first" saves the target and KEEPS the source', async ({ page, context }) => {
     const id = await signInAs(context, 'g1');
     await page.goto(`/mixtapes/${id('night-drive')}`);
     await page.getByRole('button', { name: 'More actions for Night Drive' }).click();
@@ -635,13 +646,20 @@ test.describe('25d regressions (390×844)', () => {
 
     await sheet.getByRole('button', { name: 'Review in editor first' }).click();
     const editor = openDialog(page, 'Editing · One Song Wonder');
-    await expect(editor.getByText('Merging "Night Drive" into this mixtape')).toBeVisible();
+    await expect(editor.getByText('Adding songs from "Night Drive" (it will be kept)')).toBeVisible();
     await expect(editor.getByText('4 songs selected')).toBeVisible();
-    await editor.getByRole('button', { name: 'Save & delete copy' }).click();
-    await expect(toasts(page).filter({ hasText: 'Saved "One Song Wonder" and deleted the copy "Night Drive".' })).toBeVisible();
+    await expect(editor.getByRole('button', { name: 'Save & delete copy' })).toHaveCount(0);
+    await editor.getByRole('button', { name: 'Save changes' }).click();
+    // 25d pass 3 P1-1: Save is ONLY a target PUT — the source is never deleted from the client.
+    const kept = toasts(page).filter({
+      hasText: 'Saved "One Song Wonder". "Night Drive" was kept — you can delete it anytime from Your mixtapes.',
+    });
+    await expect(kept).toBeVisible();
+    await expect(kept.getByRole('button', { name: 'View yours' })).toBeFocused();
     const rows = await ownerSnapshot(page, 'g1');
     expect(rows.find((r) => r.Id === id('solo'))!.Smols).toEqual(['cjk-smol', 'smol-2take', 'smol-1take', 'smol-fallback']);
-    expect(rows.find((r) => r.Id === id('night-drive'))!.Deleted_At).not.toBeNull();
+    expect(rows.find((r) => r.Id === id('night-drive'))!.Deleted_At).toBeNull();
+    expect((await ownerSnapshot(page, 'g1')).filter((r) => r.Deleted_At).map((r) => r.Id)).toEqual([id('old-merged')]);
   });
 
   test('P2-5: a sibling edit updates this detail page live (listed → hidden)', async ({ page, context }) => {
@@ -710,7 +728,7 @@ test.describe('25d regressions (390×844)', () => {
         await route.fulfill({
           status: 503,
           contentType: 'application/json',
-          headers: { ...cors, 'Retry-After': '1' },
+          headers: { ...cors, 'Retry-After': '3' },
           body: JSON.stringify({ error: 'Mixtape creation is still finishing; please retry', code: 'create_pending' }),
         });
       } else {
@@ -731,9 +749,14 @@ test.describe('25d regressions (390×844)', () => {
     // 25d pass 2 P2-1: the main Publish button can't bypass the Retry-After wait either.
     await expect(builder.getByRole('button', { name: 'Publish mixtape (2)' })).toBeDisabled();
     expect(calls).toBe(1);
-    await expect(retry).toBeEnabled({ timeout: 3_000 });
-    await expect(builder.getByRole('button', { name: 'Publish mixtape (2)' })).toBeEnabled();
-    await retry.click();
+    // 25d pass 3 P2-1: a whitespace-only edit is the SAME payload — the wait still holds.
+    await builder.getByLabel('Title').fill('Pending Mix ');
+    await expect(builder.getByRole('button', { name: 'Publish mixtape (2)' })).toBeDisabled();
+    await page.waitForTimeout(500);
+    await expect(builder.getByRole('button', { name: 'Publish mixtape (2)' })).toBeDisabled();
+    expect(calls).toBe(1);
+    await expect(builder.getByRole('button', { name: 'Publish mixtape (2)' })).toBeEnabled({ timeout: 5_000 });
+    await builder.getByRole('button', { name: 'Publish mixtape (2)' }).click();
     await expect(builder.getByRole('alert')).toContainText('changed while it was being published');
     await builder.getByRole('button', { name: 'Review it' }).click();
     await expect(page).toHaveURL(new RegExp(`/mixtapes/${id('night-drive')}$`));
@@ -827,7 +850,7 @@ async function openReviewInEditor(page: Page, id: (slug: string) => string) {
   await sheet.getByRole('button', { name: 'Review in editor first' }).click();
   const editor = openDialog(page, 'Editing · One Song Wonder');
   await expect(editor.getByText('4 songs selected')).toBeVisible();
-  await expect(editor.getByRole('button', { name: 'Save & delete copy' })).toBeEnabled();
+  await expect(editor.getByRole('button', { name: 'Save changes' })).toBeEnabled();
   return editor;
 }
 
@@ -837,37 +860,42 @@ test.describe('25d pass 2 regressions (390×844)', () => {
     const editor = await openReviewInEditor(page, id);
     // Another device renames the TARGET, so the reviewed save conflicts.
     await remoteEdit(page, 'g2', id('solo'), () => ({ title: 'One Song Wonder (remote)' }));
-    await editor.getByRole('button', { name: 'Save & delete copy' }).click();
+    await editor.getByRole('button', { name: 'Save changes' }).click();
     const banner = editor.locator('[data-mixtape-conflict]');
     await expect(banner).toBeVisible();
     await banner.getByRole('button', { name: 'Load latest' }).click();
 
-    await expect(toasts(page).filter({ hasText: 'The merge with "Night Drive" was cancelled' })).toBeVisible();
+    await expect(toasts(page).filter({ hasText: 'The songs from "Night Drive" weren’t added' })).toBeVisible();
     await expect(editor.getByText('1 song selected')).toBeVisible();
-    await expect(editor.getByRole('button', { name: 'Save & delete copy' })).toHaveCount(0);
+    await expect(editor.getByText('Adding songs from "Night Drive"')).toHaveCount(0);
     await expect(editor.getByRole('button', { name: 'Save changes' })).toBeDisabled();
     expect((await page.request.get(`${api}/mixtapes/${id('night-drive')}`)).status()).toBe(200);
   });
 
-  test('P1-2: a newer source revision is never deleted; its new songs are brought in for review', async ({ page, context }) => {
+  test('pass 3 P1-1: source and target races during a reviewed merge can never lose a song', async ({ page, context }) => {
     const id = await signInAs(context, 'g3');
     const editor = await openReviewInEditor(page, id);
-    // Another device adds a 4th song to the SOURCE after the review started.
+    // Source race: another device adds a 4th song to the SOURCE while the target is being reviewed.
     await remoteEdit(page, 'g3', id('night-drive'), (row) => ({ smols: [...row.Smols, 'first-smol'] }));
-
-    await editor.getByRole('button', { name: 'Save & delete copy' }).click();
-    await expect(editor.getByText('"Night Drive" changed on another device, so it wasn’t deleted.')).toBeVisible();
-    await expect(editor.getByText('5 songs selected')).toBeVisible();
-    let rows = await ownerSnapshot(page, 'g3');
-    expect(rows.find((r) => r.Id === id('night-drive'))!.Deleted_At).toBeNull();
-    expect(rows.find((r) => r.Id === id('solo'))!.Smols).toEqual(['cjk-smol']); // nothing saved yet
-
-    // Reviewed again (now including the new song): the delete is safe.
-    await editor.getByRole('button', { name: 'Save & delete copy' }).click();
-    await expect(toasts(page).filter({ hasText: 'Saved "One Song Wonder" and deleted the copy "Night Drive".' })).toBeVisible();
-    rows = await ownerSnapshot(page, 'g3');
-    expect(rows.find((r) => r.Id === id('solo'))!.Smols).toEqual(['cjk-smol', 'smol-2take', 'smol-1take', 'smol-fallback', 'first-smol']);
-    expect(rows.find((r) => r.Id === id('night-drive'))!.Deleted_At).not.toBeNull();
+    // Target race: the TARGET PUT is followed by another device restoring the target to 1 song.
+    let restored = false;
+    await page.route(`${api}/mixtapes/${id('solo')}`, async (route) => {
+      if (route.request().method() !== 'PUT' || restored) return route.continue();
+      const response = await route.fetch();
+      restored = true;
+      await route.fulfill({ response });
+      await remoteEdit(page, 'g3', id('solo'), () => ({ smols: ['cjk-smol'] }));
+    });
+    await editor.getByRole('button', { name: 'Save changes' }).click();
+    await expect(toasts(page).filter({ hasText: '"Night Drive" was kept' })).toBeVisible();
+    await expect.poll(() => restored).toBe(true);
+    const rows = await ownerSnapshot(page, 'g3');
+    const source = rows.find((r) => r.Id === id('night-drive'))!;
+    // Every song is still somewhere: the source was never deleted, including its new song.
+    expect(source.Deleted_At).toBeNull();
+    expect(source.Smols).toEqual(['smol-2take', 'smol-1take', 'smol-fallback', 'first-smol']);
+    const mutations = (await (await page.request.get(`${api}/__mutations`)).json()).ownerMutations as Array<{ method: string; path: string }>;
+    expect(mutations.some((m) => m.method === 'DELETE' && m.path === `/mixtapes/${id('night-drive')}`)).toBe(false);
   });
 
   test('P1-3: a 503 on Load latest keeps the dirty edit and the conflict choices', async ({ page, context }) => {
@@ -1028,5 +1056,159 @@ test.describe('25d pass 2 regressions (1440×900)', () => {
     await builder.getByRole('button', { name: 'Edit "Creasy Drops" instead' }).click();
     await expect(builder.getByRole('heading', { name: 'Editing · Creasy Drops' })).toBeVisible();
     await expect(builder.getByLabel('Title')).toBeFocused();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 25d pass 3 regressions (4 × P1, 4 × P2)
+// ---------------------------------------------------------------------------
+
+test.describe('25d pass 3 regressions (390×844)', () => {
+  test('P1-2: a save in tab A never erases the other mixtape tab B parked under the same account', async ({ page, context }) => {
+    const id = await signInAs(context, 'q1');
+    await page.goto(`/mixtapes/${id('night-drive')}`);
+    const tabB = await context.newPage();
+    await tabB.goto(`/mixtapes/${id('solo')}`);
+    await expect(tabB.locator('[data-owner-callout]')).toBeVisible();
+
+    // Tab A edits Night Drive and saves; the PUT is held.
+    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await openDialog(page).getByLabel('Title').fill('Night Drive (A)');
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    await page.route(`${api}/mixtapes/${id('night-drive')}`, async (route) => {
+      if (route.request().method() !== 'PUT') return route.continue();
+      await held;
+      await route.continue();
+    });
+    await openDialog(page).getByRole('button', { name: 'Save changes' }).click();
+    await expect(openDialog(page).getByRole('button', { name: 'Saving…' })).toBeVisible();
+
+    // Meanwhile tab B (same account) parks an edit of ANOTHER mixtape under the same owner key.
+    await tabB.locator('[data-owner-callout]').getByRole('button', { name: 'Add songs' }).click();
+    const discard = openDialog(tabB, 'Discard changes');
+    if (await discard.count()) await discard.getByRole('button', { name: 'Discard changes' }).click();
+    await openDialog(tabB).getByRole('button', { name: 'Back to mixtape' }).click();
+    await openDialog(tabB).getByLabel('Title').fill('Wonder (B)');
+    await openDialog(tabB).getByRole('button', { name: 'Close' }).click();
+    const key = 'smol:mixtape-edit:CMIXOWNERQ1';
+    expect(await tabB.evaluate((k) => localStorage.getItem(k) ?? '', key)).toContain('Wonder (B)');
+
+    release();
+    await expect(toasts(page).filter({ hasText: 'Saved "Night Drive (A)".' })).toBeVisible();
+    const stored = await page.evaluate((k) => localStorage.getItem(k) ?? '', key);
+    expect(stored).toContain('Wonder (B)');
+    expect(stored).toContain(id('solo'));
+    await tabB.close();
+  });
+
+  test('P1-3: a create POST in tab A keeps the song tab B added to the durable draft meanwhile', async ({ page, context }) => {
+    await signInAs(context, 'q2');
+    await seedDraft(page, { title: 'Two Tab Mix', tracks: [{ id: 'smol-minted', title: 'Starlight Mint Anthem' }] });
+    const tabB = await context.newPage();
+    await tabB.goto('/');
+
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    await page.route(`${api}/mixtapes`, async (route) => {
+      if (route.request().method() !== 'POST') return route.continue();
+      await held;
+      await route.continue();
+    });
+    await page.getByRole('button', { name: 'Open mixtape draft (1)' }).click();
+    const post = page.waitForRequest((req) => req.method() === 'POST' && req.url() === `${api}/mixtapes`);
+    await openDialog(page).getByRole('button', { name: 'Publish mixtape (1)' }).click();
+    await post;
+
+    // Tab B adds a song to the same durable draft while A's POST is in flight.
+    await tabB.getByRole('button', { name: 'Add Second Track to mixtape' }).click();
+    await expect.poll(() => tabB.evaluate(() => JSON.parse(localStorage.getItem('smol:mixtape-draft') || '{}').tracks?.length)).toBe(2);
+
+    release();
+    await expect(page).toHaveURL('/mixtapes/fixture-mixtape');
+    await expect(toasts(page).filter({ hasText: 'Your draft has newer changes' })).toBeVisible();
+    const durable = await page.evaluate(() => JSON.parse(localStorage.getItem('smol:mixtape-draft') || 'null'));
+    expect(durable?.tracks?.map((t: { id: string }) => t.id)).toEqual(['smol-minted', 'second-smol']);
+    await tabB.close();
+  });
+
+  test('P2-2: a rejected merge whose target or source vanished shows a safe state (no null throw)', async ({ page, context }) => {
+    const id = await signInAs(context, 'g5');
+    const pageErrors: string[] = [];
+    page.on('pageerror', (err) => pageErrors.push(err.message));
+    await page.goto(`/mixtapes/${id('night-drive')}`);
+    await page.getByRole('button', { name: 'More actions for Night Drive' }).click();
+    await page.getByRole('menuitem', { name: 'Merge into another mixtape' }).click();
+    const sheet = openDialog(page, 'Merge');
+    await sheet.getByRole('radio', { name: /One Song Wonder/ }).check();
+
+    // Target deleted on another device → the real merge 404s.
+    expect((await page.request.delete(`${api}/mixtapes/${id('solo')}`)).status()).toBe(200);
+    await sheet.getByRole('button', { name: 'Merge & delete copy' }).click();
+    await expect(sheet.locator('[data-merge-gone]')).toContainText('"One Song Wonder" is no longer available. Pick another mixtape.');
+    await expect(sheet.getByRole('button', { name: 'Merge & delete copy' })).toBeDisabled();
+    await expect(sheet.getByRole('button', { name: 'Review in editor first' })).toBeDisabled();
+
+    // Source deleted on another device → nothing stale stays actionable.
+    await sheet.getByRole('radio', { name: /Creasy Drops.*3 songs/ }).check();
+    expect((await page.request.delete(`${api}/mixtapes/${id('night-drive')}`)).status()).toBe(200);
+    await sheet.getByRole('button', { name: 'Merge & delete copy' }).click();
+    await expect(sheet.locator('[data-merge-gone]')).toContainText('This mixtape is no longer available');
+    await expect(sheet.locator('[data-merge-total]')).toHaveCount(0);
+    await expect(sheet.getByRole('button', { name: 'Merge & delete copy' })).toBeDisabled();
+    await expect(sheet.getByRole('button', { name: 'Review in editor first' })).toBeDisabled();
+    expect(pageErrors).toEqual([]);
+  });
+
+  test('P2-3: an expired session never gets hydrated owner controls (unverified cookie + failed /mine)', async ({ page, context }) => {
+    await context.addCookies([{ name: 'smol_token', value: fakeSmolJwt('CMIXOWNERI3', { exp: 1 }), url: 'http://127.0.0.1:4328' }]);
+    const mine = page.waitForResponse((res) => res.url() === `${api}/mixtapes/mine`);
+    await page.goto('/mixtapes/mx-i3-creasy-v1');
+    await expect(page.getByRole('heading', { name: 'Creasy Drops', level: 1 })).toBeVisible();
+    expect((await mine).status()).toBe(401);
+    await page.waitForTimeout(500);
+    await expect(page.locator('[data-owner-callout]')).toHaveCount(0);
+    await expect(page.locator('[data-owner-status]')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /More actions for/ })).toHaveCount(0);
+  });
+
+  test('P2-4: when the newest All read fails, All leaves the skeleton and offers Retry', async ({ page, context }) => {
+    const id = await signInAs(context, 'nossr');
+    // Park an edit so a save can trigger the All refresh.
+    await page.goto(`/mixtapes/${id('night-drive')}`);
+    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await openDialog(page).getByLabel('Title').fill('Night Drive Edited');
+    await openDialog(page).getByRole('button', { name: 'Close' }).click();
+
+    let gets = 0;
+    let releaseFirst!: () => void;
+    const firstHeld = new Promise<void>((resolve) => (releaseFirst = resolve));
+    await page.route(`${api}/mixtapes`, async (route) => {
+      if (route.request().method() !== 'GET') return route.continue();
+      gets += 1;
+      if (gets === 1) {
+        await firstHeld; // the initial browser read (SSR list unavailable) is slow…
+        return route.continue();
+      }
+      if (gets === 2) {
+        // …and the NEWEST read (after the save) fails.
+        return route.fulfill({ status: 503, contentType: 'text/plain', headers: cors, body: 'upstream unavailable' });
+      }
+      return route.continue();
+    });
+    await page.goto('/mixtapes');
+    await expect.poll(() => gets).toBe(1);
+    await page.getByRole('button', { name: /^Continue editing Night Drive Edited/ }).click();
+    await openDialog(page).getByRole('button', { name: 'Save changes' }).click();
+    await expect.poll(() => gets).toBe(2);
+    releaseFirst();
+
+    const failure = page.getByRole('alert').filter({ hasText: 'Could not load mixtapes' });
+    await expect(failure).toBeVisible();
+    await expect(failure).toContainText('Couldn’t load mixtapes right now');
+    await expect(page.locator('main article')).toHaveCount(0);
+    await failure.getByRole('button', { name: 'Try again' }).click();
+    await expect(page.locator('main article').first()).toBeVisible();
   });
 });

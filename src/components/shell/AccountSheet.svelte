@@ -14,6 +14,7 @@
   import { toast } from '../../stores/toast.svelte';
   import Sheet from '../ui/Sheet.svelte';
   import Icon from '../ui/Icon.svelte';
+  import '../ui/ownerIcons';
   import Button from '../ui/Button.svelte';
   import Loader from '../ui/Loader.svelte';
 

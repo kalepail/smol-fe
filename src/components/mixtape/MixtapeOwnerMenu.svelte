@@ -12,6 +12,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import Icon from '../ui/Icon.svelte';
+  import '../ui/ownerIcons';
 
   /**
    * Owner-only ⋯ menu (Edit / Merge / Delete). Popover menu with roving focus,

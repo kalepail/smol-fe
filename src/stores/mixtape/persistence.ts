@@ -1,5 +1,5 @@
 import type { MixtapeDraft, MixtapeTrack } from '../../types/domain';
-import { parseEditSession, parseEditSlots, parseTracks, type MixtapeEditSession } from './operations';
+import { parseEditSession, parseTracks, type MixtapeEditSession } from './operations';
 import * as storage from '../../services/localStorage';
 
 /** Create slot (unchanged key + shape since Report 19). */
@@ -62,19 +62,10 @@ export function loadEditSlot(owner: string): MixtapeEditSession | null {
   return session && session.creator === owner ? session : null;
 }
 
-/**
- * Load every owner's slot from its own key, migrating the shared-map / single-slot
- * value used by earlier builds into per-owner keys (never overwriting a newer one).
- */
+/** Load every owner's slot, each from its own `smol:mixtape-edit:<owner>` key. */
 export function loadEditSlotsFromStorage(): Record<string, MixtapeEditSession> {
-  if (typeof window === 'undefined') return {};
-  const legacy = parseEditSlots(storage.getItem<unknown>(EDIT_STORAGE_KEY));
-  for (const [owner, session] of Object.entries(legacy)) {
-    if (!loadEditSlot(owner)) persistEditSlot(owner, session);
-  }
-  if (Object.keys(legacy).length || storage.getItem<unknown>(EDIT_STORAGE_KEY) !== null) storage.removeItem(EDIT_STORAGE_KEY);
-
   const slots: Record<string, MixtapeEditSession> = {};
+  if (typeof window === 'undefined') return slots;
   let keys: string[] = [];
   try {
     keys = Object.keys(window.localStorage).filter((key) => key.startsWith(EDIT_KEY_PREFIX));

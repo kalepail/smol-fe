@@ -41,8 +41,19 @@
 
   // BOTH rows derive from the owner list by id, so a refresh after a rejected merge updates
   // the source as well as the target (25d pass 2 P2-2). The prop is only the fallback.
+  /** Set once the owner list has been refetched after a rejection (it is then authoritative). */
+  let refreshedOnce = $state(false);
+  /**
+   * 25d pass 3 P2-2: the source vanished from the (refreshed) owner list — deleted or merged on
+   * another device. Never fall back to the stale prop: nothing is actionable.
+   */
+  const sourceGone = $derived(
+    Boolean(sourceProp) &&
+      (refreshedOnce || candidates.length > 0) &&
+      !candidates.some((item) => item.id === sourceProp?.id)
+  );
   const source = $derived.by<MergeSource | null>(() => {
-    if (!sourceProp) return null;
+    if (!sourceProp || sourceGone) return null;
     const live = candidates.find((item) => item.id === sourceProp.id);
     return live
       ? {
@@ -67,6 +78,8 @@
    */
   let rejected = $state<{ key: string; fingerprint: string } | null>(null);
   let refreshing = $state(false);
+  /** The previously selected target disappeared after a refresh. */
+  let targetGoneTitle = $state<string | null>(null);
 
   const targets = $derived(candidates.filter((item) => item.id !== source?.id));
   const target = $derived(targets.find((item) => item.id === selectedId) ?? null);
@@ -81,6 +94,8 @@
     error = null;
     submitting = false;
     rejected = null;
+    refreshedOnce = false;
+    targetGoneTitle = null;
     selectedId = initialTargetId && targets.some((item) => item.id === initialTargetId) ? initialTargetId : targets.length === 1 ? targets[0].id : null;
   });
 
@@ -114,31 +129,39 @@
   const title = $derived(target ? `Merge into "${target.title}"?` : 'Merge into another mixtape');
 
   async function handleMerge() {
-    if (!source || !target || tooMany || submitting || needsReview || refreshing) return;
+    if (!source || !target || sourceGone || tooMany || submitting || needsReview || refreshing) return;
+    // Capture the submitted pair: after the refetch either row may be gone (never deref live state).
+    const submittedSource = { id: source.id, title: source.title };
+    const submittedTarget = { id: target.id, title: target.title };
+    const submittedKey = pairKey;
+    const submittedFingerprint = fingerprint;
     submitting = true;
     error = null;
+    targetGoneTitle = null;
     try {
-      await mergeMixtapes(
-        { id: source.id, title: source.title },
-        { id: target.id, title: target.title },
-        { navigateTo: navigateToTarget ? `/mixtapes/${encodeURIComponent(target.id)}` : undefined }
-      );
+      await mergeMixtapes(submittedSource, submittedTarget, {
+        navigateTo: navigateToTarget ? `/mixtapes/${encodeURIComponent(submittedTarget.id)}` : undefined,
+      });
       onClose();
     } catch (err) {
       error = err instanceof MixtapeActionError ? err.message : 'Couldn’t merge right now. Please try again.';
       const stale =
         err instanceof MixtapeActionError &&
         ['too_many_tracks', 'revision_conflict', 'not_found', 'merged'].includes(err.kind);
-      if (stale && source && target) {
+      if (stale) {
         // Freeze this preview, then show the server's current state before any retry.
-        rejected = { key: pairKey, fingerprint };
+        rejected = { key: submittedKey, fingerprint: submittedFingerprint };
         refreshing = true;
         try {
           await loadMyMixtapes({ force: true });
         } finally {
           refreshing = false;
+          refreshedOnce = true;
         }
-        if (!targets.some((item) => item.id === target.id)) selectedId = null;
+        if (!candidates.some((item) => item.id === submittedTarget.id)) {
+          selectedId = null;
+          targetGoneTitle = submittedTarget.title;
+        }
       }
     } finally {
       submitting = false;
@@ -146,7 +169,7 @@
   }
 
   async function handleReviewInEditor() {
-    if (!source || !target) return;
+    if (!source || !target || sourceGone) return;
     reviewing = true;
     try {
       const started = await reviewMergeInEditor({ id: source.id, title: source.title }, target.id);
@@ -158,7 +181,16 @@
 </script>
 
 <Sheet {open} {title} maxWidth="md" dismissible={!submitting} {onClose}>
-  {#if source}
+  {#if sourceGone}
+    <p role="alert" data-merge-gone class="rounded-[var(--radius-control)] bg-warning/15 px-3 py-2.5 text-sm leading-relaxed text-ink-1 ring-1 ring-inset ring-warning/30">
+      This mixtape is no longer available — it was deleted or merged on another device. Nothing was changed.
+    </p>
+  {:else if source}
+    {#if targetGoneTitle}
+      <p role="status" data-merge-gone class="mb-3 rounded-[var(--radius-control)] bg-warning/15 px-3 py-2.5 text-sm leading-relaxed text-ink-1 ring-1 ring-inset ring-warning/30">
+        "{targetGoneTitle}" is no longer available. Pick another mixtape.
+      </p>
+    {/if}
     <div class="flex flex-col gap-4" data-mixtape-merge>
       {#if targets.length === 0}
         <p class="text-sm leading-relaxed text-ink-2">
@@ -253,7 +285,7 @@
       <Button
         variant="secondary"
         loading={reviewing}
-        disabled={!target || submitting || reviewing}
+        disabled={!source || !target || sourceGone || submitting || reviewing || refreshing}
         onclick={() => void handleReviewInEditor()}
       >
         Review in editor first
@@ -261,7 +293,7 @@
       <Button
         variant="primary"
         loading={submitting}
-        disabled={!target || tooMany || submitting || refreshing || needsReview}
+        disabled={!source || !target || sourceGone || tooMany || submitting || refreshing || needsReview}
         onclick={() => void handleMerge()}
       >
         {submitting ? 'Merging…' : 'Merge & delete copy'}
