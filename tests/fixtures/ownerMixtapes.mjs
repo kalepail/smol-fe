@@ -6,6 +6,7 @@
 // Visibility is DERIVED with the very same Tier 1 classifier the FE mirrors
 // from smol-workflow (Node strips the TS types natively).
 import { classifyOwnerMixtapes } from '../../src/utils/mixtapeVisibility.ts';
+import { CHAIN_OWNER, CHAIN_TAG, CHAIN_TRACK_INDEXED, chainTracks } from './ownerChain.mjs';
 
 export const OWNER_PREFIX = 'CMIXOWNER';
 const MAX_SMOLS = 100;
@@ -20,7 +21,7 @@ export const bulkTracks = Array.from({ length: 99 }, (_, i) => ({
 
 let catalog = new Map();
 export function registerCatalog(tracks) {
-  catalog = new Map([...tracks, ...bulkTracks].map((t) => [t.Id, t]));
+  catalog = new Map([...tracks, ...bulkTracks, ...chainTracks].map((t) => [t.Id, t]));
 }
 
 const cohorts = new Map(); // tag -> Map(id -> row)
@@ -32,6 +33,16 @@ function now() {
 }
 
 function seed(tag) {
+  if (tag === CHAIN_TAG) {
+    // A collector-readable owner (real contract address) with one minted, indexed song.
+    const cohort = new Map([[`mx-${CHAIN_TAG}-set`, {
+      Id: `mx-${CHAIN_TAG}-set`, Title: 'Chain Set', Desc: 'Owned-song refresh check.', Smols: [CHAIN_TRACK_INDEXED.Id],
+      Address: CHAIN_OWNER, Created_At: '2026-11-21 09:00:00', Updated_At: '2026-11-21 09:00:00',
+      Revision: 1, Deleted_At: null, Hidden_Reason: null, Related_Mixtape_Id: null,
+    }]]);
+    cohorts.set(tag, cohort);
+    return cohort;
+  }
   const owner = `${OWNER_PREFIX}${tag.toUpperCase()}`;
   const id = (slug) => `mx-${tag}-${slug}`;
   const row = (slug, Title, Desc, Smols, Created_At, extra = {}) => ({
@@ -54,6 +65,7 @@ function seed(tag) {
 }
 
 function tagFromOwner(owner) {
+  if (owner === CHAIN_OWNER) return CHAIN_TAG;
   return typeof owner === 'string' && owner.startsWith(OWNER_PREFIX) ? owner.slice(OWNER_PREFIX.length).toLowerCase() : null;
 }
 
@@ -183,7 +195,10 @@ export async function handleOwnerRoute(req, res, path, headers) {
     const view = ownerView(row, decisionsFor(cohort).get(row.Id));
     const smols = view.Smols.map((id) => {
       const t = catalog.get(id);
-      return { Id: t.Id, Title: t.Title, Address: t.Address, Public: 1, Song_1: t.Song_1, Tags: [] };
+      return {
+        Id: t.Id, Title: t.Title, Address: t.Address, Public: 1, Song_1: t.Song_1 ?? 'first', Tags: [],
+        ...(t.Mint_Token ? { Mint_Token: t.Mint_Token, Mint_Amm: t.Mint_Amm } : {}),
+      };
     });
     return json(200, { ...view, Smols: smols }, view.Visibility !== 'public' ? { 'X-Robots-Tag': 'noindex' } : {});
   }

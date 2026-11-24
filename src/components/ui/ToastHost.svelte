@@ -38,6 +38,15 @@
       syncTopLayerOverlays();
     }
   });
+
+  // Focus transfer (Report 24 §7): e.g. Undo right after a delete. Each toast is focused once.
+  const focused = new Set<number>();
+  function focusOnMount(node: HTMLButtonElement, item: { id: number; focusAction?: boolean }) {
+    if (item.focusAction && !focused.has(item.id)) {
+      focused.add(item.id);
+      requestAnimationFrame(() => node.focus({ preventScroll: true }));
+    }
+  }
 </script>
 
 <div
@@ -57,7 +66,9 @@
         {#if item.actionLabel && item.onAction}
           <button
             type="button"
-            class="focus-ring inline-flex min-h-9 shrink-0 items-center rounded-md px-2.5 text-xs font-semibold text-accent hover:bg-accent/15"
+            use:focusOnMount={item}
+            data-toast-action
+            class="focus-ring inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md px-3 text-sm font-semibold text-accent hover:bg-accent/15"
             onclick={() => {
               item.onAction?.();
               dismissToast(item.id);
@@ -68,7 +79,7 @@
         {/if}
         <button
           type="button"
-          class="focus-ring inline-flex size-9 shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-white/10 hover:text-ink-1"
+          class="focus-ring inline-flex size-11 shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-white/10 hover:text-ink-1"
           aria-label="Dismiss notification"
           onclick={() => dismissToast(item.id)}
         >

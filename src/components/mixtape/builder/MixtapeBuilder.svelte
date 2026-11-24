@@ -24,6 +24,9 @@
     titleError?: string | null;
     sameTitleHint?: string | null;
     onDelete?: () => void;
+    statusAction?: { label: string; onClick?: () => void; href?: string; disabled?: boolean } | null;
+    /** Single column (desktop docked panel is narrow even at lg). */
+    stacked?: boolean;
   }
 
   let {
@@ -37,6 +40,8 @@
     titleError = null,
     sameTitleHint = null,
     onDelete,
+    statusAction = null,
+    stacked = false,
   }: Props = $props();
 
   // Every op targets the active session (edit ?? create).
@@ -98,7 +103,7 @@
   bind:this={workspaceEl}
   role="region"
   aria-label="Mixtape builder workspace"
-  class="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]"
+  class={`grid min-w-0 grid-cols-1 gap-5 ${stacked ? '' : 'lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]'}`}
 >
   <div class="flex min-w-0 flex-col gap-3">
   {#if edit && edit.privateTrackCount > 0}
@@ -130,6 +135,7 @@
     {titleError}
     {sameTitleHint}
     {onDelete}
+    {statusAction}
     {statusMessage}
     {statusTone}
     {showAuthAction}

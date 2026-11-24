@@ -74,6 +74,7 @@ async function assertLayoutInvariants(page: Page, routeLabel: string) {
       document.querySelector('nav[aria-label="Mobile navigation"]'),
       document.querySelector('form'),
       document.querySelector('dialog[open]'),
+      document.querySelector('aside[data-mixtape-panel]'),
     ].filter((n): n is Element => Boolean(n));
 
     for (const root of checkedRoots) {
@@ -92,7 +93,7 @@ async function assertLayoutInvariants(page: Page, routeLabel: string) {
     }
 
     let dialogInnerOverflow = 0;
-    const openDialog = document.querySelector('dialog[open]');
+    const openDialog = document.querySelector('dialog[open]') ?? document.querySelector('aside[data-mixtape-panel]');
     if (openDialog) {
       for (const el of openDialog.querySelectorAll('[role="region"], section, aside, ul, li')) {
         dialogInnerOverflow = Math.max(dialogInnerOverflow, el.scrollWidth - el.clientWidth);
@@ -273,7 +274,8 @@ for (const vp of VIEWPORTS) {
     } else {
       await page.goto('/');
       await page.getByRole('button', { name: /New mixtape|Mixtape draft/ }).click();
-      const builderSheet = page.locator('dialog[open]');
+      // Desktop builder = non-modal docked panel (25d P2-8).
+      const builderSheet = page.locator('aside[data-mixtape-panel]');
       await builderSheet.getByRole('button', { name: 'Add songs' }).click();
       await builderSheet.getByRole('button', { name: 'Add First Track to mixtape' }).click();
       await builderSheet.getByRole('button', { name: 'Add Second Track to mixtape' }).click();

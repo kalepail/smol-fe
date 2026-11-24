@@ -7,6 +7,8 @@ export interface ToastItem {
   tag?: string;
   actionLabel?: string;
   onAction?: () => void;
+  /** Move keyboard focus to the action button when the toast appears (e.g. Undo after delete). */
+  focusAction?: boolean;
 }
 
 let nextId = 1;
@@ -46,6 +48,7 @@ export function showToast(
     tag?: string;
     actionLabel?: string;
     onAction?: () => void;
+    focusAction?: boolean;
   } = {}
 ): number {
   const id = nextId++;
@@ -75,6 +78,7 @@ export function showToast(
       tag: options.tag,
       actionLabel: options.actionLabel,
       onAction: options.onAction,
+      focusAction: options.focusAction,
     },
   ];
 
@@ -84,11 +88,10 @@ export function showToast(
   return id;
 }
 
+type ToastOptions = { actionLabel?: string; onAction?: () => void; duration?: number; tag?: string; focusAction?: boolean };
+
 export const toast = {
-  info: (message: string, opts?: { actionLabel?: string; onAction?: () => void; duration?: number; tag?: string }) =>
-    showToast(message, { ...opts, tone: 'info' }),
-  success: (message: string, opts?: { actionLabel?: string; onAction?: () => void; duration?: number; tag?: string }) =>
-    showToast(message, { ...opts, tone: 'success' }),
-  error: (message: string, opts?: { actionLabel?: string; onAction?: () => void; duration?: number; tag?: string }) =>
-    showToast(message, { ...opts, tone: 'error' }),
+  info: (message: string, opts?: ToastOptions) => showToast(message, { ...opts, tone: 'info' }),
+  success: (message: string, opts?: ToastOptions) => showToast(message, { ...opts, tone: 'success' }),
+  error: (message: string, opts?: ToastOptions) => showToast(message, { ...opts, tone: 'error' }),
 };

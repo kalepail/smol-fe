@@ -6,6 +6,7 @@
  */
 import { listMyMixtapes, MixtapeActionError, type OwnedMixtape } from '../services/api/mixtapes';
 import { userState } from './user.svelte';
+import { createLatestGate } from '../utils/latestRequest';
 
 const STALE_AFTER_MS = 60_000;
 
@@ -32,10 +33,14 @@ export const myMixtapesState = $state<{
 export const mixtapeChangeSignal = $state<{ version: number; ids: string[] }>({ version: 0, ids: [] });
 
 let inflight: Promise<OwnedMixtape[]> | null = null;
-let generation = 0;
+/** Strictly monotonic request ids: an older (even forced) response never overwrites a newer one. */
+const requests = createLatestGate();
+
+/** Restored/merged card to focus once it is back in the list (25d P2-7). */
+export const myMixtapesFocus = $state<{ id: string | null }>({ id: null });
 
 function resetFor(owner: string | null) {
-  generation += 1;
+  requests.reset();
   inflight = null;
   myMixtapesState.owner = owner;
   myMixtapesState.items = [];
@@ -68,20 +73,20 @@ export async function loadMyMixtapes(options: { force?: boolean } = {}): Promise
   if (fresh && !options.force) return myMixtapesState.items;
   if (inflight && !options.force) return inflight;
 
-  const run = generation;
+  const run = requests.begin();
   if (myMixtapesState.status !== 'ready') myMixtapesState.status = 'loading';
   myMixtapesState.error = null;
 
   const request = listMyMixtapes()
     .then((items) => {
-      if (run !== generation) return items;
+      if (!requests.isCurrent(run) || myMixtapesState.owner !== owner) return myMixtapesState.items;
       myMixtapesState.items = items.filter((item) => item.creator === owner);
       myMixtapesState.status = 'ready';
       myMixtapesState.loadedAt = Date.now();
       return myMixtapesState.items;
     })
     .catch((error: unknown) => {
-      if (run !== generation) return [];
+      if (!requests.isCurrent(run)) return myMixtapesState.items;
       // Keep showing what we had (SWR) — only surface the error when there is nothing.
       if (myMixtapesState.status !== 'ready') {
         myMixtapesState.status = 'error';

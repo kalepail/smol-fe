@@ -47,5 +47,22 @@ export default defineConfig({
       ...(useMkcert ? [mkcert()] : []),
       tailwindcss(),
     ],
+    // Dev only: these are reached through dynamic imports (chain reads, wallet), so Vite would
+    // discover them mid-session and re-optimize, leaving open pages with two Svelte runtimes
+    // (`effect_orphan` / `lifecycle_outside_component`). Pre-bundling them up front keeps the
+    // first optimization final. No effect on production builds.
+    optimizeDeps: {
+      include: [
+        '@stellar/stellar-sdk/minimal',
+        '@stellar/stellar-sdk/minimal/contract',
+        '@stellar/stellar-sdk/minimal/rpc',
+        'passkey-kit',
+        'js-cookie',
+        // Injected by vite-plugin-node-polyfills into the bundles above.
+        'vite-plugin-node-polyfills/shims/buffer',
+        'vite-plugin-node-polyfills/shims/global',
+        'vite-plugin-node-polyfills/shims/process',
+      ],
+    },
   },
 });

@@ -4,14 +4,16 @@
     title: string;
     trackIds: string[];
     coverUrls: (string | null)[];
+    /** Stored songs incl. private ones (BE merges the STORED list). */
+    storedTrackCount?: number;
   }
 </script>
 
 <script lang="ts">
   import { MAX_MIXTAPE_TRACKS, MixtapeActionError, type OwnedMixtape } from '../../services/api/mixtapes';
-  import { MERGE_REASSURANCE, mergeMixtapes } from '../../services/mixtapeActions';
+  import { MERGE_REASSURANCE, mergeMixtapes, reviewMergeInEditor } from '../../services/mixtapeActions';
   import { mergePreview } from '../../utils/mixtapeCoaching';
-  import { invalidateMyMixtapes } from '../../stores/myMixtapes.svelte';
+  import { loadMyMixtapes } from '../../stores/myMixtapes.svelte';
   import Sheet from '../ui/Sheet.svelte';
   import Button from '../ui/Button.svelte';
   import Icon from '../ui/Icon.svelte';
@@ -39,6 +41,14 @@
   let selectedId = $state<string | null>(null);
   let submitting = $state(false);
   let error = $state<string | null>(null);
+  let reviewing = $state(false);
+  /**
+   * After the server rejects a merge (>100, revision conflict, gone), the preview
+   * is stale: we refetch, and submit stays disabled until the owner has seen the
+   * refreshed counts for the SAME pair at a NEWER fingerprint (25d P2-4).
+   */
+  let rejected = $state<{ key: string; fingerprint: string } | null>(null);
+  let refreshing = $state(false);
 
   const targets = $derived(candidates.filter((item) => item.id !== source?.id));
   const target = $derived(targets.find((item) => item.id === selectedId) ?? null);
@@ -52,13 +62,20 @@
     if (!key) return;
     error = null;
     submitting = false;
+    rejected = null;
     selectedId = initialTargetId && targets.some((item) => item.id === initialTargetId) ? initialTargetId : targets.length === 1 ? targets[0].id : null;
   });
 
   const preview = $derived(target && source ? mergePreview(source.trackIds, target.trackIds) : null);
-  // Backend total = target's STORED songs (incl. private) + appended songs.
-  const total = $derived(target && preview ? Math.max(target.storedTrackCount, target.trackIds.length) + preview.added.length : 0);
+  // Backend merges STORED lists: before = target's stored songs (incl. private), after = before + appended.
+  const before = $derived(target ? Math.max(target.storedTrackCount, target.trackIds.length) : 0);
+  const total = $derived(target && preview ? before + preview.added.length : 0);
   const tooMany = $derived(total > MAX_MIXTAPE_TRACKS);
+  const targetPrivate = $derived(target ? Math.max(0, target.storedTrackCount - target.trackIds.length) : 0);
+  const sourcePrivate = $derived(source ? Math.max(0, (source.storedTrackCount ?? source.trackIds.length) - source.trackIds.length) : 0);
+  const pairKey = $derived(source && target ? `${source.id}→${target.id}` : '');
+  const fingerprint = $derived(target && source ? `${target.revision}:${target.storedTrackCount}:${source.trackIds.join(',')}` : '');
+  const needsReview = $derived(Boolean(rejected && rejected.key === pairKey && rejected.fingerprint === fingerprint));
   const songs = (n: number) => `${n} ${n === 1 ? 'song' : 'songs'}`;
 
   const outcome = $derived.by(() => {
@@ -75,7 +92,7 @@
   const title = $derived(target ? `Merge into "${target.title}"?` : 'Merge into another mixtape');
 
   async function handleMerge() {
-    if (!source || !target || tooMany || submitting) return;
+    if (!source || !target || tooMany || submitting || needsReview || refreshing) return;
     submitting = true;
     error = null;
     try {
@@ -86,14 +103,34 @@
       );
       onClose();
     } catch (err) {
-      if (err instanceof MixtapeActionError) {
-        error = err.message;
-        if (err.kind === 'not_found' || err.kind === 'merged') invalidateMyMixtapes([source.id, target.id]);
-      } else {
-        error = 'Couldn’t merge right now. Please try again.';
+      error = err instanceof MixtapeActionError ? err.message : 'Couldn’t merge right now. Please try again.';
+      const stale =
+        err instanceof MixtapeActionError &&
+        ['too_many_tracks', 'revision_conflict', 'not_found', 'merged'].includes(err.kind);
+      if (stale && source && target) {
+        // Freeze this preview, then show the server's current state before any retry.
+        rejected = { key: pairKey, fingerprint };
+        refreshing = true;
+        try {
+          await loadMyMixtapes({ force: true });
+        } finally {
+          refreshing = false;
+        }
+        if (!targets.some((item) => item.id === target.id)) selectedId = null;
       }
     } finally {
       submitting = false;
+    }
+  }
+
+  async function handleReviewInEditor() {
+    if (!source || !target) return;
+    reviewing = true;
+    try {
+      const started = await reviewMergeInEditor({ id: source.id, title: source.title }, target.id);
+      if (started) onClose();
+    } finally {
+      reviewing = false;
     }
   }
 </script>
@@ -140,7 +177,7 @@
               <div class="min-w-0">
                 <p class="truncate text-sm font-medium text-ink-1">{target.title}</p>
                 <p class="tabular text-xs text-ink-2" data-merge-total>
-                  {target.trackCount} → {total} songs
+                  {before} → {total} songs
                 </p>
               </div>
             </div>
@@ -148,10 +185,21 @@
 
           <p class="text-sm leading-relaxed text-ink-1" data-merge-outcome>{outcome}</p>
 
+          {#if targetPrivate > 0 || sourcePrivate > 0}
+            <p class="text-xs leading-relaxed text-ink-2" data-merge-private>
+              {#if targetPrivate > 0}
+                "{target.title}" also keeps {targetPrivate} {targetPrivate === 1 ? 'song that isn’t' : 'songs that aren’t'} public right now (counted above).
+              {/if}
+              {#if sourcePrivate > 0}
+                {sourcePrivate} {sourcePrivate === 1 ? 'song in this mixtape isn’t' : 'songs in this mixtape aren’t'} public right now; merging needs {sourcePrivate === 1 ? 'it' : 'them'} public or already in "{target.title}".
+              {/if}
+            </p>
+          {/if}
+
           {#if tooMany}
             <p role="alert" class="rounded-[var(--radius-control)] bg-warning/15 px-3 py-2.5 text-sm leading-relaxed text-ink-1 ring-1 ring-inset ring-warning/30">
               "{target.title}" can hold {MAX_MIXTAPE_TRACKS} songs. {total - MAX_MIXTAPE_TRACKS}
-              {total - MAX_MIXTAPE_TRACKS === 1 ? 'song won’t' : 'songs won’t'} fit — remove some songs first.
+              {total - MAX_MIXTAPE_TRACKS === 1 ? 'song won’t' : 'songs won’t'} fit — review in the editor to choose which songs to keep.
             </p>
           {/if}
         {/if}
@@ -162,21 +210,36 @@
         </p>
 
         {#if error}
-          <p role="alert" class="rounded-[var(--radius-control)] bg-danger/15 px-3 py-2.5 text-sm leading-relaxed text-danger ring-1 ring-inset ring-danger/35">
-            {error}
-          </p>
+          <div role="alert" class="rounded-[var(--radius-control)] bg-danger/15 px-3 py-2.5 text-sm leading-relaxed text-danger ring-1 ring-inset ring-danger/35">
+            <p>{error}</p>
+            {#if refreshing}
+              <p class="mt-1 text-xs text-ink-2">Refreshing your mixtapes…</p>
+            {:else if needsReview}
+              <p class="mt-1 text-xs text-ink-2" data-merge-needs-review>
+                These counts are the latest we have. Review the songs in the editor first, or pick another mixtape.
+              </p>
+            {/if}
+          </div>
         {/if}
       {/if}
     </div>
   {/if}
 
   {#snippet footer()}
-    <div class="flex items-center justify-end gap-2">
+    <div class="flex flex-wrap items-center justify-end gap-2">
       <Button variant="ghost" disabled={submitting} onclick={onClose}>Cancel</Button>
+      <Button
+        variant="secondary"
+        loading={reviewing}
+        disabled={!target || submitting || reviewing}
+        onclick={() => void handleReviewInEditor()}
+      >
+        Review in editor first
+      </Button>
       <Button
         variant="primary"
         loading={submitting}
-        disabled={!target || tooMany || submitting}
+        disabled={!target || tooMany || submitting || refreshing || needsReview}
         onclick={() => void handleMerge()}
       >
         {submitting ? 'Merging…' : 'Merge & delete copy'}

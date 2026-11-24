@@ -19,14 +19,19 @@
   // header's ownerBanner / ownerChip / ownerActions slots; collectSlot (t488's
   // collector system) is untouched.
   import { navigate } from 'astro:transitions/client';
-  import MixtapeOwnerCallout from './MixtapeOwnerCallout.svelte';
-  import MixtapeOwnerMenu from './MixtapeOwnerMenu.svelte';
-  import MixtapeMergeSheet, { type MergeSource } from './MixtapeMergeSheet.svelte';
+  import type { MergeSource } from './MixtapeMergeSheet.svelte';
   import Button from '../ui/Button.svelte';
   import Icon from '../ui/Icon.svelte';
   import { toast } from '../../stores/toast.svelte';
   import { findOwnedMixtape, loadMyMixtapes, mixtapeChangeSignal, myMixtapesState } from '../../stores/myMixtapes.svelte';
-  import { deleteMixtapeWithUndo, openMixtapeEditor } from '../../services/mixtapeActions';
+  // Owner kit (callout, menu, merge sheet, lifecycle actions) is a dynamic import: creators only.
+  type OwnerKit = typeof import('./ownerKit');
+  let ownerKit = $state<OwnerKit | null>(null);
+  let ownerKitPromise: Promise<OwnerKit> | null = null;
+  function loadOwnerKit(): Promise<OwnerKit> {
+    ownerKitPromise ??= import('./ownerKit').then((mod) => (ownerKit = mod));
+    return ownerKitPromise;
+  }
 
   interface Props {
     id: string;
@@ -200,18 +205,55 @@
   let mergeTargetId = $state<string | null>(null);
 
   $effect(() => {
-    if (isOwner) void loadMyMixtapes();
+    if (!isOwner) return;
+    void loadMyMixtapes();
+    void loadOwnerKit();
   });
 
-  // Refresh after an owner write to THIS mixtape (save from the builder, restore, merge target).
+  // Refresh after ANY owner write (25d P2-5): editing, deleting or merging a SIBLING can change
+  // this mixtape's listing / callout too, not only writes to this id.
   let seenChangeVersion = mixtapeChangeSignal.version;
   $effect(() => {
     const version = mixtapeChangeSignal.version;
     if (version === seenChangeVersion) return;
     seenChangeVersion = version;
-    if (mixtapeChangeSignal.ids.includes(id)) {
+    if (mixtapeChangeSignal.ids.includes(id) || isOwner) {
       untrack(() => void fetchMixtapeData(id, null, { quiet: true, fresh: true }));
     }
+  });
+
+  // 25d P1-1: when an owner save changes THIS mixtape's track set, the collector's ownership
+  // snapshot (keyed by wallet + mixtape, read once) is stale for the new songs. Ask the
+  // collector for a fresh read through its public refresh(); its own files stay untouched.
+  let trackSetFor: { id: string; signature: string } | null = null;
+  $effect(() => {
+    const current = mixtape && mixtape.id === id ? mixtape : null;
+    const signature = current ? current.tracks.map((track) => track.Id).join(',') : null;
+    untrack(() => {
+      if (!current || signature === null) return;
+      const previous = trackSetFor;
+      trackSetFor = { id: current.id, signature };
+      if (previous && previous.id === current.id && previous.signature !== signature && userState.contractId) {
+        void collect.refresh();
+      }
+    });
+  });
+
+  // SSR rendered a static copy of the owner callout (Report 24 §5.3); hand off to the live one.
+  // Removed once the live owner state is known (the shell syncs `userState` from the same cookie),
+  // with a short fallback so a stale copy can never linger.
+  function dropSsrCallout() {
+    for (const el of document.querySelectorAll('[data-ssr-owner-callout]')) el.remove();
+  }
+  $effect(() => {
+    if (loading || !mixtape) return;
+    if (userState.contractId) {
+      if (isOwner && !ownerKit) return; // live callout not renderable yet
+      dropSsrCallout();
+      return;
+    }
+    const timer = setTimeout(dropSsrCallout, 2000);
+    return () => clearTimeout(timer);
   });
 
   // `?merged=1` arrives from the SSR 307 / client redirect of a merged mixtape link.
@@ -228,7 +270,8 @@
 
   function ownerEdit(view: 'builder' | 'picker' = 'builder') {
     if (!mixtape) return;
-    void openMixtapeEditor(mixtape.id, { view });
+    const mixtapeId = mixtape.id;
+    void loadOwnerKit().then((kit) => kit.openMixtapeEditor(mixtapeId, { view }));
   }
 
   function ownerMerge(targetId: string | null) {
@@ -239,15 +282,14 @@
       title: mixtape.title,
       trackIds: mixtape.tracks.map((track) => track.Id),
       coverUrls: mixtape.coverUrls,
+      storedTrackCount: mixtape.storedTrackCount,
     };
   }
 
   function ownerDelete() {
     if (!mixtape) return;
-    void deleteMixtapeWithUndo(
-      { id: mixtape.id, title: mixtape.title, hiddenReason: mixtape.hiddenReason ?? null },
-      { navigateTo: '/mixtapes?view=yours' }
-    );
+    const target = { id: mixtape.id, title: mixtape.title, hiddenReason: mixtape.hiddenReason ?? null };
+    void loadOwnerKit().then((kit) => kit.deleteMixtapeWithUndo(target, { navigateTo: '/mixtapes?view=yours' }));
   }
 
   async function copyLink() {
@@ -270,8 +312,8 @@
 <svelte:window onkeydown={handleKeyboard} />
 
 {#snippet ownerBanner()}
-  {#if mixtape}
-    <MixtapeOwnerCallout
+  {#if mixtape && ownerKit}
+    <ownerKit.MixtapeOwnerCallout
       {mixtape}
       match={relatedOwned}
       onEdit={() => ownerEdit('builder')}
@@ -309,7 +351,8 @@
       <Icon name="pencil" size={16} />
       <span>Edit</span>
     </Button>
-    <MixtapeOwnerMenu
+    {#if ownerKit}
+    <ownerKit.MixtapeOwnerMenu
       label={`More actions for ${mixtape.title}`}
       align="right"
       items={[
@@ -320,6 +363,10 @@
         { label: 'Delete mixtape', icon: 'trash' as const, tone: 'danger' as const, onSelect: ownerDelete },
       ]}
     />
+    {:else}
+      <!-- Same 44px footprint while the owner kit loads (no layout shift). -->
+      <span class="inline-flex size-11" aria-hidden="true"></span>
+    {/if}
   {/if}
 {/snippet}
 
@@ -388,8 +435,8 @@
   <MixtapeCollectSheet controller={collect} mixtapeTitle={mixtape.title} />
 {/if}
 
-{#if isOwner}
-  <MixtapeMergeSheet
+{#if isOwner && ownerKit}
+  <ownerKit.MixtapeMergeSheet
     open={mergeSource !== null}
     source={mergeSource}
     candidates={ownerList}

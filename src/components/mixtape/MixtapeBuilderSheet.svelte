@@ -6,7 +6,9 @@
     mixtapeDraftHasContent,
     mixtapeActive,
     mixtapeEditState,
+    mixtapeEditConflict,
     mixtapeIsDirty,
+    mixtapeIsSaving,
     mixtapeSheetState,
     closeMixtapeSheet,
     setMixtapeSheetView,
@@ -25,7 +27,7 @@
     MixtapeValidationError,
     type TrackIssueKind,
   } from '../../hooks/useMixtapePublishing';
-  import { MixtapeActionError, MixtapePublishError, type OwnedMixtape } from '../../services/api/mixtapes';
+  import { MixtapeActionError, MixtapePublishError } from '../../services/api/mixtapes';
   import {
     LIFECYCLE_TAG,
     cancelMixtapeEdit,
@@ -40,6 +42,7 @@
   import { normalizeMixtapeText } from '../../utils/mixtapeVisibility';
   import { logger } from '../../utils/logger';
   import Sheet from '../ui/Sheet.svelte';
+  import DockedPanel from '../ui/DockedPanel.svelte';
   import Button from '../ui/Button.svelte';
   import IconButton from '../ui/IconButton.svelte';
   import Icon from '../ui/Icon.svelte';
@@ -57,7 +60,18 @@
   let showAuthAction = $state(false);
   let trackIssues = $state<Record<string, TrackIssueKind>>({});
   let titleError = $state<string | null>(null);
-  let conflict = $state<{ current: OwnedMixtape | null } | null>(null);
+  /** Extra action for the status message (create_pending retry / create_conflict review — 25d P2-1). */
+  let statusAction = $state<{ label: string; onClick?: () => void; href?: string; disabled?: boolean } | null>(null);
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // Desktop (lg+) renders a non-modal docked panel; mobile keeps the bottom sheet (25d P2-8).
+  let desktop = $state(typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches);
+  $effect(() => {
+    const query = window.matchMedia('(min-width: 1024px)');
+    const sync = () => (desktop = query.matches);
+    query.addEventListener('change', sync);
+    return () => query.removeEventListener('change', sync);
+  });
 
   const session = $derived(mixtapeActive.current);
   const edit = $derived(mixtapeEditState.session);
@@ -65,7 +79,13 @@
   const isDirty = $derived(mixtapeIsDirty.current);
   const trackCount = $derived(session.tracks.length);
   const isPicker = $derived(mixtapeSheetState.view === 'picker');
-  const busy = $derived(publishing || saving || switching);
+  // The store freezes the edit slot during its PUT (25d P1-3); mirror that in the UI.
+  const saveLocked = $derived(mixtapeIsSaving.current);
+  const busy = $derived(publishing || saving || switching || saveLocked);
+  const mergeFrom = $derived(edit?.mergeFrom ?? null);
+  const canSave = $derived(isDirty || Boolean(mergeFrom));
+  // Shared with the toast's "Load latest" so both entry points clear it (25d P2-2).
+  const conflictActive = $derived(Boolean(edit && mixtapeEditConflict.mixtapeId === edit.mixtapeId));
 
   // ---------------------------------------------------------------------------
   // Live coaching (shared Tier 1 classifier = the live backend's decision)
@@ -118,7 +138,7 @@
           self.hiddenReason === 'duplicate'
             ? `You already published these songs, so only "${match.title}" would show on the Mixtapes page.`
             : self.hiddenReason === 'superseded'
-              ? `All ${songs(publicTrackIds.length)} are already in it. Edit it instead of publishing a second copy?`
+              ? `${publicTrackIds.length === 1 ? 'That song is' : `All ${songs(publicTrackIds.length)} are`} already in it. Edit it instead of publishing a second copy?`
               : `Most of these songs are already in it. Add the new ones to "${match.title}" instead?`;
         return {
           key: `match:${match.id}:${self.hiddenReason}`,
@@ -218,6 +238,7 @@
     }
     if (edit) {
       const status = edit.baselineVisibility === 'owner' ? 'Hidden from the Mixtapes page' : 'Listed';
+      if (mergeFrom) return `${songs} · Merging "${mergeFrom.title}" into this mixtape`;
       return `${songs} · ${isDirty ? 'Unsaved changes' : status}`;
     }
     return trackCount > 0 ? `${songs} · Saved on this device` : 'Saved on this device';
@@ -225,6 +246,11 @@
 
   function resetStatus() {
     statusMessage = null;
+    statusAction = null;
+    if (retryTimer) {
+      clearTimeout(retryTimer);
+      retryTimer = null;
+    }
     showAuthAction = false;
     trackIssues = {};
     titleError = null;
@@ -237,7 +263,6 @@
     if (id !== lastSessionId) {
       lastSessionId = id;
       resetStatus();
-      conflict = null;
     }
   });
 
@@ -316,6 +341,25 @@
       } else if (error instanceof MixtapePublishError) {
         showAuthAction = error.kind === 'auth';
         statusMessage = error.message;
+        if (error.kind === 'pending') {
+          // 503 create_pending: the same publish is still finishing. Offer a retry once Retry-After passes.
+          statusTone = 'info';
+          statusAction = { label: 'Try again', disabled: true, onClick: () => void handlePublish() };
+          retryTimer = setTimeout(() => {
+            retryTimer = null;
+            if (statusAction) statusAction = { ...statusAction, disabled: false };
+          }, error.retryAfterMs ?? 1000);
+        } else if (error.kind === 'conflict' && error.conflictId) {
+          // 409 create_conflict with the changed row: let the owner inspect it before re-publishing.
+          const conflictId = error.conflictId;
+          statusAction = {
+            label: 'Review it',
+            onClick: () => {
+              closeMixtapeSheet();
+              void navigate(`/mixtapes/${encodeURIComponent(conflictId)}`);
+            },
+          };
+        }
       } else {
         statusMessage =
           error instanceof Error ? error.message : 'Failed to publish mixtape. Your draft is safe.';
@@ -367,7 +411,6 @@
 
   async function handleSave() {
     resetStatus();
-    conflict = null;
     if (!session.title.trim()) {
       titleError = 'Give your mixtape a name.';
       await tick();
@@ -385,17 +428,15 @@
 
   function handleSaveOutcome(outcome: Awaited<ReturnType<typeof saveMixtapeEdit>>) {
     if (outcome.ok) {
-      conflict = null;
+      // A defensive rebase kept newer local changes open: stay in the editor.
+      if (mixtapeEditState.session?.mixtapeId === outcome.id) return;
       closeMixtapeSheet();
       // Stay on /mixtapes pages (they refresh); otherwise land on the saved mixtape.
       if (!currentPath().startsWith('/mixtapes')) void navigate(`/mixtapes/${encodeURIComponent(outcome.id)}`);
       return;
     }
     const error = outcome.error;
-    if (error instanceof MixtapeActionError && error.kind === 'revision_conflict') {
-      conflict = { current: error.current ?? null };
-      return;
-    }
+    if (error instanceof MixtapeActionError && error.kind === 'revision_conflict') return; // banner via store
     if (error instanceof MixtapeActionError && (error.kind === 'not_found' || error.kind === 'merged')) {
       closeMixtapeSheet();
       return;
@@ -408,7 +449,7 @@
   async function handleLoadLatest() {
     saving = true;
     try {
-      if (await loadLatestEdit()) conflict = null;
+      await loadLatestEdit();
     } finally {
       saving = false;
     }
@@ -417,7 +458,7 @@
   async function handleSaveMine() {
     saving = true;
     try {
-      handleSaveOutcome(await saveMineAnyway(conflict?.current));
+      handleSaveOutcome(await saveMineAnyway());
     } finally {
       saving = false;
     }
@@ -427,7 +468,6 @@
     const fromDraft = edit?.fromDraft === true;
     const cancelled = await cancelMixtapeEdit(isDirty);
     if (!cancelled) return;
-    conflict = null;
     if (!fromDraft) closeMixtapeSheet();
   }
 
@@ -442,117 +482,144 @@
   }
 </script>
 
-<Sheet
-  open={mixtapeSheetState.open}
-  title={sheetTitle}
-  subtitle={sheetSubtitle}
-  dismissible={!busy}
-  maxWidth={isPicker ? 'lg' : 'xl'}
-  onClose={closeMixtapeSheet}
->
-  {#snippet headerExtra()}
-    {#if isPicker}
-      <IconButton label={isEditing ? 'Back to mixtape' : 'Back to draft'} onclick={() => setMixtapeSheetView('builder')}>
-        <Icon name="chevron-left" size={20} />
-      </IconButton>
-    {/if}
-  {/snippet}
-
+{#snippet backButton()}
   {#if isPicker}
-    <MixtapePicker />
-  {:else}
-    <MixtapeBuilder
-      {statusMessage}
-      {statusTone}
-      {showAuthAction}
-      {trackIssues}
-      {titleError}
-      {sameTitleHint}
-      onDelete={isEditing ? () => void handleDelete() : undefined}
-      onResetStatus={resetStatus}
-      onOpenPicker={() => setMixtapeSheetView('picker')}
-      onSignIn={() => {
-        closeMixtapeSheet();
-        openAuthSheet('signin', isEditing ? 'Sign in again to save your changes.' : 'Sign in again to publish your mixtape draft.');
-      }}
-    />
+    <IconButton label={isEditing ? 'Back to mixtape' : 'Back to draft'} onclick={() => setMixtapeSheetView('builder')}>
+      <Icon name="chevron-left" size={20} />
+    </IconButton>
   {/if}
+{/snippet}
 
-  {#snippet footer()}
+{#snippet body()}
+  <!-- Frozen while the edit's PUT is in flight: nothing can change under the save (25d P1-3). -->
+  <div inert={saveLocked} aria-busy={saveLocked ? 'true' : undefined} data-mixtape-builder-body class:opacity-70={saveLocked}>
     {#if isPicker}
-      <div class="flex items-center justify-between gap-3">
-        <span class="tabular text-xs font-medium text-ink-2">
-          {trackCount} {trackCount === 1 ? 'song' : 'songs'} {isEditing ? 'in mixtape' : 'in draft'}
-        </span>
-        <Button variant="primary" onclick={() => setMixtapeSheetView('builder')}>
-          <Icon name="check" size={16} />
-          <span>Done</span>
+      <MixtapePicker />
+    {:else}
+      <MixtapeBuilder
+        {statusMessage}
+        {statusTone}
+        {statusAction}
+        {showAuthAction}
+        {trackIssues}
+        {titleError}
+        {sameTitleHint}
+        stacked={desktop}
+        onDelete={isEditing ? () => void handleDelete() : undefined}
+        onResetStatus={resetStatus}
+        onOpenPicker={() => setMixtapeSheetView('picker')}
+        onSignIn={() => {
+          closeMixtapeSheet();
+          openAuthSheet('signin', isEditing ? 'Sign in again to save your changes.' : 'Sign in again to publish your mixtape draft.');
+        }}
+      />
+    {/if}
+  </div>
+{/snippet}
+
+{#snippet footer()}
+  {#if isPicker}
+    <div class="flex items-center justify-between gap-3">
+      <span class="tabular text-xs font-medium text-ink-2">
+        {trackCount} {trackCount === 1 ? 'song' : 'songs'} {isEditing ? 'in mixtape' : 'in draft'}
+      </span>
+      <Button variant="primary" disabled={saveLocked} onclick={() => setMixtapeSheetView('builder')}>
+        <Icon name="check" size={16} />
+        <span>Done</span>
+      </Button>
+    </div>
+  {:else}
+    {#if conflictActive}
+      <div role="alert" data-mixtape-conflict class="mb-3 flex flex-col gap-2.5 rounded-[var(--radius-control)] bg-warning/15 px-3 py-2.5 text-sm ring-1 ring-inset ring-warning/30">
+        <p class="flex gap-2.5 font-medium leading-snug text-ink-1">
+          <Icon name="warning" size={18} class="mt-0.5 text-warning" />
+          <span>"{edit?.baseline.title || session.title}" was changed on another device.</span>
+        </p>
+        <div class="flex flex-wrap gap-2">
+          <Button variant="secondary" size="sm" class="min-h-11" disabled={busy} onclick={() => void handleLoadLatest()}>
+            Load latest
+          </Button>
+          <Button variant="ghost" size="sm" class="min-h-11" disabled={busy} onclick={() => void handleSaveMine()}>
+            Save mine anyway
+          </Button>
+        </div>
+      </div>
+    {:else}
+      <MixtapeCoachingStrip {coaching} busy={busy} onAction={(id) => void handleEditInstead(id)} />
+    {/if}
+
+    {#if isEditing}
+      <div class="flex items-center justify-between gap-2.5">
+        <Button variant="ghost" disabled={busy} onclick={() => void handleCancelEdit()}>
+          Cancel
+        </Button>
+        <Button
+          variant={canSave ? 'primary' : 'secondary'}
+          loading={saving || saveLocked}
+          disabled={!canSave || busy || trackCount === 0}
+          onclick={() => void handleSave()}
+          class="min-w-[164px]"
+        >
+          {#if saving || saveLocked}
+            <span>Saving…</span>
+          {:else if mergeFrom}
+            <span>Save & delete copy</span>
+          {:else}
+            <span>Save changes</span>
+          {/if}
         </Button>
       </div>
     {:else}
-      {#if conflict}
-        <div role="alert" class="mb-3 flex flex-col gap-2.5 rounded-[var(--radius-control)] bg-warning/15 px-3 py-2.5 text-sm ring-1 ring-inset ring-warning/30">
-          <p class="flex gap-2.5 font-medium leading-snug text-ink-1">
-            <Icon name="warning" size={18} class="mt-0.5 text-warning" />
-            <span>"{edit?.baseline.title || session.title}" was changed on another device.</span>
-          </p>
-          <div class="flex flex-wrap gap-2">
-            <Button variant="secondary" size="sm" class="min-h-11" disabled={saving} onclick={() => void handleLoadLatest()}>
-              Load latest
-            </Button>
-            <Button variant="ghost" size="sm" class="min-h-11" disabled={saving} onclick={() => void handleSaveMine()}>
-              Save mine anyway
-            </Button>
-          </div>
-        </div>
-      {:else}
-        <MixtapeCoachingStrip {coaching} busy={busy} onAction={(id) => void handleEditInstead(id)} />
-      {/if}
+      <div class="flex items-center justify-between gap-2.5">
+        <Button variant="ghost" disabled={busy} onclick={() => void handleDiscard()}>
+          Discard
+        </Button>
 
-      {#if isEditing}
-        <div class="flex items-center justify-between gap-2.5">
-          <Button variant="ghost" disabled={busy} onclick={() => void handleCancelEdit()}>
-            Cancel
-          </Button>
-          <Button
-            variant={isDirty ? 'primary' : 'secondary'}
-            loading={saving}
-            disabled={!isDirty || busy || trackCount === 0}
-            onclick={() => void handleSave()}
-            class="min-w-[164px]"
-          >
-            {#if saving}
-              <span>Saving…</span>
-            {:else}
-              <span>Save changes</span>
-            {/if}
-          </Button>
-        </div>
-      {:else}
-        <div class="flex items-center justify-between gap-2.5">
-          <Button variant="ghost" disabled={busy} onclick={() => void handleDiscard()}>
-            Discard
-          </Button>
-
-          <Button
-            variant={trackCount > 0 ? 'primary' : 'secondary'}
-            loading={publishing}
-            disabled={trackCount === 0 || busy}
-            onclick={() => void handlePublish()}
-            class="min-w-[164px]"
-          >
-            {#if publishing}
-              <span>Publishing…</span>
-            {:else if trackCount === 0}
-              <span>Add a song to publish</span>
-            {:else if hasMatchCoaching}
-              <span>Publish anyway</span>
-            {:else}
-              <span>Publish mixtape ({trackCount})</span>
-            {/if}
-          </Button>
-        </div>
-      {/if}
+        <Button
+          variant={trackCount > 0 ? 'primary' : 'secondary'}
+          loading={publishing}
+          disabled={trackCount === 0 || busy}
+          onclick={() => void handlePublish()}
+          class="min-w-[164px]"
+        >
+          {#if publishing}
+            <span>Publishing…</span>
+          {:else if trackCount === 0}
+            <span>Add a song to publish</span>
+          {:else if hasMatchCoaching}
+            <span>Publish anyway</span>
+          {:else}
+            <span>Publish mixtape ({trackCount})</span>
+          {/if}
+        </Button>
+      </div>
     {/if}
-  {/snippet}
-</Sheet>
+  {/if}
+{/snippet}
+
+{#if desktop}
+  <DockedPanel
+    open={mixtapeSheetState.open}
+    title={sheetTitle}
+    subtitle={sheetSubtitle}
+    dismissible={!busy}
+    onClose={closeMixtapeSheet}
+    headerExtra={backButton}
+    {footer}
+  >
+    {@render body()}
+  </DockedPanel>
+{:else}
+  <Sheet
+    open={mixtapeSheetState.open}
+    title={sheetTitle}
+    subtitle={sheetSubtitle}
+    dismissible={!busy}
+    maxWidth={isPicker ? 'lg' : 'xl'}
+    onClose={closeMixtapeSheet}
+    headerExtra={backButton}
+    {footer}
+  >
+    {@render body()}
+  </Sheet>
+{/if}

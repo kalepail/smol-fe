@@ -1,17 +1,33 @@
 import type { MixtapeDraft } from '../../types/domain';
 import { ApiError, fetchWithTimeout, LONG_TIMEOUT, throwIfNotOk } from './fetch';
+import { parseRetryAfter } from '../../utils/httpRetry';
 
-export type MixtapePublishErrorKind = 'auth' | 'network' | 'invalid_response' | 'server';
+/**
+ * `pending`  — 503 create_pending: the same publish is still finishing; retry after `retryAfterMs`.
+ * `conflict` — 409 create_conflict: the row changed/was removed mid-create; review `conflictId` if present.
+ */
+export type MixtapePublishErrorKind = 'auth' | 'network' | 'invalid_response' | 'server' | 'pending' | 'conflict';
 
 export class MixtapePublishError extends Error {
   readonly kind: MixtapePublishErrorKind;
   readonly status?: number;
+  readonly code?: string;
+  readonly retryAfterMs?: number;
+  readonly conflictId?: string;
 
-  constructor(message: string, kind: MixtapePublishErrorKind, status?: number) {
+  constructor(
+    message: string,
+    kind: MixtapePublishErrorKind,
+    status?: number,
+    extra: { code?: string; retryAfterMs?: number; conflictId?: string } = {}
+  ) {
     super(message);
     this.name = 'MixtapePublishError';
     this.kind = kind;
     this.status = status;
+    this.code = extra.code;
+    this.retryAfterMs = extra.retryAfterMs;
+    this.conflictId = extra.conflictId;
   }
 }
 
@@ -138,6 +154,8 @@ export interface MixtapeMergeResult {
   addedCount: number;
   totalTracks: number;
   target: OwnedMixtape | null;
+  /** BE: the merge committed, but the target was deleted right afterwards (no target to open). */
+  targetDeletedConcurrently: boolean;
 }
 
 export interface MixtapeUniquenessResult {
@@ -230,6 +248,36 @@ export async function publishMixtape(
       'auth',
       response.status
     );
+  }
+
+  if (response.status === 503 || response.status === 409) {
+    const text = await response.text().catch(() => '');
+    let body: { code?: unknown; id?: unknown } | null = null;
+    try {
+      body = JSON.parse(text);
+    } catch {
+      body = null;
+    }
+    if (body?.code === 'create_pending') {
+      throw new MixtapePublishError(
+        'SMOL is still finishing your last publish. Try again in a second — your draft is safe.',
+        'pending',
+        response.status,
+        { code: 'create_pending', retryAfterMs: parseRetryAfter(response.headers.get('Retry-After')) }
+      );
+    }
+    if (body?.code === 'create_conflict') {
+      const conflictId = typeof body.id === 'string' && body.id.trim() ? body.id.trim() : undefined;
+      throw new MixtapePublishError(
+        conflictId
+          ? 'This mixtape changed while it was being published. Review it before publishing again — your draft is safe.'
+          : 'This mixtape changed or was removed while it was being published. Your draft is safe — publish it again when you’re ready.',
+        'conflict',
+        response.status,
+        { code: 'create_conflict', conflictId }
+      );
+    }
+    throw new MixtapePublishError('Could not publish right now. Your draft is safe — please try again.', 'server', response.status);
   }
 
   try {
@@ -338,12 +386,13 @@ export function toMixtapeSummaries(data: ApiMixtape[]): MixtapeSummary[] {
   });
 }
 
-export async function listMixtapes(): Promise<MixtapeSummary[]> {
+export async function listMixtapes(options: { fresh?: boolean } = {}): Promise<MixtapeSummary[]> {
   const endpoint = `${API_URL}/mixtapes`;
   let response: Response;
   try {
     response = await fetchWithTimeout(endpoint, {
       credentials: 'include',
+      ...(options.fresh ? { cache: 'no-store' as RequestCache } : {}),
     });
   } catch {
     throw new Error('Couldn’t reach SMOL right now. Check your connection and try again.');
@@ -459,8 +508,16 @@ async function ownerRequest(
     });
   }
   if (status === 404) throw new MixtapeActionError('This mixtape was already deleted.', 'not_found', { status });
+  if (code === 'concurrent_delete') {
+    // The row was deleted around this write (BE 409): never offer Load latest / Save mine anyway.
+    throw new MixtapeActionError('This mixtape was deleted on another device, so these changes can’t be saved.', 'not_found', { status, code });
+  }
   if (code === 'revision_conflict') {
     const current = json?.current && typeof json.current === 'object' ? toOwnedMixtape(json.current as ApiOwnedMixtape) : null;
+    if (!current) {
+      // A conflict with no current row means it no longer exists (deleted / merged meanwhile).
+      throw new MixtapeActionError('This mixtape was deleted on another device, so these changes can’t be saved.', 'not_found', { status, code });
+    }
     throw new MixtapeActionError('This mixtape was changed on another device.', 'revision_conflict', { status, code, current });
   }
   if (code === 'merge_unavailable_tracks') {
@@ -585,13 +642,17 @@ export async function mergeMixtape(
       },
     },
     { action: 'merge these mixtapes' }
-  )) as Partial<Omit<MixtapeMergeResult, 'target'>> & { target?: ApiOwnedMixtape | null };
+  )) as Partial<Omit<MixtapeMergeResult, 'target' | 'targetDeletedConcurrently'>> & {
+    target?: ApiOwnedMixtape | null;
+    targetDeletedConcurrently?: boolean;
+  };
   return {
     targetId: typeof data?.targetId === 'string' ? data.targetId : target,
     mergedId: typeof data?.mergedId === 'string' ? data.mergedId : source,
     addedCount: typeof data?.addedCount === 'number' ? data.addedCount : 0,
     totalTracks: typeof data?.totalTracks === 'number' ? data.totalTracks : 0,
     target: data?.target ? toOwnedMixtape(data.target) : null,
+    targetDeletedConcurrently: data?.targetDeletedConcurrently === true,
   };
 }
 

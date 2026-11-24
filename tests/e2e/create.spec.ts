@@ -190,7 +190,9 @@ for (const viewport of [
         await page.locator('dialog[open]').getByRole('button', { name: 'New mixtape' }).click();
       }
 
-      const builderDialog = page.locator('dialog[open]');
+      // Desktop (lg+) builder is a non-modal docked panel (25d P2-8); mobile keeps the bottom sheet.
+      const builderDialog =
+        viewport.width >= 1024 ? page.locator('aside[data-mixtape-panel]') : page.locator('dialog[open]');
       await expect(builderDialog.getByRole('heading', { name: 'New mixtape' })).toBeVisible();
       await expect(builderDialog.getByRole('button', { name: 'Add songs' })).toBeVisible();
       await expect(builderDialog.getByRole('button', { name: 'Add a song to publish' })).toBeDisabled();
@@ -234,7 +236,7 @@ for (const viewport of [
 
       // Verify zero horizontal clipping inside the open MixtapeBuilder sheet
       const innerOverflow = await page.evaluate(() => {
-        const dialog = document.querySelector('dialog[open]');
+        const dialog = document.querySelector('dialog[open]') ?? document.querySelector('aside[data-mixtape-panel]');
         if (!dialog) return -1;
         let maxOverflow = 0;
         for (const el of dialog.querySelectorAll('[role="region"], section, aside, ul, li')) {

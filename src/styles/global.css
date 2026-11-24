@@ -200,3 +200,22 @@ body {
     animation-iteration-count: 1 !important;
   }
 }
+
+/*
+ * Desktop non-modal mixtape builder panel (DockedPanel, 25d P2-8): while it is
+ * open, the page and the player dock keep their full layout to its left.
+ * Unlayered so it wins over the dock's `lg:right-0` utility.
+ */
+:root {
+  --builder-panel-w: 440px;
+}
+
+@media (min-width: 1024px) {
+  html.builder-docked body {
+    padding-right: var(--builder-panel-w);
+  }
+
+  html.builder-docked #audio-player {
+    right: var(--builder-panel-w);
+  }
+}

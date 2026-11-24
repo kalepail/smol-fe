@@ -1,8 +1,9 @@
 ---
 import MixtapeDetailView from '../../components/mixtape/MixtapeDetailView.svelte';
+import MixtapeOwnerCallout from '../../components/mixtape/MixtapeOwnerCallout.svelte';
 import Layout from '../../layouts/Layout.astro';
 import { parseMixtapeNotFound, toMixtapeDetail, type ApiMixtapeDetail } from '../../services/api/mixtapes';
-import { serverApiFetchResult } from '../../services/api/server';
+import { serverApiFetchResult, sessionSubject } from '../../services/api/server';
 
 const { id } = Astro.params;
 const result = id
@@ -25,11 +26,21 @@ if (initialNotFound) {
 }
 // Hidden ("owner") mixtapes stay playable by link but are never indexed.
 const noindex = initialData?.visibility === 'owner';
+// Report 24 §5.3 / 25d P2-6: the creator sees why a mixtape is hidden in the first paint. The detail
+// island stays client:only (t488's collector is browser-only); this static, inert copy is replaced
+// by the live callout as soon as the island renders.
+const ssrOwnerCallout = Boolean(initialData && noindex && sessionSubject(Astro) === initialData.creator);
+const noop = () => {};
 const title = initialData ? initialData.title : 'Mixtape not found';
 const description = initialData?.description || 'Smol art onchain';
 const image_url = initialData?.coverUrls[0] ?? null;
 ---
 
 <Layout {title} {description} {image_url} {noindex}>
+  {ssrOwnerCallout && initialData && (
+    <div data-ssr-owner-callout inert class="app-container pt-6 sm:pt-8">
+      <MixtapeOwnerCallout mixtape={initialData} onEdit={noop} onAddSongs={noop} onMerge={noop} onDelete={noop} />
+    </div>
+  )}
   <MixtapeDetailView id={id ?? ''} {initialData} {initialNotFound} client:only="svelte" />
 </Layout>

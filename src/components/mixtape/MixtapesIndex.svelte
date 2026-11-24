@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick, untrack } from 'svelte';
   import MixtapeCardsGrid from './MixtapeCardsGrid.svelte';
   import MixtapeCard from './MixtapeCard.svelte';
   import MixtapeMergeSheet, { type MergeSource } from './MixtapeMergeSheet.svelte';
@@ -17,7 +17,13 @@
     mixtapeDraftHasContent,
     mixtapeEditState,
   } from '../../stores/mixtape.svelte';
-  import { loadMyMixtapes, myMixtapesCounts, myMixtapesState, seedMyMixtapes } from '../../stores/myMixtapes.svelte';
+  import {
+    loadMyMixtapes,
+    mixtapeChangeSignal,
+    myMixtapesFocus,
+    myMixtapesState,
+    seedMyMixtapes,
+  } from '../../stores/myMixtapes.svelte';
   import { listMixtapes, type MixtapeSummary, type OwnedMixtape } from '../../services/api/mixtapes';
   import { deleteMixtapeWithUndo, openMixtapeEditor } from '../../services/mixtapeActions';
   import { isMatchReason } from '../../utils/mixtapeCoaching';
@@ -45,16 +51,30 @@
   $effect(() => {
     if (userState.contractId) shellSynced = true;
   });
-  const signedIn = $derived(shellSynced ? Boolean(userState.contractId) : Boolean(userState.contractId ?? initialMineOwner));
-  const draftCount = $derived(mixtapeDraftState.tracks.length);
-  const hasDraft = $derived(mixtapeDraftHasContent.current);
-  const editSession = $derived(mixtapeEditState.session);
+  const sessionOwner = $derived(userState.contractId ?? (shellSynced ? null : initialMineOwner));
+  const signedIn = $derived(Boolean(sessionOwner));
 
-  const mineReady = $derived(myMixtapesState.status === 'ready' && myMixtapesState.owner === userState.contractId);
-  const mine = $derived(mineReady ? myMixtapesState.items : []);
+  // Device-local state (drafts in localStorage) only after mount, so SSR and hydration render the same tree.
+  let mounted = $state(false);
+  const draftCount = $derived(mounted ? mixtapeDraftState.tracks.length : 0);
+  const hasDraft = $derived(mounted && mixtapeDraftHasContent.current);
+  const editSession = $derived(mounted ? mixtapeEditState.session : null);
+
+  // Seed the owner store synchronously on the CLIENT (25d P2-6). Never on the server: module
+  // state is shared across SSR requests, so SSR renders straight from the `initialMine` prop.
+  if (typeof window !== 'undefined' && initialMine && initialMineOwner) {
+    seedMyMixtapes(initialMine, initialMineOwner);
+  }
+
+  const storeReady = $derived(
+    Boolean(sessionOwner) && myMixtapesState.status === 'ready' && myMixtapesState.owner === sessionOwner
+  );
+  const ssrMine = $derived(initialMine && initialMineOwner && sessionOwner === initialMineOwner ? initialMine : null);
+  const mineReady = $derived(storeReady || ssrMine !== null);
+  const mine = $derived(storeReady ? myMixtapesState.items : (ssrMine ?? []));
   const listed = $derived(mine.filter((item) => item.visibility !== 'owner'));
   const hidden = $derived(mine.filter((item) => item.visibility === 'owner'));
-  const hiddenCount = $derived(mineReady ? myMixtapesCounts.current.hidden : 0);
+  const hiddenCount = $derived(hidden.length);
 
   let mergeSource = $state<MergeSource | null>(null);
   let mergeTargetId = $state<string | null>(null);
@@ -71,14 +91,44 @@
     }
   }
 
-  onMount(() => {
-    // The SSR session subject is known before the shell syncs `userState` from the cookie.
-    const sessionOwner = userState.contractId ?? initialMineOwner;
-    if (initialMine && initialMineOwner && initialMineOwner === sessionOwner) {
-      seedMyMixtapes(initialMine, initialMineOwner);
+  /** Quiet refetch of the public list after any owner write (25d P2-5). */
+  async function refreshAll() {
+    try {
+      mixtapes = await listMixtapes({ fresh: true });
+      error = null;
+    } catch {
+      // keep what we show; the next write or reload retries
     }
+  }
+
+  let seenChange = mixtapeChangeSignal.version;
+  $effect(() => {
+    const version = mixtapeChangeSignal.version;
+    if (version === seenChange) return;
+    seenChange = version;
+    if (view === 'all') untrack(() => void refreshAll());
+  });
+
+  // After Undo, put focus on the restored card once it is back in the list (Report 24 §7).
+  $effect(() => {
+    const id = myMixtapesFocus.id;
+    if (!id || view !== 'yours' || !mine.some((item) => item.id === id)) return;
+    untrack(() => {
+      void tick().then(() => {
+        const link = document.querySelector<HTMLAnchorElement>(`[data-mixtape-card="${CSS.escape(id)}"] a`);
+        if (!link) return;
+        link.focus();
+        link.scrollIntoView({ block: 'nearest' });
+        myMixtapesFocus.id = null;
+      });
+    });
+  });
+
+  onMount(() => {
+    mounted = true;
+    const owner = userState.contractId ?? initialMineOwner;
     if (view === 'yours') {
-      if (!sessionOwner) {
+      if (!owner) {
         // Signed out: fall back to the public view and offer sign-in.
         view = 'all';
         history.replaceState(history.state, '', '/mixtapes');
@@ -109,7 +159,13 @@
         icon: 'merge',
         onSelect: () => {
           mergeTargetId = matchTarget?.id ?? null;
-          mergeSource = { id: item.id, title: item.title, trackIds: item.trackIds, coverUrls: item.coverUrls };
+          mergeSource = {
+            id: item.id,
+            title: item.title,
+            trackIds: item.trackIds,
+            coverUrls: item.coverUrls,
+            storedTrackCount: item.storedTrackCount,
+          };
         },
       });
     }

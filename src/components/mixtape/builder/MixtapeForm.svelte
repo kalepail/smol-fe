@@ -9,6 +9,7 @@
     titleError?: string | null;
     sameTitleHint?: string | null;
     onDelete?: () => void;
+    statusAction?: { label: string; onClick?: () => void; href?: string; disabled?: boolean } | null;
     statusMessage: string | null;
     statusTone: 'info' | 'success' | 'error';
     showAuthAction?: boolean;
@@ -23,6 +24,7 @@
     titleError = null,
     sameTitleHint = null,
     onDelete,
+    statusAction = null,
     statusMessage,
     statusTone,
     showAuthAction = false,
@@ -81,6 +83,20 @@
       }`}
     >
       <p class="leading-relaxed">{statusMessage}</p>
+      {#if statusAction}
+        <div>
+          <Button
+            variant="secondary"
+            size="sm"
+            class="min-h-11"
+            href={statusAction.href}
+            disabled={statusAction.disabled}
+            onclick={statusAction.onClick}
+          >
+            {statusAction.label}
+          </Button>
+        </div>
+      {/if}
       {#if showAuthAction && onSignIn}
         <div>
           <Button variant="secondary" size="sm" class="min-h-11" onclick={onSignIn}>
