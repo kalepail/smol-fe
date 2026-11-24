@@ -35,7 +35,7 @@ const noindex = initialData?.visibility === 'owner';
 // mixtape. The island receives the same verified decision for its first paint.
 let verifiedOwner = false;
 if (initialData && id && sessionSubject(Astro) === initialData.creator) {
-  const mine = await serverApiFetch<ApiOwnedMixtape[]>(Astro, '/mixtapes/mine');
+  const mine = await serverApiFetch<ApiOwnedMixtape[]>(Astro, '/mixtapes/mine', { forwardAuth: true });
   verifiedOwner = Array.isArray(mine) && mine.some((row) => row.Id === id && row.Address === initialData.creator);
 }
 const ssrOwnerCallout = verifiedOwner && noindex;

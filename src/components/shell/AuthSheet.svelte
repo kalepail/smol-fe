@@ -49,10 +49,16 @@
     error = null;
     submitting = true;
     try {
-      await authHook.signUp(trimmed);
+      const { committed } = await authHook.signUp(trimmed);
       username = '';
-      toast.success('Account created.');
-      closeAuthSheet();
+      if (committed) {
+        toast.success('Account created.');
+        closeAuthSheet();
+      } else {
+        mode = 'signin';
+        error =
+          'Your passkey wallet was created, but another tab changed your session. Sign in with your passkey to continue.';
+      }
     } catch (err) {
       error = err instanceof Error ? err.message : 'Could not create your account.';
     } finally {

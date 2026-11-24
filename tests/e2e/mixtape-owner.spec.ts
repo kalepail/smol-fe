@@ -21,7 +21,9 @@ const RENDERS = process.env.MIXTAPE_OWNER_RENDERS ?? join('test-results', 'mixta
 
 function fakeSmolJwt(sub: string, extra: Record<string, unknown> = {}) {
   const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
-  const payload = Buffer.from(JSON.stringify({ sub, key: `key-${sub}`, ...extra })).toString('base64url');
+  const payload = Buffer.from(
+    JSON.stringify({ sub, key: `key-${sub}`, exp: Math.floor(Date.now() / 1000) + 3600, ...extra }),
+  ).toString('base64url');
   return `${header}.${payload}.sig`;
 }
 
@@ -1170,8 +1172,22 @@ test.describe('25d pass 3 regressions (390×844)', () => {
     expect(pageErrors).toEqual([]);
   });
 
-  test('P2-3: an expired session never gets hydrated owner controls (unverified cookie + failed /mine)', async ({ page, context }) => {
+  test('P2-3: an expired or revoked session never gets hydrated owner controls (SSR expiry + failed /mine)', async ({ page, context }) => {
+    // 1. Client-detectable expired JWT is rejected & cleared at SSR before hydration.
     await context.addCookies([{ name: 'smol_token', value: fakeSmolJwt('CMIXOWNERI3', { exp: 1 }), url: 'http://127.0.0.1:4328' }]);
+    await page.goto('/mixtapes/mx-i3-creasy-v1');
+    await expect(page.getByRole('heading', { name: 'Creasy Drops', level: 1 })).toBeVisible();
+    await page.waitForTimeout(300);
+    await expect(page.locator('[data-owner-callout]')).toHaveCount(0);
+    await expect(page.locator('[data-owner-status]')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /More actions for/ })).toHaveCount(0);
+
+    // 2. Unexpired but server-rejected cookie (401 on GET /mixtapes/mine) also never hydrates owner controls.
+    await page.route(`${api}/mixtapes/mine`, (route) =>
+      route.fulfill({ status: 401, contentType: 'text/plain', headers: cors, body: 'Unauthorized' }),
+    );
+    await context.addCookies([{ name: 'smol_token', value: fakeSmolJwt('CMIXOWNERI3'), url: 'http://127.0.0.1:4328' }]);
     const mine = page.waitForResponse((res) => res.url() === `${api}/mixtapes/mine`);
     await page.goto('/mixtapes/mx-i3-creasy-v1');
     await expect(page.getByRole('heading', { name: 'Creasy Drops', level: 1 })).toBeVisible();
@@ -1183,7 +1199,7 @@ test.describe('25d pass 3 regressions (390×844)', () => {
     await expect(page.getByRole('button', { name: /More actions for/ })).toHaveCount(0);
   });
 
-  test('P2-4: when the newest All read fails, All leaves the skeleton and offers Retry', async ({ page, context }) => {
+  test('P2-4: when the newest All read fails, All leaves the skeleton and offers Retry @isolated', async ({ page, context }) => {
     const id = await signInAs(context, 'nossr');
     // Park an edit so a save can trigger the All refresh.
     await page.goto(`/mixtapes/${id('night-drive')}`);
@@ -1207,7 +1223,12 @@ test.describe('25d pass 3 regressions (390×844)', () => {
       }
       return route.continue();
     });
-    await page.goto('/mixtapes');
+    await page.request.post(`${api}/__fail-next-ssr-mixtapes`);
+    try {
+      await page.goto('/mixtapes');
+    } finally {
+      await page.request.delete(`${api}/__fail-next-ssr-mixtapes`);
+    }
     await expect.poll(() => gets).toBe(1);
     await page.getByRole('button', { name: /^Continue editing Night Drive Edited/ }).click();
     await openDialog(page).getByRole('button', { name: 'Save changes' }).click();

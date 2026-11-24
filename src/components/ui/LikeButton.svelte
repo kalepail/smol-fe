@@ -9,6 +9,8 @@
   interface Props {
     smolId: string;
     liked?: boolean;
+    disabled?: boolean;
+    busy?: boolean;
     classNames?: string;
     iconSize?: number;
     onLikeChanged?: (liked: boolean) => void;
@@ -17,6 +19,8 @@
   let {
     smolId,
     liked = false,
+    disabled = false,
+    busy = false,
     classNames = '',
     iconSize = 20,
     onLikeChanged,
@@ -31,7 +35,7 @@
 
   async function handleLike(event: MouseEvent) {
     event.stopPropagation();
-    if (!userState.contractId || liking) return;
+    if (!userState.contractId || liking || disabled) return;
 
     try {
       liking = true;
@@ -55,7 +59,8 @@
     } ${classNames}`}
     aria-label={localLiked ? 'Unlike' : 'Like'}
     aria-pressed={localLiked}
-    disabled={liking}
+    aria-busy={liking || busy || undefined}
+    disabled={liking || disabled}
     onclick={handleLike}
   >
     {#if liking}

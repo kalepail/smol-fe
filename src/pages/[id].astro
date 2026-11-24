@@ -5,7 +5,9 @@ import { serverApiFetch } from '../services/api/server';
 import type { SmolDetailResponse } from '../types/domain';
 
 const { id } = Astro.params;
-const initialData = id ? await serverApiFetch<SmolDetailResponse>(Astro, `/${encodeURIComponent(id)}`) : null;
+const initialData = id
+  ? await serverApiFetch<SmolDetailResponse>(Astro, `/${encodeURIComponent(id)}`, { forwardAuth: true })
+  : null;
 const apiUrl = import.meta.env.PUBLIC_API_URL;
 const title = initialData?.kv_do?.lyrics?.title || initialData?.d1?.Title || 'Song';
 const description = initialData?.kv_do?.payload?.prompt || initialData?.kv_do?.description;

@@ -16,7 +16,7 @@ const initialView = Astro.url.searchParams.get('view') === 'yours' ? 'yours' : '
 let initialMixtapes = null;
 let initialMine = null;
 if (initialView === 'yours' && owner) {
-  const mine = await serverApiFetch<ApiOwnedMixtape[]>(Astro, '/mixtapes/mine');
+  const mine = await serverApiFetch<ApiOwnedMixtape[]>(Astro, '/mixtapes/mine', { forwardAuth: true });
   initialMine = Array.isArray(mine) ? mine.map(toOwnedMixtape) : null;
 } else if (initialView === 'all') {
   const data = await serverApiFetch<ApiMixtape[]>(Astro, '/mixtapes');

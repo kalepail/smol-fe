@@ -1,7 +1,20 @@
 import Cookies from 'js-cookie';
 import { navigate } from 'astro:transitions/client';
-import { setUserAuth, clearUserAuth, userState } from '../stores/user.svelte';
+import {
+  setUserAuth,
+  clearUserAuth,
+  readLiveSessionCookie,
+  userState,
+} from '../stores/user.svelte';
 import { resetBalance } from '../stores/balance.svelte';
+import {
+  createAccountSession,
+  notifyAuthTransition,
+  observeAuthTransitions,
+  submitLogin,
+  submitLogout,
+} from '../services/api/auth';
+import { e2eAuthSeams } from '../utils/authSeams';
 import { getAuthCookieDomain, getWebAuthnRpId } from '../utils/rpId';
 
 export function useAuthentication() {
@@ -16,80 +29,85 @@ export function useAuthentication() {
     };
   }
 
-  async function login() {
-    const { account } = await import('../utils/passkey-kit');
-    const rpId = getWebAuthnRpId();
-    const {
-      rawResponse,
-      keyIdBase64,
-      contractId: cid,
-    } = await account.connectWallet({
-      rpId,
-    });
-
-    const jwt = await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        type: 'connect',
-        keyId: keyIdBase64,
-        contractId: cid,
-        response: rawResponse,
-      }),
-    }).then(async (res) => {
-      if (res.ok) return res.text();
-      throw new Error((await res.text()) || 'Sign in failed.');
-    });
-
-    setUserAuth(cid, keyIdBase64);
-    userState.walletConnected = true;
-
+  function setSessionCookie(jwt: string) {
     Cookies.set('smol_token', jwt, {
       ...cookieOptions(),
       expires: 30,
     });
   }
 
-  async function signUp(username: string) {
-    const { account, send } = await import('../utils/passkey-kit');
+  async function login() {
+    const seam = e2eAuthSeams();
     const rpId = getWebAuthnRpId();
     const {
       rawResponse,
       keyIdBase64,
       contractId: cid,
-      signedTx,
-    } = await account.createWallet('smol.xyz', `SMOL — ${username}`, {
-      rpId,
+    } = seam?.connectWallet
+      ? await seam.connectWallet({ rpId })
+      : await (await import('../utils/passkey-kit')).account.connectWallet({
+          rpId,
+        });
+
+    const jwt = await submitLogin(import.meta.env.PUBLIC_API_URL, {
+      type: 'connect',
+      keyId: keyIdBase64,
+      contractId: cid,
+      response: rawResponse,
     });
 
-    const jwt = await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        type: 'create',
-        keyId: keyIdBase64,
-        contractId: cid,
-        response: rawResponse,
-        username,
-      }),
-    }).then(async (res) => {
-      if (res.ok) return res.text();
-      throw new Error((await res.text()) || 'Account creation failed.');
-    });
-
-    await send(signedTx);
-
+    setSessionCookie(jwt);
     setUserAuth(cid, keyIdBase64);
     userState.walletConnected = true;
+    notifyAuthTransition();
+  }
 
-    Cookies.set('smol_token', jwt, {
-      ...cookieOptions(),
-      expires: 30,
-    });
+  async function signUp(username: string): Promise<{ committed: boolean }> {
+    const initialCookieToken = readLiveSessionCookie().rawToken;
+    const transitionObserver = observeAuthTransitions();
+    try {
+      const seam = e2eAuthSeams();
+      const rpId = getWebAuthnRpId();
+      const passkeyKit =
+        seam?.createWallet && seam?.send ? null : await import('../utils/passkey-kit');
+      const {
+        rawResponse,
+        keyIdBase64,
+        contractId: cid,
+        signedTx,
+      } = seam?.createWallet
+        ? await seam.createWallet('smol.xyz', `SMOL — ${username}`, { rpId })
+        : await passkeyKit!.account.createWallet('smol.xyz', `SMOL — ${username}`, {
+            rpId,
+          });
+
+      const { committed } = await createAccountSession({
+        apiUrl: import.meta.env.PUBLIC_API_URL,
+        payload: {
+          type: 'create',
+          keyId: keyIdBase64,
+          contractId: cid,
+          response: rawResponse,
+          username,
+        },
+        deployWallet: () =>
+          seam?.send ? seam.send(signedTx) : passkeyKit!.send(signedTx),
+        initialCookieToken,
+        readLiveCookieToken: () => readLiveSessionCookie().rawToken,
+        hasCompetingAuthEvent: () => transitionObserver.hasCompetingTransition(),
+        commitSession: (jwt) => {
+          transitionObserver.close();
+          setSessionCookie(jwt);
+          setUserAuth(cid, keyIdBase64);
+          userState.walletConnected = true;
+          notifyAuthTransition();
+        },
+      });
+
+      return { committed };
+    } finally {
+      transitionObserver.close();
+    }
   }
 
   async function logout() {
@@ -98,6 +116,7 @@ export function useAuthentication() {
 
     Cookies.remove('smol_token', cookieOptions());
     Cookies.remove('smol_token', { path: '/' });
+    notifyAuthTransition();
 
     try {
       Object.keys(localStorage).forEach((key) => {
@@ -105,21 +124,22 @@ export function useAuthentication() {
           localStorage.removeItem(key);
         }
       });
+    } catch {
+      // Ignore localStorage access/security errors.
+    }
 
+    try {
       Object.keys(sessionStorage).forEach((key) => {
         if (key.includes('smol:')) {
           sessionStorage.removeItem(key);
         }
       });
     } catch {
-      // Ignore storage errors.
+      // Ignore sessionStorage access/security errors.
     }
 
     try {
-      await fetch(`${import.meta.env.PUBLIC_API_URL}/logout`, {
-        method: 'POST',
-        credentials: 'include',
-      });
+      await submitLogout(import.meta.env.PUBLIC_API_URL);
     } catch {
       // Cookie is already cleared client-side.
     }

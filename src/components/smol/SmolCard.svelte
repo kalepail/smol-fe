@@ -12,6 +12,8 @@
 
   interface Props {
     smol: Smol;
+    likeDisabled?: boolean;
+    likeBusy?: boolean;
     onPlay: () => void;
     onLikeChanged: (liked: boolean) => void;
     onAddToMixtape: () => void;
@@ -19,6 +21,8 @@
 
   let {
     smol,
+    likeDisabled = false,
+    likeBusy = false,
     onPlay,
     onLikeChanged,
     onAddToMixtape,
@@ -128,6 +132,8 @@
       <LikeButton
         smolId={smol.Id}
         liked={smol.Liked || false}
+        disabled={likeDisabled}
+        busy={likeBusy}
         iconSize={18}
         onLikeChanged={onLikeChanged}
       />

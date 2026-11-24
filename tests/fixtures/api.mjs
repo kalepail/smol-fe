@@ -181,10 +181,38 @@ const routes = new Map([
 ]);
 
 const requests = new Map();
+let requestCookieSeq = 0;
+const requestCookieHistory = [];
 let lastCreateBody = null;
 let lastRetryBody = null;
 let swapCalls = [];
 let playBeacons = [];
+let loginCalls = [];
+let loginTokenSeq = 0;
+let logoutCalls = 0;
+let failNextSsrMixtapes = false;
+
+function recordSsrCookie(path, req) {
+  requestCookieSeq += 1;
+  requestCookieHistory.push({ seq: requestCookieSeq, path, cookie: req.headers.cookie ?? '' });
+  if (requestCookieHistory.length > 500) {
+    requestCookieHistory.shift();
+  }
+}
+
+function makeFixtureJwt(sub, key) {
+  loginTokenSeq += 1;
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+  const payload = Buffer.from(
+    JSON.stringify({
+      sub,
+      key,
+      jti: `fixture-${loginTokenSeq}`,
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    })
+  ).toString('base64url');
+  return `${header}.${payload}.fixture-sig`;
+}
 
 function readBody(req) {
   return new Promise((resolve) => {
@@ -222,7 +250,15 @@ createServer(async (req, res) => {
     lastRetryBody = null;
     swapCalls = [];
     playBeacons = [];
+    loginCalls = [];
+    logoutCalls = 0;
     res.writeHead(200, headers).end();
+    return;
+  }
+
+  if (path === '/__ssr-cookies') {
+    res.writeHead(200, { ...headers, 'Content-Type': 'application/json' })
+      .end(JSON.stringify({ seq: requestCookieSeq, entries: requestCookieHistory }));
     return;
   }
 
@@ -241,7 +277,43 @@ createServer(async (req, res) => {
         playBeacons,
         lastMixtapeBody: ownerMixtapes.lastMixtapeBody,
         ownerMutations: ownerMixtapes.mutationLog,
+        loginCalls,
+        logoutCalls,
       }));
+    return;
+  }
+
+  if (path === '/__fail-next-ssr-mixtapes') {
+    failNextSsrMixtapes = req.method === 'POST';
+    res.writeHead(204, headers).end();
+    return;
+  }
+
+  if (req.method === 'POST' && path === '/login') {
+    const raw = await readBody(req);
+    const body = raw ? JSON.parse(raw) : {};
+    const contractId = typeof body.contractId === 'string' && body.contractId ? body.contractId : 'CFIXTUREUSER0000000000000000000000000000000000000000000001';
+    const keyId = typeof body.keyId === 'string' && body.keyId ? body.keyId : 'fixture-key-1';
+    const jwt = makeFixtureJwt(contractId, keyId);
+    loginCalls.push({
+      body,
+      origin: req.headers.origin ?? null,
+      cookie: req.headers.cookie ?? null,
+    });
+    res.writeHead(200, {
+      ...headers,
+      'Content-Type': 'text/plain',
+      'Set-Cookie': `smol_token=${jwt}; Path=/; SameSite=Lax`,
+    }).end(jwt);
+    return;
+  }
+
+  if (req.method === 'POST' && path === '/logout') {
+    logoutCalls += 1;
+    res.writeHead(204, {
+      ...headers,
+      'Set-Cookie': 'smol_token=; Path=/; Max-Age=0; SameSite=Lax',
+    }).end();
     return;
   }
 
@@ -253,9 +325,11 @@ createServer(async (req, res) => {
 
   // Owner lifecycle (GET /mixtapes/mine, /mixtapes/mx-*, PUT/DELETE/restore/merge, POST /mixtapes).
   if (path === '/mixtapes' && req.method === 'GET') {
-    // Test hook: for owner CMIXOWNERNOSSR the SERVER-side (SSR, no Origin header) list read fails,
-    // so the page must load All in the browser (25d pass 3 P2-4).
-    if (ownerMixtapes.sessionSub(req) === 'CMIXOWNERNOSSR' && !req.headers.origin) {
+    recordSsrCookie(path, req);
+    // Test hook: when armed by P2-4 (@isolated), the SERVER-side (SSR, no Origin header) list read fails,
+    // so the page must load All in the browser without requiring smol_token on public GET /mixtapes SSR.
+    if (failNextSsrMixtapes && !req.headers.origin) {
+      failNextSsrMixtapes = false;
       res.writeHead(503, { ...headers, 'Content-Type': 'text/plain' }).end('upstream unavailable');
       return;
     }
@@ -309,6 +383,7 @@ createServer(async (req, res) => {
   }
 
   requests.set(path, (requests.get(path) ?? 0) + 1);
+  recordSsrCookie(path, req);
   const data = routes.get(path);
   res.writeHead(data === undefined ? 404 : 200, { ...headers, 'Content-Type': 'application/json' })
     .end(JSON.stringify(data ?? {}));

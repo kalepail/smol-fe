@@ -26,7 +26,9 @@ const ownedBalances = (ids: string[]) => Object.fromEntries(ids.map((id) => [id,
 
 function fakeJwt(sub: string) {
   const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
-  const payload = Buffer.from(JSON.stringify({ sub, key: 'fixture-key-1' })).toString('base64url');
+  const payload = Buffer.from(
+    JSON.stringify({ sub, key: 'fixture-key-1', exp: Math.floor(Date.now() / 1000) + 3600 })
+  ).toString('base64url');
   return `${header}.${payload}.sig`;
 }
 

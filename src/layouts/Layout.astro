@@ -4,6 +4,10 @@ import TopBar from '../components/shell/TopBar.svelte';
 import TabBar from '../components/shell/TabBar.svelte';
 import MixtapeBuilderOverlay from '../components/mixtape/MixtapeBuilderOverlay.svelte';
 import PlayerDock from '../components/player/PlayerDock.svelte';
+import {
+	readSessionCookieFromRequest,
+	resolveSessionCookieRead,
+} from '../utils/sessionToken';
 import '../styles/global.css';
 
 interface Props {
@@ -25,23 +29,17 @@ const {
 
 const pageTitle = title ? (title.includes('SMOL') ? title : `${title} · SMOL`) : 'SMOL';
 
-let _kid: string | null = null;
-let _cid: string | null = null;
+const cookieRead = readSessionCookieFromRequest(Astro);
+if (cookieRead.present) {
+	Astro.response.headers.set('Cache-Control', 'private, no-store');
+}
 
-const token = Astro.cookies.get('smol_token')?.value?.split('.')?.[1];
+const session = resolveSessionCookieRead(cookieRead, Astro.url.hostname);
+const _kid: string | null = session.kid;
+const _cid: string | null = session.cid;
 
-if (token) {
-	try {
-		const base64 = token.replace(/-/g, '+').replace(/_/g, '/');
-		const bytes = Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
-		const { sub, key } = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
-		if (typeof key === 'string' && typeof sub === 'string') {
-			_kid = key;
-			_cid = sub;
-		}
-	} catch {
-		// A malformed session cookie must not prevent the page from rendering.
-	}
+if (session.shouldDeleteCookie) {
+	Astro.cookies.delete('smol_token', session.deleteCookieOptions);
 }
 ---
 

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { navigate } from 'astro:transitions/client';
-  import { userState } from '../../stores/user.svelte';
+  import { syncUserAuthFromCookie, userState } from '../../stores/user.svelte';
   import {
     mixtapeActive,
     mixtapeEditState,
@@ -29,20 +29,18 @@
   let searchQuery = $state('');
   let playlist = $state<string | null>(null);
 
-  // Sync SSR cookie credentials into userState without eager wallet/RPC calls.
-  let lastContractId = $state<string | null | undefined>(undefined);
-  let lastKeyId = $state<string | null | undefined>(undefined);
-
-  $effect(() => {
-    if (_cid !== lastContractId || _kid !== lastKeyId) {
-      lastContractId = _cid;
-      lastKeyId = _kid;
-      userState.contractId = _cid;
-      userState.keyId = _kid;
-      if (!_cid || !_kid) {
-        userState.walletConnected = false;
-      }
+  function reconcileSession() {
+    if (syncUserAuthFromCookie()) {
+      void import('../../stores/balance.svelte').then((m) => m.resetBalance());
     }
+  }
+
+  // Reconcile against the live document.cookie smol_token (never restoring
+  // identity from stale SSR props after cross-tab logout or expiry).
+  $effect(() => {
+    void _cid;
+    void _kid;
+    reconcileSession();
   });
 
   const isAuthenticated = $derived(Boolean(userState.contractId));
@@ -63,11 +61,18 @@
     }
   }
 
+  function handleNavigationSync() {
+    reconcileSession();
+    syncFromLocation();
+  }
+
   onMount(() => {
     syncFromLocation();
-    document.addEventListener('astro:page-load', syncFromLocation);
+    document.addEventListener('astro:after-swap', handleNavigationSync);
+    document.addEventListener('astro:page-load', handleNavigationSync);
     return () => {
-      document.removeEventListener('astro:page-load', syncFromLocation);
+      document.removeEventListener('astro:after-swap', handleNavigationSync);
+      document.removeEventListener('astro:page-load', handleNavigationSync);
     };
   });
 

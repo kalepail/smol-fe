@@ -5,7 +5,9 @@ const OWNER_CONTRACT = 'CFIXTUREUSER00000000000000000000000000000000000000000000
 
 function fakeSmolJwt(sub = OWNER_CONTRACT, key = 'fixture-key-1') {
   const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
-  const payload = Buffer.from(JSON.stringify({ sub, key })).toString('base64url');
+  const payload = Buffer.from(
+    JSON.stringify({ sub, key, exp: Math.floor(Date.now() / 1000) + 3600 })
+  ).toString('base64url');
   return `${header}.${payload}.sig`;
 }
 
