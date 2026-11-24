@@ -85,10 +85,17 @@
     }
   }
 
+  let prevOpen = false;
   $effect(() => {
-    if (open && initialLyricsOpen && track) {
+    const justOpened = open && !prevOpen;
+    prevOpen = open;
+    if (!open) {
+      lyricsExpanded = false;
+      return;
+    }
+    if (justOpened && initialLyricsOpen && track) {
       lyricsExpanded = true;
-      if (loadedLyricsSmolId !== track.smolId && !lyricsLoading) {
+      if (loadedLyricsSmolId !== track.smolId && !lyricsLoading && !lyricsError) {
         void fetchLyricsForCurrentTrack();
       }
       queueMicrotask(() => {

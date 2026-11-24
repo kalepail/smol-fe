@@ -33,7 +33,7 @@
   }: Props = $props();
 
   const sheetId = $props.id();
-    const titleId = `${sheetId}-title`;
+  const titleId = `${sheetId}-title`;
   let dialogEl = $state<HTMLDialogElement | null>(null);
   let backdropEl = $state<HTMLDivElement | null>(null);
   let pointerDownOnBackdrop = false;

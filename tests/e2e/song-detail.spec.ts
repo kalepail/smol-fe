@@ -218,7 +218,8 @@ for (const vp of VIEWPORTS) {
         ).toBeVisible();
         const collectPriv = page.locator('section[aria-label="Collectible"]');
         await expect(collectPriv).toContainText('Publish to mint');
-        await expect(collectPriv.getByRole('button', { name: 'Mint', exact: true })).toHaveCount(0);
+        await expect(collectPriv.getByRole('button')).toHaveCount(0);
+        await expect(page.getByRole('button', { name: 'Publish to feed' })).toHaveCount(1);
         await expect(page.locator('#song-lyrics').getByRole('button')).toHaveCount(0);
         const detailsPriv = page.locator('aside[aria-labelledby="song-details-heading"]');
         await expect(detailsPriv).toContainText('Private');
@@ -226,7 +227,7 @@ for (const vp of VIEWPORTS) {
         if (vp.tag === 'desktop' || vp.tag === 'mobile') {
           await capture(page, `song-private-owner-${vp.tag}.png`);
         }
-        await collectPriv.getByRole('button', { name: 'Publish to feed' }).click();
+        await page.getByRole('button', { name: 'Publish to feed' }).click();
         await expect.poll(async () => (await (await request.get(`${api}/__mutations`)).json()).publishCalls).toEqual([
           '/smol-private',
         ]);
@@ -425,6 +426,66 @@ test.describe('Fable Report 36 & 37 edge-case regressions', () => {
     const nowPlaying = page.locator('dialog[open]');
     await expect(nowPlaying.getByRole('heading', { name: 'Now playing' })).toBeVisible();
     await expect(nowPlaying).toContainText('Coins drop slow in the midnight glow');
+    await nowPlaying.getByRole('button', { name: 'Close' }).click();
+
+    // N2: Reopening via Expand player starts with lyrics collapsed
+    await dock.getByRole('button', { name: 'Expand player', exact: true }).click();
+    await expect(nowPlaying.getByRole('heading', { name: 'Now playing' })).toBeVisible();
+    await expect(nowPlaying).not.toContainText('Coins drop slow in the midnight glow');
+    await nowPlaying.getByRole('button', { name: 'Close' }).click();
+  });
+
+  test('N1 + A1: dock Lyrics failing fetch fires exactly 1 request with working Try again; minted owner song hides Make private', async ({
+    page,
+    context,
+  }) => {
+    const toneMp3 = readFileSync(new URL('../fixtures/tone.mp3', import.meta.url));
+    const longMp3 = Buffer.concat(Array.from({ length: 5 }, () => toneMp3.subarray(227)));
+    await page.route('**/song/*.mp3', async (route) => {
+      await route.fulfill({ headers: { 'accept-ranges': 'bytes' }, body: longMp3, contentType: 'audio/mpeg' });
+    });
+    await context.addCookies([{ name: 'smol_token', value: fakeSmolJwt(), url: 'http://127.0.0.1:4328' }]);
+
+    // A1: Minted public song owned by user hides "Make private" in More sheet
+    await page.goto('/smol-minted');
+    await page.getByRole('button', { name: 'More options' }).click();
+    const moreSheet = page.locator('dialog[open]');
+    await expect(moreSheet).toBeVisible();
+    await expect(moreSheet.getByRole('button', { name: 'Make private' })).toHaveCount(0);
+    await moreSheet.getByRole('button', { name: 'Close' }).click();
+
+    // N1: Start playing smol-2take, then fail client GET /smol-2take -> dock Lyrics icon must NOT loop
+    await page.goto('/smol-2take');
+    await page.locator('[data-song-actions]').getByRole('button', { name: 'Play', exact: true }).click();
+    const dock = page.getByRole('region', { name: 'Audio player' });
+    await expect(dock.getByRole('button', { name: 'Lyrics', exact: true })).toBeVisible();
+
+    let lyricsFetches = 0;
+    let shouldFail = true;
+    await page.route(`${api}/smol-2take`, async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.continue();
+        return;
+      }
+      lyricsFetches++;
+      if (shouldFail) {
+        await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'boom' }) });
+      } else {
+        await route.continue();
+      }
+    });
+
+    await dock.getByRole('button', { name: 'Lyrics', exact: true }).click();
+    const nowPlaying = page.locator('dialog[open]');
+    await expect(nowPlaying.getByText('Could not load lyrics.')).toBeVisible();
+    await page.waitForTimeout(1200);
+    expect(lyricsFetches, 'N1: must not refetch in an unbounded loop on error').toBe(1);
+
+    // Retry succeeds cleanly with exactly 1 additional request
+    shouldFail = false;
+    await nowPlaying.getByRole('button', { name: 'Try again' }).click();
+    await expect(nowPlaying).toContainText('Coins drop slow in the midnight glow');
+    expect(lyricsFetches).toBe(2);
     await nowPlaying.getByRole('button', { name: 'Close' }).click();
   });
 

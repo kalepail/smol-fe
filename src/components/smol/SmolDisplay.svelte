@@ -454,7 +454,7 @@
           {#if canAddToMixtape}
             <div class="hidden sm:inline-flex">
               <IconButton
-                label={isInMixtape ? 'In mixtape draft' : 'Add to mixtape'}
+                label={isInMixtape ? 'Remove from mixtape' : 'Add to mixtape'}
                 variant="surface"
                 onclick={handleAddToMixtape}
               >
@@ -553,12 +553,7 @@
             <Button variant="secondary" onclick={onOpenTradeModal}>
               <span>Trade</span>
             </Button>
-          {:else if !minted && isPrivate}
-            <Button variant="secondary" onclick={onMakeSongPublic}>
-              <Icon name="globe" size={15} />
-              <span>Publish to feed</span>
-            </Button>
-          {:else if !minted}
+          {:else if !minted && !isPrivate}
             <Button
               variant="secondary"
               loading={minting}
@@ -675,7 +670,7 @@
 <!-- Overflow menu sheet -->
 <Sheet open={moreOpen} title={title} maxWidth="sm" onClose={() => (moreOpen = false)}>
   <div class="divide-y divide-line rounded-[var(--radius-control)] bg-surface-1 ring-1 ring-inset ring-line">
-    {#if isOwner && isPublished && !isRestricted}
+    {#if isOwner && isPublished && !isRestricted && (isPrivate || !minted)}
       <button
         type="button"
         onclick={() => {
