@@ -3,7 +3,8 @@ import MixtapeDetailView from '../../components/mixtape/MixtapeDetailView.svelte
 import MixtapeOwnerCallout from '../../components/mixtape/MixtapeOwnerCallout.svelte';
 import Layout from '../../layouts/Layout.astro';
 import { parseMixtapeNotFound, toMixtapeDetail, type ApiMixtapeDetail } from '../../services/api/mixtapes';
-import { serverApiFetchResult, sessionSubject } from '../../services/api/server';
+import { serverApiFetch, serverApiFetchResult, sessionSubject } from '../../services/api/server';
+import type { ApiOwnedMixtape } from '../../services/api/mixtapes';
 
 const { id } = Astro.params;
 const result = id
@@ -29,7 +30,13 @@ const noindex = initialData?.visibility === 'owner';
 // Report 24 §5.3 / 25d P2-6: the creator sees why a mixtape is hidden in the first paint. The detail
 // island stays client:only (t488's collector is browser-only); this static, inert copy is replaced
 // by the live callout as soon as the island renders.
-const ssrOwnerCallout = Boolean(initialData && noindex && sessionSubject(Astro) === initialData.creator);
+// 25d pass 2 P2-4: ownership is VERIFIED server-side — the (unverified) cookie subject only decides
+// whether to ask; the authenticated GET /mixtapes/mine must succeed and list this mixtape.
+let ssrOwnerCallout = false;
+if (initialData && noindex && id && sessionSubject(Astro) === initialData.creator) {
+  const mine = await serverApiFetch<ApiOwnedMixtape[]>(Astro, '/mixtapes/mine');
+  ssrOwnerCallout = Array.isArray(mine) && mine.some((row) => row.Id === id && row.Address === initialData.creator);
+}
 const noop = () => {};
 const title = initialData ? initialData.title : 'Mixtape not found';
 const description = initialData?.description || 'Smol art onchain';

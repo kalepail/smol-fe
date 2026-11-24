@@ -19,9 +19,9 @@ import { CHAIN_OWNER, CHAIN_TRACK_INDEXED, CHAIN_TRACK_UNINDEXED } from '../fixt
 const api = 'http://127.0.0.1:4329';
 const RENDERS = process.env.MIXTAPE_OWNER_RENDERS ?? join('test-results', 'mixtape-owner-renders');
 
-function fakeSmolJwt(sub: string) {
+function fakeSmolJwt(sub: string, extra: Record<string, unknown> = {}) {
   const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
-  const payload = Buffer.from(JSON.stringify({ sub, key: `key-${sub}` })).toString('base64url');
+  const payload = Buffer.from(JSON.stringify({ sub, key: `key-${sub}`, ...extra })).toString('base64url');
   return `${header}.${payload}.sig`;
 }
 
@@ -41,7 +41,17 @@ const toasts = (page: Page) => page.locator('.toast-stack [role="status"]');
 const panel = (page: Page) => page.locator('aside[data-mixtape-panel]');
 const cors = { 'Access-Control-Allow-Origin': 'http://127.0.0.1:4328', 'Access-Control-Allow-Credentials': 'true' };
 const ownerSnapshot = async (page: Page, tag: string) =>
-  (await (await page.request.get(`${api}/__owner/${tag}`)).json()) as Array<{ Id: string; Title: string; Smols: string[]; Deleted_At: string | null }>;
+  (await (await page.request.get(`${api}/__owner/${tag}`)).json()) as Array<{ Id: string; Title: string; Desc: string; Smols: string[]; Revision: number; Deleted_At: string | null }>;
+
+/** "Another client" (same account, other device) edits a mixtape straight through the API. */
+async function remoteEdit(page: Page, tag: string, id: string, change: (row: { Title: string; Desc: string; Smols: string[] }) => { title?: string; smols?: string[] }) {
+  const row = (await ownerSnapshot(page, tag)).find((r) => r.Id === id)!;
+  const next = change(row);
+  const res = await page.request.put(`${api}/mixtapes/${id}`, {
+    data: { title: next.title ?? row.Title, desc: row.Desc, smols: next.smols ?? row.Smols, expectedRevision: row.Revision },
+  });
+  expect(res.status()).toBe(200);
+}
 const openDialog = (page: Page, text?: string | RegExp) =>
   text ? page.locator('dialog[open]').filter({ hasText: text }) : page.locator('dialog[open]');
 
@@ -200,7 +210,7 @@ test.describe('Mixtape owner management (390×844)', () => {
     await expect(openDialog(page, 'Creasy again').getByRole('heading', { name: 'Creasy again' })).toBeVisible();
     const slots = await page.evaluate(() => ({
       draft: JSON.parse(localStorage.getItem('smol:mixtape-draft') || '{}').tracks?.length,
-      edit: localStorage.getItem('smol:mixtape-edit'),
+      edit: localStorage.getItem('smol:mixtape-edit:CMIXOWNERA3'),
     }));
     expect(slots).toEqual({ draft: 2, edit: null });
   });
@@ -268,7 +278,7 @@ test.describe('Mixtape owner management (390×844)', () => {
     await expect(page.locator('dialog[open]')).toHaveCount(0);
     await expect(page.locator('[data-owner-status="listed"]')).toHaveText('Listed');
     await expect(page.locator('[data-owner-callout]')).toHaveCount(0);
-    expect(await page.evaluate(() => localStorage.getItem('smol:mixtape-edit'))).toBeNull();
+    expect(await page.evaluate(() => localStorage.getItem('smol:mixtape-edit:CMIXOWNERA4'))).toBeNull();
   });
 
   test('merge sheet: previews counts, reassures, blocks >100, handles 409 unavailable tracks, then merges', async ({ page, context }) => {
@@ -313,7 +323,10 @@ test.describe('Mixtape owner management (390×844)', () => {
 
     await submit.click();
     await expect(page).toHaveURL(new RegExp(`/mixtapes/${id('solo')}$`));
-    await expect(toasts(page).filter({ hasText: 'Merged into "One Song Wonder". 3 songs added.' })).toBeVisible();
+    const merged = toasts(page).filter({ hasText: 'Merged into "One Song Wonder". 3 songs added.' });
+    await expect(merged).toBeVisible();
+    // 25d pass 2 P2-5: the success toast carries a focusable next step and takes focus.
+    await expect(merged.getByRole('button', { name: 'Your mixtapes' })).toBeFocused();
     await expect(page.getByRole('heading', { name: 'One Song Wonder', level: 1 })).toBeVisible();
     // The solo mixtape now has 4 songs, so it is listed again.
     await expect(page.locator('[data-owner-status="listed"]')).toBeVisible();
@@ -440,10 +453,12 @@ test.describe('25d regressions (390×844)', () => {
   test('P1-1: saving an owned, on-chain-but-unindexed song refreshes collector ownership without reload', async ({ page, context }) => {
     await context.addCookies([{ name: 'smol_token', value: fakeSmolJwt(CHAIN_OWNER), url: 'http://127.0.0.1:4328' }]);
     const OWNED = 10_000_000n * 10_000_000n;
+    let delayMs = 0;
     const stats = await installStellarMock(page, () => ({
       minted: [CHAIN_TRACK_INDEXED.Id, CHAIN_TRACK_UNINDEXED.Id],
       balances: { [CHAIN_TRACK_UNINDEXED.Id]: OWNED },
       kale: 1_000n * 10_000_000n,
+      delayMs,
     }));
     const collectCard = page.locator('section[aria-labelledby="collect-title"]');
 
@@ -461,9 +476,16 @@ test.describe('25d regressions (390×844)', () => {
     const readsBefore = stats.getLedgerEntries;
 
     await page.getByRole('button', { name: /^Continue editing Chain Set \(2\)$/ }).click();
+    // 25d pass 2 P1-6: hold the NEW ownership read; the stale costed CTA must never be offered meanwhile.
+    delayMs = 3_000;
     await openDialog(page).getByRole('button', { name: 'Save changes' }).click();
     await expect(toasts(page).filter({ hasText: 'Saved. "Chain Set" is back on the Mixtapes page.' })).toBeVisible();
     await expect(page.getByText('2 songs').first()).toBeVisible();
+    const refreshing = page.locator('[data-collect-refreshing]');
+    await expect(refreshing).toBeVisible();
+    await expect(refreshing).toContainText('Refreshing holdings…');
+    await expect(page.getByRole('button', { name: /Mint|Buy|Collect for|Complete/ })).toHaveCount(0);
+    await expect(collectCard).toHaveCount(0);
     // Fresh ownership read for the new track set: the owned song counts immediately.
     await expect(collectCard.getByRole('heading')).toHaveText(/You own 1 of 2/, { timeout: 15_000 });
     expect(stats.getLedgerEntries).toBeGreaterThan(readsBefore);
@@ -492,7 +514,7 @@ test.describe('25d regressions (390×844)', () => {
     await expect(builder.getByRole('button', { name: 'Delete mixtape' })).toHaveCount(0);
     await builder.getByRole('button', { name: 'Close' }).click();
     // A's slot is isolated, not destroyed.
-    expect(await page.evaluate(() => localStorage.getItem('smol:mixtape-edit') ?? '')).toContain('A secret title');
+    expect(await page.evaluate(() => localStorage.getItem('smol:mixtape-edit:CMIXOWNERB1') ?? '')).toContain('A secret title');
 
     // Back to A: the unsaved edit is still there.
     await signInAs(context, 'b1');
@@ -523,7 +545,7 @@ test.describe('25d regressions (390×844)', () => {
     await expect(builder.getByRole('button', { name: 'Save changes' })).toBeDisabled();
     const slots = await page.evaluate(() => ({
       draft: JSON.parse(localStorage.getItem('smol:mixtape-draft') || '{}').tracks?.map((t: { id: string }) => t.id),
-      edit: Object.values(JSON.parse(localStorage.getItem('smol:mixtape-edit') || '{}') as Record<string, { tracks: { id: string }[] }>)[0]?.tracks.map((t) => t.id),
+      edit: (JSON.parse(localStorage.getItem('smol:mixtape-edit:CMIXOWNERD2') || '{}') as { tracks?: { id: string }[] }).tracks?.map((t) => t.id),
     }));
     expect(slots).toEqual({ draft: ['first-smol'], edit: ['first-smol', 'second-smol', 'third-smol'] });
   });
@@ -554,7 +576,7 @@ test.describe('25d regressions (390×844)', () => {
     await expect(page.locator('dialog[open]')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Load latest' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Save mine anyway' })).toHaveCount(0);
-    expect(await page.evaluate(() => localStorage.getItem('smol:mixtape-edit'))).toBeNull();
+    expect(await page.evaluate(() => localStorage.getItem('smol:mixtape-edit:CMIXOWNERE1'))).toBeNull();
 
     // A real conflict: the TOAST "Load latest" also clears the inline banner.
     mode = 'conflict';
@@ -706,7 +728,11 @@ test.describe('25d regressions (390×844)', () => {
     await expect(builder.getByRole('status').filter({ hasText: 'still finishing your last publish' })).toBeVisible();
     const retry = builder.getByRole('button', { name: 'Try again' });
     await expect(retry).toBeDisabled();
+    // 25d pass 2 P2-1: the main Publish button can't bypass the Retry-After wait either.
+    await expect(builder.getByRole('button', { name: 'Publish mixtape (2)' })).toBeDisabled();
+    expect(calls).toBe(1);
     await expect(retry).toBeEnabled({ timeout: 3_000 });
+    await expect(builder.getByRole('button', { name: 'Publish mixtape (2)' })).toBeEnabled();
     await retry.click();
     await expect(builder.getByRole('alert')).toContainText('changed while it was being published');
     await builder.getByRole('button', { name: 'Review it' }).click();
@@ -767,7 +793,7 @@ test.describe('25d regressions (1440×900)', () => {
     const saved = (await ownerSnapshot(page, 'c1')).find((r) => r.Id === id('night-drive'))!;
     expect(saved.Title).toBe('First title');
     expect(saved.Smols).toHaveLength(3);
-    expect(await page.evaluate(() => localStorage.getItem('smol:mixtape-edit'))).toBeNull();
+    expect(await page.evaluate(() => localStorage.getItem('smol:mixtape-edit:CMIXOWNERC1'))).toBeNull();
   });
 
   test('P2-5: an edit saved on All refreshes the All card without a reload', async ({ page, context }) => {
@@ -785,5 +811,222 @@ test.describe('25d regressions (1440×900)', () => {
     await page.getByRole('button', { name: 'Editing mixtape' }).click();
     await panel(page).getByRole('button', { name: 'Save changes' }).click();
     await expect(card).toContainText(newTitle);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 25d pass 2 regressions (6 × P1, 5 × P2)
+// ---------------------------------------------------------------------------
+
+async function openReviewInEditor(page: Page, id: (slug: string) => string) {
+  await page.goto(`/mixtapes/${id('night-drive')}`);
+  await page.getByRole('button', { name: 'More actions for Night Drive' }).click();
+  await page.getByRole('menuitem', { name: 'Merge into another mixtape' }).click();
+  const sheet = openDialog(page, 'Merge');
+  await sheet.getByRole('radio', { name: /One Song Wonder/ }).check();
+  await sheet.getByRole('button', { name: 'Review in editor first' }).click();
+  const editor = openDialog(page, 'Editing · One Song Wonder');
+  await expect(editor.getByText('4 songs selected')).toBeVisible();
+  await expect(editor.getByRole('button', { name: 'Save & delete copy' })).toBeEnabled();
+  return editor;
+}
+
+test.describe('25d pass 2 regressions (390×844)', () => {
+  test('P1-1: Load latest after a 409 cancels the reviewed merge; the source can never be deleted', async ({ page, context }) => {
+    const id = await signInAs(context, 'g2');
+    const editor = await openReviewInEditor(page, id);
+    // Another device renames the TARGET, so the reviewed save conflicts.
+    await remoteEdit(page, 'g2', id('solo'), () => ({ title: 'One Song Wonder (remote)' }));
+    await editor.getByRole('button', { name: 'Save & delete copy' }).click();
+    const banner = editor.locator('[data-mixtape-conflict]');
+    await expect(banner).toBeVisible();
+    await banner.getByRole('button', { name: 'Load latest' }).click();
+
+    await expect(toasts(page).filter({ hasText: 'The merge with "Night Drive" was cancelled' })).toBeVisible();
+    await expect(editor.getByText('1 song selected')).toBeVisible();
+    await expect(editor.getByRole('button', { name: 'Save & delete copy' })).toHaveCount(0);
+    await expect(editor.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+    expect((await page.request.get(`${api}/mixtapes/${id('night-drive')}`)).status()).toBe(200);
+  });
+
+  test('P1-2: a newer source revision is never deleted; its new songs are brought in for review', async ({ page, context }) => {
+    const id = await signInAs(context, 'g3');
+    const editor = await openReviewInEditor(page, id);
+    // Another device adds a 4th song to the SOURCE after the review started.
+    await remoteEdit(page, 'g3', id('night-drive'), (row) => ({ smols: [...row.Smols, 'first-smol'] }));
+
+    await editor.getByRole('button', { name: 'Save & delete copy' }).click();
+    await expect(editor.getByText('"Night Drive" changed on another device, so it wasn’t deleted.')).toBeVisible();
+    await expect(editor.getByText('5 songs selected')).toBeVisible();
+    let rows = await ownerSnapshot(page, 'g3');
+    expect(rows.find((r) => r.Id === id('night-drive'))!.Deleted_At).toBeNull();
+    expect(rows.find((r) => r.Id === id('solo'))!.Smols).toEqual(['cjk-smol']); // nothing saved yet
+
+    // Reviewed again (now including the new song): the delete is safe.
+    await editor.getByRole('button', { name: 'Save & delete copy' }).click();
+    await expect(toasts(page).filter({ hasText: 'Saved "One Song Wonder" and deleted the copy "Night Drive".' })).toBeVisible();
+    rows = await ownerSnapshot(page, 'g3');
+    expect(rows.find((r) => r.Id === id('solo'))!.Smols).toEqual(['cjk-smol', 'smol-2take', 'smol-1take', 'smol-fallback', 'first-smol']);
+    expect(rows.find((r) => r.Id === id('night-drive'))!.Deleted_At).not.toBeNull();
+  });
+
+  test('P1-3: a 503 on Load latest keeps the dirty edit and the conflict choices', async ({ page, context }) => {
+    const id = await signInAs(context, 'e2');
+    const url = `${api}/mixtapes/${id('night-drive')}`;
+    let mode: 'conflict' | 'unavailable' | 'pass' = 'pass';
+    await page.route(url, async (route) => {
+      const method = route.request().method();
+      if (mode === 'conflict' && method === 'PUT') {
+        mode = 'unavailable';
+        return route.fulfill({
+          status: 409,
+          contentType: 'application/json',
+          headers: cors,
+          body: JSON.stringify({
+            error: 'changed',
+            code: 'revision_conflict',
+            current: { Id: id('night-drive'), Title: 'Night Drive', Desc: '', Address: 'CMIXOWNERE2', Created_At: '2026-11-18 09:00:00', Smols: ['smol-2take'], Visibility: 'public', Revision: 2 },
+          }),
+        });
+      }
+      if (mode === 'unavailable' && method === 'GET') {
+        return route.fulfill({ status: 503, contentType: 'text/plain', headers: cors, body: 'upstream unavailable' });
+      }
+      return route.continue();
+    });
+    await page.goto(`/mixtapes/${id('night-drive')}`);
+    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    const editor = openDialog(page);
+    await editor.getByLabel('Title').fill('Mine');
+    mode = 'conflict';
+    await editor.getByRole('button', { name: 'Save changes' }).click();
+    const banner = editor.locator('[data-mixtape-conflict]');
+    await banner.getByRole('button', { name: 'Load latest' }).click();
+
+    await expect(toasts(page).filter({ hasText: 'Couldn’t load the latest version. Your changes are still here' })).toBeVisible();
+    await expect(banner.getByRole('button', { name: 'Load latest' })).toBeVisible();
+    await expect(banner.getByRole('button', { name: 'Save mine anyway' })).toBeVisible();
+    await expect(editor.getByLabel('Title')).toHaveValue('Mine');
+    expect(await page.evaluate(() => localStorage.getItem('smol:mixtape-edit:CMIXOWNERE2') ?? '')).toContain('"title":"Mine"');
+  });
+
+  test('P1-4: two tabs on two accounts keep BOTH parked edits (independent per-owner keys)', async ({ page, context }) => {
+    const idA = await signInAs(context, 'b3');
+    await page.goto(`/mixtapes/${idA('night-drive')}`);
+    await expect(page.getByRole('button', { name: 'Edit', exact: true })).toBeVisible();
+    const idB = await signInAs(context, 'b4');
+    const tabB = await context.newPage();
+    await tabB.goto(`/mixtapes/${idB('night-drive')}`);
+    await expect(tabB.getByRole('button', { name: 'Edit', exact: true })).toBeVisible();
+
+    // Both tabs were open before either edited.
+    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await openDialog(page).getByLabel('Title').fill('A title');
+    await openDialog(page).getByRole('button', { name: 'Close' }).click();
+    await tabB.getByRole('button', { name: 'Edit', exact: true }).click();
+    await openDialog(tabB).getByLabel('Title').fill('B title');
+    await openDialog(tabB).getByRole('button', { name: 'Close' }).click();
+    // ...and A edits again after B.
+    await page.getByRole('button', { name: /^Continue editing A title/ }).click();
+    await openDialog(page).getByLabel('Description (optional)').fill('A again');
+    await openDialog(page).getByRole('button', { name: 'Close' }).click();
+
+    const stored = await page.evaluate(() => ({
+      a: localStorage.getItem('smol:mixtape-edit:CMIXOWNERB3') ?? '',
+      b: localStorage.getItem('smol:mixtape-edit:CMIXOWNERB4') ?? '',
+      shared: localStorage.getItem('smol:mixtape-edit'),
+    }));
+    expect(stored.a).toContain('"title":"A title"');
+    expect(stored.a).toContain('A again');
+    expect(stored.b).toContain('"title":"B title"');
+    expect(stored.shared).toBeNull();
+    await tabB.close();
+  });
+
+  test('P2-2: a rejected merge re-derives BOTH rows from the refreshed list (1 → 5, not 1 → 4)', async ({ page, context }) => {
+    const id = await signInAs(context, 'g4');
+    await page.goto(`/mixtapes/${id('night-drive')}`);
+    await page.getByRole('button', { name: 'More actions for Night Drive' }).click();
+    await page.getByRole('menuitem', { name: 'Merge into another mixtape' }).click();
+    const sheet = openDialog(page, 'Merge');
+    await sheet.getByRole('radio', { name: /One Song Wonder/ }).check();
+    await expect(sheet.locator('[data-merge-total]')).toHaveText('1 → 4 songs');
+
+    await remoteEdit(page, 'g4', id('night-drive'), (row) => ({ smols: [...row.Smols, 'first-smol'] }));
+    await page.route(`${api}/mixtapes/${id('night-drive')}/merge`, (route) =>
+      route.fulfill({
+        status: 409,
+        contentType: 'application/json',
+        headers: cors,
+        body: JSON.stringify({
+          error: 'changed',
+          code: 'revision_conflict',
+          current: { Id: id('solo'), Title: 'One Song Wonder', Desc: '', Address: 'CMIXOWNERG4', Created_At: '2026-11-19 12:00:00', Smols: ['cjk-smol'], Visibility: 'owner', Revision: 1 },
+        }),
+      })
+    );
+    await sheet.getByRole('button', { name: 'Merge & delete copy' }).click();
+    await expect(sheet.getByRole('alert')).toContainText('changed on another device');
+    await expect(sheet.locator('[data-merge-total]')).toHaveText('1 → 5 songs');
+    await expect(sheet.locator('[data-merge-outcome]')).toContainText('4 songs will be added');
+  });
+
+  test('P2-4: the SSR owner callout needs a VERIFIED session (/mixtapes/mine), not just a matching cookie subject', async ({ page, context }) => {
+    const id = (slug: string) => `mx-i2-${slug}`;
+    // Expired session whose payload still names the creator.
+    await context.addCookies([{ name: 'smol_token', value: fakeSmolJwt('CMIXOWNERI2', { exp: 1 }), url: 'http://127.0.0.1:4328' }]);
+    const expired = await (await page.request.get(`/mixtapes/${id('creasy-v1')}`)).text();
+    expect(expired).toContain('Creasy Drops');
+    expect(expired).not.toContain('data-ssr-owner-callout');
+
+    await signInAs(context, 'i2');
+    const verified = await (await page.request.get(`/mixtapes/${id('creasy-v1')}`)).text();
+    expect(verified).toContain('data-ssr-owner-callout');
+  });
+});
+
+test.describe('25d pass 2 regressions (1440×900)', () => {
+  test.use({ viewport: { width: 1440, height: 900 }, isMobile: false, hasTouch: false });
+
+  test('P1-5: create is frozen while its POST is in flight; a page add is refused, not silently dropped', async ({ page, context }) => {
+    await signInAs(context, 'p1');
+    await seedDraft(page, { title: 'Held Mix', tracks: [{ id: 'smol-minted', title: 'Starlight Mint Anthem' }] });
+    await page.getByRole('button', { name: /Mixtape draft/ }).click();
+    const builder = panel(page);
+
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    await page.route(`${api}/mixtapes`, async (route) => {
+      if (route.request().method() !== 'POST') return route.continue();
+      await held;
+      await route.continue();
+    });
+    const post = page.waitForRequest((req) => req.method() === 'POST' && req.url() === `${api}/mixtapes`);
+    await builder.getByRole('button', { name: 'Publish mixtape (1)' }).click();
+    await expect(builder.locator('[data-mixtape-builder-body]')).toHaveAttribute('inert', '');
+    await page.locator('main').getByRole('button', { name: 'Add Second Track to mixtape' }).click();
+    await expect(toasts(page).filter({ hasText: 'Publishing your mixtape… add it again in a moment.' })).toBeVisible();
+    await expect(builder.getByText('1 song selected')).toBeVisible();
+
+    release();
+    expect((await post).postDataJSON().smols).toEqual(['smol-minted']);
+    await expect(page).toHaveURL('/mixtapes/fixture-mixtape');
+    expect(await page.evaluate(() => localStorage.getItem('smol:mixtape-draft'))).toBeNull();
+  });
+
+  test('P2-5: desktop "Edit X instead" moves focus to the title inside the docked panel', async ({ page, context }) => {
+    await signInAs(context, 'k2');
+    await seedDraft(page, {
+      title: 'Creasy again',
+      tracks: [
+        { id: 'first-smol', title: 'First Track' },
+        { id: 'second-smol', title: 'Second Track' },
+      ],
+    });
+    await page.getByRole('button', { name: /Mixtape draft/ }).click();
+    const builder = panel(page);
+    await builder.getByRole('button', { name: 'Edit "Creasy Drops" instead' }).click();
+    await expect(builder.getByRole('heading', { name: 'Editing · Creasy Drops' })).toBeVisible();
+    await expect(builder.getByLabel('Title')).toBeFocused();
   });
 });

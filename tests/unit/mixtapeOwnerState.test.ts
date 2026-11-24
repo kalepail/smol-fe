@@ -1,6 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isEditSessionDirty, parseEditSlots, type MixtapeEditSession } from '../../src/stores/mixtape/operations.ts';
+import {
+  checkMergeSourceDeletion,
+  isEditSessionDirty,
+  parseEditSlots,
+  type MergeSourceSnapshot,
+  type MixtapeEditSession,
+} from '../../src/stores/mixtape/operations.ts';
 import { createLatestGate } from '../../src/utils/latestRequest.ts';
 import { parseRetryAfter } from '../../src/utils/httpRetry.ts';
 
@@ -43,8 +49,12 @@ test('25d P1-2: edit slots are per owner; foreign / creator-less slots never sur
 });
 
 test('edit slot keeps mergeFrom and dirty tracking', () => {
-  const slots = parseEditSlots({ CA: session('CA', 'm1', { mergeFrom: { id: 'src', title: 'Old copy' } }) });
-  assert.deepEqual(slots.CA.mergeFrom, { id: 'src', title: 'Old copy' });
+  const reviewed: MergeSourceSnapshot = { id: 'src', title: 'Old copy', revision: 4, trackIds: ['a', 'b'], storedTrackCount: 2, publicTrackCount: 2 };
+  const slots = parseEditSlots({ CA: session('CA', 'm1', { mergeFrom: reviewed }) });
+  assert.deepEqual(slots.CA.mergeFrom, reviewed);
+  // A pre-pass-2 merge source (id + title only) can't be verified, so its pending delete is dropped.
+  const legacy = parseEditSlots({ CA: { ...session('CA', 'm1'), mergeFrom: { id: 'src', title: 'Old copy' } } });
+  assert.equal(legacy.CA.mergeFrom, null);
   assert.equal(isEditSessionDirty(slots.CA), true, 'title differs from baseline');
   assert.equal(isEditSessionDirty({ ...slots.CA, title: 'Server title' }), false);
 });
@@ -85,4 +95,20 @@ test('25d P2-1: Retry-After parsing for 503 create_pending', () => {
   assert.equal(parseRetryAfter('600'), 30_000, 'clamped down');
   const now = Date.parse('2026-11-24T00:00:00Z');
   assert.equal(parseRetryAfter('Tue, 24 Nov 2026 00:00:03 GMT', now), 3000);
+});
+
+test('25d pass 2 P1-1/P1-2: "Save & delete copy" may only delete the exact reviewed source', () => {
+  const reviewed: MergeSourceSnapshot = { id: 'src', title: 'Copy', revision: 2, trackIds: ['a', 'b'], storedTrackCount: 2, publicTrackCount: 2 };
+  // Exactly as reviewed and fully contained in the saved target.
+  assert.deepEqual(checkMergeSourceDeletion(reviewed, reviewed, ['x', 'a', 'b']), { ok: true });
+  // Source already gone: nothing to delete.
+  assert.deepEqual(checkMergeSourceDeletion(reviewed, null, ['a', 'b']), { ok: false, reason: 'gone' });
+  // Another client added a song to the source after review: keep it, surface the new song.
+  const newer = { ...reviewed, revision: 3, trackIds: ['a', 'b', 'c'], storedTrackCount: 3, publicTrackCount: 3 };
+  assert.deepEqual(checkMergeSourceDeletion(reviewed, newer, ['x', 'a', 'b']), { ok: false, reason: 'changed', fresh: newer, newTrackIds: ['c'] });
+  // Private / unavailable songs would be lost with the tombstone (the direct merge's 409 rule).
+  const withPrivate = { ...reviewed, storedTrackCount: 3 };
+  assert.deepEqual(checkMergeSourceDeletion(reviewed, withPrivate, ['a', 'b']), { ok: false, reason: 'unavailable', count: 1 });
+  // "Load latest" (or a manual removal) dropped source songs from the target: never delete.
+  assert.deepEqual(checkMergeSourceDeletion(reviewed, reviewed, ['x']), { ok: false, reason: 'missing', missingIds: ['a', 'b'] });
 });

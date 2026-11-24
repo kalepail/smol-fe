@@ -116,7 +116,51 @@ export interface MixtapeEditSession extends MixtapeDraft {
   /** Started from the create draft via "Edit X instead": saving consumes that draft. */
   fromDraft: boolean;
   /** "Review in editor first" from the merge sheet: saving also deletes this source copy. */
-  mergeFrom?: { id: string; title: string } | null;
+  mergeFrom?: MergeSourceSnapshot | null;
+}
+
+/**
+ * Exactly what the owner reviewed of the merge source (25d pass 2 P1-1/P1-2). The
+ * source is only deleted if a fresh read still matches this snapshot and every one
+ * of its songs is in the saved target.
+ */
+export interface MergeSourceSnapshot {
+  id: string;
+  title: string;
+  revision: number;
+  trackIds: string[];
+  storedTrackCount: number;
+  publicTrackCount: number;
+}
+
+export type MergeDeletionCheck =
+  | { ok: true }
+  | { ok: false; reason: 'gone' }
+  | { ok: false; reason: 'changed'; fresh: MergeSourceSnapshot; newTrackIds: string[] }
+  | { ok: false; reason: 'unavailable'; count: number }
+  | { ok: false; reason: 'missing'; missingIds: string[] };
+
+/**
+ * May "Save & delete copy" delete the source? Only when the source is exactly the
+ * reviewed revision, has no private/unavailable songs, and every one of its songs
+ * is in the target that is (about to be / was) saved.
+ */
+export function checkMergeSourceDeletion(
+  reviewed: MergeSourceSnapshot,
+  fresh: MergeSourceSnapshot | null,
+  targetTrackIds: readonly string[]
+): MergeDeletionCheck {
+  if (!fresh) return { ok: false, reason: 'gone' };
+  if (fresh.revision !== reviewed.revision) {
+    const target = new Set(targetTrackIds);
+    return { ok: false, reason: 'changed', fresh, newTrackIds: fresh.trackIds.filter((id) => !target.has(id)) };
+  }
+  const unavailable = Math.max(0, fresh.storedTrackCount - fresh.publicTrackCount, fresh.storedTrackCount - fresh.trackIds.length);
+  if (unavailable > 0) return { ok: false, reason: 'unavailable', count: unavailable };
+  const target = new Set(targetTrackIds);
+  const missingIds = fresh.trackIds.filter((id) => !target.has(id));
+  if (missingIds.length) return { ok: false, reason: 'missing', missingIds };
+  return { ok: true };
 }
 
 export function isEditSessionDirty(session: MixtapeEditSession): boolean {
@@ -167,9 +211,18 @@ export function parseEditSession(value: unknown): MixtapeEditSession | null {
   }
   const baseline = parsed.baseline && typeof parsed.baseline === 'object' ? parsed.baseline : null;
   if (!baseline) return null;
-  const mergeFrom =
-    parsed.mergeFrom && typeof parsed.mergeFrom === 'object' && typeof parsed.mergeFrom.id === 'string'
-      ? { id: parsed.mergeFrom.id, title: typeof parsed.mergeFrom.title === 'string' ? parsed.mergeFrom.title : '' }
+  const raw = parsed.mergeFrom as Partial<MergeSourceSnapshot> | null | undefined;
+  // A merge source without its reviewed revision/tracks can't be verified: drop the pending delete.
+  const mergeFrom: MergeSourceSnapshot | null =
+    raw && typeof raw === 'object' && typeof raw.id === 'string' && typeof raw.revision === 'number' && Array.isArray(raw.trackIds)
+      ? {
+          id: raw.id,
+          title: typeof raw.title === 'string' ? raw.title : '',
+          revision: raw.revision,
+          trackIds: raw.trackIds.filter((id): id is string => typeof id === 'string'),
+          storedTrackCount: typeof raw.storedTrackCount === 'number' ? raw.storedTrackCount : raw.trackIds.length,
+          publicTrackCount: typeof raw.publicTrackCount === 'number' ? raw.publicTrackCount : raw.trackIds.length,
+        }
       : null;
 
   return {

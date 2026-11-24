@@ -15,6 +15,7 @@
     clearDraft,
     getSnapshotDraft,
     updateTrackVisibility,
+    setCreatePublishing,
   } from '../../stores/mixtape.svelte';
   import { confirmAction } from '../../stores/confirm.svelte';
   import { openAuthSheet } from '../../stores/authSheet.svelte';
@@ -37,6 +38,7 @@
     openMixtapeEditor,
     saveMineAnyway,
     saveMixtapeEdit,
+    saveWithoutDeletingSource,
   } from '../../services/mixtapeActions';
   import { isMatchReason, previewMixtapeChange, type MixtapePreview } from '../../utils/mixtapeCoaching';
   import { normalizeMixtapeText } from '../../utils/mixtapeVisibility';
@@ -63,6 +65,8 @@
   /** Extra action for the status message (create_pending retry / create_conflict review — 25d P2-1). */
   let statusAction = $state<{ label: string; onClick?: () => void; href?: string; disabled?: boolean } | null>(null);
   let retryTimer: ReturnType<typeof setTimeout> | null = null;
+  /** 503 create_pending Retry-After window: EVERY publish path waits it out (25d pass 2 P2-1). */
+  let retryWait = $state(false);
 
   // Desktop (lg+) renders a non-modal docked panel; mobile keeps the bottom sheet (25d P2-8).
   let desktop = $state(typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches);
@@ -251,6 +255,7 @@
       clearTimeout(retryTimer);
       retryTimer = null;
     }
+    retryWait = false;
     showAuthAction = false;
     trackIssues = {};
     titleError = null;
@@ -300,19 +305,41 @@
     toast.info('Mixtape draft discarded.');
   }
 
+  /** The draft's publishable content, to compare what was POSTed with what is on screen. */
+  function draftFingerprint(draft: { title: string; description: string; tracks: { id: string }[] }) {
+    return JSON.stringify([draft.title.trim(), draft.description, draft.tracks.map((track) => track.id)]);
+  }
+
   async function handlePublish() {
+    if (retryWait) return;
     resetStatus();
     publishing = true;
     const title = mixtapeDraftState.title.trim() || 'Untitled mixtape';
     const replaced = preview?.self.visibility === 'public' ? preview.newlyHidden[0] : undefined;
+    const submitted = getSnapshotDraft();
+    // Freeze the create draft everywhere (panel, feed, search, Now Playing) until the POST settles.
+    setCreatePublishing(submitted.draftId);
 
     try {
-      const published = await publishingHook.publish(getSnapshotDraft(), updateTrackVisibility);
+      let published;
+      try {
+        published = await publishingHook.publish(submitted, updateTrackVisibility);
+      } finally {
+        setCreatePublishing(null);
+      }
       if (!published?.id || published.id === 'undefined') {
         throw new MixtapePublishError(
           'Publish did not return a mixtape ID. Your draft is safe — please try again.',
           'invalid_response'
         );
+      }
+
+      // Only consume the draft if it is still exactly what was published.
+      if (mixtapeDraftState.draftId === submitted.draftId && draftFingerprint(mixtapeDraftState) !== draftFingerprint(submitted)) {
+        invalidateMyMixtapes([published.id]);
+        toast.info(`Published "${title}". Your newer changes are still in the draft.`, { tag: LIFECYCLE_TAG });
+        await navigate(`/mixtapes/${encodeURIComponent(published.id)}`);
+        return;
       }
 
       clearDraft();
@@ -345,8 +372,10 @@
           // 503 create_pending: the same publish is still finishing. Offer a retry once Retry-After passes.
           statusTone = 'info';
           statusAction = { label: 'Try again', disabled: true, onClick: () => void handlePublish() };
+          retryWait = true;
           retryTimer = setTimeout(() => {
             retryTimer = null;
+            retryWait = false;
             if (statusAction) statusAction = { ...statusAction, disabled: false };
           }, error.retryAfterMs ?? 1000);
         } else if (error.kind === 'conflict' && error.conflictId) {
@@ -395,7 +424,7 @@
         { tag: LIFECYCLE_TAG }
       );
       await tick();
-      document.querySelector<HTMLInputElement>('dialog[open] [data-mixtape-title-input]')?.focus();
+      focusBuilderTitle();
     } finally {
       switching = false;
     }
@@ -404,6 +433,11 @@
   // ---------------------------------------------------------------------------
   // Edit mode
   // ---------------------------------------------------------------------------
+
+  /** Works for both the mobile <dialog> sheet and the desktop docked <aside> (25d pass 2 P2-5). */
+  function focusBuilderTitle() {
+    document.querySelector<HTMLInputElement>('[data-mixtape-builder-title]')?.focus();
+  }
 
   function currentPath(): string {
     return typeof window === 'undefined' ? '' : window.location.pathname;
@@ -414,7 +448,7 @@
     if (!session.title.trim()) {
       titleError = 'Give your mixtape a name.';
       await tick();
-      document.querySelector<HTMLInputElement>('dialog[open] [data-mixtape-title-input]')?.focus();
+      focusBuilderTitle();
       return;
     }
     saving = true;
@@ -437,6 +471,21 @@
     }
     const error = outcome.error;
     if (error instanceof MixtapeActionError && error.kind === 'revision_conflict') return; // banner via store
+    if (error instanceof MixtapeActionError && error.code?.startsWith('merge_source_')) {
+      // Reviewed merge: the source was NOT deleted; explain and let the owner review (25d pass 2 P1-1/P1-2).
+      statusTone = 'info';
+      statusMessage = error.message;
+      if (error.code === 'merge_source_missing') {
+        statusAction = {
+          label: 'Save without deleting',
+          onClick: () => {
+            saveWithoutDeletingSource();
+            void handleSave();
+          },
+        };
+      }
+      return;
+    }
     if (error instanceof MixtapeActionError && (error.kind === 'not_found' || error.kind === 'merged')) {
       closeMixtapeSheet();
       return;
@@ -578,7 +627,7 @@
         <Button
           variant={trackCount > 0 ? 'primary' : 'secondary'}
           loading={publishing}
-          disabled={trackCount === 0 || busy}
+          disabled={trackCount === 0 || busy || retryWait}
           onclick={() => void handlePublish()}
           class="min-w-[164px]"
         >

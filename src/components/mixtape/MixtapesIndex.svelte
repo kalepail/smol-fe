@@ -27,6 +27,7 @@
   import { listMixtapes, type MixtapeSummary, type OwnedMixtape } from '../../services/api/mixtapes';
   import { deleteMixtapeWithUndo, openMixtapeEditor } from '../../services/mixtapeActions';
   import { isMatchReason } from '../../utils/mixtapeCoaching';
+  import { createLatestGate } from '../../utils/latestRequest';
 
   type View = 'all' | 'yours';
 
@@ -79,23 +80,33 @@
   let mergeSource = $state<MergeSource | null>(null);
   let mergeTargetId = $state<string | null>(null);
 
+  // Strictly monotonic All reads (25d pass 2 P2-3): an older response (e.g. the refresh after a
+  // delete, finishing after the one after its Undo) can never reinstate stale cards.
+  const allReads = createLatestGate();
+
   async function loadMixtapes() {
+    const run = allReads.begin();
     loading = true;
     error = null;
     try {
-      mixtapes = await listMixtapes();
+      const list = await listMixtapes();
+      if (allReads.isCurrent(run)) mixtapes = list;
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Could not load mixtapes.';
+      if (allReads.isCurrent(run)) error = err instanceof Error ? err.message : 'Could not load mixtapes.';
     } finally {
-      loading = false;
+      if (allReads.isCurrent(run)) loading = false;
     }
   }
 
   /** Quiet refetch of the public list after any owner write (25d P2-5). */
   async function refreshAll() {
+    const run = allReads.begin();
     try {
-      mixtapes = await listMixtapes({ fresh: true });
+      const list = await listMixtapes({ fresh: true });
+      if (!allReads.isCurrent(run)) return;
+      mixtapes = list;
       error = null;
+      loading = false;
     } catch {
       // keep what we show; the next write or reload retries
     }

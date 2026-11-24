@@ -43,6 +43,7 @@
       value={draft.title}
       maxlength={120}
       data-mixtape-title-input
+      data-mixtape-builder-title
       aria-invalid={titleError ? 'true' : undefined}
       aria-describedby={titleError ? 'mixtape-title-error' : sameTitleHint ? 'mixtape-title-hint' : undefined}
       oninput={(event) => onTitleChange(event.currentTarget.value)}

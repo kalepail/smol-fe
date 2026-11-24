@@ -6,8 +6,10 @@ import {
   persistDraft,
   loadDraftFromStorage,
   removeDraftFromStorage,
-  persistEditSlots,
+  persistEditSlot,
+  loadEditSlot,
   loadEditSlotsFromStorage,
+  EDIT_KEY_PREFIX,
 } from './persistence';
 import {
   emptyDraft,
@@ -20,9 +22,10 @@ import {
   isEditSessionDirty,
   type AddTrackResult,
   type MixtapeEditSession,
+  type MergeSourceSnapshot,
 } from './operations';
 
-export type { AddTrackResult, MixtapeEditSession };
+export type { AddTrackResult, MixtapeEditSession, MergeSourceSnapshot };
 export type MixtapeSheetView = 'builder' | 'picker';
 
 const initialDraft = loadDraftFromStorage() || emptyDraft();
@@ -61,7 +64,13 @@ export const mixtapeEditState = {
  * every mutation of that edit slot is refused, so what the server stores is
  * exactly what the owner sees when the slot is cleared.
  */
-export const mixtapeEditLock = $state<{ mixtapeId: string | null }>({ mixtapeId: null });
+export const mixtapeEditLock = $state<{ owner: string | null; mixtapeId: string | null }>({ owner: null, mixtapeId: null });
+
+/**
+ * In-flight publish lock (25d pass 2 P1-5): while the create POST is pending, the
+ * create draft is frozen everywhere (builder AND page/feed/search/Now Playing adds).
+ */
+export const mixtapeCreateLock = $state<{ draftId: string | null }>({ draftId: null });
 
 /** Revision conflict awaiting a choice (inline banner AND toast share it — 25d P2-2). */
 export const mixtapeEditConflict = $state<{ mixtapeId: string | null; revision: number | null }>({
@@ -73,9 +82,14 @@ function activeSession(): MixtapeDraft {
   return currentEdit() ?? mixtapeDraftState;
 }
 
+function editIsLocked(owner: string, mixtapeId: string): boolean {
+  return mixtapeEditLock.owner === owner && mixtapeEditLock.mixtapeId === mixtapeId;
+}
+
 function activeIsLocked(): boolean {
   const edit = currentEdit();
-  return Boolean(edit && mixtapeEditLock.mixtapeId === edit.mixtapeId);
+  if (edit) return editIsLocked(edit.creator, edit.mixtapeId);
+  return mixtapeCreateLock.draftId !== null && mixtapeCreateLock.draftId === mixtapeDraftState.draftId;
 }
 
 // UI visibility is ephemeral (never persisted). No separate persisted "mixtape mode".
@@ -93,12 +107,14 @@ let persistTimer: ReturnType<typeof setTimeout> | null = null;
 let rapidAddCount = 0;
 let rapidAddResetTimer: ReturnType<typeof setTimeout> | null = null;
 
-function persistEdits() {
-  persistEditSlots(editSlots.byOwner);
+/** Persist ONE owner's slot under its own key (never the other accounts'). */
+function persistOwner(owner: string) {
+  persistEditSlot(owner, editSlots.byOwner[owner] ?? null);
 }
 
 function persistActive() {
-  if (currentEdit()) persistEdits();
+  const edit = currentEdit();
+  if (edit) persistOwner(edit.creator);
   else persistDraft(mixtapeDraftState);
 }
 
@@ -125,6 +141,15 @@ function flushPendingPersist() {
 
 // Never lose the last keystrokes of a title/description to the debounce on reload/close.
 if (typeof window !== 'undefined') {
+  // Another tab parked an edit for an account this tab has no slot for: adopt it (read-only merge;
+  // a slot this tab holds is never overwritten from outside).
+  window.addEventListener('storage', (event) => {
+    if (!event.key?.startsWith(EDIT_KEY_PREFIX)) return;
+    const owner = event.key.slice(EDIT_KEY_PREFIX.length);
+    if (!owner || editSlots.byOwner[owner]) return;
+    const session = loadEditSlot(owner);
+    if (session) editSlots.byOwner[owner] = session;
+  });
   window.addEventListener('pagehide', flushPendingPersist);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') flushPendingPersist();
@@ -275,7 +300,7 @@ export function updateTrackVisibility(id: string, isPublic: 0 | 1) {
   };
   if (update(mixtapeDraftState)) persistDraft(mixtapeDraftState);
   const edit = currentEdit();
-  if (edit && !activeIsLocked() && update(edit)) persistEdits();
+  if (edit && !editIsLocked(edit.creator, edit.mixtapeId) && update(edit)) persistOwner(edit.creator);
 }
 
 export function removeTrack(id: string): { track: MixtapeTrack; index: number } | null {
@@ -362,8 +387,8 @@ export interface StartEditOptions {
   tracks?: MixtapeTrack[];
   /** Started from the create draft ("Edit X instead"): a successful save consumes the draft. */
   fromDraft?: boolean;
-  /** "Review in editor first" from the merge sheet: saving also deletes this source copy. */
-  mergeFrom?: { id: string; title: string } | null;
+  /** "Review in editor first" from the merge sheet: saving also deletes this (reviewed) source copy. */
+  mergeFrom?: MergeSourceSnapshot | null;
   /** Ask before discarding a dirty edit of a different mixtape (UI supplies the dialog). */
   confirmDiscard?: (title: string) => Promise<boolean>;
 }
@@ -377,7 +402,7 @@ export async function startEdit(mixtape: EditableMixtape, options: StartEditOpti
   const owner = userState.contractId;
   if (!owner || mixtape.creator !== owner) return 'cancelled';
   const current = currentEdit();
-  if (current && mixtapeEditLock.mixtapeId === current.mixtapeId) return 'cancelled';
+  if (current && editIsLocked(current.creator, current.mixtapeId)) return 'cancelled';
   if (current && current.mixtapeId === mixtape.id && !options.tracks && !options.mergeFrom && isEditSessionDirty(current)) {
     return 'started';
   }
@@ -417,37 +442,85 @@ export async function startEdit(mixtape: EditableMixtape, options: StartEditOpti
   };
   editSlots.byOwner[owner] = session;
   clearEditConflict();
-  persistEdits();
+  persistOwner(owner);
   return 'started';
+}
+
+/**
+ * Drop exactly one owner's edit of one mixtape (no-op if that slot now holds something else).
+ * Every async completion (PUT, delete, merge) uses this with the identity it started with, so
+ * an account or slot switch mid-request can never clear the wrong slot (25d pass 2 P1-4).
+ */
+export function cancelEditFor(owner: string, mixtapeId: string): boolean {
+  const session = editSlots.byOwner[owner];
+  if (!session || session.mixtapeId !== mixtapeId) return false;
+  if (persistTimer && userState.contractId === owner) {
+    clearTimeout(persistTimer);
+    persistTimer = null;
+  }
+  delete editSlots.byOwner[owner];
+  persistEditSlot(owner, null);
+  if (editIsLocked(owner, mixtapeId)) {
+    mixtapeEditLock.owner = null;
+    mixtapeEditLock.mixtapeId = null;
+  }
+  if (mixtapeEditConflict.mixtapeId === mixtapeId) clearEditConflict();
+  if (userState.contractId === owner) onSlotSwitch();
+  return true;
 }
 
 /** Drop the signed-in owner's edit slot without saving (Cancel). The create draft comes back. */
 export function cancelEdit() {
-  if (persistTimer) {
-    clearTimeout(persistTimer);
-    persistTimer = null;
-  }
-  const owner = userState.contractId;
-  if (owner && editSlots.byOwner[owner]) {
-    delete editSlots.byOwner[owner];
-    persistEdits();
-  }
-  mixtapeEditLock.mixtapeId = null;
-  clearEditConflict();
-  onSlotSwitch();
+  const edit = currentEdit();
+  if (edit) cancelEditFor(edit.creator, edit.mixtapeId);
+  else clearEditConflict();
 }
 
-/** Close the edit slot after a successful save. A draft that fed this edit is consumed. */
+/** Close one specific edit slot after its successful save. A draft that fed it is consumed. */
+export function finishEditFor(owner: string, mixtapeId: string): boolean {
+  const consumedDraft = editSlots.byOwner[owner]?.mixtapeId === mixtapeId && editSlots.byOwner[owner]?.fromDraft === true;
+  const closed = cancelEditFor(owner, mixtapeId);
+  if (closed && consumedDraft) clearDraft();
+  return closed;
+}
+
+/** Close the signed-in owner's edit after a successful save. */
 export function finishEdit() {
-  const consumedDraft = currentEdit()?.fromDraft === true;
-  cancelEdit();
-  if (consumedDraft) clearDraft();
+  const edit = currentEdit();
+  if (edit) finishEditFor(edit.creator, edit.mixtapeId);
 }
 
-/** Freeze (or release) the open edit while its PUT is in flight. */
-export function setEditSaving(mixtapeId: string | null) {
-  if (mixtapeId) flushPendingPersist();
-  mixtapeEditLock.mixtapeId = mixtapeId;
+/** Freeze (or release) one owner's edit while its PUT is in flight. */
+export function setEditSaving(target: { owner: string; mixtapeId: string } | null) {
+  if (target) flushPendingPersist();
+  mixtapeEditLock.owner = target?.owner ?? null;
+  mixtapeEditLock.mixtapeId = target?.mixtapeId ?? null;
+}
+
+/** Freeze (or release) the create draft while its POST is in flight. */
+export function setCreatePublishing(draftId: string | null) {
+  if (draftId) flushPendingPersist();
+  mixtapeCreateLock.draftId = draftId;
+}
+
+/** Replace (or clear) the reviewed merge source of one owner's edit. */
+export function setEditMergeFrom(owner: string, mixtapeId: string, mergeFrom: MergeSourceSnapshot | null) {
+  const session = editSlots.byOwner[owner];
+  if (!session || session.mixtapeId !== mixtapeId) return;
+  session.mergeFrom = mergeFrom;
+  persistOwner(owner);
+}
+
+/**
+ * Append songs to one owner's edit (a merge source's newer songs for re-review). A system
+ * action taken by the save flow itself, so it is allowed while that save holds the lock.
+ */
+export function appendEditTracks(owner: string, mixtapeId: string, tracks: MixtapeTrack[]) {
+  const session = editSlots.byOwner[owner];
+  if (!session || session.mixtapeId !== mixtapeId) return;
+  session.tracks = dedupeTracks([...session.tracks, ...tracks]);
+  session.updatedAt = new Date().toISOString();
+  persistOwner(owner);
 }
 
 export function setEditConflict(mixtapeId: string, revision: number | null) {
@@ -460,10 +533,11 @@ export function clearEditConflict() {
   mixtapeEditConflict.revision = null;
 }
 
-/** Point the open edit at a newer server copy (409 "Load latest" or after a save). */
-export function rebaseEdit(mixtape: EditableMixtape, options: { keepLocal?: boolean } = {}) {
-  const session = currentEdit();
-  if (!session || session.mixtapeId !== mixtape.id) return;
+/** Point one owner's edit at a newer server copy (409 "Load latest" or after a save). */
+export function rebaseEdit(mixtape: EditableMixtape, options: { keepLocal?: boolean; owner?: string } = {}) {
+  const owner = options.owner ?? userState.contractId;
+  const session = owner ? editSlots.byOwner[owner] : null;
+  if (!owner || !session || session.mixtapeId !== mixtape.id) return;
   const tracks = dedupeTracks(mixtape.tracks);
   session.revision = mixtape.revision && mixtape.revision > 0 ? mixtape.revision : session.revision;
   session.baseline = {
@@ -480,7 +554,7 @@ export function rebaseEdit(mixtape: EditableMixtape, options: { keepLocal?: bool
     onSlotSwitch();
   }
   session.updatedAt = new Date().toISOString();
-  persistEdits();
+  persistOwner(owner);
 }
 
 /** Snapshot of whichever slot is active (edit ?? create). */
@@ -548,7 +622,10 @@ export function addToDraft(
   };
 
   if (result === 'busy') {
-    toast.info('Saving your changes… add it again in a moment.', { tag: 'mixtape-add' });
+    toast.info(
+      currentEdit() ? 'Saving your changes… add it again in a moment.' : 'Publishing your mixtape… add it again in a moment.',
+      { tag: 'mixtape-add' }
+    );
     return result;
   }
 
@@ -615,12 +692,13 @@ function resolveRef(ref: SlotRef): MixtapeDraft | null {
 function undoRemoveInto(ref: SlotRef, track: MixtapeTrack, index: number): boolean {
   const target = resolveRef(ref);
   if (!target) return false;
-  if (ref.kind === 'edit' && mixtapeEditLock.mixtapeId === ref.mixtapeId) return false;
+  if (ref.kind === 'edit' && editIsLocked(ref.owner, ref.mixtapeId)) return false;
+  if (ref.kind === 'create' && mixtapeCreateLock.draftId === ref.draftId) return false;
   const outcome = insertTrackInArray(target.tracks, track, index);
   if (outcome.result !== 'added') return false;
   target.tracks = outcome.tracks;
   target.updatedAt = new Date().toISOString();
-  if (ref.kind === 'edit') persistEdits();
+  if (ref.kind === 'edit') persistOwner(ref.owner);
   else persistDraft(mixtapeDraftState);
   return true;
 }

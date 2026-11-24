@@ -1,5 +1,5 @@
 import type { MixtapeDraft, MixtapeTrack } from '../../types/domain';
-import { parseEditSlots, parseTracks, type MixtapeEditSession } from './operations';
+import { parseEditSession, parseEditSlots, parseTracks, type MixtapeEditSession } from './operations';
 import * as storage from '../../services/localStorage';
 
 /** Create slot (unchanged key + shape since Report 19). */
@@ -40,17 +40,51 @@ export function removeDraftFromStorage() {
   clearLegacyModeStorage();
 }
 
-/** Persist every owner's edit slot (`{ [creator]: session }`). */
-export function persistEditSlots(slots: Record<string, MixtapeEditSession>) {
-  const entries = Object.entries(slots).filter(([owner, session]) => owner && session?.creator === owner);
-  if (entries.length) storage.setItem(EDIT_STORAGE_KEY, Object.fromEntries(entries));
-  else storage.removeItem(EDIT_STORAGE_KEY);
+/**
+ * Each owner's edit slot lives under ITS OWN key (25d pass 2 P1-4), so tabs signed
+ * into different accounts can never overwrite each other's parked edit.
+ */
+export const EDIT_KEY_PREFIX = `${EDIT_STORAGE_KEY}:`;
+
+export function editSlotKey(owner: string): string {
+  return `${EDIT_KEY_PREFIX}${owner}`;
+}
+
+/** Write (or clear) exactly one owner's slot. Never touches any other account's key. */
+export function persistEditSlot(owner: string, session: MixtapeEditSession | null) {
+  if (!owner) return;
+  if (session && session.creator === owner) storage.setItem(editSlotKey(owner), session);
+  else storage.removeItem(editSlotKey(owner));
+}
+
+export function loadEditSlot(owner: string): MixtapeEditSession | null {
+  const session = parseEditSession(storage.getItem<unknown>(editSlotKey(owner)));
+  return session && session.creator === owner ? session : null;
 }
 
 /**
- * Load the per-owner edit slots (legacy single-session values migrate under
- * their own creator; creator-less slots are dropped — 25d P1-2).
+ * Load every owner's slot from its own key, migrating the shared-map / single-slot
+ * value used by earlier builds into per-owner keys (never overwriting a newer one).
  */
 export function loadEditSlotsFromStorage(): Record<string, MixtapeEditSession> {
-  return parseEditSlots(storage.getItem<unknown>(EDIT_STORAGE_KEY));
+  if (typeof window === 'undefined') return {};
+  const legacy = parseEditSlots(storage.getItem<unknown>(EDIT_STORAGE_KEY));
+  for (const [owner, session] of Object.entries(legacy)) {
+    if (!loadEditSlot(owner)) persistEditSlot(owner, session);
+  }
+  if (Object.keys(legacy).length || storage.getItem<unknown>(EDIT_STORAGE_KEY) !== null) storage.removeItem(EDIT_STORAGE_KEY);
+
+  const slots: Record<string, MixtapeEditSession> = {};
+  let keys: string[] = [];
+  try {
+    keys = Object.keys(window.localStorage).filter((key) => key.startsWith(EDIT_KEY_PREFIX));
+  } catch {
+    keys = [];
+  }
+  for (const key of keys) {
+    const owner = key.slice(EDIT_KEY_PREFIX.length);
+    const session = owner ? loadEditSlot(owner) : null;
+    if (session) slots[owner] = session;
+  }
+  return slots;
 }

@@ -6,6 +6,7 @@
     coverUrls: (string | null)[];
     /** Stored songs incl. private ones (BE merges the STORED list). */
     storedTrackCount?: number;
+    revision?: number;
   }
 </script>
 
@@ -36,7 +37,24 @@
     onClose: () => void;
   }
 
-  let { open, source, candidates, initialTargetId = null, navigateToTarget = false, onClose }: Props = $props();
+  let { open, source: sourceProp, candidates, initialTargetId = null, navigateToTarget = false, onClose }: Props = $props();
+
+  // BOTH rows derive from the owner list by id, so a refresh after a rejected merge updates
+  // the source as well as the target (25d pass 2 P2-2). The prop is only the fallback.
+  const source = $derived.by<MergeSource | null>(() => {
+    if (!sourceProp) return null;
+    const live = candidates.find((item) => item.id === sourceProp.id);
+    return live
+      ? {
+          id: live.id,
+          title: live.title,
+          trackIds: live.trackIds,
+          coverUrls: live.coverUrls,
+          storedTrackCount: live.storedTrackCount,
+          revision: live.revision,
+        }
+      : sourceProp;
+  });
 
   let selectedId = $state<string | null>(null);
   let submitting = $state(false);
@@ -74,7 +92,11 @@
   const targetPrivate = $derived(target ? Math.max(0, target.storedTrackCount - target.trackIds.length) : 0);
   const sourcePrivate = $derived(source ? Math.max(0, (source.storedTrackCount ?? source.trackIds.length) - source.trackIds.length) : 0);
   const pairKey = $derived(source && target ? `${source.id}→${target.id}` : '');
-  const fingerprint = $derived(target && source ? `${target.revision}:${target.storedTrackCount}:${source.trackIds.join(',')}` : '');
+  const fingerprint = $derived(
+    target && source
+      ? `${target.revision}:${target.storedTrackCount}:${source.revision ?? ''}:${source.storedTrackCount ?? ''}:${source.trackIds.join(',')}`
+      : ''
+  );
   const needsReview = $derived(Boolean(rejected && rejected.key === pairKey && rejected.fingerprint === fingerprint));
   const songs = (n: number) => `${n} ${n === 1 ? 'song' : 'songs'}`;
 

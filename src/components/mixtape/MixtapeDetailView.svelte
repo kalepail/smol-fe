@@ -15,6 +15,7 @@
   import { fetchMixtapeDetail } from '../../services/api/mixtapes';
   import { fetchLikedSmols } from '../../services/api/smols';
   import { logger } from '../../utils/logger';
+  import { createLatestGate } from '../../utils/latestRequest';
   // Creator (owner-management) surface — Report 24. Mounted ONLY through the
   // header's ownerBanner / ownerChip / ownerActions slots; collectSlot (t488's
   // collector system) is untouched.
@@ -131,7 +132,21 @@
     return result.kind === 'found' ? result.detail : null;
   }
 
+  // Strictly monotonic detail reads (25d pass 2 P2-3): an older (e.g. pre-Undo) response can
+  // never overwrite a newer one, whatever order they resolve in.
+  const detailReads = createLatestGate();
+
+  /**
+   * 25d pass 2 P1-6: while a changed track set's fresh ownership read is pending, the collector
+   * card would still show the OLD snapshot's costed CTA ("Mint all 2 · …") for the NEW songs.
+   * The card is swapped for a same-height "Refreshing holdings…" placeholder until it settles.
+   */
+  let ownershipRefreshing = $state(false);
+  let collectBox = $state<HTMLDivElement | null>(null);
+  let collectHeight = $state(0);
+
   async function fetchMixtapeData(mixtapeId: string, seed: MixtapeDetail | null, options: { quiet?: boolean; fresh?: boolean } = {}) {
+    const run = detailReads.begin();
     if (!options.quiet) loading = true;
     error = null;
 
@@ -144,6 +159,7 @@
         detailPromise,
         likedTrackIdsPromise,
       ]);
+      if (!detailReads.isCurrent(run)) return; // superseded by a newer read
 
       if (!mixtapeData) {
         if (options.quiet) return;
@@ -151,6 +167,13 @@
         return;
       }
 
+      const previous = mixtape && mixtape.id === mixtapeData.id ? mixtape.tracks.map((track) => track.Id).join(',') : null;
+      const next = mixtapeData.tracks.map((track) => track.Id).join(',');
+      if (previous !== null && previous !== next && userState.contractId) {
+        // Gate the card BEFORE the new track set renders (same flush), then refresh below.
+        collectHeight = collectBox?.offsetHeight ?? collectHeight;
+        ownershipRefreshing = true;
+      }
       mixtape = mixtapeData;
       const likedTrackIdSet = new Set(likedTrackIds);
 
@@ -166,10 +189,15 @@
         lyrics: track.Tags?.length ? { style: track.Tags } : undefined,
       }));
     } catch (err) {
+      if (!detailReads.isCurrent(run)) return;
+      if (options.quiet) {
+        logger.warn('mixtape', 'Quiet refresh failed; keeping the current view', err);
+        return;
+      }
       error = err instanceof Error ? err.message : 'Could not load this mixtape.';
       logger.error('mixtape', 'Failed to fetch mixtape data:', err);
     } finally {
-      loading = false;
+      if (detailReads.isCurrent(run)) loading = false;
     }
   }
 
@@ -234,7 +262,15 @@
       const previous = trackSetFor;
       trackSetFor = { id: current.id, signature };
       if (previous && previous.id === current.id && previous.signature !== signature && userState.contractId) {
-        void collect.refresh();
+        ownershipRefreshing = true;
+        void collect
+          .refresh()
+          .catch(() => undefined)
+          .finally(() => {
+            if (trackSetFor?.signature === signature) ownershipRefreshing = false;
+          });
+      } else if (ownershipRefreshing && (!previous || previous.signature === signature)) {
+        ownershipRefreshing = false;
       }
     });
   });
@@ -405,15 +441,30 @@
         ownerActions={isOwner ? ownerActions : undefined}
       >
         {#snippet collectSlot()}
-          {#if collect.summary.total > 0}
-            <MixtapeCollectCard
-              card={collect.card}
-              page={collect.page}
-              summary={collect.summary}
-              states={collect.states}
-              onAction={collect.onCardAction}
-              onExplain={() => collect.openView('explain')}
-            />
+          {#if ownershipRefreshing}
+            <!-- Same footprint as the card; no costed action until the new track set's ownership is known. -->
+            <section
+              data-collect-refreshing
+              aria-busy="true"
+              aria-labelledby="collect-refreshing-title"
+              style={collectHeight ? `min-height: ${collectHeight}px` : undefined}
+              class="flex min-h-48 flex-col gap-3 rounded-[var(--radius-control)] bg-surface-1 p-4 ring-1 ring-inset ring-line"
+            >
+              <h2 id="collect-refreshing-title" aria-live="polite" class="text-sm font-semibold text-ink-1">Refreshing holdings…</h2>
+              <p class="text-xs leading-relaxed text-ink-2">Checking what you own for this mixtape’s updated songs.</p>
+              <div class="mt-auto h-11 w-full animate-pulse rounded-[var(--radius-control)] bg-surface-2" aria-hidden="true"></div>
+            </section>
+          {:else if collect.summary.total > 0}
+            <div bind:this={collectBox}>
+              <MixtapeCollectCard
+                card={collect.card}
+                page={collect.page}
+                summary={collect.summary}
+                states={collect.states}
+                onAction={collect.onCardAction}
+                onExplain={() => collect.openView('explain')}
+              />
+            </div>
           {/if}
         {/snippet}
       </MixtapeHeader>

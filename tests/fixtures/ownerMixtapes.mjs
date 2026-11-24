@@ -84,6 +84,8 @@ export function sessionSub(req) {
   if (!token) return null;
   try {
     const payload = JSON.parse(Buffer.from(decodeURIComponent(token).split('.')[1], 'base64url').toString('utf8'));
+    // Like the real parseAuth: an expired session is not a session.
+    if (typeof payload.exp === 'number' && payload.exp * 1000 < Date.now()) return null;
     return typeof payload.sub === 'string' ? payload.sub : null;
   } catch {
     return null;
