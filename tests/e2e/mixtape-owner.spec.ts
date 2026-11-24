@@ -470,8 +470,10 @@ test.describe('25d regressions (390×844)', () => {
     await openDialog(page).getByRole('button', { name: 'Close' }).click();
 
     // Add the owned song from its own page into the open edit, then come back.
+    // On mobile (< sm), Add to mixtape lives inside the More options sheet.
     await page.goto(`/${CHAIN_TRACK_UNINDEXED.Id}`);
-    await page.getByRole('button', { name: 'Add to mixtape' }).click();
+    await page.getByRole('button', { name: 'More options' }).click();
+    await openDialog(page).getByRole('button', { name: 'Add to mixtape' }).click();
     await expect(toasts(page).filter({ hasText: 'to "Chain Set"' })).toBeVisible();
     await page.goto('/mixtapes/mx-chain-set');
     await expect(collectCard.getByRole('heading')).toHaveText(/You don.t own any of these yet/, { timeout: 15_000 });
