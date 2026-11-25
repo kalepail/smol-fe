@@ -1,9 +1,11 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
+import { checkWorkerConfig } from './check-worker-config.mjs';
 
 const ROOT = resolve(new URL('..', import.meta.url).pathname);
-const ASTRO_DIR = join(ROOT, 'dist', '_astro');
+// @astrojs/cloudflare 14 (Workers Static Assets): client assets live in dist/client/.
+const ASTRO_DIR = join(ROOT, 'dist', 'client', '_astro');
 const SRC_DIR = join(ROOT, 'src');
 
 const jsFiles = readdirSync(ASTRO_DIR).filter((file) => file.endsWith('.js'));
@@ -55,6 +57,27 @@ function findEntry(prefix) {
   return jsFiles.filter((file) => file.startsWith(`${prefix}.`));
 }
 
+// Rendered module ids per emitted client chunk (astro.config.mjs `smol:client-modules-report`).
+// Loaded up front: it also names the Svelte hydration entry (section 3c gates its contents).
+const CLIENT_MODULES_REPORT = join(ROOT, '.astro', 'client-bundle-modules.json');
+let moduleReport = null;
+let moduleReportError = null;
+try {
+  moduleReport = JSON.parse(readFileSync(CLIENT_MODULES_REPORT, 'utf8'));
+} catch (error) {
+  moduleReportError = error;
+}
+
+// Astro 5 named the Svelte island renderer chunk `client.svelte.*`; Astro 7 / Rolldown emits
+// several generic `client.*` chunks, so find the renderer by the module rendered into it.
+function svelteRendererEntries() {
+  const RENDERER_RE = /(?:^|\/)node_modules\/@astrojs\/svelte(?:-renderer)?\/dist\/client\.svelte\.js$/;
+  const found = Object.entries(moduleReport?.chunks ?? {})
+    .filter(([file, ids]) => contents.has(file) && ids.some((id) => RENDERER_RE.test(id)))
+    .map(([file]) => file);
+  return found.length ? found : findEntry('client');
+}
+
 // Fingerprints of heavy/forbidden libraries inside chunk contents.
 const FORBIDDEN_MARKERS = [
   { name: 'tldts', test: (s) => s.includes('tldts') || s.includes('publicsuffix') },
@@ -85,7 +108,7 @@ const shellEntries = [
   ...findEntry('TabBar'),
   ...findEntry('MixtapeBuilderOverlay'),
   ...findEntry('ClientRouter'),
-  ...findEntry('client'),
+  ...svelteRendererEntries(),
 ];
 
 // Two-tier gzip budgets (warn target / hard fail ceiling) per route class.
@@ -126,7 +149,7 @@ for (const [file, text] of contents) {
 }
 
 // 2. Check each route's static import closure
-console.log('=== SMOL Transitive Static Import Closure Report (dist/_astro) ===');
+console.log('=== SMOL Transitive Static Import Closure Report (dist/client/_astro) ===');
 for (const route of routes) {
   if (route.entries.length === 0) {
     failures.push(`No entry chunks found for route ${route.name}`);
@@ -170,7 +193,9 @@ for (const route of routes) {
 //    Copies are also counted INSIDE a chunk: the prebuilt UMD `stellar-sdk-minimal.min.js`
 //    embeds its own stellar-base, so it can hide a second XDR next to the shared one
 //    (see the `@stellar/stellar-sdk/minimal` alias in astro.config.mjs).
-const XDR_SCHEMA_RE = /["']TransactionEnvelope["']\s*,\s*\{\s*switchOn/g;
+//    Rolldown/Oxc minification (Astro 7 / Vite 8) may emit string literals as template literals.
+//    Zero copies fails too: the fingerprint no longer matches, so the gate would pass vacuously.
+const XDR_SCHEMA_RE = /["'`]TransactionEnvelope["'`]\s*,\s*\{\s*switchOn/g;
 const xdrCopies = new Map();
 for (const file of jsFiles) {
   const copies = (contents.get(file) ?? '').match(XDR_SCHEMA_RE)?.length ?? 0;
@@ -181,6 +206,9 @@ const xdrTotal = [...xdrCopies.values()].reduce((a, b) => a + b, 0);
 console.log(
   `\nStellar XDR schema: ${xdrTotal} cop${xdrTotal === 1 ? 'y' : 'ies'} in ${xdrChunks.length} chunk(s) (${[...xdrCopies].map(([f, n]) => `${f}×${n}`).join(', ') || 'none'})`
 );
+if (xdrTotal === 0) {
+  failures.push('Stellar XDR (TransactionEnvelope) schema found in 0 client chunks (exactly 1 required)');
+}
 if (xdrChunks.length > 1) {
   failures.push(`Stellar XDR (TransactionEnvelope) is bundled in ${xdrChunks.length} chunks (max 1): ${xdrChunks.join(', ')}`);
 }
@@ -245,7 +273,6 @@ console.log(
 //     per emitted client chunk, the module ids Rollup actually RENDERED into it
 //     (`renderedLength > 0`) in `.astro/client-bundle-modules.json` (build-only, never in
 //     dist/). Zero rendered modules may come from these packages in ANY client chunk:
-const CLIENT_MODULES_REPORT = join(ROOT, '.astro', 'client-bundle-modules.json');
 const FORBIDDEN_CLIENT_MODULES = [
   { name: 'axios npm package', test: (id) => /(?:^|\/)node_modules\/axios\//.test(id) },
   {
@@ -260,11 +287,8 @@ const FORBIDDEN_CLIENT_MODULES = [
 /** The SDK's own feaxios shim: allowed, but only inside the single SDK (XDR) chunk. */
 const isFeaxiosModule = (id) => /(?:^|\/)node_modules\/feaxios\//.test(id);
 
-let moduleReport = null;
-try {
-  moduleReport = JSON.parse(readFileSync(CLIENT_MODULES_REPORT, 'utf8'));
-} catch (error) {
-  failures.push(`Missing/unreadable ${CLIENT_MODULES_REPORT} (run \`pnpm build\`): ${error.message}`);
+if (moduleReportError) {
+  failures.push(`Missing/unreadable ${CLIENT_MODULES_REPORT} (run \`pnpm build\`): ${moduleReportError.message}`);
 }
 if (moduleReport) {
   const reported = moduleReport.chunks ?? {};
@@ -276,7 +300,7 @@ if (moduleReport) {
   }
   for (const [file, ids] of Object.entries(reported)) {
     if (!contents.has(file) && ids.length > 0) {
-      failures.push(`client-bundle-modules.json is stale: ${file} has rendered modules but is not in dist/_astro`);
+      failures.push(`client-bundle-modules.json is stale: ${file} has rendered modules but is not in dist/client/_astro`);
     }
   }
   let moduleCount = 0;
@@ -302,8 +326,8 @@ if (moduleReport) {
 
 // 4. Lazy wallet payload: everything statically reachable from the passkey-kit
 //    wrapper chunk (Stellar SDK + passkey-kit + their shared deps). Was ~664 KB gz
-//    with the duplicate SDK; must stay <= 380 KB gz.
-const WALLET_BUDGET_KB = 380;
+//    with the duplicate SDK; ~197 KB gz after FE-1; must stay <= 200 KB gz.
+const WALLET_BUDGET_KB = 200;
 const walletEntries = findEntry('passkey-kit');
 if (walletEntries.length === 0) {
   failures.push('No passkey-kit wallet chunk found');
@@ -373,6 +397,14 @@ if (sdkVersions.size > 1) {
   );
 }
 
+// 8. Generated Workers + Static Assets config (scripts/check-worker-config.mjs).
+{
+  const worker = checkWorkerConfig();
+  console.log('');
+  for (const line of worker.summary) console.log(line);
+  failures.push(...worker.failures);
+}
+
 if (warnings.length > 0) {
   console.warn('\nWARNINGS:');
   for (const w of warnings) console.warn(`  - ${w}`);
@@ -384,4 +416,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('\nPASS: All bundle closure, budget, single-XDR, wallet-payload, dedupe, and dialog hygiene gates passed.');
+console.log('\nPASS: All bundle closure, budget, single-XDR, wallet-payload, dedupe, dialog hygiene, and Worker config gates passed.');

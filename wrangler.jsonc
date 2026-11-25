@@ -1,8 +1,18 @@
 {
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  // Cloudflare Workers + Static Assets. `astro build` (@astrojs/cloudflare 14) writes the deployable
+  // config to dist/server/wrangler.json (assets.directory "../client"); scripts/check-worker-config.mjs
+  // gates it. public/_headers (immutable /_astro/*, AASA content type) is applied by Static Assets.
   "name": "smol-fe",
-  "pages_build_output_dir": "./dist",
-  "compatibility_date": "2025-09-25",
-  "compatibility_flags": ["nodejs_compat", "disable_nodejs_process_v2"],
+  "main": "@astrojs/cloudflare/entrypoints/server",
+  "compatibility_date": "2026-11-16",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "smol.xyz", "custom_domain": true }],
+  "assets": { "binding": "ASSETS" },
+  // Build-time PUBLIC_* defaults (astro.config.mjs copies them onto process.env when unset, so
+  // process.env / .env overrides win). They are inlined into the client and SSR bundles.
   "vars": {
     "PUBLIC_API_URL": "https://api.smol.xyz",
     "PUBLIC_CHAIN_SNAPSHOT": "1",

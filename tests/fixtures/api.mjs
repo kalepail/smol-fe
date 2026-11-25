@@ -203,6 +203,8 @@ const routes = new Map([
     },
   }],
   ['/smol-2take', smol2Take],
+  // A real-shaped 64-hex public song id (tests/e2e/worker-runtime.spec.ts, production build).
+  ['/025d00727202437e4a2cba22ed3e0b9a5e39daaa09ed7fc550e6b0ff742f00eb', smol2Take],
   ['/smol-1take', smol1Take],
   ['/smol-fallback', smolFallback],
   ['/smol-failed', smolFailed],
@@ -286,6 +288,9 @@ const routes = new Map([
 ]);
 
 const requests = new Map();
+// Paths that reached the fixture through the built Worker's SMOL_API service binding
+// (tests/fixtures/smol-workflow-stub tags them). Read by tests/e2e/worker-runtime.spec.ts.
+const bindingRequests = [];
 let requestCookieSeq = 0;
 const requestCookieHistory = [];
 let lastCreateBody = null;
@@ -331,6 +336,11 @@ function readBody(req) {
 createServer(async (req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1');
   const path = url.pathname;
+  if (req.headers['x-smol-service-binding']) bindingRequests.push(path);
+  if (path === '/__binding-requests') {
+    res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(bindingRequests));
+    return;
+  }
   const origin = req.headers.origin || 'http://127.0.0.1:4328';
   const headers = {
     'Access-Control-Allow-Origin': origin,

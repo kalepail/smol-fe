@@ -2,7 +2,7 @@
 import Home from '../../components/Home.svelte';
 import Leaderboard from '../../components/Leaderboard.svelte';
 import Layout from '../../layouts/Layout.astro';
-import { serverApiFetch } from '../../services/api/server';
+import { serverApiFetch } from '../../services/api/ssr';
 import type { SmolListResponse } from '../../types/api';
 
 const { playlist = '' } = Astro.params;

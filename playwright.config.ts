@@ -5,6 +5,8 @@ const api = 'http://127.0.0.1:4329';
 
 export default defineConfig({
   testDir: './tests/e2e',
+  // The built-Worker smoke test runs under playwright.worker.config.ts (`pnpm test:e2e:worker`).
+  testIgnore: /worker-runtime\.spec\.ts$/,
   use: {
     baseURL: frontend,
     channel: 'chrome',
@@ -25,7 +27,9 @@ export default defineConfig({
       url: `${api}/__ready`,
     },
     {
-      command: 'pnpm dev --host 127.0.0.1 --port 4328',
+      // `--ignore-lock`: a foreground one-off server owned by Playwright. Astro 7 otherwise
+      // backgrounds `astro dev` when it detects a coding agent (the webServer would exit at once).
+      command: 'pnpm dev --host 127.0.0.1 --port 4328 --ignore-lock',
       url: frontend,
       env: {
         PUBLIC_API_URL: api,

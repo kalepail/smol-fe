@@ -1,0 +1,9 @@
+{
+  // E2E only (worker.mjs): auxiliary Worker for `wrangler dev -c dist/server/wrangler.json -c <this>`.
+  "name": "smol-workflow",
+  "main": "./worker.mjs",
+  "compatibility_date": "2026-11-16",
+  "workers_dev": false,
+  "preview_urls": false,
+  "vars": { "FIXTURE_API_ORIGIN": "http://127.0.0.1:4339" }
+}

@@ -3,7 +3,7 @@ import MixtapeDetailView from '../../components/mixtape/MixtapeDetailView.svelte
 import MixtapeOwnerCallout from '../../components/mixtape/MixtapeOwnerCallout.svelte';
 import Layout from '../../layouts/Layout.astro';
 import { parseMixtapeNotFound, toMixtapeDetail, type ApiMixtapeDetail } from '../../services/api/mixtapes';
-import { serverApiFetch, serverApiFetchResult, sessionSubject } from '../../services/api/server';
+import { serverApiFetch, serverApiFetchResult, sessionSubject } from '../../services/api/ssr';
 import type { ApiOwnedMixtape } from '../../services/api/mixtapes';
 
 const { id } = Astro.params;

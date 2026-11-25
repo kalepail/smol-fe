@@ -13,12 +13,9 @@ export interface ServerApiFetchContext {
       get(name: string): string | null;
     };
   };
-  locals?: {
-    runtime?: {
-      env?: {
-        SMOL_API?: { fetch(request: Request): Promise<Response> };
-      };
-    };
+  /** Worker bindings (src/services/api/ssr.ts). No `SMOL_API` (Node tests, `astro dev`) = HTTP. */
+  env?: {
+    SMOL_API?: { fetch(request: Request): Promise<Response> };
   };
   cookies: {
     has?(name: string): boolean;
@@ -56,7 +53,7 @@ async function cancelBodySafely(response: Response): Promise<void> {
 }
 
 export async function serverApiFetch<T>(
-  { request, locals, cookies, response }: ServerApiFetchContext,
+  { request, env, cookies, response }: ServerApiFetchContext,
   path: string,
   options: ServerApiFetchOptions = {},
 ): Promise<T | null> {
@@ -77,7 +74,7 @@ export async function serverApiFetch<T>(
     }
   }
 
-  const binding = locals?.runtime?.env?.SMOL_API;
+  const binding = env?.SMOL_API;
   if (binding) {
     let result: Response | null = null;
     try {
@@ -135,7 +132,7 @@ export interface ServerApiResult<T> {
  * unreachable API (let the island retry).
  */
 export async function serverApiFetchResult<T>(
-  { request, locals, cookies, response }: ServerApiFetchContext,
+  { request, env, cookies, response }: ServerApiFetchContext,
   path: string,
   options: ServerApiFetchOptions = {},
 ): Promise<ServerApiResult<T>> {
@@ -161,7 +158,7 @@ export async function serverApiFetchResult<T>(
     return { status: result.status, data: data as T | null };
   };
 
-  const binding = locals?.runtime?.env?.SMOL_API;
+  const binding = env?.SMOL_API;
   if (binding) {
     let result: Response | null = null;
     try {

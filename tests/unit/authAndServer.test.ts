@@ -794,9 +794,7 @@ function makeAstroContext(opts: {
       opts.rawCookieHeader !== undefined
         ? { headers: new Headers({ cookie: opts.rawCookieHeader }) }
         : undefined,
-    locals: opts.bindingFetch
-      ? { runtime: { env: { SMOL_API: { fetch: opts.bindingFetch } } } }
-      : {},
+    env: opts.bindingFetch ? { SMOL_API: { fetch: opts.bindingFetch } } : {},
     cookies: {
       has: (name: string) => name === 'smol_token' && opts.cookie !== undefined,
       get: (name: string) =>

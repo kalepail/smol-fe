@@ -80,7 +80,7 @@ function record(balance: bigint, index: number) {
 
 /** Serve realistic Soroban RPC JSON for SAC instances, Comet records and SAC balances. */
 export async function installStellarMock(page: Page, getScenario: () => ChainScenario): Promise<ChainStats> {
-  const stats: ChainStats = {
+  const emptyStats = (): ChainStats => ({
     getLedgerEntries: 0,
     getVersionInfo: 0,
     contracts: new Set(),
@@ -88,7 +88,8 @@ export async function installStellarMock(page: Page, getScenario: () => ChainSce
     getHealth: 0,
     simulateTransaction: 0,
     keys: [],
-  };
+  });
+  const stats = emptyStats();
   const cors = {
     'access-control-allow-origin': '*',
     'access-control-allow-headers': '*',
@@ -101,10 +102,13 @@ export async function installStellarMock(page: Page, getScenario: () => ChainSce
       await route.fulfill({ status: 204, headers: cors });
       return;
     }
+    // Under `astro dev`, Astro's ClientRouter first loads the next page in a hidden iframe (to collect
+    // client:only styles); that copy's islands issue their own reads. Serve them, count only the page's.
+    const tally = request.frame() === page.mainFrame() ? stats : emptyStats();
     const scenario = getScenario();
     const body = JSON.parse(request.postData() ?? '{}');
     const method = body.method as string;
-    if (method in stats) (stats as unknown as Record<string, number>)[method]++;
+    if (method in tally) (tally as unknown as Record<string, number>)[method]++;
     if (scenario.delayMs) await new Promise((r) => setTimeout(r, scenario.delayMs));
     if (method === 'getLedgerEntries' && scenario.hold) await scenario.hold;
 
@@ -138,12 +142,12 @@ export async function installStellarMock(page: Page, getScenario: () => ChainSce
     const badPools = new Set((scenario.badExec ?? []).map((id) => derive(id).pool));
     const byPool = new Map([...minted].map(([id, pair]) => [pair.pool, id]));
     const keys: string[] = body.params?.keys ?? [];
-    stats.keys.push(keys.length);
+    tally.keys.push(keys.length);
     const entries = [];
     for (const keyB64 of keys) {
       const key = xdr.LedgerKey.fromXDR(keyB64, 'base64').contractData();
       const contract = Address.fromScAddress(key.contract()).toString();
-      stats.contracts.add(contract);
+      tally.contracts.add(contract);
       const k = key.key();
       let val: xdr.ScVal | null = null;
 

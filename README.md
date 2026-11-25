@@ -35,9 +35,9 @@ A decentralized web application for generating AI music powered by Stellar block
 ## Tech Stack
 
 ### Frontend Framework
-- **[Astro 5](https://astro.build/)** - Modern meta-framework for content-focused sites
+- **[Astro 7](https://astro.build/)** - Modern meta-framework for content-focused sites
 - **[Svelte 5](https://svelte.dev/)** - Reactive UI components with latest runes API
-- **Server-side rendering** - Deployed on Cloudflare Pages
+- **Server-side rendering** - Deployed on Cloudflare Workers + Static Assets
 
 ### Styling
 - **[Tailwind CSS 4](https://tailwindcss.com/)** - Utility-first CSS via Vite plugin
@@ -251,11 +251,12 @@ userState.contractId = "new-id";
 
 ## Deployment
 
-The app is configured for Cloudflare Pages deployment:
-- Adapter: `@astrojs/cloudflare` (astro.config.mjs:14)
-- Output: `server` mode for SSR (astro.config.mjs:12)
-- Build command: `pnpm build`
-- Output directory: `dist/`
+The app is a Cloudflare Worker with Static Assets (`@astrojs/cloudflare` 14, `output: 'server'`):
+- `pnpm build` writes the client assets to `dist/client/` and the Worker plus its deployable config to
+  `dist/server/wrangler.json` (from `wrangler.jsonc`: `smol.xyz` custom domain, `SMOL_API` service
+  binding to `smol-workflow`, build-time `PUBLIC_*` vars). `wrangler deploy` uses that generated config.
+- Gates: `pnpm check:bundle` (bundle budgets + Worker config), `pnpm check:worker` (Worker config only),
+  and `pnpm test:e2e:worker` (built-Worker smoke test in workerd; run `pnpm build` first).
 
 ## Contributing
 

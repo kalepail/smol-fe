@@ -25,10 +25,12 @@ interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
 
-declare namespace App {
-  interface Locals {
-    runtime?: {
-      env: { SMOL_API?: { fetch(request: Request): Promise<Response> } };
-    };
-  }
+// The Worker bindings this app reads through `import { env } from 'cloudflare:workers'`
+// (src/services/api/ssr.ts). Declared here instead of pulling in @cloudflare/workers-types,
+// whose global Request/Response types clash with the DOM lib the islands use.
+declare module 'cloudflare:workers' {
+  export const env: {
+    /** Service binding to smol-workflow (wrangler.jsonc `services`). Unused under `astro dev`. */
+    readonly SMOL_API?: { fetch(request: Request): Promise<Response> };
+  };
 }
