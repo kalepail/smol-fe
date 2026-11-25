@@ -2,7 +2,7 @@
   "name": "smol-fe",
   "pages_build_output_dir": "./dist",
   "compatibility_date": "2025-09-25",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": ["nodejs_compat", "disable_nodejs_process_v2"],
   "vars": {
     "PUBLIC_API_URL": "https://api.smol.xyz",
     "PUBLIC_KALE_SAC_ID": "CB23WRDQWGSP6YPMY4UV5C4OW5CBTXKYN3XEATG7KJEZCXMJBYEHOUOV",
