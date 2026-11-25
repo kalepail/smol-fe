@@ -150,9 +150,9 @@ export async function submitMintBatch(params: {
 // ---------------------------------------------------------------------------
 
 /**
- * POST /mint/status is opt-in (PUBLIC_MINT_STATUS=1). Today's workflow routes
- * that path to POST /mint/:id and answers 400, so any 400/404/405/501 marks it
- * unsupported and the SAME tick falls back to one batched chain read.
+ * POST /mint/status (on in production via PUBLIC_MINT_STATUS=1). An API that
+ * lacks it (400/404/405/501) marks it unsupported for this page, and the SAME
+ * tick falls back to one batched chain read.
  */
 let mintStatusUnsupported = false;
 const mintStatusEnabled = () =>

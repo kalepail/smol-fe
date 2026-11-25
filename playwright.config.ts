@@ -32,6 +32,9 @@ export default defineConfig({
         PUBLIC_RPC_URL: 'https://127.0.0.1:4329',
         SMOL_E2E: '1',
         PUBLIC_E2E_SEAMS: '1',
+        // Production turns these on (wrangler.jsonc); specs opt in per test via __smolCollectSeams.
+        PUBLIC_CHAIN_SNAPSHOT: '0',
+        PUBLIC_MINT_STATUS: '0',
       },
     },
   ],

@@ -283,7 +283,8 @@ for (const vp of VIEWPORTS) {
         await expect(alertBox).not.toContainText('CF_AI_GATEWAY_ID');
         await expect(alertBox).not.toContainText('CF_AIG_TOKEN');
         await expect(alertBox).toContainText(/temporarily unavailable/i);
-        await expect(alertBox.getByRole('button', { name: 'Try again' })).toBeVisible();
+        // F2: a dead model is not retryable, but suggestAlternate still offers the other model.
+        await expect(alertBox.getByRole('button', { name: 'Try again' })).toHaveCount(0);
         await expect(alertBox.getByRole('button', { name: 'Try with Classic' })).toBeVisible();
         await expect(alertBox.getByRole('button', { name: 'Edit prompt' })).toBeVisible();
         await expect(page.getByRole('button', { name: 'Play', exact: true })).toHaveCount(0);
@@ -294,7 +295,8 @@ for (const vp of VIEWPORTS) {
         }
 
         // 6. S3: 404 not-found renders "Song not found" + "Browse songs" link (not dead-end "Try again")
-        await page.goto('/does-not-exist-404');
+        // F6: an authoritative API 404 is a real HTTP 404.
+        expect((await page.goto('/does-not-exist-404'))?.status()).toBe(404);
         await expect(page.getByRole('heading', { name: 'Song not found' })).toBeVisible();
         await expect(page.getByRole('link', { name: 'Browse songs' })).toBeVisible();
         await expect(page.getByRole('button', { name: 'Try again' })).toHaveCount(0);
@@ -648,9 +650,67 @@ test.describe('AE-3 song page robots', () => {
       await robotsOf(await request.get('/smol-published-was-private', { headers: { 'x-smol-e2e-host': 'next.smol.xyz' } }))
     ).toBe('noindex, nofollow');
 
-    // The UI agrees: the unknown-safety song renders as restricted.
+    // The UI agrees: the unknown-safety song renders as restricted, and Details never says Public (AE-2).
     await page.goto('/smol-safety-unknown');
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
     await expect(page.getByText("Safety check didn't complete. Kept private from public feeds.")).toBeVisible();
+    await expect(page.locator('aside[aria-labelledby="song-details-heading"]')).toContainText('Private');
+  });
+
+  test('F6 unknown song ids are a real 404 + noindex, nofollow on smol.xyz', async ({ request, page, context }) => {
+    const res = await request.get('/does-not-exist-404', production);
+    expect(res.status()).toBe(404);
+    expect((await res.text()).match(/<meta name="robots" content="([^"]*)"/)?.[1]).toBe('noindex, nofollow');
+
+    // Hydrated visit to a rejected non-song path (e.g. `/quota`, which collides with an API
+    // endpoint) stays on "Song not found" and makes zero client song-detail requests.
+    await context.addCookies([{ name: 'smol_token', value: fakeSmolJwt(), url: 'http://127.0.0.1:4328' }]);
+    const quotaFetches: string[] = [];
+    await page.route(`${api}/quota`, async (route) => {
+      quotaFetches.push(route.request().url());
+      await route.continue();
+    });
+    expect((await page.goto('/quota'))?.status()).toBe(404);
+    await expect(page.getByRole('heading', { name: 'Song not found' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Browse songs' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Try again' })).toHaveCount(0);
+    await expect(page.getByText('Untitled Smol')).toHaveCount(0);
+    await page.waitForTimeout(300);
+    expect(quotaFetches).toHaveLength(0);
+  });
+});
+
+test.describe('FE-POST-1 song page: take durations, share fallback', () => {
+  test.use({ viewport: { width: 1280, height: 800 }, isMobile: false, hasTouch: false });
+
+  test('AE-4 takes show recorded durations only', async ({ page }) => {
+    await page.goto('/smol-2take');
+    const takes = page.locator('section[aria-label="Takes"]');
+    await expect(takes).toContainText('Take 1 · 3:19');
+    await expect(takes).toContainText(/Take 2(?! ·)/);
+  });
+
+  test('AE-7 share falls back to copy (not on cancel); a private link says anyone with it can listen', async ({
+    page,
+    context,
+  }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await context.addInitScript(() => {
+      Object.defineProperty(navigator, 'share', {
+        configurable: true,
+        value: () => Promise.reject(new DOMException('blocked', (window as unknown as { __shareError?: string }).__shareError ?? 'NotAllowedError')),
+      });
+    });
+    await page.goto('/smol-private');
+    const share = page.getByRole('button', { name: 'Share song' });
+    await page.evaluate(() => ((window as unknown as { __shareError: string }).__shareError = 'AbortError'));
+    await share.click();
+    await page.waitForTimeout(300);
+    await expect(page.getByText(/copied/)).toHaveCount(0);
+
+    await page.evaluate(() => ((window as unknown as { __shareError: string }).__shareError = 'NotAllowedError'));
+    await share.click();
+    await expect(page.getByText('Song link copied — anyone with this link can listen.')).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toMatch(/\/smol-private$/);
   });
 });

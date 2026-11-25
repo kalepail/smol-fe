@@ -643,6 +643,49 @@ test.describe('Report 34 regressions @390', () => {
     await expect(page.getByRole('button', { name: /Buy all 8|Collect for/ })).toHaveCount(0);
   });
 
+  test('F1 / C15 one server snapshot, zero SDK download; a track it omits resolves to "Couldn\'t check", never stuck loading', async ({ page, context }) => {
+    await signIn(context);
+    await context.addInitScript(() => {
+      (window as unknown as { __smolCollectSeams: unknown }).__smolCollectSeams = { serverSnapshot: true };
+    });
+    const sdkRequests: string[] = [];
+    page.on('request', (req) => {
+      if (/smolChainIdentity|stellar-sdk|stellar-base/.test(req.url())) sdkRequests.push(req.url());
+    });
+    let snapshotCalls = 0;
+    await page.route('http://127.0.0.1:4329/chain/snapshot', async (route) => {
+      const headers = {
+        'access-control-allow-origin': 'http://127.0.0.1:4328',
+        'access-control-allow-credentials': 'true',
+        'access-control-allow-headers': 'Content-Type',
+        'access-control-allow-methods': 'POST, OPTIONS',
+      };
+      if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+      snapshotCalls++;
+      await route.fulfill({
+        headers,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          kale: { state: 'known', amount: '10000000000' },
+          tracks: mintedTracks.slice(0, -1).map((t) => ({
+            id: t.Id,
+            sac: derive(t.Id).sac,
+            pool: derive(t.Id).pool,
+            mint: 'verified',
+            balance: { state: 'known', amount: '0' },
+          })),
+        }),
+      });
+    });
+    const stats = await installStellarMock(page, () => ({ minted: mintedIds, balances: {}, kale: KALE(1_000) }));
+    await page.goto('/mixtapes/collect-minted');
+    await expect(page.getByText("Couldn't check", { exact: true }).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('status', { name: 'Checking' })).toHaveCount(0);
+    expect(snapshotCalls).toBe(1);
+    expect(stats.getLedgerEntries, 'no ledger RPC').toBe(0);
+    expect(sdkRequests, 'no Stellar SDK / chain-reader download').toEqual([]);
+  });
+
   test('Pass4 #4 / Pass6 #2 a waiting tab recovers when another tab\'s claim expires and Continue reaches its own buy', async ({ page, context }) => {
     await signIn(context);
     await context.addInitScript(() => {

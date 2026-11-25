@@ -151,6 +151,13 @@ const smolSafetyUnknown = (() => {
   s.kv_do.nsfw = { unknown: true, categories: [] };
   return s;
 })();
+// AE-1: generated public, then hidden (D1 is the current visibility).
+const smolHidden = (() => {
+  const s = structuredClone(smol2Take);
+  s.d1.Id = 'smol-hidden';
+  s.d1.Public = 0;
+  return s;
+})();
 
 const DEFAULT_QUOTA = {
   classic: { limit: 10, used: 3, remaining: 7, resetAt: '2026-11-24T00:00:00.000Z' },
@@ -209,6 +216,73 @@ const routes = new Map([
   ['/smol-failed-config', smolFailedConfig],
   ['/smol-published-was-private', smolPublishedWasPrivate],
   ['/smol-safety-unknown', smolSafetyUnknown],
+  ['/smol-hidden', smolHidden],
+  ['/smol-unverified', {
+    d1: {
+      Id: 'smol-unverified',
+      Title: 'Signal In The Fog',
+      Address: 'CFIXTUREUSER0000000000000000000000000000000000000000000001',
+      Username: 'Fixture Artist',
+      Song_1: 'first',
+      Public: 0,
+      Instrumental: 0,
+      Created_At: '2026-11-23T18:00:00Z',
+      Requested_Provider: 'elevenlabs',
+      Actual_Provider: 'elevenlabs',
+    },
+    kv_do: {
+      payload: {
+        address: 'CFIXTUREUSER0000000000000000000000000000000000000000000001',
+        prompt: 'Ambient synth pulse drifting through harbor fog',
+        instrumental: false,
+        public: false,
+        provider: 'elevenlabs',
+      },
+      description: 'A misty pixel lighthouse glowing over dark water.',
+      image: true,
+      nsfw: { safe: false, categories: [], unknown: true },
+      lyrics: {
+        title: 'Signal In The Fog',
+        style: ['Ambient', 'Synth'],
+        lyrics: '[Verse 1]\nBeacon turning through the mist\nQuiet echoes on the drift',
+      },
+      songs: [{ music_id: 'first', status: 4, audio: 'http://127.0.0.1:4329/song/first.mp3' }],
+    },
+    liked: false,
+  }],
+  ['/smol-edge', {
+    d1: {
+      Id: 'smol-edge',
+      Title: `https://example.com/${'a'.repeat(100)}`,
+      Address: 'CFIXTUREUSER0000000000000000000000000000000000000000000001',
+      Username: 'Fixture Artist',
+      Song_1: 'first',
+      Public: 0,
+      Instrumental: 0,
+      Created_At: '2026-11-23T18:00:00Z',
+      Requested_Provider: 'elevenlabs',
+      Actual_Provider: 'elevenlabs',
+    },
+    kv_do: {
+      payload: {
+        address: 'CFIXTUREUSER0000000000000000000000000000000000000000000001',
+        prompt: `Track inspired by https://example.com/${'a'.repeat(100)}`,
+        instrumental: false,
+        public: false,
+        provider: 'elevenlabs',
+      },
+      description: `Artwork featuring https://example.com/${'a'.repeat(100)}`,
+      image: true,
+      nsfw: { safe: false, categories: [], unknown: true },
+      lyrics: {
+        title: `https://example.com/${'a'.repeat(100)}`,
+        style: ['Pop', 'pop', 'Pop', 'Rock'],
+        lyrics: `[Verse 1]\nhttps://example.com/${'a'.repeat(100)}\nRegular line`,
+      },
+      songs: [{ music_id: 'first', status: 4, audio: 'http://127.0.0.1:4329/song/first.mp3' }],
+    },
+    liked: false,
+  }],
 ]);
 
 const requests = new Map();

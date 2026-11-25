@@ -5,7 +5,9 @@
   "compatibility_flags": ["nodejs_compat", "disable_nodejs_process_v2"],
   "vars": {
     "PUBLIC_API_URL": "https://api.smol.xyz",
+    "PUBLIC_CHAIN_SNAPSHOT": "1",
     "PUBLIC_KALE_SAC_ID": "CB23WRDQWGSP6YPMY4UV5C4OW5CBTXKYN3XEATG7KJEZCXMJBYEHOUOV",
+    "PUBLIC_MINT_STATUS": "1",
     "PUBLIC_NETWORK_PASSPHRASE": "Public Global Stellar Network ; September 2015",
     "PUBLIC_RELAYER_URL": "https://api.kalefarm.xyz",
     "PUBLIC_RPC_URL": "https://rpc.lightsail.network/",

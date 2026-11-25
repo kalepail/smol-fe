@@ -19,7 +19,7 @@ export const PROVIDER_META: Record<MusicProvider, ProviderMeta> = {
   aisonggenerator: {
     id: 'aisonggenerator',
     label: 'Classic',
-    takeCopy: '2 takes · ~6 min',
+    takeCopy: '2 takes · ~2–6 min',
     etaCopy: 'Classic creates 2 takes in roughly 2 to 6 minutes. You can leave this page while it finishes.',
     description: 'Creates two full takes so you can compare and pick a favorite.',
     expectedTakes: 2,
@@ -27,8 +27,8 @@ export const PROVIDER_META: Record<MusicProvider, ProviderMeta> = {
   elevenlabs: {
     id: 'elevenlabs',
     label: 'ElevenLabs',
-    takeCopy: '1 take · faster',
-    etaCopy: 'ElevenLabs creates 1 take, usually in under a minute. You can leave this page while it finishes.',
+    takeCopy: '1 take · usually ~1 min',
+    etaCopy: 'ElevenLabs creates 1 take, usually in about a minute. You can leave this page while it finishes.',
     description: 'Faster generation producing one complete track.',
     expectedTakes: 1,
   },

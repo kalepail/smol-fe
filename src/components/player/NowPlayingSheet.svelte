@@ -12,6 +12,7 @@
   import Button from '../ui/Button.svelte';
   import LikeButton from '../ui/LikeButton.svelte';
   import Loader from '../ui/Loader.svelte';
+  import { formatTime } from '../../utils/time';
 
   interface Props {
     open: boolean;
@@ -51,13 +52,6 @@
       loadedLyricsSmolId = null;
     }
   });
-
-  function formatTime(seconds: number) {
-    const safe = Number.isFinite(seconds) && seconds > 0 ? seconds : 0;
-    const minutes = Math.floor(safe / 60);
-    const remainder = Math.floor(safe % 60).toString().padStart(2, '0');
-    return `${minutes}:${remainder}`;
-  }
 
   async function fetchLyricsForCurrentTrack() {
     if (!track) return;

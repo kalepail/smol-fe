@@ -14,9 +14,10 @@
     "image": false,
     "failure": {
       "code": "generation_failed",
-      "title": "Song generation failed",
+      "title": "This model is temporarily unavailable",
       "message": "ElevenLabs AI Gateway BYOK is not configured (missing CF_AI_GATEWAY_ID or CF_AIG_TOKEN)",
-      "retryable": true
+      "retryable": false,
+      "suggestAlternate": true
     }
   },
   "wf": { "status": "errored" },

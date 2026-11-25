@@ -7,7 +7,7 @@
     saveStoredProvider,
     type MusicProvider,
   } from '../../utils/takes';
-  import { formatQuotaExceededMessage } from '../../utils/quota';
+  import { formatQuotaExceededMessage, formatQuotaReset } from '../../utils/quota';
   import { clearQuota, quotaState, refreshQuota } from '../../stores/quota.svelte';
   import { userState } from '../../stores/user.svelte';
   import { openAuthSheet } from '../../stores/authSheet.svelte';
@@ -93,6 +93,8 @@
         })
       : null
   );
+
+  const quotaResetsAt = $derived(formatQuotaReset(selectedQuota?.resetAt));
 
   const limit = $derived(maxPromptLength(isInstrumental));
   const charCount = $derived(prompt.length);
@@ -226,6 +228,8 @@
             </Button>
           {/if}
         </div>
+      {:else if quotaResetsAt}
+        <p class="-mt-2 text-xs text-ink-3">Daily limits reset {quotaResetsAt}.</p>
       {/if}
 
       <!-- Options switches -->
@@ -233,7 +237,7 @@
         <Switch
           id="create-instrumental"
           label="Instrumental"
-          description="No vocals or lyrics"
+          description={`No vocals or lyrics · ${maxPromptLength(true)}-character prompt limit`}
           bind:checked={isInstrumental}
           disabled={!isAuthenticated || isGenerating}
         />

@@ -738,9 +738,15 @@ export function createCollectController(opts: {
     const now = Date.now();
     for (const id of ids) {
       const read = snap.tracks.get(id);
-      if (!read) continue;
-      facts.set(id, read.facts);
-      holdings.set(id, read.holding);
+      if (read) {
+        facts.set(id, read.facts);
+        holdings.set(id, read.holding);
+        continue;
+      }
+      // Omitted by the server snapshot: a retryable unknown, never stuck "loading".
+      const prev = holdings.get(id);
+      facts.set(id, { status: 'error' });
+      holdings.set(id, { status: 'error', message: 'Unknown', cached: prev?.status === 'known' ? prev.balance : undefined });
     }
     if (snap.kale?.status === 'known') {
       kale = { status: 'known', balance: snap.kale.balance, checkedAt: now };

@@ -100,6 +100,13 @@
     Boolean(interval && !d1?.Id && (!hasSongSnapshots || hasIncompleteSongs))
   );
 
+  // F3: /create swaps to the new song in place (no navigation): keep the tab title current.
+  $effect(() => {
+    if (!id || (!d1 && !kv_do)) return; // nothing loaded yet: keep the SSR title
+    const songTitle = kv_do?.lyrics?.title || d1?.Title || (failed ? 'Song' : 'Creating your song…');
+    document.title = `${songTitle} · SMOL`;
+  });
+
   $effect(() => {
     if (!tradeReady && showTradeModal) {
       showTradeModal = false;
@@ -260,15 +267,19 @@
       }
 
       const remixRaw = sessionStorage.getItem('smol:remixDraft');
-      if (remixRaw && !id) {
+      // Astro dev pre-hydrates the next page in a hidden same-origin iframe:
+      // only the visible page may consume the one-shot draft.
+      if (remixRaw && !id && !window.frameElement) {
         sessionStorage.removeItem('smol:remixDraft');
         const draft = JSON.parse(remixRaw) as {
           prompt?: string;
           instrumental?: boolean;
+          public?: boolean;
           provider?: MusicProvider;
         };
         if (typeof draft.prompt === 'string') prompt = draft.prompt;
         if (typeof draft.instrumental === 'boolean') is_instrumental = draft.instrumental;
+        if (typeof draft.public === 'boolean') is_public = draft.public;
         const parsedProvider = normalizeProvider(draft.provider);
         if (parsedProvider) provider = parsedProvider;
       }
@@ -381,7 +392,8 @@
         }
       );
       await throwIfNotOk(response, `PUT /${id}/${song_id}`);
-      if (d1) d1.Song_1 = song_id;
+      // The API swaps the takes: the chosen one becomes Song_1, the old main Song_2.
+      if (d1) [d1.Song_1, d1.Song_2] = [song_id, d1.Song_1];
       toast.success('Updated main take.');
     } catch (err) {
       best_song = previous;
@@ -419,6 +431,8 @@
       void refreshQuota(userState.contractId);
 
       pendingCreatedId = newId;
+      // AE-2: show what was submitted (e.g. Private) until the first GET lands.
+      kv_do = { payload: { prompt, public: is_public, instrumental: is_instrumental, provider: submittedProvider } };
       // Set lastFetchedId before setting id so the route $effect does not fire a second GET.
       lastFetchedId = newId;
       id = newId;
@@ -457,7 +471,7 @@
       void refreshQuota(userState.contractId);
 
       d1 = undefined;
-      kv_do = undefined;
+      kv_do = kv_do?.payload && { payload: { ...kv_do.payload, provider: targetProvider } };
       pendingCreatedId = newId;
       lastFetchedId = newId;
       id = newId;
@@ -493,6 +507,7 @@
         JSON.stringify({
           prompt: promptText,
           instrumental: Boolean(kv_do?.payload?.instrumental || d1?.Instrumental),
+          public: d1 ? d1.Public !== 0 : kv_do?.payload?.public !== false,
           provider: requestedProvider,
         })
       );

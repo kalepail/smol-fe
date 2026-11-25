@@ -12,6 +12,7 @@
   import {
     PROVIDER_META,
     providerOf,
+    requestedProviderOf,
     wasFallback as isFallbackGeneration,
   } from '../../utils/takes';
   import CoverArt from '../ui/CoverArt.svelte';
@@ -242,27 +243,32 @@
     onLikeChanged(nextLiked);
   }
 
-  async function copyText(text: string, label: string) {
+  async function copyText(text: string, label: string, copiedMessage = `${label} copied.`) {
     try {
       await navigator.clipboard.writeText(text);
-      toast.success(`${label} copied.`);
+      toast.success(copiedMessage);
     } catch {
-      toast.error(`Could not copy ${label.toLowerCase()}.`);
+      toast.error(`Could not copy ${label.toLowerCase()}. Try again, or copy it from the address bar.`);
     }
+  }
+
+  function copySongLink() {
+    // A private song stays unlisted, but its link is shareable: say so.
+    const copied = isPrivate && isPublished ? 'Song link copied — anyone with this link can listen.' : undefined;
+    return copyText(`${window.location.origin}/${id}`, 'Song link', copied);
   }
 
   async function handleShare() {
     if (!id) return;
-    const url = `${window.location.origin}/${id}`;
-    try {
-      if (navigator.share) {
-        await navigator.share({ title, url });
-      } else {
-        await copyText(url, 'Song link');
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, url: `${window.location.origin}/${id}` });
+        return;
+      } catch (err) {
+        if ((err as Error)?.name === 'AbortError') return; // the user closed the share sheet
       }
-    } catch {
-      // User cancelled native share.
     }
+    await copySongLink();
   }
 
   function handleAddToMixtape() {
@@ -279,7 +285,8 @@
         JSON.stringify({
           prompt: promptText,
           instrumental: isInstrumental,
-          provider: activeProvider,
+          public: !isPrivate,
+          provider: requestedProviderOf(detail),
         })
       );
     } catch {
@@ -642,7 +649,7 @@
       description={kv_do?.description ?? null}
       {providerLabel}
       wasFallback={fallback}
-      {isPrivate}
+      isPrivate={isPrivate || isRestricted}
       plays={d1?.Plays ?? null}
       nsfw={kv_do?.nsfw ?? null}
       {playlistTag}
@@ -722,7 +729,7 @@
         type="button"
         onclick={() => {
           moreOpen = false;
-          void copyText(`${window.location.origin}/${id}`, 'Song link');
+          void copySongLink();
         }}
         class="focus-ring flex min-h-12 w-full items-center gap-3 px-4 text-left text-sm font-medium text-ink-1 hover:bg-white/5"
       >

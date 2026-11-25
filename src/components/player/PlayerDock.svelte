@@ -6,6 +6,7 @@
   import IconButton from '../ui/IconButton.svelte';
   import LikeButton from '../ui/LikeButton.svelte';
   import Loader from '../ui/Loader.svelte';
+  import { formatTime } from '../../utils/time';
 
   let element: HTMLAudioElement;
   let sheetOpen = $state(false);
@@ -42,13 +43,6 @@
       sheetOpen = false;
     }
   });
-
-  function formatTime(seconds: number) {
-    const safe = Number.isFinite(seconds) && seconds > 0 ? seconds : 0;
-    const minutes = Math.floor(safe / 60);
-    const remainder = Math.floor(safe % 60).toString().padStart(2, '0');
-    return `${minutes}:${remainder}`;
-  }
 </script>
 
 {#if track}

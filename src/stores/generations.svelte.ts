@@ -78,27 +78,25 @@ function schedulePoll(entry: TrackedGeneration) {
       const wfStatus = data.wf?.status;
       const failed = wfStatus === 'errored' || wfStatus === 'terminated' || wfStatus === 'unknown';
 
+      const title = data.kv_do?.lyrics?.title || data.d1?.Title || 'Your song';
+      const onSongPage = window.location.pathname === `/${entry.id}`;
+      const openAction = { duration: 8000, actionLabel: 'Open', onAction: () => void navigate(`/${entry.id}`) };
+
       if (ready || published || wfStatus === 'complete') {
         stopTrackingGeneration(entry.id);
-        const title = data.kv_do?.lyrics?.title || data.d1?.Title || 'Your song';
-        const onSongPage = window.location.pathname === `/${entry.id}`;
         if (!onSongPage) {
           if (!generationsState.readyIds.includes(entry.id)) {
             generationsState.readyIds = [...generationsState.readyIds, entry.id];
           }
-          toast.success(`"${title}" is ready.`, {
-            duration: 8000,
-            actionLabel: 'Open',
-            onAction: () => {
-              void navigate(`/${entry.id}`);
-            },
-          });
+          toast.success(`"${title}" is ready.`, openAction);
         }
         return;
       }
 
       if (failed) {
         stopTrackingGeneration(entry.id);
+        // The song page shows its own failure card.
+        if (!onSongPage) toast.error(`"${title}" couldn't be created. Open it to retry or edit the prompt.`, openAction);
         return;
       }
 

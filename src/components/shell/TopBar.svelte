@@ -11,6 +11,7 @@
   } from '../../stores/mixtape.svelte';
   import { openAccountSheet, openAuthSheet } from '../../stores/authSheet.svelte';
   import { useCurrentPath } from '../../hooks/useCurrentPath.svelte';
+  import { clearReadyNotifications, generationsState } from '../../stores/generations.svelte';
   import { shortenAddress } from '../../utils/address';
   import {
     balanceState,
@@ -34,6 +35,11 @@
 
   const currentPath = useCurrentPath();
   const path = $derived(currentPath.path);
+
+  // AE-9: visiting /created clears the desktop "new song ready" dot.
+  $effect(() => {
+    if (path === '/created') clearReadyNotifications();
+  });
 
   let searchQuery = $state('');
   let playlist = $state<string | null>(null);
@@ -251,6 +257,9 @@
           }`}
         >
           Created
+          {#if generationsState.readyIds.length > 0}
+            <span data-ready-dot class="ml-1.5 size-2 rounded-full bg-accent" aria-hidden="true"></span>
+          {/if}
         </a>
         <a
           href="/liked"

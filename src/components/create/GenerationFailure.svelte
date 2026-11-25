@@ -34,6 +34,8 @@
     /\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b|\b(?:BYOK|R2|gateway|quota enforcement|service binding|binding|wrangler|Durable Object|HTTP \d{3}|200 OK|fallback unavailable|aisonggenerator)\b/i;
 
   const retryable = $derived(failure ? failure.retryable : true);
+  // A dead model (smol-workflow `suggestAlternate`) still offers the other one.
+  const offerAlternate = $derived(retryable || failure?.suggestAlternate === true);
   const alternateProvider = $derived(otherProviderOf(provider));
   const alternateLabel = $derived(PROVIDER_META[alternateProvider].label);
 
@@ -104,27 +106,23 @@
               <Icon name="refresh" size={16} />
               <span>Try again</span>
             </Button>
-
+          {/if}
+          {#if offerAlternate}
             <Button
-              variant="secondary"
+              variant={retryable ? 'secondary' : 'primary'}
               disabled={isPolling}
               onclick={() => onRetry(alternateProvider)}
             >
               <span>Try with {alternateLabel}</span>
             </Button>
-
-            <Button
-              variant="ghost"
-              disabled={isPolling}
-              onclick={onEditPrompt}
-            >
-              <span>Edit prompt</span>
-            </Button>
-          {:else}
-            <Button variant="primary" onclick={onEditPrompt}>
-              <span>Edit prompt</span>
-            </Button>
           {/if}
+          <Button
+            variant={offerAlternate ? 'ghost' : 'primary'}
+            disabled={isPolling}
+            onclick={onEditPrompt}
+          >
+            <span>Edit prompt</span>
+          </Button>
         </div>
       {/if}
     </div>

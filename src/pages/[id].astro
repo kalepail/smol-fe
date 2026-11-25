@@ -1,18 +1,32 @@
 ---
 import Smol from '../components/Smol.svelte';
+import StateFeedback from '../components/ui/StateFeedback.svelte';
 import Layout from '../layouts/Layout.astro';
-import { serverApiFetch } from '../services/api/server';
+import { serverApiFetchResult } from '../services/api/server';
 import type { SmolDetailResponse } from '../types/domain';
 import { isIndexableSong } from '../utils/robots';
 
 const { id } = Astro.params;
-const initialData = id
-  ? await serverApiFetch<SmolDetailResponse>(Astro, `/${encodeURIComponent(id)}`, { forwardAuth: true })
-  : null;
+// F6: song ids are 64-hex; anything else (`/quota`, `/leaderboard`, typos) is a 404 without
+// an API call. E2E fixtures use readable ids, so the dev seam build allows those while still
+// rejecting non-song paths like `/quota`.
+const isSongId = Boolean(
+  id &&
+    (/^[0-9a-f]{64}$/i.test(id) ||
+      (import.meta.env.PUBLIC_E2E_SEAMS === '1' && /^(?:smol-|first-smol$|legacy-|does-not-exist-)/i.test(id)))
+);
+const result = isSongId
+  ? await serverApiFetchResult<SmolDetailResponse>(Astro, `/${encodeURIComponent(id!)}`, { forwardAuth: true })
+  : { status: 404, data: null };
+// An authoritative 404 (or rejected id) renders the not-found view directly without
+// mounting the song island; an unreachable API (0 / 5xx) lets the island retry.
+const isNotFound = result.status === 404;
+if (isNotFound) Astro.response.status = 404;
+const initialData = result.status === 200 ? result.data : null;
 const apiUrl = import.meta.env.PUBLIC_API_URL;
-const title = initialData?.kv_do?.lyrics?.title || initialData?.d1?.Title || 'Song';
+const title = initialData?.kv_do?.lyrics?.title || initialData?.d1?.Title || (isNotFound ? 'Song not found' : 'Song');
 const description = initialData?.kv_do?.payload?.prompt || initialData?.kv_do?.description;
-const image_url = id ? `${apiUrl}/image/${id}.png` : null;
+const image_url = id && !isNotFound ? `${apiUrl}/image/${id}.png` : null;
 const musicId = initialData?.d1?.Song_1;
 const firstReady = initialData?.kv_do?.songs?.[0];
 const song_url = musicId
@@ -27,5 +41,17 @@ const noindex = !isIndexableSong(initialData);
 ---
 
 <Layout {title} {description} {song_url} {image_url} {noindex} nofollow={noindex}>
-  <Smol {id} {initialData} client:only="svelte" />
+  {isNotFound ? (
+    <div class="app-container py-16">
+      <StateFeedback
+        kind="error"
+        title="Song not found"
+        message="This song could not be found."
+        actionLabel="Browse songs"
+        actionHref="/"
+      />
+    </div>
+  ) : (
+    <Smol {id} {initialData} client:only="svelte" />
+  )}
 </Layout>

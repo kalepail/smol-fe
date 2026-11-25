@@ -548,3 +548,96 @@ for (const viewport of [
     });
   });
 }
+
+test.describe('FE-POST-1 create flow: visibility carry-over, optimistic details, title, background status', () => {
+  test.use({ viewport: { width: 1440, height: 900 }, isMobile: false, hasTouch: false });
+
+  test('remix / edit prompt keep visibility + requested model; first paint and tab title track the new song', async ({
+    page,
+    context,
+    request,
+  }) => {
+    await request.post(`${api}/__reset`);
+    await context.addCookies([{ name: 'smol_token', value: fakeSmolJwt(), url: 'http://127.0.0.1:4328' }]);
+    const publicSwitch = page.locator('#create-public');
+    const radio = (provider: string) => page.locator(`input[type="radio"][name="provider"][value="${provider}"]`);
+    const remixFrom = async (path: string, action = 'Remix prompt') => {
+      await page.goto(path);
+      await page.getByRole('button', { name: action }).first().click();
+      await expect(page).toHaveURL('/create');
+    };
+
+    // (e) A blank /create defaults to Public; AE-5 reset caption; AE-6 instrumental limit up front.
+    await page.goto('/create');
+    await expect(publicSwitch).toBeChecked();
+    await expect(page.getByText(/^Daily limits reset .+\.$/)).toBeVisible();
+    await expect(page.getByText('No vocals or lyrics · 380-character prompt limit')).toBeVisible();
+    await page.locator('label', { hasText: 'ElevenLabs' }).click(); // stored model: ElevenLabs
+
+    // (a) private song → Private; (b) published, then hidden → Private (D1 wins over payload.public).
+    await remixFrom('/smol-private');
+    await expect(publicSwitch).not.toBeChecked();
+    await remixFrom('/smol-hidden');
+    await expect(publicSwitch).not.toBeChecked();
+    await remixFrom('/smol-published-was-private');
+    await expect(publicSwitch).toBeChecked();
+    // (d) Classic fell back to ElevenLabs: the remix asks for Classic again, not the stored model.
+    await remixFrom('/smol-fallback');
+    await expect(radio('aisonggenerator')).toBeChecked();
+    // (c) Edit prompt on a failed private ElevenLabs song.
+    await remixFrom('/smol-failed-config', 'Edit prompt');
+    await expect(publicSwitch).not.toBeChecked();
+    await expect(radio('elevenlabs')).toBeChecked();
+    await page.reload(); // the draft is one-shot: a fresh /create is Public again
+    await expect(publicSwitch).toBeChecked();
+
+    // AE-2 / F3: before the first GET lands, Details says Private and the tab says "Creating".
+    let firstGet!: () => void;
+    const held = new Promise<void>((resolve) => (firstGet = resolve));
+    let status: Record<string, unknown> = { wf: { status: 'running' } };
+    await page.route(`${api}/smol-generating`, async (route) => {
+      await held;
+      const response = await route.fetch();
+      const body = await response.json();
+      body.kv_do.payload.public = false;
+      await route.fulfill({ response, json: { ...body, ...status } });
+    });
+    await publicSwitch.click({ force: true });
+    await page.locator('#song-prompt').fill('Lo-fi rain on a tin roof');
+    await page.getByRole('button', { name: 'Create song' }).click();
+    await expect(page).toHaveURL('/smol-generating');
+    await expect(page.locator('aside[aria-labelledby="song-details-heading"]')).toContainText('Private');
+    await expect(page).toHaveTitle('Creating your song… · SMOL');
+    firstGet();
+    await expect(page).toHaveTitle('Orbital Lounge · SMOL');
+    expect((await (await request.get(`${api}/__mutations`)).json()).lastCreateBody).toMatchObject({ public: false });
+
+    // AE-9: a background song finishing lights the desktop Created dot until /created is visited.
+    const softNavigate = (href: string) =>
+      page.evaluate((target) => {
+        const a = Object.assign(document.createElement('a'), { href: target });
+        document.body.appendChild(a);
+        a.click();
+      }, href);
+    await softNavigate('/');
+    await expect(page).toHaveURL('/');
+    status = { kv_do: { songs: [{ music_id: 'take-1', status: 4 }], lyrics: { title: 'Orbital Lounge' } }, wf: { status: 'complete' } };
+    const readyDot = page.locator('header a[href="/created"] [data-ready-dot]');
+    await expect(page.getByText('"Orbital Lounge" is ready.')).toBeVisible({ timeout: 15_000 });
+    await expect(readyDot).toBeVisible();
+    await softNavigate('/created');
+    await expect(page).toHaveURL('/created');
+    await expect(readyDot).toHaveCount(0);
+
+    // AE-9: a background failure says so instead of stopping silently.
+    status = { wf: { status: 'running' } };
+    await page.goto('/create');
+    await page.locator('#song-prompt').fill('Lo-fi rain on a tin roof');
+    await page.getByRole('button', { name: 'Create song' }).click();
+    await expect(page).toHaveTitle('Orbital Lounge · SMOL');
+    await softNavigate('/');
+    await expect(page).toHaveURL('/');
+    status = { wf: { status: 'errored' } };
+    await expect(page.getByText(/"Orbital Lounge" couldn't be created/)).toBeVisible({ timeout: 15_000 });
+  });
+});

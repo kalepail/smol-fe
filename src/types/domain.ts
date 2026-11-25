@@ -129,6 +129,8 @@ export interface SmolDetailResponse {
       title: string;
       message: string;
       retryable: boolean;
+      /** The model itself is down: offer the other one even when not retryable. */
+      suggestAlternate?: boolean;
     };
   };
   wf?: {
@@ -141,6 +143,8 @@ export interface SongData {
   music_id: string;
   audio?: string;
   status: number;
+  /** Seconds, when the workflow recorded it. */
+  duration?: number;
 }
 
 export interface SearchExplanation {

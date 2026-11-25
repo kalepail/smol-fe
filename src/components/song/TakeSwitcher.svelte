@@ -2,6 +2,7 @@
   import type { MusicProvider, SmolDetailResponse, SongData } from '../../types/domain';
   import type { Track } from '../../utils/track';
   import { expectedTakeCount } from '../../utils/takes';
+  import { formatTime } from '../../utils/time';
   import { player } from '../../stores/audio.svelte';
   import MiniAudioPlayer from '../audio/MiniAudioPlayer.svelte';
   import Chip from '../ui/Chip.svelte';
@@ -91,7 +92,7 @@
         <Loader classNames="size-4" textColor="text-accent" />
         <span class="font-medium">{stageLabel}</span>
       </div>
-      <span class="text-xs text-ink-3">{expected === 1 ? 'Usually under a minute' : 'Usually 2–6 min'} · Safe to leave</span>
+      <span class="text-xs text-ink-3">{expected === 1 ? 'Usually ~1 min' : 'Usually 2–6 min'} · Safe to leave</span>
     </div>
 
     <ol class="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -179,7 +180,9 @@
             {/if}
             <div class="min-w-0">
               <div class="flex items-center gap-2">
-                <span class="whitespace-nowrap text-sm font-medium text-ink-1">Take {index + 1}</span>
+                <span class="whitespace-nowrap text-sm font-medium text-ink-1">
+                  Take {index + 1}{#if song?.duration && Number.isFinite(song.duration) && song.duration > 0}<span class="tabular font-normal text-ink-3">{` · ${formatTime(song.duration)}`}</span>{/if}
+                </span>
                 {#if isMain}
                   <Chip tone="accent">Main</Chip>
                 {/if}
