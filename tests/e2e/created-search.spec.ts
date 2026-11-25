@@ -241,6 +241,84 @@ test.describe('AE-8 /created title filter', () => {
     await expect(page).toHaveURL('/created');
   });
 
+  test("Back to /created after switching accounts on another page never sends the old account's q", async ({
+    page,
+    context,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await signIn(context);
+    const requests = recordCreatedRequests(page);
+    await page.goto('/created');
+    await expect(play(page, 'First Track')).toBeVisible();
+    await filter(page).fill('Neon Private Sketch');
+    await expect(page).toHaveURL('/created?q=Neon+Private+Sketch');
+    await expect(page.locator('#main').getByRole('button', { name: /^Play / })).toHaveCount(1);
+
+    await page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Liked' }).click();
+    await expect(page).toHaveURL('/liked');
+    await expect(play(page, 'First Track')).toBeVisible();
+    await switchSession(page, context, OTHER_OWNER);
+
+    // Also covers Astro dev's hidden client:only pre-hydration iframe (its requests are recorded too).
+    const beforeBack = requests.length;
+    await page.goBack();
+    await expect(play(page, 'Other Owner Neon Song')).toBeVisible();
+    await expect(filter(page)).toHaveValue('');
+    await expect(page).toHaveURL('/created');
+    const afterBack = requests.slice(beforeBack);
+    expect(afterBack.length).toBeGreaterThan(0);
+    for (const r of afterBack) {
+      expect(await r.owner()).toBe(OTHER_OWNER);
+      expect(r.url.searchParams.has('q')).toBe(false);
+    }
+  });
+
+  test('same-account Back to /created restores its filter', async ({ page, context }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await signIn(context);
+    const requests = recordCreatedRequests(page);
+    await page.goto('/created?q=neon');
+    await expect(play(page, 'Neon Private Sketch')).toBeVisible();
+
+    await page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Liked' }).click();
+    await expect(page).toHaveURL('/liked');
+    await expect(play(page, 'First Track')).toBeVisible();
+
+    await page.goBack();
+    await expect(page).toHaveURL('/created?q=neon');
+    await expect(filter(page)).toHaveValue('neon');
+    await expect(play(page, 'Neon Private Sketch')).toBeVisible();
+    await expect(play(page, 'First Track')).toHaveCount(0);
+    expect(requests.at(-1)?.url.searchParams.get('q')).toBe('neon');
+  });
+
+  test('clearing a whitespace-only ?q= strips it from the URL', async ({ page, context }) => {
+    await signIn(context);
+    await page.goto('/created?q=%20%20');
+    await expect(play(page, 'First Track')).toBeVisible();
+    await expect(filter(page)).toHaveValue('  ');
+    await page.getByRole('button', { name: 'Clear title filter' }).click();
+    await expect(filter(page)).toHaveValue('');
+    await expect(page).toHaveURL('/created');
+  });
+
+  test('a 100-character unbroken query wraps inside the empty state at 390px', async ({ page, context }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await signIn(context);
+    const query = 'W'.repeat(100);
+    await page.goto(`/created?q=${query}`);
+    const message = page.getByText(`No created songs match “${query}”.`);
+    await expect(message).toBeVisible();
+    const box = await message.boundingBox();
+    expect(box).toBeTruthy();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+    const overflow = await message.evaluate((el) => el.scrollWidth - el.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    await expect(page.getByRole('button', { name: 'Clear search', exact: true })).toBeInViewport();
+  });
+
   test('signed out, Home and /liked render no filter', async ({ page, context }) => {
     await page.goto('/created');
     await expect(page.getByRole('heading', { name: 'Sign in to see your songs' })).toBeVisible();

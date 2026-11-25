@@ -40,9 +40,9 @@
   >
     <Icon name={resolvedIcon} size={22} />
   </div>
-  <h2 class="text-base font-semibold text-ink-1">{title}</h2>
+  <h2 class="max-w-full text-base font-semibold text-ink-1 [overflow-wrap:anywhere]">{title}</h2>
   {#if message}
-    <p class="mt-1.5 text-sm leading-relaxed text-ink-2">{message}</p>
+    <p class="mt-1.5 max-w-full text-sm leading-relaxed text-ink-2 [overflow-wrap:anywhere]">{message}</p>
   {/if}
   {#if actionLabel && (onAction || actionHref)}
     <div class="mt-5">

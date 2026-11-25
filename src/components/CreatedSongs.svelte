@@ -6,14 +6,21 @@
   import {
     CREATED_QUERY_MAX,
     activeCreatedQuery,
+    isForeignCreatedQuery,
     readCreatedQuery,
+    stampCreatedQueryOwner,
     withCreatedQuery,
   } from '../utils/createdQuery';
 
   const DEBOUNCE_MS = 250;
 
-  // client:only island: `window` is always available here.
-  const initialInput = readCreatedQuery(window.location.search);
+  // client:only island: `window` is always available here. A `?q=` restored from another
+  // account's history entry (Back after an account switch) is discarded before any fetch.
+  // Astro dev also pre-hydrates the next client:only page in a hidden same-origin iframe
+  // (a fresh document without our history.state): it never applies or rewrites the query.
+  const previewFrame = window.frameElement !== null;
+  const foreignQuery = !previewFrame && isForeignCreatedQuery(window.history.state, userState.contractId);
+  const initialInput = previewFrame || foreignQuery ? '' : readCreatedQuery(window.location.search);
   let input = $state(initialInput);
   let query = $state(activeCreatedQuery(initialInput));
   // The account the query was typed for (`null` = a signed-out deep link, applied once signed in).
@@ -21,15 +28,26 @@
   let inputEl = $state<HTMLInputElement | null>(null);
   let timer: ReturnType<typeof setTimeout> | undefined;
 
+  /** Mirror the query into the URL and stamp its owner on this history entry (no new entry). */
+  function writeUrl() {
+    if (previewFrame) return;
+    window.history.replaceState(
+      stampCreatedQueryOwner(window.history.state, query ? queryOwner : null),
+      '',
+      withCreatedQuery(window.location.href, query)
+    );
+  }
+
+  if (foreignQuery || activeCreatedQuery(initialInput)) writeUrl();
+
   // Never send one account's query for another: drop it in the same tick the account changes.
   const gridQuery = $derived(queryOwner === null || queryOwner === userState.contractId ? query : '');
 
   function commit(value: string) {
     clearTimeout(timer);
-    const next = activeCreatedQuery(value);
-    if (next === query) return;
-    query = next;
-    window.history.replaceState(window.history.state, '', withCreatedQuery(window.location.href, next));
+    // Unchanged trimmed value: no refetch, but the URL is still normalized (e.g. `?q=%20%20` → none).
+    query = activeCreatedQuery(value);
+    writeUrl();
   }
 
   function clear() {
@@ -41,11 +59,14 @@
   $effect(() => {
     const account = userState.contractId;
     if (account === queryOwner) return;
-    if (queryOwner !== null) {
+    const previous = queryOwner;
+    queryOwner = account;
+    if (previous !== null) {
       input = '';
       commit('');
+    } else if (query) {
+      writeUrl();
     }
-    queryOwner = account;
   });
 
   onDestroy(() => clearTimeout(timer));

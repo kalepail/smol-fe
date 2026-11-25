@@ -23,3 +23,29 @@ export function withCreatedQuery(href: string, query: string): string {
   else url.searchParams.delete('q');
   return url.toString();
 }
+
+/** `history.state` key naming the account a filtered `/created?q=` entry belongs to. */
+export const CREATED_QUERY_OWNER_KEY = 'createdQueryOwner';
+
+type HistoryState = Record<string, unknown>;
+
+/**
+ * `state` (Astro ClientRouter's `{ index, scrollX, scrollY }`, kept intact) with the filter's
+ * owning account stamped, or the stamp removed when there is no owner / no query.
+ */
+export function stampCreatedQueryOwner(state: unknown, owner: string | null): HistoryState {
+  const next: HistoryState = state && typeof state === 'object' ? { ...(state as HistoryState) } : {};
+  if (owner) next[CREATED_QUERY_OWNER_KEY] = owner;
+  else delete next[CREATED_QUERY_OWNER_KEY];
+  return next;
+}
+
+/**
+ * True when a history entry's `?q=` was typed by another account (or the viewer has since
+ * signed out), e.g. Back to `/created?q=…` after switching accounts on another page.
+ * An unstamped entry (a fresh external deep link) is never foreign.
+ */
+export function isForeignCreatedQuery(state: unknown, account: string | null): boolean {
+  const owner = state && typeof state === 'object' ? (state as HistoryState)[CREATED_QUERY_OWNER_KEY] : undefined;
+  return typeof owner === 'string' && owner !== account;
+}
