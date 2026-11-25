@@ -25,3 +25,6 @@ pnpm-debug.log*
 .idea/
 
 .wrangler/
+# Browser test output
+/playwright-report/
+/test-results/

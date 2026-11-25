@@ -1,8 +1,8 @@
 ---
-import Home from "../components/Home.svelte";
-import Layout from "../layouts/Layout.astro";
+import Home from '../components/Home.svelte';
+import Layout from '../layouts/Layout.astro';
 ---
 
-<Layout title="Smol – Created">
-	<Home endpoint="created" client:only="svelte" />
+<Layout title="Created">
+  <Home endpoint="created" heading="Created" emptyTitle="No created songs yet" client:only="svelte" />
 </Layout>

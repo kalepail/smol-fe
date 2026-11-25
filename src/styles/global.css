@@ -1,15 +1,221 @@
 @import "tailwindcss";
+@import "@fontsource-variable/geist";
+
+@theme {
+  /* Color: cool slate neutral scale + acid lime accent */
+  --color-canvas: #020618;
+  --color-surface-1: #0b1222;
+  --color-surface-2: #111a2e;
+  --color-surface-3: #18243d;
+  --color-line: rgb(255 255 255 / 0.08);
+  --color-line-strong: rgb(255 255 255 / 0.14);
+  --color-ink-1: #eef2f7;
+  --color-ink-2: #94a3b8;
+  --color-ink-3: #64748b;
+  --color-accent: #9ae600;
+  --color-accent-press: #b5f23d;
+  --color-on-accent: #0a1300;
+  --color-danger: #fb7185;
+  --color-success: #34d399;
+  --color-warning: #fcd34d;
+
+  /* Typography */
+  --font-sans: "Geist Variable", "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Radius by role */
+  --radius-media: 6px;
+  --radius-control: 10px;
+  --radius-sheet: 20px;
+
+  /* Layout metrics */
+  --content-max: 1280px;
+  --topbar-h: 56px;
+  --tabbar-h: 56px;
+  --miniplayer-h: 64px;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  background-color: var(--color-canvas);
+}
+
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-ink-1);
+  font-family: var(--font-sans);
+  min-height: 100dvh;
+  overflow-x: clip;
+}
 
 @layer base {
+  h1, h2, h3 {
+    text-wrap: balance;
+    font-weight: 600;
+  }
 
-    button:not(:disabled),
-    [role="button"]:not(:disabled) {
-        cursor: pointer;
+  p {
+    text-wrap: pretty;
+  }
+
+  nav, button, [role="tab"], label {
+    user-select: none;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  /* Bottom clearance so the last row of content stays reachable above TabBar & PlayerDock */
+  #main {
+    padding-bottom: calc(var(--tabbar-h) + 24px + env(safe-area-inset-bottom, 0px));
+  }
+
+  body:has(#audio-player) #main {
+    padding-bottom: calc(var(--tabbar-h) + var(--miniplayer-h) + 32px + env(safe-area-inset-bottom, 0px));
+  }
+
+  @media (min-width: 1024px) {
+    #main {
+      padding-bottom: 48px;
     }
+
+    body:has(#audio-player) #main {
+      padding-bottom: 104px;
+    }
+  }
 }
 
 @layer components {
-    .pixelated {
-        image-rendering: pixelated;
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .pixelated {
+    image-rendering: pixelated;
+  }
+
+  .app-container {
+    width: 100%;
+    max-width: var(--content-max);
+    margin-inline: auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+
+  @media (min-width: 640px) {
+    .app-container {
+      padding-left: max(24px, env(safe-area-inset-left, 0px));
+      padding-right: max(24px, env(safe-area-inset-right, 0px));
     }
+  }
+
+  @media (min-width: 1024px) {
+    .app-container {
+      padding-left: max(32px, env(safe-area-inset-left, 0px));
+      padding-right: max(32px, env(safe-area-inset-right, 0px));
+    }
+  }
+
+  /* Accessible focus styles: offset ring on interactive controls, flush ring on text inputs */
+  .focus-ring:focus-visible {
+    outline: 2px solid var(--color-ink-1);
+    outline-offset: 2px;
+  }
+
+  .input-ring:focus-visible {
+    outline: 2px solid rgb(238 242 247 / 0.55);
+    outline-offset: -2px;
+  }
+
+  /* Floating mobile mixtape draft pill sits above TabBar or PlayerDock */
+  .draft-floating-pill {
+    bottom: calc(var(--tabbar-h) + 10px + env(safe-area-inset-bottom, 0px));
+  }
+
+  body:has(:where(#audio-player)) .draft-floating-pill {
+    bottom: calc(var(--tabbar-h) + var(--miniplayer-h) + 16px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Toast stacking sits cleanly above TabBar, PlayerDock, and mobile draft pill, or cleanly inside open dialogs */
+  .toast-stack {
+    bottom: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom, 0px));
+  }
+
+  body:has(:where(.draft-floating-pill)) .toast-stack {
+    bottom: calc(var(--tabbar-h) + 64px + env(safe-area-inset-bottom, 0px));
+  }
+
+  body:has(:where(#audio-player)) .toast-stack {
+    bottom: calc(var(--tabbar-h) + var(--miniplayer-h) + 20px + env(safe-area-inset-bottom, 0px));
+  }
+
+  body:has(:where(#audio-player)):has(:where(.draft-floating-pill)) .toast-stack {
+    bottom: calc(var(--tabbar-h) + var(--miniplayer-h) + 72px + env(safe-area-inset-bottom, 0px));
+  }
+
+  @media (min-width: 1024px) {
+    .toast-stack {
+      bottom: 24px;
+    }
+
+    body:has(:where(#audio-player)) .toast-stack {
+      bottom: 88px;
+    }
+  }
+
+  dialog.sheet-dialog > .toast-stack {
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Equalizer animation for now-playing indicator */
+  @keyframes eq-bar {
+    0%, 100% { transform: scaleY(0.35); }
+    50% { transform: scaleY(1); }
+  }
+
+  .eq-bar {
+    transform-origin: bottom;
+    animation: eq-bar 720ms ease-in-out infinite;
+  }
+
+  .eq-bar:nth-child(2) {
+    animation-delay: 180ms;
+  }
+
+  .eq-bar:nth-child(3) {
+    animation-delay: 360ms;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/*
+ * Desktop non-modal mixtape builder panel (DockedPanel, 25d P2-8): while it is
+ * open, the page and the player dock keep their full layout to its left.
+ * Unlayered so it wins over the dock's `lg:right-0` utility.
+ */
+:root {
+  --builder-panel-w: 440px;
+}
+
+@media (min-width: 1024px) {
+  html.builder-docked body {
+    padding-right: var(--builder-panel-w);
+  }
+
+  html.builder-docked #audio-player {
+    right: var(--builder-panel-w);
+  }
 }

@@ -1,36 +1,27 @@
 <script lang="ts">
-    interface Props {
-        classNames?: string;
-        textColor?: string;
-    }
+  interface Props {
+    classNames?: string;
+    textColor?: string;
+  }
 
-    let { classNames = undefined, textColor = 'text-white' }: Props = $props();
+  let { classNames = 'size-5', textColor = 'text-current' }: Props = $props();
 </script>
 
-<svg
-    class={classNames + ' ' + textColor}
-    width="50"
-    height="50"
-    viewBox="0 0 50 50"
-    xmlns="http://www.w3.org/2000/svg"
->
+<span class={`inline-flex shrink-0 animate-spin ${classNames} ${textColor}`} aria-hidden="true">
+  <svg viewBox="0 0 24 24" fill="none" class="h-full w-full">
     <circle
-        cx="25"
-        cy="25"
-        r="20"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="4"
-        stroke-dasharray="31.4 31.4"
-        stroke-linecap="round"
-    >
-        <animateTransform
-            attributeName="transform"
-            type="rotate"
-            from="0 25 25"
-            to="360 25 25"
-            dur="1s"
-            repeatCount="indefinite"
-        />
-    </circle>
-</svg>
+      cx="12"
+      cy="12"
+      r="9"
+      stroke="currentColor"
+      stroke-width="2.5"
+      stroke-opacity="0.22"
+    />
+    <path
+      d="M21 12a9 9 0 0 0-9-9"
+      stroke="currentColor"
+      stroke-width="2.5"
+      stroke-linecap="round"
+    />
+  </svg>
+</span>

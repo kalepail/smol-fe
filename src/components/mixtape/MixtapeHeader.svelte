@@ -1,149 +1,149 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import type { MixtapeDetail } from '../../services/api/mixtapes';
-  import type { Smol } from '../../types/domain';
-  import Loader from '../ui/Loader.svelte';
-  import { userState } from '../../stores/user.svelte';
+  import { shortenAddress } from '../../utils/address';
+  import { toast } from '../../stores/toast.svelte';
+  import MixtapeCollage from '../ui/MixtapeCollage.svelte';
+  import Button from '../ui/Button.svelte';
+  import IconButton from '../ui/IconButton.svelte';
+  import Icon from '../ui/Icon.svelte';
 
+  /**
+   * Presentational mixtape header (Report 30 §7 + Report 24 §5.3).
+   * Each role owns its own slot so creator chrome (24) and collector chrome
+   * (30) layer in without touching each other:
+   *   ownerBanner  → 24 hidden-status callout (creator only, above everything)
+   *   ownerChip    → 24 Listed / Hidden chip in the meta line (creator only)
+   *   ownerActions → 24 [Edit] [⋯] in the action row, after playback
+   *   collectSlot  → 30 CollectCard (everyone); never in the action row
+   */
   interface Props {
     mixtape: MixtapeDetail;
     coverUrls: (string | null)[];
-    loadingTracks: Set<string>;
-    isPlayingAll: boolean;
-    isAnyPlaying: boolean;
-    fullyOwned: boolean;
-    isPurchasing: boolean;
-    onPlayAll: () => void;
-    onStopPlayAll: () => void;
-    onPurchaseClick: () => void;
+    playback: { isPlaying: boolean; canPlay: boolean; onToggle: () => void };
+    ownerBanner?: Snippet;
+    ownerChip?: Snippet;
+    ownerActions?: Snippet;
+    collectSlot?: Snippet;
   }
 
-  let {
-    mixtape,
-    coverUrls,
-    loadingTracks,
-    isPlayingAll,
-    isAnyPlaying,
-    fullyOwned,
-    isPurchasing,
-    onPlayAll,
-    onStopPlayAll,
-    onPurchaseClick
-  }: Props = $props();
+  let { mixtape, coverUrls, playback, ownerBanner, ownerChip, ownerActions, collectSlot }: Props = $props();
+
+  let descriptionExpanded = $state(false);
+  let descClamped = $state(false);
+  let descEl = $state<HTMLParagraphElement | null>(null);
+
+  $effect(() => {
+    mixtape.id;
+    mixtape.description;
+    descriptionExpanded = false;
+  });
+
+  $effect(() => {
+    const el = descEl;
+    if (!el || !mixtape.description || descriptionExpanded) return;
+
+    const measure = () => {
+      if (el.clientHeight === 0) return;
+      descClamped = el.scrollHeight > el.clientHeight + 2;
+    };
+    measure();
+
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  });
+
+  async function handleShare() {
+    const url = `${window.location.origin}/mixtapes/${encodeURIComponent(mixtape.id)}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: mixtape.title, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        toast.success('Mixtape link copied.');
+      }
+    } catch {
+      // User cancelled native share.
+    }
+  }
 </script>
 
-<header
-  class="flex flex-col gap-4 rounded-2xl border border-slate-700 bg-slate-900/80 p-4 shadow-xl md:flex-row md:gap-6 md:rounded-3xl md:p-6"
->
+<header class="flex flex-col gap-5">
+  {@render ownerBanner?.()}
+
   <div
-    class="grid h-auto w-full grid-cols-2 grid-rows-2 overflow-hidden rounded-2xl bg-slate-800 md:h-48 md:w-48 md:shrink-0"
+    class="grid grid-cols-1 gap-5 md:grid-cols-[224px_minmax(0,1fr)] md:items-end md:gap-7 lg:grid-cols-[224px_minmax(0,1fr)_340px]"
   >
-    {#each Array.from({ length: 4 }) as _, index}
-      <div class="aspect-square bg-slate-900">
-        {#if coverUrls[index]}
-          <img
-            src={`${coverUrls[index]}${coverUrls[index]?.includes('?') ? '' : '?scale=4'}`}
-            alt={mixtape.title}
-            class="h-full w-full object-cover pixelated"
-            onerror={(e) => {
-              // @ts-ignore
-              e.currentTarget.style.display = 'none';
-            }}
-          />
-        {:else}
-          <div
-            class="flex h-full w-full items-center justify-center text-xs text-slate-500"
+    <div class="mx-auto w-full max-w-[min(260px,30dvh)] md:mx-0 md:max-w-none">
+      <MixtapeCollage {coverUrls} alt={mixtape.title} />
+    </div>
+
+    <div class="flex min-w-0 flex-col gap-4">
+      <div class="space-y-1.5">
+        <h1 class="[overflow-wrap:anywhere] text-2xl font-semibold tracking-tight text-ink-1 sm:text-3xl lg:text-4xl">
+          {mixtape.title}
+        </h1>
+        <p class="tabular flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-ink-2">
+          {#if mixtape.creator}
+            <a
+              href={`/artists/${encodeURIComponent(mixtape.creator)}`}
+              class="focus-ring rounded font-medium text-ink-1 hover:underline"
+            >
+              {shortenAddress(mixtape.creator)}
+            </a>
+            <span aria-hidden="true">·</span>
+          {/if}
+          <span>{mixtape.trackCount} {mixtape.trackCount === 1 ? 'song' : 'songs'}</span>
+          {#if ownerChip}
+            <span aria-hidden="true">·</span>
+            {@render ownerChip()}
+          {/if}
+        </p>
+        {#if mixtape.description}
+          <p
+            bind:this={descEl}
+            class={`max-w-[65ch] [overflow-wrap:anywhere] text-sm leading-relaxed text-ink-2 ${descriptionExpanded ? '' : 'line-clamp-2 sm:line-clamp-3'}`}
           >
-            {#if mixtape.tracks[index] && loadingTracks.has(mixtape.tracks[index].Id)}
-              <Loader classNames="w-6 h-6" />
-            {:else}
-              SMOL
-            {/if}
-          </div>
+            {mixtape.description}
+          </p>
+          {#if descClamped || descriptionExpanded}
+            <button
+              type="button"
+              aria-expanded={descriptionExpanded}
+              onclick={() => (descriptionExpanded = !descriptionExpanded)}
+              class="focus-ring -my-2 -ml-1 inline-flex min-h-11 items-center self-start rounded px-1 text-xs font-medium text-ink-1 hover:underline"
+            >
+              {descriptionExpanded ? 'Show less' : 'More'}
+            </button>
+          {/if}
         {/if}
       </div>
-    {/each}
-  </div>
 
-  <div class="flex flex-1 flex-col gap-4">
-    <div>
-      <h1 class="text-3xl font-bold text-white">
-        {mixtape.title}
-      </h1>
-      <p class="mt-2 text-sm text-slate-400">
-        {mixtape.description}
-      </p>
+      <div class="flex flex-wrap items-center gap-2">
+        <Button
+          variant="primary"
+          disabled={!playback.canPlay}
+          onclick={playback.onToggle}
+          class="min-w-28 rounded-full px-6"
+        >
+          <Icon name={playback.isPlaying ? 'pause' : 'play'} size={18} />
+          <span>{playback.isPlaying ? 'Pause' : 'Play'}</span>
+        </Button>
+
+        <IconButton label="Share mixtape" variant="surface" onclick={handleShare}>
+          <Icon name="share" size={20} />
+        </IconButton>
+
+        {@render ownerActions?.()}
+      </div>
     </div>
 
-    <div class="flex flex-col gap-2 md:flex-row md:items-center md:gap-4">
-      {#if isPlayingAll && isAnyPlaying}
-        <button
-          class="flex items-center justify-center gap-2 rounded bg-rose-500 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-600"
-          onclick={onStopPlayAll}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 16 16"
-            fill="currentColor"
-            class="w-4 h-4"
-          >
-            <rect width="6" height="12" x="2" y="2" rx="1" />
-            <rect width="6" height="12" x="8" y="2" rx="1" />
-          </svg>
-          Stop Playing
-        </button>
-      {:else}
-        <button
-          class="flex items-center justify-center gap-2 rounded bg-lime-400 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-lime-300"
-          onclick={onPlayAll}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 16 16"
-            fill="currentColor"
-            class="w-4 h-4"
-          >
-            <path
-              d="M3 3.732a1.5 1.5 0 0 1 2.305-1.265l6.706 4.267a1.5 1.5 0 0 1 0 2.531l-6.706 4.268A1.5 1.5 0 0 1 3 12.267V3.732Z"
-            />
-          </svg>
-          Play All
-        </button>
-      {/if}
-      {#if fullyOwned && userState.contractId}
-        <span
-          class="relative flex items-center justify-center gap-2 rounded px-6 py-2 text-sm font-medium bg-gradient-to-r from-slate-400 to-slate-600"
-        >
-          Fully Owned
-          <img
-            src="/owned-badge.png"
-            alt="Fully Owned Badge"
-            class="absolute -top-4 -right-7 w-12 h-12 transform rotate-12 z-10"
-          />
-        </span>
-      {:else}
-        <button
-          class="flex items-center justify-center gap-2 rounded border border-slate-600 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
-          onclick={onPurchaseClick}
-          disabled={isPurchasing}
-        >
-          {#if isPurchasing}
-            <Loader classNames="w-4 h-4" />
-            Processing...
-          {:else}
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              class="w-4 h-4"
-            >
-              <path
-                d="M1 1.75A.75.75 0 011.75 1h1.628a1.75 1.75 0 011.734 1.51L5.18 3a65.25 65.25 0 0113.36 1.412.75.75 0 01.58.875 48.645 48.645 0 01-1.618 6.2.75.75 0 01-.712.513H6a2.503 2.503 0 00-2.292 1.5H17.25a.75.75 0 010 1.5H2.76a.75.75 0 01-.748-.807 4.002 4.002 0 012.716-3.486L3.626 2.716a.25.25 0 00-.248-.216H1.75A.75.75 0 011 1.75zM6 17.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15.5 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"
-              />
-            </svg>
-            Buy Mixtape
-          {/if}
-        </button>
-      {/if}
-    </div>
+    {#if collectSlot}
+      <div class="min-w-0 md:col-span-2 lg:col-span-1 lg:self-end">
+        {@render collectSlot()}
+      </div>
+    {/if}
   </div>
 </header>

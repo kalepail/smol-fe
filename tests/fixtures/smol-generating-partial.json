@@ -1,0 +1,27 @@
+{
+  "kv_do": {
+    "payload": {
+      "address": "CFIXTUREUSER0000000000000000000000000000000000000000000001",
+      "prompt": "Dreamy space synth ballad about drifting through rings of Saturn",
+      "instrumental": false,
+      "public": false,
+      "provider": "aisonggenerator"
+    },
+    "generation_meta": {
+      "requested_provider": "aisonggenerator",
+      "actual_provider": "aisonggenerator"
+    },
+    "description": "A pixel astronaut floating above glowing pastel planetary rings.",
+    "image": true,
+    "lyrics": {
+      "title": "Rings of Static",
+      "style": ["Dream Pop", "Synth Ballad"],
+      "lyrics": "[Verse 1]\nFloating past the silver ice\nOrbiting the midnight sky\nStatic hums a lullaby\nWatch the shooting comets fly"
+    },
+    "songs": [
+      { "music_id": "first", "status": 4, "audio": "http://127.0.0.1:4329/song/first.mp3" }
+    ]
+  },
+  "wf": { "status": "running" },
+  "liked": false
+}

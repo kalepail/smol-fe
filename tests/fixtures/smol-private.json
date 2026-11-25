@@ -1,0 +1,40 @@
+{
+  "d1": {
+    "Id": "smol-private",
+    "Title": "Studio Demo Vault",
+    "Address": "CFIXTUREUSER0000000000000000000000000000000000000000000001",
+    "Username": "Fixture Artist",
+    "Song_1": "first",
+    "Song_2": null,
+    "Public": 0,
+    "Instrumental": 0,
+    "Plays": 3,
+    "Created_At": "2026-11-23T11:00:00Z",
+    "Requested_Provider": "elevenlabs",
+    "Actual_Provider": "elevenlabs"
+  },
+  "kv_do": {
+    "payload": {
+      "prompt": "Warm tape-saturated acoustic demo recorded late at night",
+      "instrumental": false,
+      "public": false,
+      "provider": "elevenlabs"
+    },
+    "generation_meta": {
+      "requested_provider": "elevenlabs",
+      "actual_provider": "elevenlabs"
+    },
+    "description": "A pixel cassette deck glowing softly on a midnight desk.",
+    "image": true,
+    "nsfw": { "safe": true, "categories": [] },
+    "lyrics": {
+      "title": "Studio Demo Vault",
+      "style": ["Acoustic", "Lo-Fi", "Demo"],
+      "lyrics": "[Verse 1]\nTape hiss spinning in the dark\nWaiting for a quiet spark\nKeep this chorus tucked away\nUntil the morning light of day"
+    },
+    "songs": [
+      { "music_id": "first", "status": 4, "audio": "http://127.0.0.1:4329/song/first.mp3" }
+    ]
+  },
+  "liked": false
+}

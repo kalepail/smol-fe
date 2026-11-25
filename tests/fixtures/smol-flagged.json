@@ -1,0 +1,39 @@
+{
+  "d1": {
+    "Id": "smol-flagged",
+    "Title": "Restricted Static",
+    "Address": "CFIXTUREUSER0000000000000000000000000000000000000000000001",
+    "Username": "Fixture Artist",
+    "Song_1": "first",
+    "Song_2": null,
+    "Public": 0,
+    "Instrumental": 0,
+    "Created_At": "2026-11-22T22:00:00Z",
+    "Requested_Provider": "aisonggenerator",
+    "Actual_Provider": "aisonggenerator"
+  },
+  "kv_do": {
+    "payload": {
+      "prompt": "Gritty punk rock track with explicit themes",
+      "instrumental": false,
+      "public": false,
+      "provider": "aisonggenerator"
+    },
+    "generation_meta": {
+      "requested_provider": "aisonggenerator",
+      "actual_provider": "aisonggenerator"
+    },
+    "description": "A red-tinted pixel amplifier buzzing with static.",
+    "image": true,
+    "nsfw": { "safe": false, "categories": ["explicit"] },
+    "lyrics": {
+      "title": "Restricted Static",
+      "style": ["Punk", "Noise"],
+      "lyrics": "[Verse 1]\nTurn the dials up to ten\nFeedback humming once again"
+    },
+    "songs": [
+      { "music_id": "first", "status": 4, "audio": "http://127.0.0.1:4329/song/first.mp3" }
+    ]
+  },
+  "liked": false
+}

@@ -1,37 +1,68 @@
 // @ts-check
+import fs from 'node:fs';
 import { defineConfig } from 'astro/config';
 import svelte from '@astrojs/svelte';
-// import { nodeModulesPolyfillPlugin } from 'esbuild-plugins-node-modules-polyfill';
 import cloudflare from '@astrojs/cloudflare';
 import tailwindcss from '@tailwindcss/vite';
 import mkcert from 'vite-plugin-mkcert';
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
+// Cloudflare Pages with wrangler.jsonc supersedes dashboard env vars and only injects
+// wrangler vars into Functions runtime, not always into the Vite build step.
+// Populate missing PUBLIC_* env vars from wrangler.jsonc vars so builds stay self-contained
+// while explicit process.env / .env overrides (including E2E fixtures) always win.
+try {
+  const wrangler = JSON.parse(fs.readFileSync(new URL('./wrangler.jsonc', import.meta.url), 'utf8'));
+  for (const [key, value] of Object.entries(wrangler.vars ?? {})) {
+    if (key.startsWith('PUBLIC_') && typeof value === 'string' && !process.env[key]) {
+      process.env[key] = value;
+    }
+  }
+} catch {
+  // Ignore if wrangler.jsonc is absent or non-JSON
+}
+
+const useMkcert = !process.env.SMOL_E2E && !process.argv.includes('build');
+
 // https://astro.build/config
 export default defineConfig({
   output: 'server',
+  devToolbar: {
+    enabled: !process.env.SMOL_E2E,
+  },
   integrations: [svelte()],
-  adapter: cloudflare(),
+  adapter: cloudflare({
+    imageService: 'passthrough',
+    // Astro dev uses PUBLIC_API_URL. Wrangler Pages supplies deployed bindings.
+    platformProxy: { enabled: false },
+  }),
   server: {
-    host: 'app.smol.xyz'
+    host: 'app.smol.xyz',
   },
   vite: {
-    // optimizeDeps: {
-    //   esbuildOptions: {
-    //     define: {
-    //       global: 'globalThis',
-    //     },
-    //     plugins: [
-    //       nodeModulesPolyfillPlugin()
-    //     ]
-    //   }
-    // },
     plugins: [
       nodePolyfills({
-        include: ['buffer']
+        include: ['buffer'],
       }),
-      mkcert(),
-      tailwindcss()
+      ...(useMkcert ? [mkcert()] : []),
+      tailwindcss(),
     ],
+    // Dev only: these are reached through dynamic imports (chain reads, wallet), so Vite would
+    // discover them mid-session and re-optimize, leaving open pages with two Svelte runtimes
+    // (`effect_orphan` / `lifecycle_outside_component`). Pre-bundling them up front keeps the
+    // first optimization final. No effect on production builds.
+    optimizeDeps: {
+      include: [
+        '@stellar/stellar-sdk/minimal',
+        '@stellar/stellar-sdk/minimal/contract',
+        '@stellar/stellar-sdk/minimal/rpc',
+        'passkey-kit',
+        'js-cookie',
+        // Injected by vite-plugin-node-polyfills into the bundles above.
+        'vite-plugin-node-polyfills/shims/buffer',
+        'vite-plugin-node-polyfills/shims/global',
+        'vite-plugin-node-polyfills/shims/process',
+      ],
+    },
   },
 });

@@ -1,68 +1,98 @@
-/**
- * User authentication state using Svelte 5 runes
- */
-
-import { getDomain } from 'tldts';
+import { getWebAuthnRpId } from '../utils/rpId';
+import { parseSessionToken, readRawCookie } from '../utils/sessionToken';
 import { logger } from '../utils/logger';
+
+export interface LiveSessionIdentity {
+  contractId: string | null;
+  keyId: string | null;
+  rawToken: string | null;
+}
+
+const EMPTY_SESSION: LiveSessionIdentity = { contractId: null, keyId: null, rawToken: null };
+
+/**
+ * Read the authoritative live client session from `document.cookie`.
+ * While `smol_token` is script-readable (pre-httpOnly cutover), an absent,
+ * malformed, or expired cookie ALWAYS resolves as signed out — never falling
+ * back to older SSR HTML props or attributes from an in-flight navigation.
+ */
+export function readLiveSessionCookie(): LiveSessionIdentity {
+  if (typeof document === 'undefined') return EMPTY_SESSION;
+  try {
+    const cookieRead = readRawCookie(document.cookie, 'smol_token');
+    if (!cookieRead.present || cookieRead.malformedEncoding) return EMPTY_SESSION;
+    const session = parseSessionToken(cookieRead.value);
+    return session
+      ? { contractId: session.contractId, keyId: session.keyId, rawToken: cookieRead.value }
+      : EMPTY_SESSION;
+  } catch {
+    return EMPTY_SESSION;
+  }
+}
+
+const initialSession = readLiveSessionCookie();
 
 export const userState = $state<{
   contractId: string | null;
   keyId: string | null;
   walletConnected: boolean;
 }>({
-  contractId: null,
-  keyId: null,
+  contractId: initialSession.contractId,
+  keyId: initialSession.keyId,
   walletConnected: false,
 });
 
-// Derived state function
+/**
+ * Reconcile userState strictly against the live `document.cookie` smol_token.
+ * Returns true if the active session changed or cleared.
+ */
+export function syncUserAuthFromCookie(): boolean {
+  const next = readLiveSessionCookie();
+  const changed =
+    userState.contractId !== next.contractId || userState.keyId !== next.keyId;
+
+  if (!changed) return false;
+
+  if (!next.contractId || !next.keyId) {
+    clearUserAuth();
+    return true;
+  }
+
+  userState.contractId = next.contractId;
+  userState.keyId = next.keyId;
+  userState.walletConnected = false;
+  return true;
+}
+
 export function isAuthenticated(): boolean {
   return userState.contractId !== null && userState.keyId !== null;
 }
 
-/**
- * Set contract ID
- */
 export function setContractId(id: string | null) {
   userState.contractId = id;
 }
 
-/**
- * Set key ID
- */
 export function setKeyId(id: string | null) {
   userState.keyId = id;
 }
 
-/**
- * Set both contract and key ID
- */
 export function setUserAuth(contractId: string | null, keyId: string | null) {
   userState.contractId = contractId;
   userState.keyId = keyId;
 }
 
-/**
- * Clear authentication
- */
 export function clearUserAuth() {
   userState.contractId = null;
   userState.keyId = null;
   userState.walletConnected = false;
 }
 
-/**
- * Ensure the passkey account wallet is connected
- * This should be called once during app initialization when user is authenticated
- */
 export async function ensureWalletConnected(): Promise<void> {
-  // Only connect if we have auth credentials and haven't connected yet
   if (userState.contractId && userState.keyId && !userState.walletConnected) {
     try {
       const { account } = await import('../utils/passkey-kit');
-      const rpId = getDomain(window.location.hostname) ?? undefined;
       await account.connectWallet({
-        rpId,
+        rpId: getWebAuthnRpId(),
         keyId: userState.keyId,
       });
       userState.walletConnected = true;
@@ -74,16 +104,10 @@ export async function ensureWalletConnected(): Promise<void> {
   }
 }
 
-/**
- * Get contract ID (read-only accessor)
- */
 export function getContractId(): string | null {
   return userState.contractId;
 }
 
-/**
- * Get key ID (read-only accessor)
- */
 export function getKeyId(): string | null {
   return userState.keyId;
 }

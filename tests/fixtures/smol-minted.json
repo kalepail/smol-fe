@@ -1,0 +1,40 @@
+{
+  "d1": {
+    "Id": "smol-minted",
+    "Title": "Starlight Mint Anthem",
+    "Address": "CFIXTUREUSER0000000000000000000000000000000000000000000001",
+    "Username": "Fixture Artist",
+    "Song_1": "minted-1",
+    "Public": 1,
+    "Instrumental": 0,
+    "Mint_Token": "CMINTTOKEN000000000000000000000000000000000000000000000001",
+    "Mint_Amm": "CMINTAMM00000000000000000000000000000000000000000000000001",
+    "Created_At": "2026-11-21T16:00:00Z",
+    "Requested_Provider": "elevenlabs",
+    "Actual_Provider": "elevenlabs"
+  },
+  "kv_do": {
+    "payload": {
+      "prompt": "Shimmering electro-pop collectible track with crisp arpeggios",
+      "instrumental": false,
+      "public": true,
+      "provider": "elevenlabs"
+    },
+    "generation_meta": {
+      "requested_provider": "elevenlabs",
+      "actual_provider": "elevenlabs"
+    },
+    "description": "A gleaming vinyl record orbiting a neon pixel moon.",
+    "image": true,
+    "nsfw": { "safe": true, "categories": [] },
+    "lyrics": {
+      "title": "Starlight Mint Anthem",
+      "style": ["Electro-pop", "Collectible", "Bright"],
+      "lyrics": "Pressed in starlight on the chain\nDancing sparks in summer rain\nSpin the chorus one more time\nEvery beat aligned in rhyme"
+    },
+    "songs": [
+      { "music_id": "minted-1", "status": 4, "audio": "http://127.0.0.1:4329/song/minted-1.mp3" }
+    ]
+  },
+  "liked": false
+}

@@ -2,6 +2,8 @@
  * Core domain types for the Smol application
  */
 
+export type MusicProvider = 'aisonggenerator' | 'elevenlabs';
+
 export interface Smol {
   Id: string;
   Title: string;
@@ -10,11 +12,15 @@ export interface Smol {
   artist?: string;
   author?: string;
   Song_1?: string;
+  Song_2?: string | null;
   Liked?: boolean;
   Address?: string;
   Public?: number;
   Mint_Token?: string;
   Mint_Amm?: string;
+  Created_At?: string;
+  Plays?: number;
+  Views?: number;
   lyrics?: {
     title?: string;
     style?: string[];
@@ -56,14 +62,13 @@ export interface User {
   username?: string;
 }
 
-export interface AudioState {
-  playingId: string | null;
-  currentSong: Smol | null;
-  progress: number;
-}
-
 export interface MixtapeModeState {
   active: boolean;
+}
+
+export interface GenerationMeta {
+  requested_provider: MusicProvider;
+  actual_provider: MusicProvider | null;
 }
 
 /**
@@ -79,20 +84,38 @@ export interface SmolDetailResponse {
     artist?: string;
     author?: string;
     Song_1?: string;
+    Song_2?: string | null;
     Public?: number;
     Mint_Token?: string;
     Mint_Amm?: string;
     Instrumental?: number;
+    Created_At?: string;
+    Plays?: number;
+    Views?: number;
+    Playlist?: string | null;
+    Requested_Provider?: MusicProvider | null;
+    Actual_Provider?: MusicProvider | null;
   };
   kv_do?: {
     payload?: {
+      address?: string;
       prompt?: string;
       instrumental?: boolean;
+      public?: boolean;
+      playlist?: string;
+      provider?: MusicProvider;
     };
+    requested_provider?: MusicProvider;
+    active_provider?: MusicProvider;
+    actual_provider?: MusicProvider | null;
+    fallback_from?: MusicProvider;
+    fallback_reason?: string;
+    generation_meta?: GenerationMeta;
     description?: string;
     nsfw?: {
       safe: boolean;
       categories: string[];
+      unknown?: boolean;
     };
     lyrics?: {
       title?: string;

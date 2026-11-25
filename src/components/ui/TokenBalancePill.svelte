@@ -1,16 +1,16 @@
 <script lang="ts">
-    import { abbreviateNumber } from "../../utils/balance";
+  import { abbreviateNumber } from '../../utils/balance';
 
-    interface Props {
-        balance?: bigint;
-        classNames?: string;
-    }
+  interface Props {
+    balance?: bigint;
+    classNames?: string;
+  }
 
-    let { balance = 0n, classNames = "" }: Props = $props();
+  let { balance = 0n, classNames = '' }: Props = $props();
 </script>
 
 {#if balance > 0n}
-    <span class="text-[10px] bg-sky-400/20 text-sky-300 px-1.5 py-0.5 rounded-full font-medium {classNames}">
-        {abbreviateNumber(balance)}
-    </span>
+  <span class={`tabular inline-flex items-center rounded-full bg-surface-3 px-2 py-0.5 text-xs font-medium text-ink-1 ring-1 ring-inset ring-line-strong ${classNames}`}>
+    {abbreviateNumber(balance)}
+  </span>
 {/if}

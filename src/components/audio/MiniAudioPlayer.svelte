@@ -1,80 +1,49 @@
 <script lang="ts">
-    interface Props {
-        id: string;
-        playing_id: string | null;
-        songToggle: () => void;
-        songNext: Function;
-        progress?: number;
-    }
+  import { player } from '../../stores/audio.svelte';
+  import Loader from '../ui/Loader.svelte';
+  import Icon from '../ui/Icon.svelte';
 
-    let { id, playing_id, songToggle, songNext, progress = 0 }: Props = $props();
+  interface Props {
+    trackKey: string;
+    onToggle: () => void;
+    label?: string;
+    variant?: 'overlay' | 'inline';
+  }
 
-    const radius = 24;
-    const circumference = 2 * Math.PI * radius;
+  let { trackKey, onToggle, label, variant = 'inline' }: Props = $props();
 
-    const playing = $derived(playing_id === id);
-    const nothing_playing = $derived(playing_id === null);
-    const dash_offset = $derived(circumference - (progress / 100) * circumference);
+  const current = $derived(player.track?.key === trackKey);
+  const loading = $derived(current && (player.status === 'loading' || player.buffering));
+  const playing = $derived(current && player.status === 'playing');
+  const failed = $derived(current && player.status === 'error');
+  const action = $derived(failed ? 'Retry' : playing || loading ? 'Pause' : 'Play');
 </script>
 
-<div class="relative w-9 h-9">
-    <svg class="w-full h-full transform -rotate-90" viewBox="0 0 64 64">
-        <!-- Background circle -->
-        <circle
-            cx="32"
-            cy="32"
-            r={radius}
-            stroke="rgba(255,255,255,0.2)"
-            stroke-width="4"
-            fill="none"
-        />
-        <!-- Progress circle -->
-        <circle
-            cx="32"
-            cy="32"
-            r={radius}
-            stroke="#7cce00"
-            stroke-width="4"
-            fill="none"
-            stroke-linecap="round"
-            stroke-dasharray={circumference}
-            stroke-dashoffset={dash_offset}
-        />
-    </svg>
-
-    <button
-        onclick={(e) => {
-            e.stopPropagation();
-            console.log('MiniAudioPlayer clicked', { id, playing_id, playing });
-            songToggle();
-        }}
-        class="absolute inset-1 flex items-center justify-center text-white"
-        aria-label={playing ? "Pause" : "Play"}
-    >
-        {#if playing}
-            <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 16 16"
-                fill="currentColor"
-                class="size-4"
-            >
-                <path
-                    d="M4.5 2a.5.5 0 0 0-.5.5v11a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-11a.5.5 0 0 0-.5-.5h-1ZM10.5 2a.5.5 0 0 0-.5.5v11a.5.5 0 0 0 .5.5h1a.5.5 0 0 0 .5-.5v-11a.5.5 0 0 0-.5-.5h-1Z"
-                />
-            </svg>
-        {:else}
-            <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                class="size-8"
-            >
-                <path
-                    fill-rule="evenodd"
-                    d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm14.024-.983a1.125 1.125 0 0 1 0 1.966l-5.603 3.113A1.125 1.125 0 0 1 9 15.113V8.887c0-.857.921-1.4 1.671-.983l5.603 3.113Z"
-                    clip-rule="evenodd"
-                />
-            </svg>
-        {/if}
-    </button>
-</div>
+<button
+  type="button"
+  onclick={(event) => {
+    event.stopPropagation();
+    onToggle();
+  }}
+  class={`focus-ring relative inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full disabled:opacity-50 ${
+    variant === 'overlay'
+      ? current
+        ? 'bg-accent text-on-accent hover:bg-accent-press'
+        : 'bg-surface-2/85 text-ink-1 ring-1 ring-inset ring-white/15 backdrop-blur-md hover:bg-surface-2'
+      : current
+        ? 'bg-accent/15 text-accent hover:bg-accent/25'
+        : 'text-ink-1 hover:bg-white/10'
+  }`}
+  aria-label={label ? `${action} ${label}` : action}
+  disabled={!player.ready}
+>
+  {#if failed}
+    <Icon name="refresh" size={18} />
+  {:else if loading}
+    <Loader classNames="size-5" />
+  {:else if playing}
+    <Icon name="pause" size={18} />
+  {:else}
+    <Icon name="play" size={18} class="translate-x-0.5" />
+  {/if}
+</button>

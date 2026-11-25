@@ -1,129 +1,150 @@
 import Cookies from 'js-cookie';
-import { getDomain } from 'tldts';
-import { setUserAuth, clearUserAuth, userState } from '../stores/user.svelte';
-
-interface ConnectResult {
-  rawResponse: unknown;
-  keyIdBase64: string;
-  contractId: string;
-}
-
-interface CreateResult extends ConnectResult {
-  signedTx: string;
-}
+import { navigate } from 'astro:transitions/client';
+import {
+  setUserAuth,
+  clearUserAuth,
+  readLiveSessionCookie,
+  userState,
+} from '../stores/user.svelte';
+import { resetBalance } from '../stores/balance.svelte';
+import {
+  createAccountSession,
+  notifyAuthTransition,
+  observeAuthTransitions,
+  submitLogin,
+  submitLogout,
+} from '../services/api/auth';
+import { e2eAuthSeams } from '../utils/authSeams';
+import { getAuthCookieDomain, getWebAuthnRpId } from '../utils/rpId';
 
 export function useAuthentication() {
-  async function login() {
-    const { account } = await import('../utils/passkey-kit');
-    const rpId = getDomain(window.location.hostname);
-    const {
-      rawResponse,
-      keyIdBase64,
-      contractId: cid,
-    } = await account.connectWallet({
-      rpId: rpId !== null ? rpId : undefined,
-    });
-
-    const jwt = await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        type: 'connect',
-        keyId: keyIdBase64,
-        contractId: cid,
-        response: rawResponse,
-      }),
-    }).then(async (res) => {
-      if (res.ok) return res.text();
-      throw await res.text();
-    });
-
-    setUserAuth(cid, keyIdBase64);
-    // Mark wallet as connected since connectWallet was just called
-    userState.walletConnected = true;
-
-    Cookies.set('smol_token', jwt, {
+  function cookieOptions() {
+    const domain = getAuthCookieDomain();
+    const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
+    return {
       path: '/',
-      secure: true,
-      sameSite: 'Lax',
-      domain: '.smol.xyz',
+      secure: isHttps,
+      sameSite: 'Lax' as const,
+      ...(domain ? { domain } : {}),
+    };
+  }
+
+  function setSessionCookie(jwt: string) {
+    Cookies.set('smol_token', jwt, {
+      ...cookieOptions(),
       expires: 30,
     });
   }
 
-  async function signUp(username: string) {
-    const { account, send } = await import('../utils/passkey-kit');
-    const rpId = getDomain(window.location.hostname);
+  async function login() {
+    const seam = e2eAuthSeams();
+    const rpId = getWebAuthnRpId();
     const {
       rawResponse,
       keyIdBase64,
       contractId: cid,
-      signedTx,
-    } = await account.createWallet('smol.xyz', `SMOL — ${username}`, {
-      rpId: rpId !== null ? rpId : undefined,
+    } = seam?.connectWallet
+      ? await seam.connectWallet({ rpId })
+      : await (await import('../utils/passkey-kit')).account.connectWallet({
+          rpId,
+        });
+
+    const jwt = await submitLogin(import.meta.env.PUBLIC_API_URL, {
+      type: 'connect',
+      keyId: keyIdBase64,
+      contractId: cid,
+      response: rawResponse,
     });
 
-    const jwt = await fetch(`${import.meta.env.PUBLIC_API_URL}/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        type: 'create',
-        keyId: keyIdBase64,
-        contractId: cid,
-        response: rawResponse,
-        username,
-      }),
-    }).then(async (res) => {
-      if (res.ok) return res.text();
-      throw await res.text();
-    });
-
-    await send(signedTx);
-
+    setSessionCookie(jwt);
     setUserAuth(cid, keyIdBase64);
-    // Mark wallet as connected since createWallet was just called (which internally connects)
     userState.walletConnected = true;
+    notifyAuthTransition();
+  }
 
-    Cookies.set('smol_token', jwt, {
-      path: '/',
-      secure: true,
-      sameSite: 'Lax',
-      domain: '.smol.xyz',
-      expires: 30,
-    });
+  async function signUp(username: string): Promise<{ committed: boolean }> {
+    const initialCookieToken = readLiveSessionCookie().rawToken;
+    const transitionObserver = observeAuthTransitions();
+    try {
+      const seam = e2eAuthSeams();
+      const rpId = getWebAuthnRpId();
+      const passkeyKit =
+        seam?.createWallet && seam?.send ? null : await import('../utils/passkey-kit');
+      const {
+        rawResponse,
+        keyIdBase64,
+        contractId: cid,
+        signedTx,
+      } = seam?.createWallet
+        ? await seam.createWallet('smol.xyz', `SMOL — ${username}`, { rpId })
+        : await passkeyKit!.account.createWallet('smol.xyz', `SMOL — ${username}`, {
+            rpId,
+          });
+
+      const { committed } = await createAccountSession({
+        apiUrl: import.meta.env.PUBLIC_API_URL,
+        payload: {
+          type: 'create',
+          keyId: keyIdBase64,
+          contractId: cid,
+          response: rawResponse,
+          username,
+        },
+        deployWallet: () =>
+          seam?.send ? seam.send(signedTx) : passkeyKit!.send(signedTx),
+        initialCookieToken,
+        readLiveCookieToken: () => readLiveSessionCookie().rawToken,
+        hasCompetingAuthEvent: () => transitionObserver.hasCompetingTransition(),
+        commitSession: (jwt) => {
+          transitionObserver.close();
+          setSessionCookie(jwt);
+          setUserAuth(cid, keyIdBase64);
+          userState.walletConnected = true;
+          notifyAuthTransition();
+        },
+      });
+
+      return { committed };
+    } finally {
+      transitionObserver.close();
+    }
   }
 
   async function logout() {
     clearUserAuth();
+    resetBalance();
 
-    Cookies.remove('smol_token', {
-      path: '/',
-      secure: true,
-      sameSite: 'Lax',
-      domain: '.smol.xyz',
-    });
+    Cookies.remove('smol_token', cookieOptions());
+    Cookies.remove('smol_token', { path: '/' });
+    notifyAuthTransition();
 
-    Object.keys(localStorage).forEach((key) => {
-      if (key.includes('smol:')) {
-        localStorage.removeItem(key);
-      }
-    });
+    try {
+      Object.keys(localStorage).forEach((key) => {
+        if (key.includes('smol:')) {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch {
+      // Ignore localStorage access/security errors.
+    }
 
-    Object.keys(sessionStorage).forEach((key) => {
-      if (key.includes('smol:')) {
-        sessionStorage.removeItem(key);
-      }
-    });
+    try {
+      Object.keys(sessionStorage).forEach((key) => {
+        if (key.includes('smol:')) {
+          sessionStorage.removeItem(key);
+        }
+      });
+    } catch {
+      // Ignore sessionStorage access/security errors.
+    }
 
-    await fetch(`${import.meta.env.PUBLIC_API_URL}/logout`, {
-      method: 'POST',
-    });
+    try {
+      await submitLogout(import.meta.env.PUBLIC_API_URL);
+    } catch {
+      // Cookie is already cleared client-side.
+    }
 
-    location.reload();
+    await navigate('/');
   }
 
   return {

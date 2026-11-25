@@ -1,244 +1,163 @@
 <script lang="ts">
-    import { onMount } from 'svelte';
-    import { logger } from '../utils/logger';
-    import { shortenAddress } from '../utils/address';
+  import { onMount } from 'svelte';
+  import type { ArtistProfile, SmolListResponse } from '../types/api';
+  import type { Smol } from '../types/domain';
+  import { shortenAddress } from '../utils/address';
+  import { fetchWithTimeout, throwIfNotOk } from '../services/api/fetch';
+  import { logger } from '../utils/logger';
+  import Skeleton from './ui/Skeleton.svelte';
+  import StateFeedback from './ui/StateFeedback.svelte';
 
-    // Interface for individual song data expected via props
-    interface SmolData {
-        Id: string;
-        Address: string; // Creator's address, crucial for grouping
-        Plays: number;   // Play count for the song
-        Views?: number;  // Optional: View count for the song
+  interface LeaderboardEntry {
+    username: string;
+    address: string;
+    songCount: number;
+    totalPlays: number;
+    totalViews: number;
+    totalPoints: number;
+  }
+
+  interface Props {
+    playlist: string;
+    initialData?: SmolListResponse | null;
+  }
+
+  let { playlist, initialData = null }: Props = $props();
+
+  let smols = $state<Smol[]>([]);
+  let users = $state<ArtistProfile[]>([]);
+  let loading = $state(true);
+  let error = $state<string | null>(null);
+
+  function applyData(data: SmolListResponse) {
+    smols = data.smols || [];
+    users = data.users || [];
+    loading = false;
+    error = null;
+  }
+
+  async function fetchLeaderboard(playlistName: string) {
+    loading = true;
+    error = null;
+
+    try {
+      const url = `${import.meta.env.PUBLIC_API_URL}/playlist/${encodeURIComponent(playlistName)}?limit=100`;
+      const response = await fetchWithTimeout(url);
+      await throwIfNotOk(response, url);
+      applyData(await response.json());
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Could not load leaderboard.';
+      logger.error('leaderboard', 'Failed to fetch leaderboard:', err);
+      loading = false;
+    }
+  }
+
+  onMount(() => {
+    if (initialData) {
+      applyData(initialData);
+    } else if (playlist) {
+      void fetchLeaderboard(playlist);
+    } else {
+      loading = false;
+    }
+  });
+
+  const leaderboardData = $derived.by(() => {
+    if (!smols.length || !users.length) return [] as LeaderboardEntry[];
+
+    const songCounts: Record<string, number> = {};
+    const playCounts: Record<string, number> = {};
+    const viewCounts: Record<string, number> = {};
+
+    for (const smol of smols) {
+      if (!smol.Address) continue;
+      songCounts[smol.Address] = (songCounts[smol.Address] || 0) + 1;
+      if (typeof smol.Plays === 'number') {
+        playCounts[smol.Address] = (playCounts[smol.Address] || 0) + smol.Plays;
+      }
+      if (typeof smol.Views === 'number') {
+        viewCounts[smol.Address] = (viewCounts[smol.Address] || 0) + smol.Views;
+      }
     }
 
-    // Interface for user data expected via props
-    interface UserData {
-        Username: string;
-        Address: string;
-    }
-
-    // Interface for the processed data to be displayed in the leaderboard
-    interface LeaderboardEntry {
-        username: string;
-        address: string;
-        songCount: number;
-        totalPlays: number;
-        totalViews: number;
-        totalPoints: number;
-    }
-
-    interface Props {
-        playlist: string;
-    }
-
-    let { playlist }: Props = $props();
-
-    let smols = $state<SmolData[]>([]);
-    let users = $state<UserData[]>([]);
-    let loading = $state(true);
-    let error = $state<string | null>(null);
-
-    async function fetchLeaderboard(playlistName: string) {
-        loading = true;
-        error = null;
-
-        try {
-            const response = await fetch(
-                `${import.meta.env.PUBLIC_API_URL}/playlist/${playlistName}?limit=100`
-            );
-
-            if (!response.ok) {
-                throw new Error('Failed to load leaderboard');
-            }
-
-            const data = await response.json();
-            smols = data.smols || [];
-            users = data.users || [];
-        } catch (err) {
-            error = err instanceof Error ? err.message : 'Failed to load';
-            logger.error('leaderboard', 'Failed to fetch leaderboard:', err);
-        } finally {
-            loading = false;
-        }
-    }
-
-    onMount(() => {
-        if (playlist) {
-            fetchLeaderboard(playlist);
-        }
-    });
-
-    // Scroll state for shadows
-    let scrollContainer = $state<HTMLDivElement | undefined>();
-    let showTopShadow = $state(false);
-    let showBottomShadow = $state(false);
-
-    function handleScroll() {
-        if (scrollContainer) {
-            const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
-            showTopShadow = scrollTop > 0;
-            showBottomShadow = scrollTop < scrollHeight - clientHeight - 1;
-        }
-    }
-
-    // Derived leaderboard data using $derived
-    const leaderboardData = $derived.by(() => {
-        if (!smols || !users || smols.length === 0 || users.length === 0) {
-            return [];
-        }
-
-        const songCountsByAddress: Record<string, number> = {};
-        const playCountsByAddress: Record<string, number> = {};
-        const viewCountsByAddress: Record<string, number> = {};
-
-        for (const smol of smols) {
-            if (smol.Address) {
-                songCountsByAddress[smol.Address] = (songCountsByAddress[smol.Address] || 0) + 1;
-                if (typeof smol.Plays === 'number') {
-                    playCountsByAddress[smol.Address] = (playCountsByAddress[smol.Address] || 0) + smol.Plays;
-                }
-                if (typeof smol.Views === 'number') {
-                    viewCountsByAddress[smol.Address] = (viewCountsByAddress[smol.Address] || 0) + smol.Views;
-                }
-            } else {
-                logger.warn("leaderboard", "Smol object missing Address:", smol);
-            }
-        }
-
-        const processedEntries: LeaderboardEntry[] = users.map((user: UserData): LeaderboardEntry => {
-            const songCount = songCountsByAddress[user.Address] || 0;
-            const totalPlays = playCountsByAddress[user.Address] || 0;
-            const totalViews = viewCountsByAddress[user.Address] || 0;
-
-            // Calculate weighted total points
-            const totalPoints = (songCount * 5) + (totalViews * 1) + (totalPlays * 2);
-
-            return {
-                username: user.Username,
-                address: user.Address,
-                songCount,
-                totalPlays,
-                totalViews,
-                totalPoints
-            };
-        });
-
-        // Filter out entries where username is "kalepail"
-        const filteredEntries = processedEntries.filter(entry => entry.username !== "kalepail");
-
-        filteredEntries.sort((a, b) => {
-            // Sort by total points first
-            if (b.totalPoints !== a.totalPoints) {
-                return b.totalPoints - a.totalPoints;
-            }
-            // Then by plays if points are equal
-            if (b.totalPlays !== a.totalPlays) {
-                return b.totalPlays - a.totalPlays;
-            }
-            // Then by views
-            if (b.totalViews !== a.totalViews) {
-                return b.totalViews - a.totalViews;
-            }
-            // Finally by song count
-            return b.songCount - a.songCount;
-        });
-
-        return filteredEntries;
-    });
-
-    // Check scroll on mount and when data changes
-    $effect(() => {
-        if (scrollContainer && leaderboardData.length > 0) {
-            setTimeout(() => {
-                handleScroll();
-            }, 0);
-        }
-    });
+    return users
+      .map((user): LeaderboardEntry => {
+        const songCount = songCounts[user.Address] || 0;
+        const totalPlays = playCounts[user.Address] || 0;
+        const totalViews = viewCounts[user.Address] || 0;
+        const totalPoints = songCount * 5 + totalViews + totalPlays * 2;
+        return {
+          username: user.Username,
+          address: user.Address,
+          songCount,
+          totalPlays,
+          totalViews,
+          totalPoints,
+        };
+      })
+      .filter((entry) => entry.username !== 'kalepail')
+      .sort((a, b) =>
+        b.totalPoints - a.totalPoints ||
+        b.totalPlays - a.totalPlays ||
+        b.totalViews - a.totalViews ||
+        b.songCount - a.songCount
+      );
+  });
 </script>
 
-<div class="px-2 py-10 bg-slate-900 overflow-hidden text-white">
-    <div class="max-w-[1024px] overflow-hidden mx-auto">
-        {#if loading}
-            <p class="text-center text-lime-500 py-8">Loading...</p>
-        {:else if error}
-            <p class="text-center text-red-500 py-8">{error}</p>
-        {:else if !leaderboardData || leaderboardData.length === 0}
-            <p class="text-center text-slate-400 py-8">No leaderboard data available yet.</p>
-        {:else}
-            <div class="relative overflow-hidden shadow-lg rounded-lg">
-                <!-- Bottom shadow -->
-                <div
-                    class="absolute left-0 bottom-0 right-0 h-10 bg-gradient-to-t from-slate-900 to-transparent z-30 pointer-events-none transition-opacity duration-300"
-                    class:opacity-100={showBottomShadow}
-                    class:opacity-0={!showBottomShadow}
-                ></div>
+<section class="border-b border-line bg-surface-1/50 py-6 sm:py-8">
+  <div class="app-container space-y-4">
+    <header>
+      <p class="text-xs font-medium uppercase tracking-wider text-ink-3">Playlist leaderboard</p>
+      <h1 class="mt-1 text-2xl sm:text-3xl font-semibold text-ink-1">{playlist}</h1>
+    </header>
 
-                <!-- Horizontal scroll wrapper -->
-                <div class="overflow-x-auto">
-                    <!-- Scrollable container -->
-                    <div
-                        bind:this={scrollContainer}
-                        onscroll={handleScroll}
-                        class="overflow-y-auto overflow-x-hidden max-h-[450px] relative min-w-[800px]"
-                        style="scrollbar-gutter: stable;"
-                    >
-                        <!-- Sticky header wrapper -->
-                        <div class="sticky top-0 z-20">
-                            <table class="w-full bg-slate-800 border-t border-x border-slate-700">
-                                <thead class="bg-slate-700">
-                                    <tr>
-                                        <th class="text-left py-3 px-4 font-semibold uppercase tracking-wider text-sm" style="width: 100px;">Rank</th>
-                                        <th class="text-left py-3 px-4 font-semibold uppercase tracking-wider text-sm" style="width: 140px;">Username</th>
-                                        <th class="text-right py-3 px-4 font-semibold uppercase tracking-wider text-sm" style="width: 180px;">
-                                            <div>Smols Created</div>
-                                            <div class="text-xs font-normal text-slate-400">(5 pts each)</div>
-                                        </th>
-                                        <th class="text-right py-3 px-4 font-semibold uppercase tracking-wider text-sm" style="width: 160px;">
-                                            <div>Total Views</div>
-                                            <div class="text-xs font-normal text-slate-400">(1 pt each)</div>
-                                        </th>
-                                        <th class="text-right py-3 px-4 font-semibold uppercase tracking-wider text-sm" style="width: 160px;">
-                                            <div>Total Plays</div>
-                                            <div class="text-xs font-normal text-slate-400">(2 pts each)</div>
-                                        </th>
-                                        <th class="text-right py-3 px-4 font-bold uppercase tracking-wider text-sm text-amber-400" style="width: 110px;">Total</th>
-                                    </tr>
-                                </thead>
-                            </table>
-
-                            <!-- Top shadow attached to sticky wrapper -->
-                            <div
-                                class="absolute left-0 right-0 h-10 bg-gradient-to-b from-slate-900 to-transparent pointer-events-none transition-opacity duration-300"
-                                class:opacity-100={showTopShadow}
-                                class:opacity-0={!showTopShadow}
-                            ></div>
-                        </div>
-
-                        <!-- Table body (separate table for proper alignment) -->
-                        <table class="w-full bg-slate-800 border-slate-700 -mt-[1px]">
-                            <tbody class="divide-y divide-slate-600">
-                                {#each leaderboardData as entry, index (entry.address)}
-                                    <tr class="hover:bg-slate-750 transition-colors duration-150">
-                                        <td class="py-3 px-4 text-slate-300 whitespace-nowrap" style="width: 100px;">{index + 1}</td>
-                                        <td class="py-3 px-4 font-medium whitespace-nowrap" style="width: 140px;">
-                                            <a
-                                                class="text-lime-300 hover:underline"
-                                                href={`/artists/${encodeURIComponent(entry.address)}`}
-                                            >
-                                                {entry.username || shortenAddress(entry.address)}
-                                            </a>
-                                        </td>
-                                        <td class="py-3 px-4 text-right text-slate-300 whitespace-nowrap" style="width: 180px;">{entry.songCount.toLocaleString()}</td>
-                                        <td class="py-3 px-4 text-right text-slate-300 whitespace-nowrap" style="width: 160px;">{entry.totalViews.toLocaleString()}</td>
-                                        <td class="py-3 px-4 text-right text-slate-300 whitespace-nowrap" style="width: 160px;">{entry.totalPlays.toLocaleString()}</td>
-                                        <td class="py-3 px-4 text-right font-bold text-amber-400 whitespace-nowrap" style="width: 110px;">{entry.totalPoints.toLocaleString()}</td>
-                                    </tr>
-                                {/each}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        {/if}
-    </div>
-</div>
+    {#if loading}
+      <Skeleton variant="row" count={5} />
+    {:else if error}
+      <StateFeedback
+        kind="error"
+        title="Could not load leaderboard"
+        message={error}
+        actionLabel="Try again"
+        onAction={() => void fetchLeaderboard(playlist)}
+      />
+    {:else if leaderboardData.length === 0}
+      <p class="text-sm text-ink-2">No leaderboard entries yet.</p>
+    {:else}
+      <div class="overflow-x-auto rounded-[var(--radius-control)] ring-1 ring-inset ring-line">
+        <table class="w-full min-w-[560px] border-collapse bg-surface-1 text-left text-sm">
+          <thead>
+            <tr class="border-b border-line bg-surface-2 text-xs uppercase tracking-wider text-ink-2">
+              <th class="px-4 py-3 font-medium">Rank</th>
+              <th class="px-4 py-3 font-medium">Artist</th>
+              <th class="px-4 py-3 text-right font-medium">Songs</th>
+              <th class="px-4 py-3 text-right font-medium">Views</th>
+              <th class="px-4 py-3 text-right font-medium">Plays</th>
+              <th class="px-4 py-3 text-right font-semibold text-warning">Points</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-line tabular">
+            {#each leaderboardData as entry, index (entry.address)}
+              <tr class="hover:bg-surface-2/70">
+                <td class="px-4 py-3 text-ink-2">{index + 1}</td>
+                <td class="px-4 py-3 font-medium">
+                  <a
+                    class="focus-ring rounded text-ink-1 hover:underline"
+                    href={`/artists/${encodeURIComponent(entry.address)}`}
+                  >
+                    {entry.username || shortenAddress(entry.address)}
+                  </a>
+                </td>
+                <td class="px-4 py-3 text-right text-ink-2">{entry.songCount.toLocaleString()}</td>
+                <td class="px-4 py-3 text-right text-ink-2">{entry.totalViews.toLocaleString()}</td>
+                <td class="px-4 py-3 text-right text-ink-2">{entry.totalPlays.toLocaleString()}</td>
+                <td class="px-4 py-3 text-right font-semibold text-warning">{entry.totalPoints.toLocaleString()}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    {/if}
+  </div>
+</section>

@@ -1,4 +1,6 @@
-import { userState } from '../stores/user.svelte';
+import type { MusicProvider, SmolDetailResponse } from '../types/domain';
+import { DEFAULT_PROVIDER } from '../utils/takes';
+import { extractErrorMessage, parseQuotaExceededError } from '../utils/quota';
 
 export interface GenerationStatus {
   status?: 'queued' | 'running' | 'paused' | 'errored' | 'terminated' | 'complete' | 'waiting' | 'waitingForPause' | 'unknown';
@@ -9,24 +11,32 @@ export function useSmolGeneration() {
     prompt: string,
     isPublic: boolean,
     isInstrumental: boolean,
-    playlist: string | null
+    playlist: string | null,
+    provider: MusicProvider = DEFAULT_PROVIDER
   ): Promise<string | null> {
+    const body: Record<string, unknown> = {
+      prompt,
+      public: isPublic,
+      instrumental: isInstrumental,
+      provider,
+    };
+    if (playlist) {
+      body.playlist = playlist;
+    }
+
     const id = await fetch(import.meta.env.PUBLIC_API_URL, {
       method: 'POST',
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        address: userState.contractId,
-        prompt,
-        public: isPublic,
-        instrumental: isInstrumental,
-        playlist,
-      }),
+      body: JSON.stringify(body),
     }).then(async (res) => {
       if (res.ok) return res.text();
-      else throw await res.text();
+      const bodyText = await res.text();
+      const quotaErr = parseQuotaExceededError(res.status, bodyText, res.headers.get('Retry-After'));
+      if (quotaErr) throw quotaErr;
+      throw new Error(extractErrorMessage(bodyText, 'Failed to start generation.'));
     });
 
     if (id) {
@@ -36,19 +46,25 @@ export function useSmolGeneration() {
     return id;
   }
 
-  async function retryGen(id: string): Promise<string | null> {
+  async function retryGen(
+    id: string,
+    overrideProvider?: MusicProvider
+  ): Promise<string | null> {
     const newId = await fetch(`${import.meta.env.PUBLIC_API_URL}/retry/${id}`, {
       method: 'POST',
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        address: userState.contractId,
-      }),
+      body: JSON.stringify(
+        overrideProvider ? { override_provider: overrideProvider } : {}
+      ),
     }).then(async (res) => {
       if (res.ok) return res.text();
-      else throw await res.text();
+      const bodyText = await res.text();
+      const quotaErr = parseQuotaExceededError(res.status, bodyText, res.headers.get('Retry-After'));
+      if (quotaErr) throw quotaErr;
+      throw new Error(extractErrorMessage(bodyText, 'Failed to retry generation.'));
     });
 
     if (newId) {
@@ -58,17 +74,16 @@ export function useSmolGeneration() {
     return newId;
   }
 
-  async function getGen(id: string) {
+  async function getGen(id: string): Promise<SmolDetailResponse> {
     return fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
       credentials: 'include',
-    })
-      .then(async (res) => {
-        if (res.ok) return res.json();
-        const message = await res.text();
-        const error = new Error(message || 'Failed to load smol') as Error & { status?: number };
-        error.status = res.status;
-        throw error;
-      });
+    }).then(async (res) => {
+      if (res.ok) return res.json();
+      const message = await res.text();
+      const error = new Error(message || 'Failed to load smol') as Error & { status?: number };
+      error.status = res.status;
+      throw error;
+    });
   }
 
   function shouldStopPolling(status?: string): boolean {

@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { playSmolQueue, setTrackLiked } from '../../stores/audio.svelte';
   import SmolCard from '../smol/SmolCard.svelte';
-  import type { MixtapeTrack, SearchResult } from '../../types/domain';
+  import type { SearchResult } from '../../types/domain';
   import { searchSimilarSmols } from '../../services/api/search';
   import { fetchLikedSmols } from '../../services/api/smols';
-  import { addTrack } from '../../stores/mixtape.svelte';
+  import { ApiError } from '../../services/api/fetch';
+  import { toggleDraftTrack } from '../../stores/mixtape.svelte';
   import { userState } from '../../stores/user.svelte';
-  import { audioState, selectSong, registerSongNextCallback } from '../../stores/audio.svelte';
 
   interface Props {
     id: string;
@@ -17,23 +17,15 @@
   let results = $state<SearchResult[]>([]);
   let loading = $state(false);
   let loaded = $state(false);
+  let indexing = $state(false);
   let error = $state<string | null>(null);
 
-  function buildTrackPayload(smol: SearchResult): MixtapeTrack {
-    return {
-      id: smol.Id,
-      title: smol.Title ?? 'Untitled Smol',
-      creator: smol.Creator ?? smol.Username ?? smol.artist ?? smol.author ?? null,
-      coverUrl: `${import.meta.env.PUBLIC_API_URL}/image/${smol.Id}.png`,
-      public: smol.Public,
-    };
-  }
-
   function addToMixtape(smol: SearchResult) {
-    addTrack(buildTrackPayload(smol));
+    toggleDraftTrack({ ...smol, Public: smol.Public === 0 ? 0 : 1 });
   }
 
   function handleLikeChanged(smol: SearchResult, liked: boolean) {
+    setTrackLiked(smol.Id, liked);
     const foundSmol = results.find((item) => item.Id === smol.Id);
     if (foundSmol) {
       foundSmol.Liked = liked;
@@ -44,14 +36,12 @@
     if (!id) return;
 
     loading = true;
+    indexing = false;
     error = null;
 
     try {
       const [response, likedIds] = await Promise.all([
-        searchSimilarSmols({
-          id,
-          limit: 8,
-        }),
+        searchSimilarSmols({ id, limit: 6 }),
         userState.contractId ? fetchLikedSmols().catch(() => [] as string[]) : Promise.resolve([]),
       ]);
 
@@ -62,7 +52,11 @@
       }));
       loaded = true;
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to load similar smols';
+      if (err instanceof ApiError && err.status === 409) {
+        indexing = true;
+      } else {
+        error = err instanceof Error ? err.message : 'Could not load similar songs.';
+      }
       results = [];
       loaded = true;
     } finally {
@@ -75,55 +69,43 @@
     results = [];
     loading = false;
     loaded = false;
+    indexing = false;
     error = null;
     void loadSimilar();
   });
 
-  function songNext() {
-    if (results.length === 0) return;
-    const currentId = audioState.currentSong?.Id;
-    const currentIndex = results.findIndex((s) => s.Id === currentId);
-    // If the current song is the last one (or not found in the list), stop
-    if (currentIndex === -1 || currentIndex >= results.length - 1) return;
-    selectSong(results[currentIndex + 1]);
-  }
-
-  onMount(() => {
-    registerSongNextCallback(songNext);
-  });
-
-  onDestroy(() => {
-    registerSongNextCallback(null);
-  });
+  const visible = $derived(loading || indexing || results.length > 0);
 </script>
 
-<section class="px-2 py-8 pb-24">
-  <div class="max-w-[1024px] mx-auto">
-    <div class="mb-4">
-      <h2 class="text-xl font-bold text-lime-400">More Like This</h2>
-    </div>
+{#if visible}
+  <section class="app-container border-t border-line py-8">
+    <h2 class="mb-4 text-xl font-semibold text-ink-1">More like this</h2>
 
-    {#if error}
-      <div class="mb-4 rounded-lg border border-rose-500/40 bg-rose-950/30 px-4 py-3 text-rose-200">
-        {error}
+    {#if loading}
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-6" aria-hidden="true">
+        {#each Array.from({ length: 6 }) as _, index (index)}
+          <div class="flex flex-col gap-2">
+            <div class="aspect-square w-full animate-pulse rounded-[var(--radius-media)] bg-surface-1"></div>
+            <div class="h-4 w-4/5 animate-pulse rounded bg-surface-1"></div>
+            <div class="h-3 w-1/2 animate-pulse rounded bg-surface-1"></div>
+          </div>
+        {/each}
       </div>
-    {/if}
-
-    {#if loaded && !error && results.length === 0}
-      <div class="rounded-lg border border-slate-700 bg-slate-900 px-4 py-6 text-slate-300">
-        No similar smols found.
-      </div>
+    {:else if indexing}
+      <p class="rounded-[var(--radius-control)] bg-surface-1 px-4 py-3 text-sm text-ink-2 ring-1 ring-inset ring-line">
+        Indexing similar songs. Check back in a moment.
+      </p>
     {:else if results.length > 0}
-      <div class="relative grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2">
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-6">
         {#each results as smol (smol.Id)}
           <SmolCard
-            smol={smol}
-            isVisible={true}
+            {smol}
+            onPlay={() => playSmolQueue(results, smol)}
             onLikeChanged={(liked) => handleLikeChanged(smol, liked)}
             onAddToMixtape={() => addToMixtape(smol)}
           />
         {/each}
       </div>
     {/if}
-  </div>
-</section>
+  </section>
+{/if}

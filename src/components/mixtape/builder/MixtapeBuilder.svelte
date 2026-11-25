@@ -1,270 +1,152 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
-  import { type DndEvent, SHADOW_PLACEHOLDER_ITEM_ID } from 'svelte-dnd-action';
-  import type { MixtapeTrack } from '../../../types/domain';
+  import { flushSync } from 'svelte';
+  import type { TrackIssueKind } from '../../../hooks/useMixtapePublishing';
   import {
-    mixtapeDraftState,
-    mixtapeDraftHasContent,
-    exitMixtapeMode,
+    mixtapeActive,
+    mixtapeEditState,
     setTitle,
     setDescription,
     moveTrack,
-    removeTrack,
-    clearDraft,
-    touchMixtapeDraft,
-    setTracks,
-    getSnapshotDraft,
+    removeFromDraftWithUndo,
   } from '../../../stores/mixtape.svelte';
-  import { useMixtapePublishing } from '../../../hooks/useMixtapePublishing';
-  import { useMixtapeDragDrop } from '../../../hooks/useMixtapeDragDrop';
   import MixtapeTrackList from './MixtapeTrackList.svelte';
   import MixtapeForm from './MixtapeForm.svelte';
-  import { logger } from '../../../utils/logger';
+  import Icon from '../../ui/Icon.svelte';
 
-  let publishing = $state(false);
-  let statusMessage = $state<string | null>(null);
-  let statusTone = $state<'info' | 'success' | 'error'>('info');
-  let isDraggingTracks = $state(false);
-  let tracksForDnd = $state<MixtapeTrack[]>([]);
-  let isExternalDragActive = $state(false);
-  let tracksListEl = $state<HTMLUListElement | null>(null);
-  let modalEl = $state<HTMLDivElement | null>(null);
-
-  const publishingHook = useMixtapePublishing();
-  const dragDropHook = useMixtapeDragDrop();
-
-  function resetStatus() {
-    statusMessage = null;
+  interface Props {
+    statusMessage: string | null;
+    statusTone: 'info' | 'success' | 'error';
+    showAuthAction?: boolean;
+    trackIssues?: Record<string, TrackIssueKind>;
+    onResetStatus: () => void;
+    onOpenPicker: () => void;
+    onSignIn?: () => void;
+    titleError?: string | null;
+    sameTitleHint?: string | null;
+    onDelete?: () => void;
+    statusAction?: { label: string; onClick?: () => void; href?: string; disabled?: boolean } | null;
+    /** Single column (desktop docked panel is narrow even at lg). */
+    stacked?: boolean;
   }
 
-  function showStatus(message: string, tone: typeof statusTone) {
-    statusMessage = message;
-    statusTone = tone;
+  let {
+    statusMessage,
+    statusTone,
+    showAuthAction = false,
+    trackIssues = {},
+    onResetStatus,
+    onOpenPicker,
+    onSignIn,
+    titleError = null,
+    sameTitleHint = null,
+    onDelete,
+    statusAction = null,
+    stacked = false,
+  }: Props = $props();
+
+  // Every op targets the active session (edit ?? create).
+  const session = $derived(mixtapeActive.current);
+  const edit = $derived(mixtapeEditState.session);
+  const baselineIds = $derived(edit ? new Set(edit.baseline.trackIds) : null);
+
+  let announcement = $state('');
+  let workspaceEl = $state<HTMLDivElement | null>(null);
+
+  function handleReorder(fromIndex: number, toIndex: number) {
+    const track = session.tracks[fromIndex];
+    if (!track || !moveTrack(fromIndex, toIndex)) return;
+    announcement = `Moved "${track.title}" to position ${toIndex + 1} of ${session.tracks.length}.`;
   }
 
   function handleMove(index: number, direction: 'up' | 'down') {
+    const track = session.tracks[index];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    moveTrack(index, targetIndex);
+    if (!track) return;
+
+    let moved = false;
+    flushSync(() => {
+      moved = moveTrack(index, targetIndex);
+      if (moved) {
+        const total = session.tracks.length;
+        announcement = `Moved "${track.title}" to position ${targetIndex + 1} of ${total}.`;
+      }
+    });
+    if (!moved || !workspaceEl) return;
+
+    const selectorId = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(track.id) : track.id;
+    const row = workspaceEl.querySelector(`[data-mixtape-track-id="${selectorId}"]`);
+    if (!row) return;
+
+    const preferredLabel = direction === 'up' ? 'Move track up' : 'Move track down';
+    const fallbackLabel = direction === 'up' ? 'Move track down' : 'Move track up';
+    const preferredBtn = row.querySelector<HTMLButtonElement>(`button[aria-label="${preferredLabel}"]`);
+    const fallbackBtn = row.querySelector<HTMLButtonElement>(`button[aria-label="${fallbackLabel}"]`);
+    if (preferredBtn && !preferredBtn.disabled) {
+      preferredBtn.focus();
+    } else if (fallbackBtn && !fallbackBtn.disabled) {
+      fallbackBtn.focus();
+    }
   }
 
   function handleRemove(index: number) {
-    const track = mixtapeDraftState.tracks[index];
+    const track = session.tracks[index];
     if (!track) return;
-    removeTrack(track.id);
-  }
-
-  function handleDiscard() {
-    if (!mixtapeDraftHasContent.current) {
-      clearDraft();
-      exitMixtapeMode();
-      return;
-    }
-
-    const confirmed = confirm('Discard current mixtape draft?');
-    if (!confirmed) return;
-
-    clearDraft();
-    exitMixtapeMode();
-  }
-
-  function handleSaveDraft() {
-    touchMixtapeDraft();
-    showStatus('Draft saved locally.', 'success');
-    exitMixtapeMode();
-  }
-
-  async function handlePublish() {
-    resetStatus();
-
-    publishing = true;
-
-    try {
-      const published = await publishingHook.publish(getSnapshotDraft());
-      clearDraft();
-      showStatus('Mixtape published! Redirecting…', 'success');
-
-      if (typeof window !== 'undefined') {
-        setTimeout(() => {
-          exitMixtapeMode();
-          window.location.href = `/mixtapes/${published.id}`;
-        }, 400);
-      }
-    } catch (error) {
-      logger.error('mixtape', error);
-      showStatus(
-        error instanceof Error ? error.message : 'Failed to publish mixtape. Please try again.',
-        'error'
-      );
-    } finally {
-      publishing = false;
+    const removed = removeFromDraftWithUndo(track.id);
+    if (removed) {
+      onResetStatus();
+      announcement = `Removed "${track.title}" from ${edit ? 'this mixtape' : 'draft'}.`;
     }
   }
-
-  function handleTrackConsider(event: CustomEvent<DndEvent<MixtapeTrack>>) {
-    isDraggingTracks = true;
-    tracksForDnd = event.detail.items;
-  }
-
-  function handleTrackFinalize(event: CustomEvent<DndEvent<MixtapeTrack>>) {
-    isDraggingTracks = false;
-    const filtered = event.detail.items.filter(
-      (item) => item.id && item.id !== SHADOW_PLACEHOLDER_ITEM_ID
-    );
-    setTracks(filtered);
-    tracksForDnd = getSnapshotDraft().tracks;
-  }
-
-  let paddingUpdateScheduled = false;
-
-  function updateBodyPadding() {
-    if (typeof document === 'undefined' || !modalEl) return;
-    if (paddingUpdateScheduled) return;
-
-    paddingUpdateScheduled = true;
-    requestAnimationFrame(() => {
-      if (!modalEl) {
-        paddingUpdateScheduled = false;
-        return;
-      }
-      const height = modalEl.offsetHeight;
-      document.body.style.paddingBottom = `${height + 16}px`;
-      paddingUpdateScheduled = false;
-    });
-  }
-
-  function handleExternalDragOver(event: DragEvent) {
-    const shouldShowShadow = dragDropHook.handleExternalDragOver(
-      event,
-      isDraggingTracks,
-      tracksForDnd,
-      tracksListEl,
-      (tracks) => {
-        tracksForDnd = tracks;
-      }
-    );
-    if (shouldShowShadow) {
-      isExternalDragActive = true;
-    }
-  }
-
-  function handleExternalDragLeave(event: DragEvent) {
-    dragDropHook.handleExternalDragLeave(
-      event,
-      isDraggingTracks,
-      getSnapshotDraft().tracks,
-      (tracks) => {
-        isExternalDragActive = false;
-        tracksForDnd = tracks;
-      }
-    );
-  }
-
-  function handleExternalDrop(event: DragEvent) {
-    dragDropHook.handleExternalDrop(
-      event,
-      mixtapeDraftState.tracks,
-      getSnapshotDraft().tracks,
-      tracksListEl,
-      (tracks) => {
-        mixtapeDraftState.tracks = tracks;
-        isExternalDragActive = false;
-        tracksForDnd = getSnapshotDraft().tracks;
-      }
-    );
-  }
-
-  onMount(() => {
-    resetStatus();
-  });
-
-  onDestroy(() => {
-    if (typeof document !== 'undefined') {
-      document.body.classList.remove('mixtape-mode-active');
-      document.body.style.paddingBottom = '';
-    }
-  });
-
-  $effect(() => {
-    if (typeof document !== 'undefined') {
-      if (modalEl) {
-        document.body.classList.add('mixtape-mode-active');
-        setTimeout(updateBodyPadding, 0);
-      } else {
-        document.body.classList.remove('mixtape-mode-active');
-        document.body.style.paddingBottom = '';
-      }
-    }
-  });
-
-  $effect(() => {
-    if (modalEl) {
-      tracksForDnd;
-      setTimeout(updateBodyPadding, 0);
-    }
-  });
-
-  // Sync tracksForDnd with store when not dragging
-  // During drag, tracksForDnd maintains its own state for drag preview
-  // This is a valid $effect use case - not simple derivation
-  $effect(() => {
-    if (!isDraggingTracks) {
-      tracksForDnd = mixtapeDraftState.tracks;
-    }
-  });
 </script>
 
 <div
-  bind:this={modalEl}
-  class="pointer-events-auto flex w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/20 bg-slate-950/80 backdrop-blur-lg shadow-2xl max-h-[min(85vh,700px)]"
-  ondragover={handleExternalDragOver}
-  ondragleave={handleExternalDragLeave}
-  ondrop={handleExternalDrop}
+  bind:this={workspaceEl}
+  role="region"
+  aria-label="Mixtape builder workspace"
+  class={`grid min-w-0 grid-cols-1 gap-5 ${stacked ? '' : 'lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]'}`}
 >
-  <div
-    class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-700 px-5 py-4"
-  >
-    <div>
-      <h2 class="text-lg font-semibold text-lime-300">Mixtape Builder</h2>
-      <p class="text-sm text-slate-400">
-        Collect Smols anywhere on the site to craft your next drop.
-      </p>
-    </div>
-    <button
-      class="rounded-full px-3 py-1 text-sm text-slate-300 hover:bg-slate-700"
-      onclick={exitMixtapeMode}>Exit</button
-    >
+  <div class="flex min-w-0 flex-col gap-3">
+  {#if edit && edit.privateTrackCount > 0}
+    <p class="flex gap-2 rounded-[var(--radius-control)] bg-surface-1 px-3 py-2.5 text-xs leading-relaxed text-ink-2 ring-1 ring-inset ring-line">
+      <Icon name="info" size={16} class="mt-px text-ink-2" />
+      <span>
+        {edit.privateTrackCount} {edit.privateTrackCount === 1 ? 'song in this mixtape is' : 'songs in this mixtape are'} no longer public and will be removed when you save.
+      </span>
+    </p>
+  {/if}
+  <MixtapeTrackList
+    tracks={session.tracks}
+    {baselineIds}
+    {trackIssues}
+    {announcement}
+    onReorder={handleReorder}
+    onMove={handleMove}
+    onRemove={handleRemove}
+    {onOpenPicker}
+  />
+  {#if edit}
+    <p class="px-1 text-xs leading-relaxed text-ink-3">Removing a song only takes it off this mixtape.</p>
+  {/if}
   </div>
 
-  <div
-    class="grid flex-1 min-h-0 gap-5 overflow-hidden px-5 py-4 lg:grid-cols-[1.6fr_1fr]"
-  >
-    <MixtapeTrackList
-      tracks={tracksForDnd}
-      isDragging={isDraggingTracks}
-      {isExternalDragActive}
-      onConsider={handleTrackConsider}
-      onFinalize={handleTrackFinalize}
-      onMove={handleMove}
-      onRemove={handleRemove}
-      bindElement={(el) => (tracksListEl = el)}
-    />
-
-    <MixtapeForm
-      draft={mixtapeDraftState}
-      {publishing}
-      {statusMessage}
-      {statusTone}
-      onTitleChange={(title) => {
-        resetStatus();
-        setTitle(title);
-      }}
-      onDescriptionChange={(desc) => {
-        resetStatus();
-        setDescription(desc);
-      }}
-      onDiscard={handleDiscard}
-      onSaveDraft={handleSaveDraft}
-      onPublish={handlePublish}
-    />
-  </div>
+  <MixtapeForm
+    draft={session}
+    mode={edit ? 'edit' : 'create'}
+    {titleError}
+    {sameTitleHint}
+    {onDelete}
+    {statusAction}
+    {statusMessage}
+    {statusTone}
+    {showAuthAction}
+    onTitleChange={(title) => {
+      onResetStatus();
+      setTitle(title);
+    }}
+    onDescriptionChange={(desc) => {
+      onResetStatus();
+      setDescription(desc);
+    }}
+    {onSignIn}
+  />
 </div>

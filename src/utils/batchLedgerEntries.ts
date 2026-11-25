@@ -1,233 +1,162 @@
-import { Address, xdr } from '@stellar/stellar-sdk';
+/**
+ * Batched, coalesced Stellar `getLedgerEntries` reader (LAZY-LOADED: imports the
+ * Stellar SDK; never import this statically from a route component).
+ *
+ * Contract (fixes C-02 at the source):
+ * - Every key resolves to `found | missing | error`. A transport or decode
+ *   failure is `error` and NEVER a fabricated `0n` balance.
+ * - Results are keyed by the canonical base64 LedgerKey, never by array
+ *   position (RPC omits missing entries and may reorder).
+ * - Arbitrary key kinds share ONE call: SAC balances, KALE balance, SAC
+ *   instances and Comet `AllRecordData` maps for a whole mixtape.
+ * - In-flight coalescing is per canonical key; each caller gets its own
+ *   ordering and ids back. Keys requested in the same microtask are batched.
+ *   `fresh` reads bypass an already-sent request (see ledgerCoalescer.ts).
+ */
+import { xdr } from '@stellar/stellar-sdk/minimal';
+import { createSACBalanceLedgerKey } from './ledgerKeys';
+import { createLedgerCoalescer } from './ledgerCoalescer';
+import { ledgerSession } from './ledgerSession';
 import { rpc } from './base';
 import { logger } from './logger';
+import {
+  createArchiveCapability,
+  interpretLedgerResponse,
+  toBalanceResult,
+  type BalanceBatchRequest,
+  type BalanceBatchResult,
+  type LedgerEntryRead,
+} from './ledgerReads';
 
-/**
- * Represents a batch request for SAC token balances
- */
-export interface BalanceBatchRequest {
-  /** The contract ID of the SAC token */
-  tokenContractId: string;
-  /** The address to check the balance for */
-  holderAddress: string;
-  /** Optional identifier to track this request */
-  id?: string;
+export {
+  contractWasmHash,
+  isStellarAssetInstance,
+  isSupportedCometInstance,
+  parseBalanceFromLedgerEntry,
+  parseCometFeeConfig,
+  parseCometRecords,
+  SUPPORTED_COMET_WASM_HASHES,
+} from './ledgerParsers';
+
+export const MAX_LEDGER_KEYS_PER_CALL = 200;
+
+export type { LedgerEntryRead } from './ledgerReads';
+
+// Key builders (SDK built-ins; see ledgerKeys.ts)
+export {
+  createCometRecordsLedgerKey,
+  createContractInstanceLedgerKey,
+  createSACBalanceLedgerKey,
+} from './ledgerKeys';
+
+// ---------------------------------------------------------------------------
+// Reader capability: does an omitted persistent entry mean "absent"?
+// Since protocol 23 (CAP-62/66) RPC proxies getLedgerEntries to Core, which
+// serves live AND hot-archive state. Older/unverified readers may silently omit
+// evicted entries, so their omissions are treated as unknown.
+// ---------------------------------------------------------------------------
+
+const capability = createArchiveCapability({
+  override: import.meta.env.PUBLIC_RPC_ARCHIVE_AWARE,
+  probe: () =>
+    rpc.getVersionInfo().then((info) => Number(info.protocolVersion) >= 23).catch((error) => {
+      logger.warn('rpc', 'Could not verify reader archive capability', error);
+      throw error;
+    }),
+});
+
+export function getReaderArchiveAware(): Promise<boolean> {
+  return capability.isAware();
 }
 
-/**
- * Result of a batch balance request
- */
-export interface BalanceBatchResult {
-  /** The contract ID of the SAC token */
-  tokenContractId: string;
-  /** The address that holds the balance */
-  holderAddress: string;
-  /** The balance amount in stroops (7 decimals) */
-  balance: bigint;
-  /** Optional identifier from the request */
-  id?: string;
-  /** Error if the balance could not be retrieved */
-  error?: string;
+// ---------------------------------------------------------------------------
+// Coalesced reader
+// ---------------------------------------------------------------------------
+
+function canonical(key: string): string {
+  return xdr.LedgerKey.fromXDR(key, 'base64').toXDR('base64');
 }
 
-/**
- * Creates a ledger key for a SAC token balance
- *
- * SAC balances are stored as contract data with:
- * - Key: Balance(Address) - an enum variant with the holder's address
- * - Durability: Persistent
- *
- * @param tokenContractId - The contract ID of the SAC token
- * @param holderAddress - The address to get the balance for
- * @returns Base64-encoded ledger key
- */
-export function createSACBalanceLedgerKey(
-  tokenContractId: string,
-  holderAddress: string
-): string {
-  // Create the Balance(Address) key
-  // This is a Vec with: [Symbol("Balance"), Address(holderAddress)]
-  const balanceKey = xdr.ScVal.scvVec([
-    xdr.ScVal.scvSymbol('Balance'),
-    new Address(holderAddress).toScVal(),
-  ]);
-
-  const ledgerKey = xdr.LedgerKey.contractData(
-    new xdr.LedgerKeyContractData({
-      contract: new Address(tokenContractId).toScAddress(),
-      key: balanceKey,
-      durability: xdr.ContractDataDurability.persistent(),
-    })
-  );
-
-  return ledgerKey.toXDR('base64');
-}
-
-/**
- * Parses a balance value from ledger entry data
- *
- * The balance is stored as a BalanceValue struct:
- * { amount: i128, authorized: bool, clawback: bool }
- *
- * @param entryData - LedgerEntryData XDR object
- * @returns The balance amount in stroops
- */
-export function parseBalanceFromLedgerEntry(entryData: xdr.LedgerEntryData): bigint {
+async function fetchChunk(keys: string[]): Promise<Map<string, LedgerEntryRead>> {
   try {
-    // Navigate to the contract data
-    if (entryData.switch().value !== xdr.LedgerEntryType.contractData().value) {
-      throw new Error('Not a contract data entry');
+    const [response, archiveAware] = await Promise.all([
+      rpc.getLedgerEntries(...keys.map((k) => xdr.LedgerKey.fromXDR(k, 'base64'))),
+      getReaderArchiveAware(),
+    ]);
+    const reads = interpretLedgerResponse(
+      keys,
+      response as { latestLedger?: unknown; entries?: unknown },
+      (entries) =>
+        (entries as (typeof response.entries)[number][])
+          .filter((entry) => entry?.key)
+          .map((entry) => ({
+            keyB64: entry.key.toXDR('base64'),
+            val: entry.val,
+            lastModifiedLedgerSeq: entry.lastModifiedLedgerSeq,
+            liveUntilLedgerSeq: entry.liveUntilLedgerSeq,
+          })),
+      archiveAware
+    );
+    const first = reads.get(keys[0]);
+    if (first?.state === 'error') logger.error('rpc', first.error);
+    for (const read of reads.values()) {
+      if (read.state === 'found') capability.observe(read.liveUntilLedgerSeq);
     }
-
-    const contractData = entryData.contractData();
-    const val = contractData.val();
-
-    // The value should be a Map with "amount", "authorized", "clawback" fields
-    // We only need the "amount" field
-    if (val.switch().value === xdr.ScValType.scvMap().value) {
-      const mapEntries = val.map() || [];
-
-      for (const mapEntry of mapEntries) {
-        const key = mapEntry.key();
-        if (
-          key.switch().value === xdr.ScValType.scvSymbol().value &&
-          key.sym().toString() === 'amount'
-        ) {
-          const amountVal = mapEntry.val();
-          if (amountVal.switch().value === xdr.ScValType.scvI128().value) {
-            const i128 = amountVal.i128();
-            const lo = i128.lo();
-            const hi = i128.hi();
-
-            // Combine hi and lo parts into a bigint
-            // hi is the upper 64 bits, lo is the lower 64 bits
-            return (BigInt(hi.toString()) << 64n) | BigInt(lo.toString());
-          }
-        }
-      }
-    }
-
-    return 0n;
+    return reads;
   } catch (error) {
-    logger.error('balance', 'Error parsing balance from ledger entry:', error);
-    return 0n;
+    logger.error('rpc', 'getLedgerEntries failed:', error);
+    throw error;
   }
 }
 
-// Request deduplication cache
-const inflightRequests = new Map<string, Promise<BalanceBatchResult[]>>();
+const coalescer = createLedgerCoalescer(fetchChunk, { maxPerCall: MAX_LEDGER_KEYS_PER_CALL, session: ledgerSession });
 
 /**
- * Creates a cache key for deduplicating batch balance requests
+ * Read any set of ledger keys (base64 XDR). Keys requested together (or by
+ * concurrent callers in the same tick) go out in ⌈unique/200⌉ calls.
+ * `fresh` (an explicit Refresh) never joins an already-sent older read.
  */
-function createBatchCacheKey(requests: BalanceBatchRequest[]): string {
-  return requests
-    .map((req) => `${req.tokenContractId}:${req.holderAddress}`)
-    .sort()
-    .join('|');
-}
-
-/**
- * Batch retrieves SAC token balances using a single RPC call
- *
- * This is much more efficient than making individual balance calls,
- * especially when checking balances for many tokens.
- *
- * Maximum batch size is 200 keys per RPC call.
- *
- * Includes request deduplication to prevent duplicate fetches.
- *
- * @param requests - Array of balance requests
- * @returns Array of balance results
- */
-export async function getBatchSACBalances(
-  requests: BalanceBatchRequest[]
-): Promise<BalanceBatchResult[]> {
-  if (requests.length === 0) {
-    return [];
-  }
-
-  const MAX_BATCH_SIZE = 200;
-
-  // If we have more than 200 requests, we need to batch them
-  if (requests.length > MAX_BATCH_SIZE) {
-    const results: BalanceBatchResult[] = [];
-
-    for (let i = 0; i < requests.length; i += MAX_BATCH_SIZE) {
-      const batch = requests.slice(i, i + MAX_BATCH_SIZE);
-      const batchResults = await getBatchSACBalances(batch);
-      results.push(...batchResults);
-    }
-
-    return results;
-  }
-
-  // Check if this exact request is already in-flight
-  const cacheKey = createBatchCacheKey(requests);
-  const existing = inflightRequests.get(cacheKey);
-  if (existing) {
-    logger.info('balance', 'Deduplicating batch balance request');
-    return existing;
-  }
-
-  // Create ledger keys for all requests
-  const keys = requests.map((req) =>
-    createSACBalanceLedgerKey(req.tokenContractId, req.holderAddress)
-  );
-
-  // Create the promise for this request
-  const requestPromise = (async () => {
+export async function readLedgerEntries(
+  keys: string[],
+  opts: { fresh?: boolean } = {}
+): Promise<Map<string, LedgerEntryRead>> {
+  const out = new Map<string, LedgerEntryRead>();
+  const unique = new Map<string, string>();
+  for (const key of keys) {
     try {
-      // Create XDR LedgerKey objects from the base64 strings
-      const ledgerKeys = keys.map((key) => xdr.LedgerKey.fromXDR(key, 'base64'));
-
-      // Make a single RPC call to get all ledger entries
-      const response = await rpc.getLedgerEntries(...ledgerKeys);
-
-      // Map results back to the requests
-      const results: BalanceBatchResult[] = requests.map((req, index) => {
-        const entry = response.entries?.[index];
-
-        if (!entry || !entry.val) {
-          return {
-            tokenContractId: req.tokenContractId,
-            holderAddress: req.holderAddress,
-            balance: 0n,
-            id: req.id,
-            error: 'Entry not found',
-          };
-        }
-
-        const balance = parseBalanceFromLedgerEntry(entry.val);
-
-        return {
-          tokenContractId: req.tokenContractId,
-          holderAddress: req.holderAddress,
-          balance,
-          id: req.id,
-        };
-      });
-
-      return results;
+      unique.set(key, canonical(key));
     } catch (error) {
-      logger.error('balance', 'Error fetching batch balances:', error);
-
-      // Return error results for all requests
-      return requests.map((req) => ({
-        tokenContractId: req.tokenContractId,
-        holderAddress: req.holderAddress,
-        balance: 0n,
-        id: req.id,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      }));
-    } finally {
-      // Clean up the cache after request completes
-      inflightRequests.delete(cacheKey);
+      out.set(key, { state: 'error', error: error instanceof Error ? error.message : 'Invalid key' });
     }
-  })();
+  }
+  const reads = await Promise.all([...unique].map(async ([raw, key]) => [raw, await coalescer.read(key, opts)] as const));
+  for (const [raw, read] of reads) out.set(raw, read);
+  return out;
+}
 
-  // Store in cache
-  inflightRequests.set(cacheKey, requestPromise);
+// ---------------------------------------------------------------------------
+// SAC balances (tri-state)
+// ---------------------------------------------------------------------------
 
-  return requestPromise;
+export type { BalanceBatchRequest, BalanceBatchResult } from './ledgerReads';
+export { knownBalance, toBalanceResult } from './ledgerReads';
+
+export async function getBatchSACBalances(
+  requests: BalanceBatchRequest[],
+  opts: { fresh?: boolean } = {}
+): Promise<BalanceBatchResult[]> {
+  if (requests.length === 0) return [];
+  const keys: (string | null)[] = requests.map((req) => {
+    try {
+      return createSACBalanceLedgerKey(req.tokenContractId, req.holderAddress);
+    } catch {
+      return null;
+    }
+  });
+  const reads = await readLedgerEntries(keys.filter((k): k is string => Boolean(k)), opts);
+  return requests.map((req, i) => {
+    const key = keys[i];
+    if (!key) return { ...req, status: 'error', error: 'Invalid address' };
+    return toBalanceResult(req, reads.get(key));
+  });
 }

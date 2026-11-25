@@ -1,4 +1,6 @@
 <script lang="ts">
+  import SegmentedControl from '../ui/SegmentedControl.svelte';
+
   interface Props {
     mode: 'buy' | 'sell';
     inputAmount: string;
@@ -18,49 +20,42 @@
     onModeChange,
     onAmountInput,
   }: Props = $props();
+
+  const options = $derived([
+    { value: 'buy' as const, label: 'Buy' },
+    {
+      value: 'sell' as const,
+      label: 'Sell',
+      disabled: sellDisabled,
+      disabledReason: `You do not hold any ${displayTokenName} to sell.`,
+    },
+  ]);
 </script>
 
-<div class="mb-4 flex gap-2">
-  <button
-    class={`flex-1 rounded px-3 py-2 text-sm font-semibold transition-colors ${
-      mode === 'buy'
-        ? 'bg-lime-500 text-slate-900'
-        : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
-    }`}
-    onclick={() => onModeChange('buy')}
-    disabled={mode === 'buy'}
-  >
-    Buy
-  </button>
-  <button
-    class={`flex-1 rounded px-3 py-2 text-sm font-semibold transition-colors ${
-      mode === 'sell' && !sellDisabled
-        ? 'bg-rose-400 text-slate-900'
-        : 'bg-slate-800 text-slate-200 hover:bg-slate-700'
-    } ${sellDisabled ? 'opacity-50' : ''}`}
-    onclick={() => onModeChange('sell')}
-    disabled={sellDisabled}
-  >
-    Sell
-  </button>
-</div>
-
-{#if sellDisabled}
-  <p class="mb-4 text-xs text-slate-400">
-    You don't hold any {displayTokenName} yet, so selling is disabled.
-  </p>
-{/if}
-
 <div class="space-y-4">
-  <label class="block text-sm font-medium">
-    Amount to {mode === 'buy' ? 'spend' : 'sell'}
+  <SegmentedControl
+    name="trade-mode"
+    legend="Trade direction"
+    {options}
+    value={mode}
+    onChange={onModeChange}
+  />
+
+  {#if sellDisabled}
+    <p class="text-xs text-ink-2">
+      You do not hold any {displayTokenName} yet, so selling is unavailable.
+    </p>
+  {/if}
+
+  <label class="block">
+    <span class="mb-1.5 block text-sm font-medium text-ink-2">
+      Amount to {mode === 'buy' ? 'spend' : 'sell'}
+    </span>
     <input
-      class="mt-2 w-full rounded border border-slate-700 bg-slate-800 px-3 py-2 text-base focus:border-lime-500 focus:outline-none"
+      class="input-ring tabular min-h-12 w-full rounded-[var(--radius-control)] bg-surface-1 px-3.5 py-2.5 text-base text-ink-1 ring-1 ring-inset ring-line-strong placeholder:text-ink-3"
       type="text"
       inputmode="decimal"
-      placeholder={mode === 'buy'
-        ? `0.0 ${kaleSymbol}`
-        : `0.0 ${displayTokenName}`}
+      placeholder={mode === 'buy' ? `0.0 ${kaleSymbol}` : `0.0 ${displayTokenName}`}
       value={inputAmount}
       oninput={onAmountInput}
       autocomplete="off"

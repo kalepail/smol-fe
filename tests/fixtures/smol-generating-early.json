@@ -1,0 +1,19 @@
+{
+  "kv_do": {
+    "payload": {
+      "address": "CFIXTUREUSER0000000000000000000000000000000000000000000001",
+      "prompt": "Private sunrise ambient arpeggios with soft tape flutter",
+      "instrumental": false,
+      "public": false,
+      "provider": "aisonggenerator"
+    },
+    "generation_meta": {
+      "requested_provider": "aisonggenerator",
+      "actual_provider": null
+    },
+    "image": false,
+    "songs": []
+  },
+  "wf": { "status": "running" },
+  "liked": false
+}

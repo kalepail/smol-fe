@@ -1,131 +1,71 @@
+/**
+ * Mixtape buy helper — LAZY-LOADED (smol-sdk, passkey-kit, Stellar SDK).
+ *
+ * `submitBuyBatch` builds ONE `swap_them_in` for ≤9 minted songs, signs it with
+ * ONE passkey prompt (explicit expiry, zero getLatestLedger) and relays it.
+ * `swap_them_in` spends exactly `token_amount_in` (33 KALE) per song.
+ * Buys never wait on mints (C-05): the two sets never overlap.
+ */
 import { Client as SmolClient } from 'smol-sdk';
-import { getDomain } from 'tldts';
-import type { Smol } from '../types/domain';
-import { rpc } from '../utils/base';
-import { logger } from '../utils/logger';
+import { BUY_COST_STROOPS } from '../utils/mixtapePricing';
+import { signWithPasskey } from '../utils/passkeySign';
+import { getSignatureExpiration } from '../utils/rpcTip';
+import { getConnectedAccount } from '../utils/wallet';
+import { e2eSeams } from '../utils/collectSeams';
 
-interface PurchaseBatchParams {
-  tokensOut: string[];
-  cometAddresses: string[];
-  smolContractId: string;
-  userContractId: string;
-  userKeyId: string;
+export interface BuyBatchTrack {
+  id: string;
+  sac: string;
+  pool: string;
 }
 
-export function useMixtapePurchase() {
-  async function purchaseBatch(params: PurchaseBatchParams): Promise<void> {
-    const { tokensOut, cometAddresses, smolContractId, userContractId, userKeyId } = params;
+export async function submitBuyBatch(params: {
+  tracks: BuyBatchTrack[];
+  userContractId: string;
+  userKeyId: string;
+  /**
+   * Pre-relay guard, called after the passkey returns and BEFORE relaying. It
+   * must prove this attempt still owns the step and durably record
+   * `submitting`; if it throws, the signed payload is discarded, never sent.
+   */
+  onBeforeSubmit: (info: { expiresAtLedger: number }) => void | Promise<void>;
+}): Promise<void> {
+  const { tracks, userContractId, userKeyId, onBeforeSubmit } = params;
+  const seam = e2eSeams()?.buy;
+  const smolContractId = import.meta.env.PUBLIC_SMOL_CONTRACT_ID;
+  if (!smolContractId) throw new Error('Buying is not configured');
+  if (tracks.length === 0) return;
+  const unique = new Set(tracks.map((t) => `${t.pool}:${t.sac}`));
+  if (unique.size !== tracks.length) throw new Error('Duplicate songs in one buy batch');
 
-    const costPerToken = 33_0000000n; // 33 KALE per token
+  const smolClient = new SmolClient({
+    contractId: smolContractId,
+    rpcUrl: import.meta.env.PUBLIC_RPC_URL!,
+    networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE!,
+  });
 
-    // Create the swap_them_in transaction
-    const smolClient = new SmolClient({
-      contractId: smolContractId,
-      rpcUrl: import.meta.env.PUBLIC_RPC_URL!,
-      networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE!,
-    });
-
-    const tx = await smolClient.swap_them_in({
+  // simulateTransaction here is for assembly/auth/footprint only.
+  const assemble = () =>
+    smolClient.swap_them_in({
       user: userContractId,
-      comet_addresses: cometAddresses,
-      tokens_out: tokensOut,
-      token_amount_in: costPerToken,
+      comet_addresses: tracks.map((t) => t.pool),
+      tokens_out: tracks.map((t) => t.sac),
+      token_amount_in: BUY_COST_STROOPS,
       fee_recipients: undefined,
     });
+  const tx = (seam?.assemble ? await seam.assemble() : await assemble()) as Awaited<ReturnType<typeof assemble>>;
 
-    const { sequence } = await rpc.getLatestLedger();
-    const { account, send } = await import('../utils/passkey-kit');
-    await account.sign(tx, {
-      rpId: getDomain(window.location.hostname) ?? undefined,
-      keyId: userKeyId,
-      expiration: sequence + 60,
-    });
+  const expiration = seam?.expiration ? await seam.expiration() : await getSignatureExpiration();
+  if (seam?.sign) await seam.sign();
+  else await signWithPasskey(tx, { keyId: userKeyId, expiration });
 
-    // Log the XDR for inspection
-    const xdrString = tx.built?.toXDR();
-    logger.info('purchase', 'Purchase Batch Transaction XDR:', xdrString);
-    logger.info('purchase', 'Tokens in batch:', tokensOut);
+  // No relay unless this tab still owns the attempt AND `submitting` is saved.
+  await onBeforeSubmit({ expiresAtLedger: expiration });
 
-    // Submit transaction via passkey server
-    await send(tx);
+  if (seam?.relay) {
+    await seam.relay(tracks.map((t) => t.id));
+    return;
   }
-
-  async function purchaseTracksInBatches(
-    mixtapeTracks: Smol[],
-    tokensOut: string[],
-    smolContractId: string,
-    userContractId: string,
-    userKeyId: string,
-    onBatchComplete: (trackIds: string[]) => void
-  ): Promise<void> {
-    const BATCH_SIZE = 9;
-
-    // Build arrays of tokens and their corresponding comet addresses
-    const tokenData: Array<{
-      token: string;
-      comet: string;
-      trackId: string;
-    }> = [];
-
-    for (const track of mixtapeTracks) {
-      if (
-        track?.Mint_Token &&
-        track?.Mint_Amm &&
-        tokensOut.includes(track.Mint_Token)
-      ) {
-        tokenData.push({
-          token: track.Mint_Token,
-          comet: track.Mint_Amm,
-          trackId: track.Id,
-        });
-      }
-    }
-
-    const chunks: Array<typeof tokenData> = [];
-    for (let i = 0; i < tokenData.length; i += BATCH_SIZE) {
-      chunks.push(tokenData.slice(i, i + BATCH_SIZE));
-    }
-
-    logger.info(
-      'purchase',
-      `Processing ${tokenData.length} purchases in ${chunks.length} batch(es) of up to ${BATCH_SIZE}`
-    );
-
-    // Process each chunk sequentially
-    for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
-      const chunk = chunks[chunkIndex];
-      logger.info(
-        'purchase',
-        `Processing purchase batch ${chunkIndex + 1}/${chunks.length} with ${chunk.length} token(s)`
-      );
-
-      try {
-        const tokensOutChunk = chunk.map((d) => d.token);
-        const cometAddressesChunk = chunk.map((d) => d.comet);
-
-        await purchaseBatch({
-          tokensOut: tokensOutChunk,
-          cometAddresses: cometAddressesChunk,
-          smolContractId,
-          userContractId,
-          userKeyId,
-        });
-
-        // Mark substeps as complete
-        const trackIds = chunk.map((data) => data.trackId);
-        onBatchComplete(trackIds);
-      } catch (error) {
-        logger.error(
-          'purchase',
-          `Error processing purchase batch ${chunkIndex + 1}:`,
-          error
-        );
-        throw error;
-      }
-    }
-  }
-
-  return {
-    purchaseTracksInBatches,
-  };
+  const { send } = await getConnectedAccount();
+  await send(tx);
 }

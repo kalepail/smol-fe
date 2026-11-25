@@ -1,107 +1,159 @@
 <script lang="ts">
-  import type { SmolDetailResponse } from '../types/domain';
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, untrack } from 'svelte';
+  import { navigate } from 'astro:transitions/client';
+  import type { MusicProvider, SmolDetailResponse } from '../types/domain';
   import SmolGenerator from './smol/SmolGenerator.svelte';
   import SmolDisplay from './smol/SmolDisplay.svelte';
-  import SmolRetryPanel from './smol/SmolRetryPanel.svelte';
   import SmolTradeSection from './smol/SmolTradeSection.svelte';
   import SimilarSmols from './search/SimilarSmols.svelte';
+  import StateFeedback from './ui/StateFeedback.svelte';
   import { userState } from '../stores/user.svelte';
   import { updateContractBalance } from '../stores/balance.svelte';
+  import { toast } from '../stores/toast.svelte';
+  import { confirmAction } from '../stores/confirm.svelte';
+  import { openAuthSheet } from '../stores/authSheet.svelte';
+  import { trackGeneration, stopTrackingGeneration } from '../stores/generations.svelte';
+  import { applyQuotaExceeded, decrementQuota, refreshQuota } from '../stores/quota.svelte';
   import { useSmolGeneration } from '../hooks/useSmolGeneration';
   import { useSmolMinting } from '../hooks/useSmolMinting';
-  import { audioState } from '../stores/audio.svelte';
+  import { fetchWithTimeout, throwIfNotOk } from '../services/api/fetch';
+  import { QuotaExceededError } from '../utils/quota';
+  import {
+    DEFAULT_PROVIDER,
+    expectedTakeCount,
+    normalizeProvider,
+    providerOf,
+    readStoredProvider,
+    requestedProviderOf,
+  } from '../utils/takes';
   import { logger } from '../utils/logger';
 
   interface Props {
     id?: string | null;
+    initialData?: SmolDetailResponse | null;
   }
 
   type WorkflowStatus = NonNullable<SmolDetailResponse['wf']>['status'];
 
-  let { id = $bindable() }: Props = $props();
+  let { id = $bindable(), initialData = null }: Props = $props();
 
-  // State
-  let data = $state<SmolDetailResponse | null>(null);
   let loading = $state(false);
   let error = $state<string | null>(null);
+  let errorStatus = $state<number | null>(null);
   let d1 = $state<SmolDetailResponse['d1']>(undefined);
   let kv_do = $state<SmolDetailResponse['kv_do']>(undefined);
   let liked = $state<boolean | undefined>(undefined);
   let prompt = $state('');
   let is_public = $state(true);
   let is_instrumental = $state(false);
+  let provider = $state<MusicProvider>(DEFAULT_PROVIDER);
   let best_song = $state<string | undefined>(undefined);
-  let audioElements = $state<HTMLAudioElement[]>([]);
+  let savingBest = $state(false);
   let interval = $state<ReturnType<typeof setTimeout> | null>(null);
-  let pollDelay = $state(3000); // start at 3s, grows 1.5x, caps at 15s
-  let pollGeneration = 0; // nonce to prevent stale poll callbacks
+  let pollDelay = $state(3000);
+  let pollGeneration = 0;
   let submittingGeneration = $state(false);
   let failed = $state(false);
+  let quotaError = $state<string | null>(null);
+  let retryError = $state<string | null>(null);
   let pendingCreatedId = $state<string | null>(null);
   let playlist = $state<string | null>(null);
   let minting = $state(false);
   let showTradeModal = $state(false);
   let tradeMintBalance = $state<bigint>(0n);
 
-  // Hooks
   const generationHook = useSmolGeneration();
   const mintingHook = useSmolMinting();
 
-  // Derived
-  const minted = $derived(Boolean(d1?.Mint_Token || d1?.Mint_Amm));
-  const tradeReady = $derived(Boolean(id && d1?.Mint_Amm && d1?.Mint_Token));
-  const isOwner = $derived(d1?.Address === userState.contractId);
-  const maxLength = $derived(is_instrumental ? 380 : 2280);
+  const detail = $derived<SmolDetailResponse>({ d1, kv_do, liked });
+  const activeProvider = $derived(providerOf(detail));
+  const requestedProvider = $derived(requestedProviderOf(detail));
+  // Canonical market verified on chain (deep-link check or the trade sheet). An
+  // unindexed on-chain mint is still minted: never offer a second Mint for it.
+  let verifiedMarket = $state<{ songId: string; sac: string; pool: string } | null>(null);
+  const chainVerified = $derived(Boolean(verifiedMarket && verifiedMarket.songId === id));
+  const minted = $derived(Boolean(d1?.Mint_Token || d1?.Mint_Amm || chainVerified));
+  const tradeReady = $derived(Boolean(id && ((d1?.Mint_Amm && d1?.Mint_Token) || chainVerified)));
+  const ownerAddress = $derived(d1?.Address ?? kv_do?.payload?.address ?? null);
+  const isOwner = $derived(
+    Boolean(ownerAddress && userState.contractId && ownerAddress === userState.contractId)
+  );
   const tradeSongId = $derived(id ?? d1?.Id ?? null);
   const tradeTitle = $derived(
     kv_do?.lyrics?.title ?? kv_do?.description ?? d1?.Title ?? null
   );
   const tradeImageUrl = $derived(
-    tradeSongId
-      ? `${import.meta.env.PUBLIC_API_URL}/image/${tradeSongId}.png`
-      : null
+    tradeSongId ? `${import.meta.env.PUBLIC_API_URL}/image/${tradeSongId}.png` : null
   );
+  const expectedTakes = $derived(expectedTakeCount(activeProvider));
   const hasSongSnapshots = $derived(Boolean(kv_do?.songs?.length));
+  const hasAllExpectedSongs = $derived(
+    Boolean(kv_do?.songs && kv_do.songs.length >= expectedTakes)
+  );
   const hasIncompleteSongs = $derived(
-    Boolean(kv_do?.songs?.some((song) => !song.audio || song.status < 4))
+    Boolean(
+      !hasAllExpectedSongs ||
+        kv_do?.songs?.some((song) => !song.music_id || song.status < 4)
+    )
   );
   const showGenerationLoader = $derived(
-    Boolean(interval && (!hasSongSnapshots || hasIncompleteSongs))
+    Boolean(interval && !d1?.Id && (!hasSongSnapshots || hasIncompleteSongs))
   );
 
-  // Effects
   $effect(() => {
     if (!tradeReady && showTradeModal) {
       showTradeModal = false;
     }
   });
 
-  // Initialize best_song from d1?.Song_1, but preserve manual overrides
+  // `/{id}?trade=1` (mixtape holdings → Trade) opens the trade sheet. The sheet
+  // itself resolves and verifies the canonical market before showing anything;
+  // a song minted on chain but not yet indexed in D1 is found here first.
+  let tradeDeepLinkHandled = false;
+  $effect(() => {
+    if (tradeDeepLinkHandled || typeof window === 'undefined' || !id || !d1) return;
+    tradeDeepLinkHandled = true;
+    if (new URLSearchParams(window.location.search).get('trade') !== '1') return;
+    if (d1.Mint_Amm && d1.Mint_Token) {
+      showTradeModal = true;
+      return;
+    }
+    const songId = id;
+    void import('../utils/smolChainIdentity')
+      .then(({ readMixtapeChainSnapshot }) => readMixtapeChainSnapshot({ tracks: [{ id: songId }] }))
+      .then((snapshot) => {
+        if (songId !== id) return;
+        const facts = snapshot.tracks.get(songId)?.facts;
+        if (facts?.status === 'minted') {
+          verifiedMarket = { songId, sac: facts.sac, pool: facts.pool };
+          showTradeModal = true;
+        }
+      })
+      .catch(() => {
+        /* stays untradeable; the page still plays */
+      });
+  });
+
   $effect(() => {
     if (d1?.Song_1 && !best_song) {
       best_song = d1.Song_1;
     }
   });
 
-  // Track previous minted state to only update balance when mint completes
-  let wasMinted = $state(false);
+  let mintStartedInSession = $state(false);
   $effect(() => {
-    // Only update balance when transitioning from unminted -> minted
-    if (minted && !wasMinted) {
+    if (minted && mintStartedInSession) {
+      mintStartedInSession = false;
       minting = false;
       mintingHook.clearMintPolling();
       if (userState.contractId) {
-        updateContractBalance(userState.contractId);
+        void updateContractBalance(userState.contractId, { force: true });
       }
     }
-    wasMinted = minted;
   });
 
-  // Track last fetched ID to prevent duplicate fetches
   let lastFetchedId = $state<string | null>(null);
 
-  // Fetch smol data when id changes
   function isTransientCreatedSmol404(smolId: string, status?: number) {
     return status === 404 && pendingCreatedId === smolId;
   }
@@ -122,47 +174,61 @@
   function hydrateGenerationState(response: SmolDetailResponse | null | undefined) {
     const status = response?.wf?.status;
     const songs = response?.kv_do?.songs ?? [];
+    const expected = expectedTakeCount(providerOf(response));
     const songsArePlaybackReady =
-      songs.length > 0 && songs.every((song) => song.audio && song.status >= 4);
+      songs.length >= expected && songs.every((song) => song.music_id && song.status >= 4);
 
     if (isActiveWorkflow(status) && !songsArePlaybackReady) {
       failed = false;
       if (!interval) {
         startPolling();
       }
+      if (id) trackGeneration(id);
       return;
     }
 
-    if (songsArePlaybackReady || generationHook.shouldStopPolling(status)) {
+    const published = Boolean(response?.d1?.Id) && !response?.wf;
+
+    if (songsArePlaybackReady || published || generationHook.shouldStopPolling(status)) {
       stopPolling();
+      if (id) stopTrackingGeneration(id);
       failed = generationHook.isFailed(status);
     }
+  }
+
+  function applySmolData(response: SmolDetailResponse) {
+    d1 = response.d1;
+    kv_do = response.kv_do;
+    liked = response.liked;
+    best_song = d1?.Song_1;
+    pendingCreatedId = null;
+    hydrateGenerationState(response);
   }
 
   async function fetchSmolData(smolId: string) {
     loading = true;
     error = null;
+    errorStatus = null;
 
     try {
-      const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/${smolId}`, {
-        credentials: 'include'
+      const response = await fetchWithTimeout(`${import.meta.env.PUBLIC_API_URL}/${smolId}`, {
+        credentials: 'include',
       });
 
       if (!response.ok) {
         if (isTransientCreatedSmol404(smolId, response.status)) {
           return;
         }
-        throw new Error('Failed to load smol');
+        errorStatus = response.status;
+        if (response.status === 404) {
+          throw new Error('This song could not be found.');
+        }
+        throw new Error('Could not load this song.');
       }
 
-      data = await response.json();
-      d1 = data?.d1;
-      kv_do = data?.kv_do;
-      liked = data?.liked;
-      pendingCreatedId = null;
-      hydrateGenerationState(data);
+      applySmolData(await response.json());
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to load';
+      error = err instanceof Error ? err.message : 'Could not load this song.';
       logger.error('smol', 'Failed to fetch smol data:', err);
     } finally {
       loading = false;
@@ -170,30 +236,56 @@
   }
 
   $effect(() => {
-    // Only fetch if id actually changed
     if (id && id !== lastFetchedId) {
-      lastFetchedId = id;
-      fetchSmolData(id);
+      const smolId = id;
+      const seed = lastFetchedId === null ? initialData : null;
+      lastFetchedId = smolId;
+      mintStartedInSession = false;
+      minting = false;
+      retryError = null;
+      untrack(() => {
+        if (seed) applySmolData(seed);
+        else void fetchSmolData(smolId);
+      });
     }
   });
 
-  onMount(async () => {
+  onMount(() => {
+    provider = readStoredProvider();
     const urlParams = new URLSearchParams(window.location.search);
-    playlist = urlParams.get('playlist') || localStorage.getItem('smol:playlist');
+    try {
+      playlist = urlParams.get('playlist') || localStorage.getItem('smol:playlist');
+      if (playlist) {
+        localStorage.setItem('smol:playlist', playlist);
+      }
 
-    if (playlist) {
-      localStorage.setItem('smol:playlist', playlist);
+      const remixRaw = sessionStorage.getItem('smol:remixDraft');
+      if (remixRaw && !id) {
+        sessionStorage.removeItem('smol:remixDraft');
+        const draft = JSON.parse(remixRaw) as {
+          prompt?: string;
+          instrumental?: boolean;
+          provider?: MusicProvider;
+        };
+        if (typeof draft.prompt === 'string') prompt = draft.prompt;
+        if (typeof draft.instrumental === 'boolean') is_instrumental = draft.instrumental;
+        const parsedProvider = normalizeProvider(draft.provider);
+        if (parsedProvider) provider = parsedProvider;
+      }
+    } catch {
+      // Ignore storage errors.
     }
   });
 
   function scheduleNextPoll() {
     const gen = pollGeneration;
     interval = setTimeout(async () => {
-      await getGen();
-      // If a new polling cycle started (e.g. Retry), abandon this one
+      try {
+        await getGen();
+      } catch (err) {
+        logger.error('smol', 'Poll failed:', err);
+      }
       if (gen !== pollGeneration) return;
-      // getGen clears interval when polling should stop;
-      // if it's still set, schedule another with increased delay
       if (interval !== null) {
         pollDelay = Math.min(pollDelay * 1.5, 15000);
         scheduleNextPoll();
@@ -220,108 +312,129 @@
     mintingHook.clearMintPolling();
   });
 
-  function playAudio(index: number) {
-    // Pause and clear global audio player if it's playing
-    if (audioState.audioElement && !audioState.audioElement.paused) {
-      audioState.audioElement.pause();
-    }
-    audioState.playingId = null;
-    audioState.currentSong = null;
-
-    // Pause all local audio elements except the one being played
-    audioElements.forEach((audio, i) => {
-      if (i !== index) {
-        audio.pause();
-      } else {
-        audio.play();
-      }
-    });
-  }
-
-  // Effect: Pause local audio elements when global player starts playing
-  $effect(() => {
-    const globalPlayingId = audioState.playingId;
-    const globalAudio = audioState.audioElement;
-
-    if (globalPlayingId && globalAudio && !globalAudio.paused) {
-      // Global player is playing, pause all local audio elements
-      audioElements.forEach((audio) => {
-        if (!audio.paused) {
-          audio.pause();
-        }
-      });
-    }
-  });
-
   function removePlaylist() {
     const url = new URL(window.location.href);
     url.searchParams.delete('playlist');
     history.replaceState({}, '', url.toString());
-    localStorage.removeItem('smol:playlist');
-    playlist = null;
-    location.reload();
-  }
-
-  function limitPromptLength() {
-    if (prompt.length > maxLength) {
-      prompt = prompt.substring(0, maxLength);
+    try {
+      localStorage.removeItem('smol:playlist');
+    } catch {
+      // Ignore.
     }
+    playlist = null;
+    toast.info('Removed playlist tag.');
   }
 
   async function makeSongPublic() {
-    await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
-      method: 'PUT',
-      credentials: 'include',
-    });
-
-    if (d1) {
-      d1.Public = d1.Public === 1 ? 0 : 1;
+    if (!id) return;
+    const prev = d1?.Public;
+    if (d1) d1.Public = prev === 1 ? 0 : 1;
+    try {
+      const response = await fetchWithTimeout(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
+        method: 'PUT',
+        credentials: 'include',
+      });
+      await throwIfNotOk(response, `PUT /${id}`);
+      toast.success(d1?.Public === 1 ? 'Song published to feed.' : 'Song set to private.');
+    } catch (err) {
+      if (d1) d1.Public = prev;
+      toast.error(err instanceof Error ? err.message : 'Could not update song visibility.');
     }
   }
 
   async function deleteSong() {
-    if (!confirm('Are you sure you want to delete this song?')) return;
-
-    await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
-      method: 'DELETE',
-      credentials: 'include',
+    if (!id) return;
+    const songTitle = tradeTitle || 'this song';
+    const confirmed = await confirmAction({
+      title: `Delete "${songTitle}"?`,
+      message: 'This removes the song from SMOL and cannot be undone.',
+      confirmLabel: 'Delete song',
+      destructive: true,
     });
+    if (!confirmed) return;
 
-    history.replaceState({}, '', '/');
-    location.reload();
+    try {
+      const response = await fetchWithTimeout(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      await throwIfNotOk(response, `DELETE /${id}`);
+      toast.success(`Deleted "${songTitle}".`);
+      await navigate('/');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not delete song.');
+    }
   }
 
   async function selectBestSong(song_id: string) {
-    await fetch(`${import.meta.env.PUBLIC_API_URL}/${id}/${song_id}`, {
-      method: 'PUT',
-      credentials: 'include',
-    });
+    if (!id || (kv_do?.songs?.length ?? 0) <= 1 || savingBest) return;
+    const previous = best_song;
+    best_song = song_id;
+    savingBest = true;
+
+    try {
+      const response = await fetchWithTimeout(
+        `${import.meta.env.PUBLIC_API_URL}/${id}/${encodeURIComponent(song_id)}`,
+        {
+          method: 'PUT',
+          credentials: 'include',
+        }
+      );
+      await throwIfNotOk(response, `PUT /${id}/${song_id}`);
+      if (d1) d1.Song_1 = song_id;
+      toast.success('Updated main take.');
+    } catch (err) {
+      best_song = previous;
+      toast.error(err instanceof Error ? err.message : 'Could not update main take.');
+    } finally {
+      savingBest = false;
+    }
   }
 
   async function postGen() {
-    if (!prompt || submittingGeneration) return;
+    if (!prompt.trim() || submittingGeneration) return;
 
     id = null;
     d1 = undefined;
     kv_do = undefined;
     failed = false;
+    error = null;
+    quotaError = null;
     submittingGeneration = true;
 
     stopPolling();
 
     try {
-      const newId = await generationHook.postGen(prompt, is_public, is_instrumental, playlist);
+      const submittedProvider = provider;
+      const newId = await generationHook.postGen(
+        prompt,
+        is_public,
+        is_instrumental,
+        playlist,
+        submittedProvider
+      );
       if (!newId) return;
 
+      decrementQuota(submittedProvider);
+      void refreshQuota(userState.contractId);
+
       pendingCreatedId = newId;
+      // Set lastFetchedId before setting id so the route $effect does not fire a second GET.
+      lastFetchedId = newId;
       id = newId;
       prompt = '';
 
       startPolling();
+      trackGeneration(newId);
       await getGen();
     } catch (err) {
-      if (!id || !isTransientCreatedSmol404(id, (err as Error & { status?: number }).status)) {
-        error = err instanceof Error ? err.message : 'Failed to generate smol';
+      if (err instanceof QuotaExceededError) {
+        applyQuotaExceeded(err, userState.contractId);
+        quotaError = err.message;
+        toast.error(err.message);
+      } else if (!id || !isTransientCreatedSmol404(id, (err as Error & { status?: number }).status)) {
+        const msg = err instanceof Error ? err.message : 'Could not start song generation.';
+        toast.error(msg);
         logger.error('smol', 'Failed to generate smol:', err);
       }
     } finally {
@@ -329,47 +442,112 @@
     }
   }
 
-  async function retryGen() {
-    d1 = undefined;
-    kv_do = undefined;
-
+  async function retryGen(overrideProvider?: MusicProvider) {
+    if (!id) return;
+    const currentId = id;
+    retryError = null;
     stopPolling();
 
-    if (!id) return;
-
-    const newId = await generationHook.retryGen(id);
-    if (!newId) return;
-
-    pendingCreatedId = newId;
-    id = newId;
-    failed = false;
-    startPolling();
     try {
-      await getGen();
-    } catch (error) {
-      if (!isTransientCreatedSmol404(id, (error as Error & { status?: number }).status)) {
-        throw error;
+      const targetProvider = overrideProvider ?? activeProvider;
+      const newId = await generationHook.retryGen(currentId, overrideProvider);
+      if (!newId) return;
+
+      decrementQuota(targetProvider);
+      void refreshQuota(userState.contractId);
+
+      d1 = undefined;
+      kv_do = undefined;
+      pendingCreatedId = newId;
+      lastFetchedId = newId;
+      id = newId;
+      failed = false;
+      startPolling();
+      trackGeneration(newId);
+
+      try {
+        await getGen();
+      } catch (err) {
+        if (!isTransientCreatedSmol404(newId, (err as Error & { status?: number }).status)) {
+          throw err;
+        }
+      }
+    } catch (err) {
+      if (err instanceof QuotaExceededError) {
+        applyQuotaExceeded(err, userState.contractId);
+        retryError = err.message;
+        toast.error(err.message);
+      } else {
+        const msg = err instanceof Error ? err.message : 'Could not retry generation.';
+        retryError = msg;
+        toast.error(msg);
       }
     }
+  }
+
+  function handleEditPrompt() {
+    const promptText = kv_do?.payload?.prompt ?? '';
+    try {
+      sessionStorage.setItem(
+        'smol:remixDraft',
+        JSON.stringify({
+          prompt: promptText,
+          instrumental: Boolean(kv_do?.payload?.instrumental || d1?.Instrumental),
+          provider: requestedProvider,
+        })
+      );
+    } catch {
+      // Ignore storage errors.
+    }
+    void navigate('/create');
   }
 
   async function triggerMint() {
     if (!id || minting || minted) return;
 
     if (!userState.contractId || !userState.keyId) {
-      alert('Connect your wallet to mint');
+      openAuthSheet('signin', 'Sign in to mint this song as a collectible.');
       return;
     }
 
     const smolContractId = import.meta.env.PUBLIC_SMOL_CONTRACT_ID;
-
     if (!smolContractId) {
       logger.error('smol', 'Missing PUBLIC_SMOL_CONTRACT_ID env var');
-      alert('Minting is temporarily unavailable. Please try again later.');
+      toast.error('Minting is temporarily unavailable. Try again later.');
+      return;
+    }
+
+    // Canonical preflight (C-15): never mint a song that already exists on chain
+    // (D1 may not have indexed it yet). An inconclusive check blocks minting.
+    const songId = id;
+    minting = true;
+    try {
+      const { readMixtapeChainSnapshot } = await import('../utils/smolChainIdentity');
+      const snapshot = await readMixtapeChainSnapshot({
+        tracks: [{ id: songId, mintToken: d1?.Mint_Token ?? null, mintAmm: d1?.Mint_Amm ?? null }],
+      });
+      const facts = snapshot.tracks.get(songId)?.facts;
+      if (facts?.status === 'minted') {
+        minting = false;
+        verifiedMarket = { songId, sac: facts.sac, pool: facts.pool };
+        toast.info('This song is already minted. Opening its market.');
+        showTradeModal = true;
+        return;
+      }
+      if (facts?.status !== 'unminted') {
+        minting = false;
+        toast.error("Couldn't confirm this song's mint status, so nothing was minted. Try again in a moment.");
+        return;
+      }
+    } catch (err) {
+      logger.error('smol', 'Mint preflight failed', err);
+      minting = false;
+      toast.error("Couldn't confirm this song's mint status, so nothing was minted. Try again in a moment.");
       return;
     }
 
     try {
+      mintStartedInSession = true;
       minting = true;
 
       await mintingHook.triggerMint(
@@ -387,10 +565,12 @@
           await getGen();
         }
       );
-    } catch (error) {
-      logger.error('smol', error);
-      alert(error instanceof Error ? error.message : String(error));
+      toast.success('Mint submitted. Waiting for confirmation.');
+    } catch (err) {
+      logger.error('smol', err);
+      toast.error(err instanceof Error ? err.message : 'Minting failed.');
       mintingHook.clearMintPolling();
+      mintStartedInSession = false;
       minting = false;
     }
   }
@@ -398,26 +578,17 @@
   async function getGen() {
     if (!id) return;
 
-    let res;
-
+    let res: SmolDetailResponse;
     try {
       res = await generationHook.getGen(id);
-    } catch (error) {
-      if (isTransientCreatedSmol404(id, (error as Error & { status?: number }).status)) {
+    } catch (err) {
+      if (isTransientCreatedSmol404(id, (err as Error & { status?: number }).status)) {
         return;
       }
-      throw error;
+      throw err;
     }
 
-    d1 = res?.d1;
-    kv_do = res?.kv_do;
-    liked = res?.liked;
-    data = res;
-    best_song = d1?.Song_1;
-    pendingCreatedId = null;
-
-    hydrateGenerationState(res);
-
+    applySmolData(res);
     return res;
   }
 
@@ -432,50 +603,52 @@
 </script>
 
 {#if loading}
-  <div class="flex justify-center items-center py-20">
-    <div class="text-lime-500">Loading...</div>
-  </div>
-{:else if error}
-  <div class="flex justify-center items-center py-20">
-    <div class="text-red-500">{error}</div>
-  </div>
-{:else if !id}
-  {#if !userState.contractId}
-    <div class="px-2 py-10 bg-slate-900">
-      <div class="flex flex-col items-center max-w-[1024px] mx-auto">
-        <h1 class="bg-rose-950 border border-rose-400 rounded px-2 py-1">
-          Login or Create New Account
-        </h1>
+  <div class="app-container py-8">
+    <div class="grid gap-6 lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-10" aria-hidden="true">
+      <div class="space-y-4">
+        <div class="mx-auto aspect-square w-full max-w-[min(240px,30dvh)] animate-pulse rounded-[var(--radius-media)] bg-surface-1 lg:mx-0 lg:max-w-none"></div>
+        <div class="hidden h-44 w-full animate-pulse rounded-[var(--radius-control)] bg-surface-1 lg:block"></div>
+      </div>
+      <div class="space-y-4">
+        <div class="h-9 w-2/3 animate-pulse rounded bg-surface-1"></div>
+        <div class="h-4 w-1/3 animate-pulse rounded bg-surface-1"></div>
+        <div class="flex gap-2">
+          <div class="h-11 w-32 animate-pulse rounded-full bg-surface-1"></div>
+          <div class="h-11 w-24 animate-pulse rounded-full bg-surface-1"></div>
+          <div class="size-11 animate-pulse rounded-full bg-surface-1"></div>
+        </div>
+        <div class="h-20 w-full animate-pulse rounded-[var(--radius-control)] bg-surface-1"></div>
+        <div class="h-24 w-full animate-pulse rounded-[var(--radius-control)] bg-surface-1"></div>
+        <div class="h-36 w-full animate-pulse rounded-[var(--radius-control)] bg-surface-1"></div>
       </div>
     </div>
-  {:else}
-    <SmolGenerator
-      bind:prompt
-      bind:isPublic={is_public}
-      bind:isInstrumental={is_instrumental}
-      {playlist}
-      isGenerating={submittingGeneration || (!!id && !!interval)}
-      {maxLength}
-      onPromptChange={limitPromptLength}
-      onPublicChange={() => limitPromptLength()}
-      onInstrumentalChange={() => limitPromptLength()}
-      onSubmit={postGen}
-      onRemovePlaylist={removePlaylist}
+  </div>
+{:else if error}
+  <div class="app-container py-16">
+    <StateFeedback
+      kind="error"
+      title={errorStatus === 404 ? 'Song not found' : 'Could not load song'}
+      message={error}
+      actionLabel={errorStatus === 404 || !id ? 'Browse songs' : 'Try again'}
+      actionHref={errorStatus === 404 || !id ? '/' : undefined}
+      onAction={errorStatus === 404 || !id ? undefined : () => void fetchSmolData(id!)}
     />
-  {/if}
-{/if}
-
-{#if id}
-  {#if failed}
-    <SmolRetryPanel
-      isPolling={!!id && !!interval}
-      failure={kv_do?.failure}
-      {playlist}
-      onRetry={retryGen}
-      onRemovePlaylist={removePlaylist}
-    />
-  {/if}
-
+  </div>
+{:else if !id}
+  <SmolGenerator
+    bind:prompt
+    bind:isPublic={is_public}
+    bind:isInstrumental={is_instrumental}
+    bind:provider
+    {playlist}
+    isGenerating={submittingGeneration}
+    isAuthenticated={Boolean(userState.contractId)}
+    {quotaError}
+    onSubmit={postGen}
+    onRemovePlaylist={removePlaylist}
+    onClearQuotaError={() => (quotaError = null)}
+  />
+{:else}
   <SmolDisplay
     {id}
     {d1}
@@ -483,35 +656,44 @@
     {liked}
     bind:bestSong={best_song}
     {showGenerationLoader}
+    {failed}
+    isPolling={Boolean(interval)}
+    {playlist}
+    {retryError}
     {minting}
     {minted}
     {tradeReady}
     {tradeMintBalance}
     {isOwner}
-    bind:audioElements
+    {savingBest}
     onMakeSongPublic={makeSongPublic}
     onDeleteSong={deleteSong}
     onSelectBestSong={selectBestSong}
-    onPlayAudio={playAudio}
     onTriggerMint={triggerMint}
     onOpenTradeModal={openTradeModal}
     onLikeChanged={(likedValue) => (liked = likedValue)}
+    onRetry={retryGen}
+    onEditPrompt={handleEditPrompt}
+    onRemovePlaylist={removePlaylist}
   />
 
-  {#if d1?.Public === 1}
-    <SimilarSmols id={id} />
+  {#if d1?.Public === 1 && kv_do?.nsfw?.safe !== false}
+    <SimilarSmols {id} />
   {/if}
 {/if}
 
-{#if tradeReady && d1?.Mint_Amm && d1?.Mint_Token && tradeSongId}
+{#if tradeReady && tradeSongId}
+  <!-- ammId / mintTokenId are D1 hints; the sheet trades only the verified canonical pair. -->
   <SmolTradeSection
     bind:show={showTradeModal}
     songId={tradeSongId}
-    ammId={d1.Mint_Amm}
-    mintTokenId={d1.Mint_Token}
+    ammId={d1?.Mint_Amm ?? ''}
+    mintTokenId={d1?.Mint_Token ?? ''}
+    onVerified={(market) => {
+      if (tradeSongId) verifiedMarket = { songId: tradeSongId, ...market };
+    }}
     title={tradeTitle}
     imageUrl={tradeImageUrl}
-    userContractId={userState.contractId}
     bind:mintBalance={tradeMintBalance}
     onClose={() => (showTradeModal = false)}
     onComplete={handleTradeComplete}

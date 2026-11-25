@@ -1,16 +1,22 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount, untrack } from 'svelte';
+  import { onMount, untrack } from 'svelte';
+  import Sheet from './ui/Sheet.svelte';
   import Loader from './ui/Loader.svelte';
+  import Button from './ui/Button.svelte';
   import TradeForm from './trade/TradeForm.svelte';
   import TradeBalances from './trade/TradeBalances.svelte';
   import TradeSimulation from './trade/TradeSimulation.svelte';
   import { userState } from '../stores/user.svelte';
-  import { updateContractBalance } from '../stores/balance.svelte';
-  import { kale, sac } from '../utils/passkey-kit';
+  import { beginKaleBalanceRead, setKnownKaleBalance } from '../stores/balance.svelte';
+  import { openAuthSheet } from '../stores/authSheet.svelte';
+  import { toast } from '../stores/toast.svelte';
   import { logger } from '../utils/logger';
   import { Client as CometClient } from 'comet-sdk';
   import { useTradeSimulation } from '../hooks/useTradeSimulation';
   import { useTradeExecution } from '../hooks/useTradeExecution';
+  import { readCometTradeSnapshot, quoteTrade, type CometTradeSnapshot } from '../utils/cometPool';
+  import { cometMaxIn, CometQuoteError } from '../utils/cometQuote';
+  import { KALE_DECIMALS } from '../utils/mixtapePricing';
   import {
     computeAmmBuyCap,
     computeMaxBuy,
@@ -21,16 +27,28 @@
   const DISPLAY_TOKEN_NAME = 'SMOL';
 
   interface Props {
+    open?: boolean;
     ammId: string;
     mintTokenId: string;
     songId: string;
     title?: string;
     imageUrl?: string;
+    onClose: () => void;
+    onComplete: (updatedMintBalance?: bigint) => void;
+    onVerified?: (market: { sac: string; pool: string }) => void;
   }
 
-  let { ammId, mintTokenId, songId, title, imageUrl }: Props = $props();
-
-  const dispatch = createEventDispatcher();
+  let {
+    open = true,
+    ammId,
+    mintTokenId,
+    songId,
+    title,
+    imageUrl,
+    onClose,
+    onComplete,
+    onVerified,
+  }: Props = $props();
 
   let loading = $state(true);
   let loadError = $state<string | null>(null);
@@ -46,11 +64,12 @@
   let lastSimulatedMode = $state<'buy' | 'sell'>('buy');
 
   let cometClient = $state<CometClient | null>(null);
-  let mintTokenClient = $state<ReturnType<typeof sac.getSACClient> | null>(null);
+  let snapshot = $state<CometTradeSnapshot | null>(null);
 
-  let kaleDecimals = $state(7);
-  let mintDecimals = $state(7);
-  let kaleSymbol = $state('KALE');
+  // KALE and song tokens are SACs with a fixed 7 decimals (no decimals() RPC).
+  const kaleDecimals = KALE_DECIMALS;
+  const mintDecimals = KALE_DECIMALS;
+  const kaleSymbol = 'KALE';
 
   let ammKaleBalance = $state<bigint>(0n);
   let userKaleBalance = $state<bigint>(0n);
@@ -60,130 +79,149 @@
   let ammBuyCap = $state<bigint>(0n);
   let maxSellAmount = $state<bigint>(0n);
 
-  // Derive current user state directly instead of copying to local state
   let currentContractId = $derived(userState.contractId);
+  // Report 31: only the audited Comet executable may be quoted or traded.
+  const unsupportedPool = $derived(snapshot !== null && !snapshot.auditedPool);
+  const UNSUPPORTED_POOL_COPY = 'Unsupported pool contract version';
   let currentKeyId = $derived(userState.keyId);
 
   const simulationHook = useTradeSimulation();
   const executionHook = useTradeExecution();
 
-  function handleKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      close();
-    }
-  }
-
   onMount(() => {
-    window.addEventListener('keydown', handleKeydown);
     void initialize();
-
     return () => {
       simulationHook.clearTimer();
-      window.removeEventListener('keydown', handleKeydown);
     };
   });
 
+  /**
+   * One trade snapshot read for the wallet active when it STARTS. The holder
+   * and the balance store's sequencing ticket are captured before the request,
+   * so a response for a wallet that is no longer active (account switch while
+   * in flight) is dropped instead of being labelled with the new wallet.
+   */
+  async function readSnapshotForActiveHolder(): Promise<CometTradeSnapshot | null> {
+    const requestedHolder = userState.contractId;
+    const kaleSeq = requestedHolder ? beginKaleBalanceRead(requestedHolder) : null;
+    const next = await readCometTradeSnapshot({
+      songId,
+      d1Token: mintTokenId || null,
+      d1Amm: ammId || null,
+      holder: requestedHolder,
+    });
+    if (requestedHolder !== userState.contractId) return null; // stale: another wallet's balances
+    if (requestedHolder && kaleSeq !== null && next.userKale !== null) {
+      setKnownKaleBalance(requestedHolder, next.userKale, { seq: kaleSeq });
+    }
+    return next;
+  }
+
+  /** The wallet whose balances and limits this dialog is showing (or loading). */
+  let loadedHolder: string | null = untrack(() => userState.contractId);
+  /** Bumped per (re)load: only the newest load may apply its snapshot. */
+  let loadGeneration = 0;
+
+  /** Forget everything derived from the previous holder: balances, limits, quote. */
+  function clearHolderState() {
+    snapshot = null;
+    cometClient = null;
+    userKaleBalance = 0n;
+    userMintBalance = 0n;
+    ammKaleBalance = 0n;
+    maxBuyAmount = 0n;
+    ammBuyCap = 0n;
+    maxSellAmount = 0n;
+    inputAmount = '';
+    simulationHook.invalidate();
+    simulationHook.clearTimer();
+    simulationLoading = false;
+    simulationError = null;
+    simulatedAmountOut = null;
+    // A previous holder's pending swap no longer belongs to this dialog.
+    submitting = false;
+  }
+
+  // Holder changed while open (account switch, sign-out, another tab): never
+  // keep showing (or trading against) the previous wallet's balances, quote or
+  // limits. Signed out: close. Another wallet: reload for it.
+  $effect(() => {
+    const holder = userState.contractId;
+    untrack(() => {
+      if (holder === loadedHolder) return;
+      const previous = loadedHolder;
+      loadedHolder = holder;
+      loadGeneration++;
+      clearHolderState();
+      if (!holder && previous) {
+        loading = false;
+        onClose();
+        return;
+      }
+      void initialize();
+    });
+  });
+
+  function applySnapshot(next: CometTradeSnapshot) {
+    snapshot = next;
+    // The pool's KALE *reserve* (AllRecordData) bounds a buy, not its SAC balance.
+    ammKaleBalance = next.kaleRecord.balance;
+    userKaleBalance = next.userKale ?? 0n;
+    userMintBalance = next.userMint ?? 0n;
+    recomputeLimits();
+  }
+
   async function initialize() {
+    const load = ++loadGeneration;
     loading = true;
     loadError = null;
+    simulationLoading = false; // a previous load's simulation can no longer clear it
     simulationError = null;
     simulatedAmountOut = null;
     try {
-      if (!ammId || !mintTokenId) {
-        throw new Error('Missing AMM configuration.');
+      // Resolve + verify the canonical market BEFORE showing balances or quotes.
+      // `ammId` / `mintTokenId` are D1 hints only; trading always uses the
+      // verified canonical pair (C-15: D1 rows can be cross-wired or empty).
+      const next = await readSnapshotForActiveHolder();
+      // Superseded (the holder-change effect started a newer load) or the
+      // wallet changed mid-read: the newer load owns the dialog.
+      if (load !== loadGeneration) return;
+      if (!next) {
+        // The wallet changed mid-read: start over for the active wallet.
+        await initialize();
+        return;
       }
-
       cometClient = new CometClient({
-        contractId: ammId,
+        contractId: next.pool,
         rpcUrl: import.meta.env.PUBLIC_RPC_URL!,
         networkPassphrase: import.meta.env.PUBLIC_NETWORK_PASSPHRASE!,
       });
-
-      mintTokenClient = sac.getSACClient(mintTokenId);
-
-      const [{ result: kaleDecRes }, { result: mintDecRes }, { result: ammBalanceRes }] =
-        await Promise.all([
-          kale.decimals(),
-          mintTokenClient.decimals(),
-          kale.balance({ id: ammId }),
-        ]);
-
-      kaleDecimals = Number(kaleDecRes);
-      mintDecimals = Number(mintDecRes);
-      ammKaleBalance = ammBalanceRes;
-
-      if (currentContractId) {
-        await refreshUserBalances();
-      } else {
-        userKaleBalance = 0n;
-        userMintBalance = 0n;
-      }
-
-      recomputeLimits();
+      applySnapshot(next);
+      onVerified?.({ sac: next.mintToken, pool: next.pool });
     } catch (error) {
+      if (load !== loadGeneration) return;
       logger.error('trade', error);
-      loadError =
-        error instanceof Error ? error.message : 'Failed to load trading data.';
+      loadError = error instanceof Error ? error.message : 'Failed to load trading data.';
     } finally {
-      loading = false;
-    }
-  }
-
-  async function refreshUserBalances() {
-    if (!currentContractId || !mintTokenClient) return;
-
-    try {
-      const [{ result: kaleResult }, { result: mintResult }] = await Promise.all([
-        kale.balance({ id: currentContractId }),
-        mintTokenClient.balance({ id: currentContractId }),
-      ]);
-      userKaleBalance = kaleResult;
-      userMintBalance = mintResult;
-    } catch (error) {
-      logger.error('trade', 'Failed to refresh balances', error);
+      if (load === loadGeneration) loading = false;
     }
   }
 
   async function refreshAllBalances() {
-    if (!mintTokenClient) return;
-    const promises: Promise<void>[] = [];
-
-    promises.push(
-      kale
-        .balance({ id: ammId })
-        .then(({ result }) => {
-          ammKaleBalance = result;
-        })
-        .catch((error) => {
-          logger.error('trade', 'Failed to refresh AMM balance', error);
-        })
-    );
-
-    if (currentContractId) {
-      promises.push(
-        Promise.all([
-          kale.balance({ id: currentContractId }),
-          mintTokenClient.balance({ id: currentContractId }),
-        ])
-          .then(([{ result: kaleResult }, { result: mintResult }]) => {
-            userKaleBalance = kaleResult;
-            userMintBalance = mintResult;
-          })
-          .catch((error) => {
-            logger.error('trade', 'Failed to refresh user balances', error);
-          })
-      );
+    const load = loadGeneration;
+    try {
+      const next = await readSnapshotForActiveHolder();
+      if (next && load === loadGeneration) applySnapshot(next);
+    } catch (error) {
+      logger.error('trade', 'Failed to refresh trade balances', error);
     }
-
-    await Promise.all(promises);
-    recomputeLimits();
   }
 
   function recomputeLimits() {
     ammBuyCap = computeAmmBuyCap(ammKaleBalance);
     maxBuyAmount = computeMaxBuy(ammKaleBalance, userKaleBalance);
-    maxSellAmount = userMintBalance;
+    const sellCap = snapshot ? cometMaxIn(snapshot.mintRecord.balance) : userMintBalance;
+    maxSellAmount = userMintBalance < sellCap ? userMintBalance : sellCap;
 
     if (mode === 'sell' && maxSellAmount <= 0n) {
       mode = 'buy';
@@ -199,7 +237,7 @@
   async function runSimulation() {
     if (!cometClient) return;
     if (!currentContractId) {
-      simulationError = 'Connect your wallet to simulate trades.';
+      simulationError = 'Sign in to simulate trades.';
       return;
     }
     if (loading) return;
@@ -210,9 +248,7 @@
     simulationError = null;
     simulatedAmountOut = null;
 
-    if (!amount || amount <= 0n) {
-      return;
-    }
+    if (!amount || amount <= 0n) return;
 
     const maxIn = mode === 'buy' ? maxBuyAmount : maxSellAmount;
     if (maxIn <= 0n) {
@@ -227,35 +263,61 @@
       return;
     }
 
-    const tokenIn =
-      mode === 'buy' ? import.meta.env.PUBLIC_KALE_SAC_ID : mintTokenId;
-    const tokenOut =
-      mode === 'buy' ? mintTokenId : import.meta.env.PUBLIC_KALE_SAC_ID;
+    if (!snapshot) return;
+    const tokenIn = mode === 'buy' ? import.meta.env.PUBLIC_KALE_SAC_ID : snapshot.mintToken;
+    const tokenOut = mode === 'buy' ? snapshot.mintToken : import.meta.env.PUBLIC_KALE_SAC_ID;
 
-    simulationLoading = true;
     lastSimulatedMode = mode;
 
+    if (unsupportedPool) {
+      simulationError = `${UNSUPPORTED_POOL_COPY}. Trading is paused for this song.`;
+      return;
+    }
+
+    // Exact local quote from the ledger snapshot (zero RPC). Falls back to a
+    // simulation only for pool versions the local math doesn't support.
+    if (snapshot) {
+      try {
+        const local = quoteTrade(snapshot, mode, amount);
+        if (local !== null) {
+          simulationHook.invalidate();
+          simulatedAmountOut = local;
+          return;
+        }
+      } catch (error) {
+        simulationError =
+          error instanceof CometQuoteError && error.issue === 'aboveMaxIn'
+            ? `Amount exceeds max ${mode === 'buy' ? 'buy' : 'sell'} limit.`
+            : 'Enter a smaller amount.';
+        return;
+      }
+    }
+
+    simulationLoading = true;
+    // This simulation belongs to the holder, dialog load and request that
+    // started it: once any changes (account switch, reload, newer input), its
+    // result, error and loading cleanup never touch the current dialog.
+    const simHolder = currentContractId;
+    const dialogGen = loadGeneration;
+    let simNonce = -1;
+    const stillCurrent = () =>
+      dialogGen === loadGeneration &&
+      userState.contractId === simHolder &&
+      simNonce === simulationHook.getCurrentNonce();
+
     try {
-      const { amountOut, nonce } = await simulationHook.runSimulation(
-        cometClient,
-        mode,
-        amount,
-        tokenIn,
-        tokenOut,
-        currentContractId
-      );
-
-      if (nonce !== simulationHook.getCurrentNonce()) return;
-
+      const pending = simulationHook.runSimulation(cometClient, mode, amount, tokenIn, tokenOut, simHolder);
+      simNonce = simulationHook.getCurrentNonce(); // taken synchronously by runSimulation
+      const { amountOut } = await pending;
+      if (!stillCurrent()) return;
       simulatedAmountOut = amountOut;
     } catch (error) {
       logger.error('trade', 'Simulation failed', error);
-      if (simulationHook.getCurrentNonce()) {
-        simulationError =
-          error instanceof Error ? error.message : 'Simulation failed.';
+      if (stillCurrent()) {
+        simulationError = error instanceof Error ? error.message : 'Simulation failed.';
       }
     } finally {
-      simulationLoading = false;
+      if (stillCurrent()) simulationLoading = false;
     }
   }
 
@@ -279,9 +341,9 @@
   }
 
   async function executeSwap() {
-    if (!cometClient || !mintTokenClient) return;
+    if (!cometClient || !snapshot || unsupportedPool) return;
     if (!currentContractId || !currentKeyId) {
-      simulationError = 'Connect your wallet before trading.';
+      openAuthSheet('signin', 'Sign in to trade song tokens.');
       return;
     }
 
@@ -309,52 +371,47 @@
     submitting = true;
     simulationError = null;
 
-    const tokenIn =
-      mode === 'buy' ? import.meta.env.PUBLIC_KALE_SAC_ID : mintTokenId;
-    const tokenOut =
-      mode === 'buy' ? mintTokenId : import.meta.env.PUBLIC_KALE_SAC_ID;
+    if (!snapshot) return;
+    const tokenIn = mode === 'buy' ? import.meta.env.PUBLIC_KALE_SAC_ID : snapshot.mintToken;
+    const tokenOut = mode === 'buy' ? snapshot.mintToken : import.meta.env.PUBLIC_KALE_SAC_ID;
+    // The dialog generation and wallet this swap belongs to: if either changes
+    // before it settles (account switch, A→B→A), its completion, error and
+    // pending state never touch (or close) the dialog now showing.
+    const dialogGen = loadGeneration;
+    const submittingHolder = currentContractId;
+    const submittingMode = mode;
+    const stillCurrent = () => dialogGen === loadGeneration && userState.contractId === submittingHolder;
 
     try {
-      const expectedOut = await executionHook.executeSwap({
+      await executionHook.executeSwap({
         cometClient,
         tokenIn,
         tokenOut,
         amount,
-        userContractId: currentContractId,
+        userContractId: submittingHolder,
         userKeyId: currentKeyId,
       });
+      if (!stillCurrent()) return;
 
       await refreshAllBalances();
-      if (currentContractId) {
-        await updateContractBalance(currentContractId);
-      }
-
-      dispatch('complete', {
-        side: mode,
-        amountIn: amount,
-        amountOut: expectedOut,
-      });
-
-      close();
+      if (!stillCurrent()) return;
+      toast.success(submittingMode === 'buy' ? `Bought ${DISPLAY_TOKEN_NAME}.` : `Sold ${DISPLAY_TOKEN_NAME}.`);
+      onComplete(userMintBalance);
     } catch (error) {
       logger.error('trade', 'Swap failed', error);
-      simulationError =
-        error instanceof Error ? error.message : 'Swap request failed.';
+      if (!stillCurrent()) return;
+      simulationError = error instanceof Error ? error.message : 'Swap request failed.';
     } finally {
-      submitting = false;
+      if (stillCurrent()) submitting = false;
     }
-  }
-
-  function close() {
-    dispatch('close');
   }
 
   const sellDisabled = $derived(maxSellAmount <= 0n);
   const actionLabel = $derived(
     submitting
       ? mode === 'buy'
-        ? 'Buying...'
-        : 'Selling...'
+        ? 'Buying…'
+        : 'Selling…'
       : mode === 'buy'
         ? `Buy ${DISPLAY_TOKEN_NAME}`
         : `Sell ${DISPLAY_TOKEN_NAME}`
@@ -375,46 +432,46 @@
   );
 </script>
 
-<div
-  class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-  onclick={close}
+<Sheet
+  {open}
+  title={`Trade ${DISPLAY_TOKEN_NAME}`}
+  subtitle={title}
+  dismissible={!submitting}
+  onClose={onClose}
 >
-  <div
-    class="w-full max-w-lg rounded-lg bg-slate-900 p-6 text-slate-100 shadow-xl"
-    onclick={(e) => e.stopPropagation()}
-  >
-    <div class="mb-4 flex items-start">
-      {#if imageUrl}
+  <div class="space-y-4">
+    {#if imageUrl}
+      <div class="flex items-center gap-3">
         <img
           src={imageUrl}
-          alt={title ?? DISPLAY_TOKEN_NAME}
-          class="h-12 w-12 flex-shrink-0 rounded object-cover"
+          alt=""
+          class="size-12 shrink-0 rounded-[var(--radius-media)] object-cover pixelated ring-1 ring-inset ring-white/10"
         />
-      {/if}
-      <div class="ml-3 mr-auto">
-        <h2 class="text-lg font-semibold">Trade {DISPLAY_TOKEN_NAME}</h2>
-        {#if title}
-          <p class="text-sm text-slate-400">{title}</p>
-        {/if}
+        <div class="min-w-0">
+          <p class="truncate text-sm font-medium text-ink-1">{title ?? DISPLAY_TOKEN_NAME}</p>
+          <p class="font-mono text-xs text-ink-3 truncate">{songId.slice(0, 12)}…</p>
+        </div>
       </div>
-      <button
-        class="rounded bg-slate-800 px-2 py-1 text-sm hover:bg-slate-700"
-        onclick={close}
-        aria-label="Close trade dialog"
-      >
-        ×
-      </button>
-    </div>
+    {/if}
 
     {#if loading}
       <div class="flex items-center justify-center py-10">
-        <Loader classNames=" text-lime-400 w-8 h-8" />
+        <Loader classNames="size-7" textColor="text-accent" />
       </div>
     {:else if loadError}
-      <div
-        class="rounded border border-rose-500 bg-rose-500/10 p-4 text-sm text-rose-200"
-      >
+      <div class="rounded-[var(--radius-control)] bg-danger/15 p-4 text-sm text-danger ring-1 ring-inset ring-danger/35">
         {loadError}
+      </div>
+    {:else if unsupportedPool}
+      <div
+        role="alert"
+        class="flex items-start gap-2.5 rounded-[var(--radius-control)] bg-warning/10 p-4 text-sm text-ink-1 ring-1 ring-inset ring-warning/35"
+      >
+        <span class="mt-0.5 font-semibold text-warning" aria-hidden="true">!</span>
+        <div>
+          <p class="font-medium">{UNSUPPORTED_POOL_COPY}</p>
+          <p class="mt-0.5 text-xs text-ink-2">This song's market runs contract code SMOL hasn't verified, so trading is paused.</p>
+        </div>
       </div>
     {:else}
       <TradeForm
@@ -427,46 +484,52 @@
         {onAmountInput}
       />
 
-      <div class="space-y-4 mt-4">
-        <TradeBalances
-          {kaleSymbol}
-          displayTokenName={DISPLAY_TOKEN_NAME}
-          {userKaleDisplay}
-          {userMintDisplay}
-          {ammKaleDisplay}
-          {ammBuyCapDisplay}
-          {maxBuyDisplay}
-          {maxSellDisplay}
-        />
+      <TradeBalances
+        {kaleSymbol}
+        displayTokenName={DISPLAY_TOKEN_NAME}
+        {userKaleDisplay}
+        {userMintDisplay}
+        {ammKaleDisplay}
+        {ammBuyCapDisplay}
+        {maxBuyDisplay}
+        {maxSellDisplay}
+      />
 
-        <TradeSimulation
-          {mode}
-          {lastSimulatedMode}
-          {simulatedDisplay}
-          {simulationLoading}
-          {simulationError}
-          {kaleSymbol}
-          displayTokenName={DISPLAY_TOKEN_NAME}
-        />
-
-        <button
-          class="w-full rounded bg-lime-500 px-4 py-2 text-base font-semibold text-slate-900 hover:bg-lime-400 disabled:opacity-60"
-          onclick={executeSwap}
-          disabled={submitting ||
-            !currentContractId ||
-            !currentKeyId ||
-            !inputAmount.trim() ||
-            loading}
-        >
-          {actionLabel}
-        </button>
-
-        {#if !currentContractId}
-          <p class="text-center text-xs text-slate-400">
-            Connect your wallet to place a trade.
-          </p>
-        {/if}
-      </div>
+      <TradeSimulation
+        {mode}
+        {lastSimulatedMode}
+        {simulatedDisplay}
+        {simulationLoading}
+        {simulationError}
+        {kaleSymbol}
+        displayTokenName={DISPLAY_TOKEN_NAME}
+      />
     {/if}
   </div>
-</div>
+
+  {#snippet footer()}
+    {#if !loading && !loadError}
+      {#if unsupportedPool}
+        <Button variant="secondary" fullWidth disabled>{UNSUPPORTED_POOL_COPY}</Button>
+      {:else if !currentContractId}
+        <Button
+          variant="primary"
+          fullWidth
+          onclick={() => openAuthSheet('signin', 'Sign in to trade song tokens.')}
+        >
+          Sign in to trade
+        </Button>
+      {:else}
+        <Button
+          variant="primary"
+          fullWidth
+          loading={submitting}
+          disabled={submitting || !currentKeyId || !inputAmount.trim()}
+          onclick={executeSwap}
+        >
+          {actionLabel}
+        </Button>
+      {/if}
+    {/if}
+  {/snippet}
+</Sheet>

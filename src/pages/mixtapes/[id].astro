@@ -1,41 +1,58 @@
 ---
-import Layout from "../../layouts/Layout.astro";
-import MixtapeDetailView from "../../components/mixtape/MixtapeDetailView.svelte";
+import MixtapeDetailView from '../../components/mixtape/MixtapeDetailView.svelte';
+import MixtapeOwnerCallout from '../../components/mixtape/MixtapeOwnerCallout.svelte';
+import Layout from '../../layouts/Layout.astro';
+import { parseMixtapeNotFound, toMixtapeDetail, type ApiMixtapeDetail } from '../../services/api/mixtapes';
+import { serverApiFetch, serverApiFetchResult, sessionSubject } from '../../services/api/server';
+import type { ApiOwnedMixtape } from '../../services/api/mixtapes';
 
 const { id } = Astro.params;
+const result = id
+  ? await serverApiFetchResult<ApiMixtapeDetail>(Astro, `/mixtapes/${encodeURIComponent(id)}`)
+  : { status: 404, data: null };
 
-// Fetch minimal data for SEO/meta tags only
-let title = "Smol – Mixtape";
-let description = "Smol art onchain";
-let image_url: string | null = null;
-
-if (id) {
-    try {
-        const data = await fetch(`${import.meta.env.PUBLIC_API_URL}/mixtapes/${id}`, {
-            headers: {
-                Cookie: Astro.request.headers.get('cookie') ?? '',
-            }
-        }).then(async (res) => {
-            if (res.ok) return res.json();
-            return null;
-        });
-
-        if (data) {
-            title = `${data.Title} – Smol`;
-            description = data.Desc || "Smol art onchain";
-
-            // Use first track's image as mixtape cover
-            if (data.Smols?.[0]?.Id) {
-                image_url = `${import.meta.env.PUBLIC_API_URL}/image/${data.Smols[0].Id}.png`;
-            }
-        }
-    } catch (error) {
-        console.error('Failed to fetch mixtape meta data:', error);
-    }
+if (result.status === 404) {
+  // A merged mixtape keeps its link: send it to the mixtape that now holds its songs.
+  const notFound = parseMixtapeNotFound(result.data);
+  if (notFound.kind === 'merged' && notFound.mergedInto !== id) {
+    return Astro.redirect(`/mixtapes/${encodeURIComponent(notFound.mergedInto)}?merged=1`, 307);
+  }
 }
+
+const initialData = result.status === 200 && result.data && Array.isArray(result.data.Smols) ? toMixtapeDetail(result.data) : null;
+// Missing and deleted mixtapes are a real 404. An unreachable API (status 0 / 5xx) lets the island retry.
+const initialNotFound = Boolean(!id || result.status === 404);
+if (initialNotFound) {
+  Astro.response.status = 404;
+}
+// Hidden ("owner") mixtapes stay playable by link but are never indexed.
+const noindex = initialData?.visibility === 'owner';
+// Report 24 §5.3 / 25d P2-6: the creator sees why a mixtape is hidden in the first paint. The detail
+// island stays client:only (t488's collector is browser-only); this static, inert copy is replaced
+// by the live callout as soon as the island renders.
+// 25d pass 2 P2-4 / pass 3 P2-3: ownership is VERIFIED server-side — the (unverified) cookie subject
+// only decides whether to ask; the authenticated GET /mixtapes/mine must succeed and list this
+// mixtape. The island receives the same verified decision for its first paint.
+let verifiedOwner = false;
+if (initialData && id && sessionSubject(Astro) === initialData.creator) {
+  const mine = await serverApiFetch<ApiOwnedMixtape[]>(Astro, '/mixtapes/mine', { forwardAuth: true });
+  verifiedOwner = Array.isArray(mine) && mine.some((row) => row.Id === id && row.Address === initialData.creator);
+}
+const ssrOwnerCallout = verifiedOwner && noindex;
+// Marks the island that reads the KALE key in its batched snapshot: the header holds for it.
+const kalePageOwner = !initialNotFound;
+const noop = () => {};
+const title = initialData ? initialData.title : 'Mixtape not found';
+const description = initialData?.description || 'Smol art onchain';
+const image_url = initialData?.coverUrls[0] ?? null;
 ---
 
-<Layout {title} {description} {image_url}>
-    <MixtapeDetailView {id} client:only="svelte" />
+<Layout {title} {description} {image_url} {noindex}>
+  {ssrOwnerCallout && initialData && (
+    <div data-ssr-owner-callout inert class="app-container pt-6 sm:pt-8">
+      <MixtapeOwnerCallout mixtape={initialData} onEdit={noop} onAddSongs={noop} onMerge={noop} onDelete={noop} />
+    </div>
+  )}
+  {kalePageOwner && <template data-kale-page-owner></template>}
+  <MixtapeDetailView id={id ?? ''} {initialData} {initialNotFound} {verifiedOwner} client:only="svelte" />
 </Layout>
-
