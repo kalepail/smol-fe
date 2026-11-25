@@ -1,10 +1,12 @@
 import { logger } from '../utils/logger';
 import { MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from '../utils/mintConstants';
 
+import type { SessionTicket } from '../stores/user.svelte';
+
 interface MintParams {
   id: string;
-  contractId: string;
-  keyId: string;
+  /** The session the user clicked Mint under (see `createMintTransaction`). */
+  session: SessionTicket;
   smolContractId: string;
   rpcUrl: string;
   networkPassphrase: string;
@@ -34,7 +36,7 @@ export function useSmolMinting() {
     try {
       const { createMintTransaction, submitMintTransaction } = await import('../utils/mint');
       const xdrString = await createMintTransaction(params);
-      await submitMintTransaction(params.id, xdrString, import.meta.env.PUBLIC_API_URL!);
+      await submitMintTransaction(params.id, xdrString, import.meta.env.PUBLIC_API_URL!, params.session);
 
       clearMintPolling();
       mintInterval = setInterval(onPollStatus, MINT_POLL_INTERVAL);

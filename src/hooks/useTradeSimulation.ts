@@ -1,4 +1,5 @@
-import type { Client as CometClient } from 'comet-sdk';
+import { Errors as CometErrors, type Client as CometClient } from 'comet-sdk';
+import { expectSimulatedTuple } from '../utils/contractResult';
 import { logger } from '../utils/logger';
 
 const MAX_PRICE = 170141183460469231731687303715884105727n;
@@ -42,7 +43,8 @@ export function useTradeSimulation() {
         return { amountOut: null, nonce: localNonce };
       }
 
-      const [amountOut] = tx.result ?? [];
+      // A failed simulation is an `Err` (not a tuple): surface its contract code.
+      const [amountOut] = expectSimulatedTuple<readonly [bigint, bigint]>(tx, CometErrors);
       return { amountOut: amountOut ?? null, nonce: localNonce };
     } catch (error) {
       logger.error('trade', 'Simulation failed', error);

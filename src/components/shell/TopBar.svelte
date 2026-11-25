@@ -19,7 +19,7 @@
     resetBalance,
   } from '../../stores/balance.svelte';
   import { formatCompactKaleBalance, formatKaleBalance } from '../../utils/kaleFormatting';
-  import { subscribeAuthTransitions } from '../../services/api/auth';
+  import { subscribeAuthTransitions } from '../../services/api/authEvents';
   import { e2eSeams } from '../../utils/collectSeams';
   import Icon from '../ui/Icon.svelte';
   import IconButton from '../ui/IconButton.svelte';

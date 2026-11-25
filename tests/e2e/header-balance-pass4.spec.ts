@@ -170,6 +170,7 @@ test.describe('Report 49 Pass 4 header balance', () => {
       balances: {},
       kale: 0n,
       kaleReserve: KALE(1_000),
+      feeConfig: false, // no SwapFeeConfig ⇒ the sheet must fall back to simulation
       kaleByHolder: { [COLLECTOR]: KALE(100), [WALLET_B]: KALE(200) },
     }));
     const simHeld = gate();

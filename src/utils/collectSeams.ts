@@ -7,9 +7,27 @@
  */
 export interface BoundarySeam {
   assemble?: () => Promise<unknown>;
+  /**
+   * Buy batches only: stands in for the aggregate local quote (song tokens out
+   * for the whole batch). Called once at approval and once right before signing.
+   */
+  quote?: (phase: 'baseline' | 'requote') => Promise<bigint | null>;
   expiration?: () => Promise<number>;
+  /**
+   * Buy batches only: stands in for restoring the passkey wallet, which happens
+   * BEFORE the final re-quote (so a price move during a slow restore is caught).
+   */
+  prepareWallet?: () => Promise<void>;
   sign?: () => Promise<void>;
   relay?: (trackIds: string[]) => Promise<unknown>;
+}
+
+export interface SwapSeamArgs {
+  tokenIn: string;
+  tokenOut: string;
+  amount: bigint;
+  quotedAmountOut: bigint;
+  minAmountOut: bigint;
 }
 
 export interface CollectSeams {
@@ -21,8 +39,12 @@ export interface CollectSeams {
   mintStatus?: boolean;
   /** Header KALE auto-load defer (ms), to hold the pending timer open in tests. */
   balanceDeferMs?: number;
-  /** Stands in for the whole trade swap (build, passkey, send) in MintTradeModal. */
-  swap?: () => Promise<unknown>;
+  /**
+   * Stands in for the whole trade swap (build, passkey, send) in MintTradeModal.
+   * Receives the exact limits the real swap would carry; a throw is mapped
+   * through the same slippage classifier as a real contract error.
+   */
+  swap?: (args: SwapSeamArgs) => Promise<unknown>;
 }
 
 export function e2eSeams(): CollectSeams | undefined {

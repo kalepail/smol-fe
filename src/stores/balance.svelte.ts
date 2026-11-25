@@ -123,14 +123,6 @@ export function setKaleBalanceError(address: string, opts: { seq?: number } = {}
   return core.setError(address, opts);
 }
 
-export function getBalance(): bigint | null {
-  return balanceState.balance;
-}
-
-export function isBalanceLoading(): boolean {
-  return balanceState.loading;
-}
-
 export function resetBalance(): void {
   core.reset();
 }

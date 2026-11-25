@@ -606,3 +606,51 @@ test.describe('Fable Report 36 & 37 edge-case regressions', () => {
     expect(drawerOverflow).toBeLessThanOrEqual(1);
   });
 });
+
+test.describe('AE-3 song page robots', () => {
+  const robotsOf = async (res: { status(): number; text(): Promise<string> }) => {
+    expect(res.status()).toBe(200);
+    return (await res.text()).match(/<meta name="robots" content="([^"]*)"/)?.[1] ?? null;
+  };
+  // The dev server can't be reached AS smol.xyz; PUBLIC_E2E_SEAMS builds accept
+  // this header in place of the hostname for the robots policy only.
+  const production = { headers: { 'x-smol-e2e-host': 'smol.xyz' } };
+
+  test('private, flagged and unpublished songs are noindex, nofollow even on smol.xyz; public songs stay indexable', async ({
+    request,
+    page,
+  }) => {
+    expect(await robotsOf(await request.get('/smol-private', production))).toBe('noindex, nofollow');
+    expect(await robotsOf(await request.get('/smol-flagged', production))).toBe('noindex, nofollow');
+    expect(await robotsOf(await request.get('/smol-generating', production))).toBe('noindex, nofollow');
+    expect(await robotsOf(await request.get('/smol-minted', production))).toBe('index, follow');
+    expect(await robotsOf(await request.get('/smol-1take', production))).toBe('index, follow');
+
+    // Every non-production host (next.smol.xyz, previews, local) is noindex, nofollow globally.
+    expect(await robotsOf(await request.get('/smol-minted', { headers: { 'x-smol-e2e-host': 'next.smol.xyz' } }))).toBe(
+      'noindex, nofollow'
+    );
+    await page.goto('/smol-private');
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
+    await expect(page.locator('meta[name="robots"]')).toHaveCount(1);
+  });
+
+  test('SSR uses CURRENT D1 visibility and the UI safety predicate (published-after-private, safety unknown)', async ({
+    request,
+    page,
+  }) => {
+    // Generated private, published later: D1 Public = 1, payload.public = false, safe.
+    expect(await robotsOf(await request.get('/smol-published-was-private', production))).toBe('index, follow');
+    // Published, but the safety check could not decide (`unknown: true`, no `safe`).
+    expect(await robotsOf(await request.get('/smol-safety-unknown', production))).toBe('noindex, nofollow');
+    // Still never indexable off production.
+    expect(
+      await robotsOf(await request.get('/smol-published-was-private', { headers: { 'x-smol-e2e-host': 'next.smol.xyz' } }))
+    ).toBe('noindex, nofollow');
+
+    // The UI agrees: the unknown-safety song renders as restricted.
+    await page.goto('/smol-safety-unknown');
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
+    await expect(page.getByText("Safety check didn't complete. Kept private from public feeds.")).toBeVisible();
+  });
+});

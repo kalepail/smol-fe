@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from '../ui/Icon.svelte';
+  import { songSafety } from '../../utils/songSafety';
 
   interface Props {
     id: string | null;
@@ -55,8 +56,9 @@
     return () => ro.disconnect();
   });
 
-  const isSafetyUnknown = $derived(Boolean(nsfw?.unknown));
-  const isUnsafe = $derived(Boolean(nsfw && nsfw.safe === false && !nsfw.unknown));
+  const safety = $derived(songSafety(nsfw));
+  const isSafetyUnknown = $derived(safety.unknown);
+  const isUnsafe = $derived(safety.unsafe);
   const showSafetyRow = $derived(isUnsafe || isSafetyUnknown);
   const showPlays = $derived(typeof plays === 'number' && plays > 0);
   const formattedPlays = $derived(showPlays ? plays!.toLocaleString() : null);

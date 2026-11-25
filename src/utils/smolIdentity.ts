@@ -9,6 +9,7 @@
  *   SAC  = Asset(id.slice(0, 12), SMOL_ISSUER).contractId(network)
  *   pool = contract deployed by the SMOL factory with salt = hex(id)
  */
+import { Buffer } from './bufferGlobal.ts';
 import { Address, Asset, StrKey, hash, xdr } from '@stellar/stellar-sdk/minimal';
 import type { SmolIdentity } from './ledgerReads.ts';
 

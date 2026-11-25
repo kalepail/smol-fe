@@ -1,6 +1,4 @@
-import { getWebAuthnRpId } from '../utils/rpId';
 import { parseSessionToken, readRawCookie } from '../utils/sessionToken';
-import { logger } from '../utils/logger';
 
 export interface LiveSessionIdentity {
   contractId: string | null;
@@ -32,6 +30,43 @@ export function readLiveSessionCookie(): LiveSessionIdentity {
 
 const initialSession = readLiveSessionCookie();
 
+/**
+ * Session generation: bumped on EVERY auth identity change in this tab (login,
+ * signup, logout, cross-tab switch picked up from the cookie), even a switch
+ * back to the same wallet. Not reactive: it only stamps wallet action tickets.
+ */
+let sessionGeneration = 0;
+
+export function getSessionGeneration(): number {
+  return sessionGeneration;
+}
+
+/**
+ * The identity a wallet action (transfer, swap, batch buy, mint) was started
+ * for. Captured synchronously when the user submits; the action must abort if
+ * the session no longer matches it before building, signing or relaying.
+ */
+export interface SessionTicket {
+  contractId: string;
+  keyId: string;
+  generation: number;
+}
+
+/** The current signed-in session as a ticket, or `null` when signed out. */
+export function captureSessionTicket(): SessionTicket | null {
+  const { contractId, keyId } = userState;
+  if (!contractId || !keyId) return null;
+  return { contractId, keyId, generation: sessionGeneration };
+}
+
+export function isSessionTicketCurrent(ticket: SessionTicket): boolean {
+  return (
+    userState.contractId === ticket.contractId &&
+    userState.keyId === ticket.keyId &&
+    sessionGeneration === ticket.generation
+  );
+}
+
 export const userState = $state<{
   contractId: string | null;
   keyId: string | null;
@@ -58,6 +93,7 @@ export function syncUserAuthFromCookie(): boolean {
     return true;
   }
 
+  sessionGeneration++;
   userState.contractId = next.contractId;
   userState.keyId = next.keyId;
   userState.walletConnected = false;
@@ -68,46 +104,15 @@ export function isAuthenticated(): boolean {
   return userState.contractId !== null && userState.keyId !== null;
 }
 
-export function setContractId(id: string | null) {
-  userState.contractId = id;
-}
-
-export function setKeyId(id: string | null) {
-  userState.keyId = id;
-}
-
 export function setUserAuth(contractId: string | null, keyId: string | null) {
+  sessionGeneration++;
   userState.contractId = contractId;
   userState.keyId = keyId;
 }
 
 export function clearUserAuth() {
+  sessionGeneration++;
   userState.contractId = null;
   userState.keyId = null;
   userState.walletConnected = false;
-}
-
-export async function ensureWalletConnected(): Promise<void> {
-  if (userState.contractId && userState.keyId && !userState.walletConnected) {
-    try {
-      const { account } = await import('../utils/passkey-kit');
-      await account.connectWallet({
-        rpId: getWebAuthnRpId(),
-        keyId: userState.keyId,
-      });
-      userState.walletConnected = true;
-      logger.info('auth', 'Wallet connected successfully');
-    } catch (error) {
-      logger.error('auth', 'Failed to connect wallet:', error);
-      throw error;
-    }
-  }
-}
-
-export function getContractId(): string | null {
-  return userState.contractId;
-}
-
-export function getKeyId(): string | null {
-  return userState.keyId;
 }

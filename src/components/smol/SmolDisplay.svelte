@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { songSafety } from '../../utils/songSafety';
   import { navigate } from 'astro:transitions/client';
   import type { MusicProvider, Smol, SmolDetailResponse } from '../../types/domain';
   import { player, playQueue, setTrackLiked, toggle, updateTrack } from '../../stores/audio.svelte';
@@ -107,9 +108,11 @@
   const isInstrumental = $derived(
     Boolean(kv_do?.payload?.instrumental || d1?.Instrumental)
   );
-  const isSafetyUnknown = $derived(Boolean(kv_do?.nsfw?.unknown));
-  const isUnsafe = $derived(Boolean(kv_do?.nsfw && kv_do.nsfw.safe === false && !kv_do.nsfw.unknown));
-  const isRestricted = $derived(isUnsafe || isSafetyUnknown);
+  // Same predicate as the robots policy (utils/songSafety.ts).
+  const safety = $derived(songSafety(kv_do?.nsfw));
+  const isSafetyUnknown = $derived(safety.unknown);
+  const isUnsafe = $derived(safety.unsafe);
+  const isRestricted = $derived(safety.restricted);
   const hasCoverArt = $derived(Boolean(kv_do?.image || d1?.Id));
 
   const title = $derived.by(() => {

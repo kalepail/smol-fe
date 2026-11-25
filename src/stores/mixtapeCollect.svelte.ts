@@ -56,10 +56,11 @@ import {
   type TrackCollectState,
 } from '../utils/mixtapeOwnership';
 import { fitsMaxIn } from '../utils/cometQuote';
+import { QuoteMovedError } from '../utils/slippage';
 import { BUY_COST_KALE, BUY_COST_STROOPS, MINT_COST_KALE, MINT_COST_STROOPS } from '../utils/mixtapePricing';
 import { logger } from '../utils/logger';
 import { e2eSeams } from '../utils/collectSeams';
-import { syncUserAuthFromCookie, userState } from './user.svelte';
+import { captureSessionTicket, syncUserAuthFromCookie, userState, type SessionTicket } from './user.svelte';
 import {
   beginKaleBalanceRead,
   claimKaleBalanceLoad,
@@ -910,9 +911,10 @@ export function createCollectController(opts: {
    */
   async function approveNext(source: 'review' | 'step' = 'step'): Promise<void> {
     if (approving) return;
-    const holder = userState.contractId;
-    const keyId = userState.keyId;
-    if (!holder || !keyId) {
+    // The session (wallet, key, generation) the user approves under: every
+    // build / prompt / relay of this step checks it and aborts on any change.
+    const session = captureSessionTicket();
+    if (!session) {
       resumeIntent = true;
       openAuthSheet('signin', 'Sign in to collect songs from this mixtape.');
       return;
@@ -928,7 +930,7 @@ export function createCollectController(opts: {
     }
     approving = true;
     try {
-      await withCollectLock(() => approveNextLocked(holder, keyId, gen, intent));
+      await withCollectLock(() => approveNextLocked(session, gen, intent));
     } finally {
       if (gen === generation) approving = false;
     }
@@ -944,7 +946,8 @@ export function createCollectController(opts: {
     sheetOpen = true;
   }
 
-  async function approveNextLocked(holder: string, keyId: string, gen: number, intent: ConfirmIntent): Promise<void> {
+  async function approveNextLocked(session: SessionTicket, gen: number, intent: ConfirmIntent): Promise<void> {
+    const holder = session.contractId;
     if (gen !== generation) return;
     if (flowKind(steps) === 'done') setSteps([]);
 
@@ -1142,7 +1145,9 @@ export function createCollectController(opts: {
       }
 
       /**
-       * Pre-relay guard (after the passkey returns, before relay / POST /mint):
+       * Pre-dispatch guard, SYNCHRONOUS (after the passkey returns AND after
+       * Turnstile, in the same tick as the relayer POST / POST /mint — so
+       * `submitting` is never recorded while the relay is still waiting):
        * (a) the shared record must still show THIS tab + attempt signing, with a
        *     live claim or the cross-tab lock still held — else another tab took
        *     over: throw without writing anything;
@@ -1167,7 +1172,7 @@ export function createCollectController(opts: {
         const mintTracks = stepTracks
           .filter((t) => keep.includes(t.id))
           .map((t) => ({ id: t.id, creator: t.address ?? '' }));
-        const result = await submitMintBatch({ tracks: mintTracks, userContractId: holder, userKeyId: keyId, onBeforeSubmit });
+        const result = await submitMintBatch({ tracks: mintTracks, session, onBeforeSubmit });
         if (gen !== generation) return;
         const accepted = keep.filter((id) => result.acceptedIds.includes(id));
         if (result.alreadyMintedIds.length) {
@@ -1204,7 +1209,7 @@ export function createCollectController(opts: {
           if (identity.mint !== 'minted') throw new Error('Buy target is not minted');
           return { id, sac: identity.sac, pool: identity.pool };
         });
-        await submitBuyBatch({ tracks: buyTracks, userContractId: holder, userKeyId: keyId, onBeforeSubmit });
+        await submitBuyBatch({ tracks: buyTracks, session, onBeforeSubmit });
         if (gen !== generation) return;
         if (writeIfStill(step.id, mine(), patchIn(step.id, { status: 'confirming' })) === 'ok') {
           phase = 'confirming';
@@ -1213,6 +1218,27 @@ export function createCollectController(opts: {
       }
     } catch (error) {
       if (gen !== generation) return;
+      if (error instanceof QuoteMovedError) {
+        // Aborted BEFORE the passkey prompt: nothing was signed or charged.
+        // Release the claim back to approvable and show the re-quote prompt.
+        const released = writeIfStill(
+          step.id,
+          mine(),
+          patchIn(step.id, {
+            status: resumeStatus === 'cancelled' ? 'cancelled' : 'pending',
+            failure: undefined,
+            ownerTabId: undefined,
+            leaseExpiresAt: undefined,
+          })
+        );
+        if (released === 'lost') {
+          requireReconfirm('Another tab took over this purchase, so this tab changed nothing. Check the step below.');
+          return;
+        }
+        notices = [...notices, { tone: 'warning', text: error.message }];
+        void refresh({ ids: step.trackIds, markLoading: false });
+        return;
+      }
       if (error instanceof SubmitGuardError) {
         if (error.reason === 'stale') {
           // Another tab owns this step now: leave its record untouched, show it.

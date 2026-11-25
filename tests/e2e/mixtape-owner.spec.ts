@@ -1,6 +1,6 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { expect, test, type BrowserContext, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type BrowserContext, type Page } from '@playwright/test';
 import { installStellarMock } from './helpers/stellarMock';
 import { CHAIN_OWNER, CHAIN_TRACK_INDEXED, CHAIN_TRACK_UNINDEXED } from '../fixtures/ownerChain.mjs';
 
@@ -39,6 +39,13 @@ async function capture(page: Page, name: string) {
 }
 
 const toasts = (page: Page) => page.locator('.toast-stack [role="status"]');
+
+/** SSR `<meta name="robots">` as smol.xyz would serve it (E2E host header, PUBLIC_E2E_SEAMS only). */
+async function robotsOnProduction(request: APIRequestContext, path: string): Promise<string | null> {
+  const res = await request.get(path, { headers: { 'x-smol-e2e-host': 'smol.xyz' } });
+  expect(res.status()).toBe(200);
+  return (await res.text()).match(/<meta name="robots" content="([^"]*)"/)?.[1] ?? null;
+}
 /** Desktop (lg+) builder = non-modal docked panel; mobile = bottom-sheet dialog. */
 const panel = (page: Page) => page.locator('aside[data-mixtape-panel]');
 const cors = { 'Access-Control-Allow-Origin': 'http://127.0.0.1:4328', 'Access-Control-Allow-Credentials': 'true' };
@@ -124,11 +131,15 @@ test.describe('Mixtape owner management (390×844)', () => {
     await anon.close();
   });
 
-  test('hidden mixtape: owner callout explains why + 1-click actions; non-owner sees none and the page is noindex', async ({ page, context, browser }) => {
+  test('hidden mixtape: owner callout explains why + 1-click actions; non-owner sees none and the page is noindex', async ({ page, context, browser, request }) => {
     const id = await signInAs(context, 'a2');
     const response = await page.goto(`/mixtapes/${id('creasy-v1')}`);
     expect(response?.status()).toBe(200);
-    await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex');
+    // Non-production hosts are noindex, nofollow globally (FE-1 AE-3).
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
+    // As served on smol.xyz: hidden → noindex, listed → indexable.
+    expect(await robotsOnProduction(request, `/mixtapes/${id('creasy-v1')}`)).toBe('noindex');
+    expect(await robotsOnProduction(request, `/mixtapes/${id('creasy-v2')}`)).toBe('index, follow');
 
     const callout = page.locator('section[data-owner-callout]');
     await expect(callout.getByRole('heading', { name: 'Hidden from the Mixtapes page' })).toBeVisible();
@@ -152,7 +163,7 @@ test.describe('Mixtape owner management (390×844)', () => {
     const anonPage = await anon.newPage();
     await anonPage.goto(`/mixtapes/${id('creasy-v1')}`);
     await expect(anonPage.getByRole('heading', { name: 'Creasy Drops', level: 1 })).toBeVisible();
-    await expect(anonPage.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex');
+    await expect(anonPage.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
     await expect(anonPage.locator('[data-owner-callout]')).toHaveCount(0);
     await expect(anonPage.locator('[data-owner-status]')).toHaveCount(0);
     await expect(anonPage.getByRole('button', { name: 'Edit' })).toHaveCount(0);

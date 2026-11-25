@@ -9,11 +9,14 @@
  *   that inflated Views). Uses `POST /mint/status` when the API has it, else one
  *   batched on-chain read of the canonical SACs + holder balances per tick.
  */
+import { Buffer } from '../utils/bufferGlobal';
 import { Asset } from '@stellar/stellar-sdk/minimal';
 import { Client as SmolClient } from 'smol-sdk';
 import { logger } from '../utils/logger';
 import { buildMintFeeRule } from '../utils/mint';
 import { signWithPasskey } from '../utils/passkeySign';
+import { assertWalletAction, assertWalletActionUnsent, walletDispatchGuard, type WalletActionTicket } from '../utils/wallet';
+import { runDispatchGuard } from '../utils/relayDispatch';
 import { pollUntilSettled, type SettlementRead } from '../utils/pollLoop';
 import { getSignatureExpiration } from '../utils/rpcTip';
 import { readMixtapeChainSnapshot } from '../utils/smolChainIdentity';
@@ -44,16 +47,23 @@ export interface MintBatchResult {
 
 export async function submitMintBatch(params: {
   tracks: MintBatchTrack[];
-  userContractId: string;
-  userKeyId: string;
   /**
-   * Pre-relay guard, called after the passkey returns and BEFORE POST /mint. It
-   * must prove this attempt still owns the step and durably record
-   * `submitting`; if it throws, the signed payload is discarded, never sent.
+   * The session the user approved under (captured at click). The batch is
+   * built for, signed by and submitted from exactly this wallet; if the
+   * session changes first, it aborts (`WalletActionSupersededError`) before
+   * building, prompting or POST /mint.
    */
-  onBeforeSubmit: (info: { expiresAtLedger: number }) => void | Promise<void>;
+  session: WalletActionTicket;
+  /**
+   * Pre-dispatch guard, SYNCHRONOUS. Called after the passkey returns,
+   * immediately before POST /mint (same tick, zero awaits). It must prove this
+   * attempt still owns the step and durably record `submitting`; if it throws,
+   * the signed payload is discarded, never sent.
+   */
+  onBeforeSubmit: (info: { expiresAtLedger: number }) => void;
 }): Promise<MintBatchResult> {
-  const { tracks, userContractId, userKeyId, onBeforeSubmit } = params;
+  const { tracks, session, onBeforeSubmit } = params;
+  const userContractId = session.contractId;
   const seam = e2eSeams()?.mint;
   const smolContractId = import.meta.env.PUBLIC_SMOL_CONTRACT_ID;
   const kaleSacId = import.meta.env.PUBLIC_KALE_SAC_ID;
@@ -83,27 +93,42 @@ export async function submitMintBatch(params: {
   });
 
   const assemble = () => smolClient.coin_them({ user: userContractId, asset_bytes, salts, fee_rules });
+  assertWalletAction(session); // before building
   const tx = (seam?.assemble ? await seam.assemble() : await assemble()) as Awaited<ReturnType<typeof assemble>>;
   const expiration = seam?.expiration ? await seam.expiration() : await getSignatureExpiration();
+  assertWalletAction(session); // before the passkey prompt
   if (seam?.sign) await seam.sign();
-  else await signWithPasskey(tx, { keyId: userKeyId, expiration });
+  else await signWithPasskey(tx, { keyId: session.keyId, expiration, session });
 
-  // No POST /mint unless this tab still owns the attempt AND `submitting` is saved.
-  await onBeforeSubmit({ expiresAtLedger: expiration });
+  // No POST /mint unless the session is still the approver's, this tab still
+  // owns the attempt AND `submitting` is saved — all checked synchronously in
+  // the SAME tick as the POST (zero awaits between the guard and fetch), so
+  // nothing can switch the session in between.
+  assertWalletActionUnsent(session);
+  const beforeDispatch = walletDispatchGuard(session, () =>
+    runDispatchGuard(() => onBeforeSubmit({ expiresAtLedger: expiration }))
+  );
 
   if (seam?.relay) {
+    beforeDispatch();
     await seam.relay(tracks.map((t) => t.id));
     return { acceptedIds: tracks.map((t) => t.id), alreadyMintedIds: [], workflowIds: [] };
   }
   const xdr = tx.built?.toXDR();
   if (!xdr) throw new Error('Failed to build signed coin_them transaction');
+  const url = `${import.meta.env.PUBLIC_API_URL}/mint`;
+  const payload = JSON.stringify({ xdr, ids: tracks.map((t) => t.id) });
 
-  const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/mint`, {
+  // ── No await from here until the POST is dispatched. ──
+  beforeDispatch();
+  const pending = fetch(url, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ xdr, ids: tracks.map((t) => t.id) }),
+    body: payload,
   });
+  // ── Dispatched. ──
+  const response = await pending;
   if (!response.ok) {
     throw new CollectRequestError(response.status, `Mint request failed (${response.status})`);
   }

@@ -73,8 +73,9 @@ const FORBIDDEN_MARKERS = [
       s.includes('Networks.PUBLIC'),
   },
   {
-    name: 'svelte-dnd-action',
-    test: (s) => s.includes('SHADOW_PLACEHOLDER_ITEM_ID') || s.includes('dndzone'),
+    // npm `buffer` polyfill: only the lazy wallet/chain modules may load it (src/utils/bufferGlobal.ts).
+    name: 'buffer polyfill',
+    test: (s) => s.includes('ERR_BUFFER_OUT_OF_BOUNDS'),
   },
 ];
 
@@ -88,7 +89,7 @@ const shellEntries = [
 ];
 
 // Two-tier gzip budgets (warn target / hard fail ceiling) per route class.
-// Real regressions (accidental static imports of stellar-sdk/passkey-kit/tldts/dnd)
+// Real regressions (accidental static imports of stellar-sdk/passkey-kit/tldts/buffer)
 // are enforced independently by FORBIDDEN_MARKERS below.
 const BROWSE_BUDGET = { warnKb: 75, failKb: 100 };
 const APP_BUDGET = { warnKb: 120, failKb: 150 };
@@ -105,6 +106,10 @@ const routes = [
     entries: [...shellEntries, ...findEntry('Leaderboard'), ...findEntry('Home')],
     budget: BROWSE_BUDGET,
   },
+  { name: '/account', entries: [...shellEntries, ...findEntry('Account')], budget: APP_BUDGET },
+  // /created and /liked render the Home grid with a different endpoint.
+  { name: '/created', entries: [...shellEntries, ...findEntry('Home')], budget: BROWSE_BUDGET },
+  { name: '/liked', entries: [...shellEntries, ...findEntry('Home')], budget: BROWSE_BUDGET },
 ];
 
 const warnings = [];
@@ -158,7 +163,167 @@ for (const route of routes) {
   }
 }
 
-// 3. List top 10 largest client chunks overall for visibility
+// 3. Single-XDR-chunk gate (FE-1). The Stellar XDR schema (the `TransactionEnvelope`
+//    union definition) may ship in exactly ONE client chunk: a second copy means a
+//    second Stellar SDK (e.g. the passkey-kit barrel pulling PasskeyServer →
+//    @openzeppelin/relayer-plugin-channels → full @stellar/stellar-sdk + axios).
+//    Copies are also counted INSIDE a chunk: the prebuilt UMD `stellar-sdk-minimal.min.js`
+//    embeds its own stellar-base, so it can hide a second XDR next to the shared one
+//    (see the `@stellar/stellar-sdk/minimal` alias in astro.config.mjs).
+const XDR_SCHEMA_RE = /["']TransactionEnvelope["']\s*,\s*\{\s*switchOn/g;
+const xdrCopies = new Map();
+for (const file of jsFiles) {
+  const copies = (contents.get(file) ?? '').match(XDR_SCHEMA_RE)?.length ?? 0;
+  if (copies > 0) xdrCopies.set(file, copies);
+}
+const xdrChunks = [...xdrCopies.keys()];
+const xdrTotal = [...xdrCopies.values()].reduce((a, b) => a + b, 0);
+console.log(
+  `\nStellar XDR schema: ${xdrTotal} cop${xdrTotal === 1 ? 'y' : 'ies'} in ${xdrChunks.length} chunk(s) (${[...xdrCopies].map(([f, n]) => `${f}×${n}`).join(', ') || 'none'})`
+);
+if (xdrChunks.length > 1) {
+  failures.push(`Stellar XDR (TransactionEnvelope) is bundled in ${xdrChunks.length} chunks (max 1): ${xdrChunks.join(', ')}`);
+}
+if (xdrTotal > 1) {
+  failures.push(`Stellar XDR (TransactionEnvelope) schema is bundled ${xdrTotal} times (max 1)`);
+}
+// 3b. Server-only / HTTP-client gate. Precise markers, no count-based allowances.
+//     Every marker is a string that survives minification (string literals,
+//     property keys, `Symbol.toStringTag` values).
+//
+//   (a) OZ Channels client + passkey-kit's PasskeyServer are server-only.
+//   (b) The `axios` npm package must contribute ZERO bytes to any client chunk.
+//       `AxiosError` is deliberately NOT a marker: @stellar/stellar-sdk@14's RPC
+//       client bundles `feaxios`, a ~10 KB fetch shim that defines its OWN local
+//       `AxiosError` / `isAxiosError` (no axios code). That shim is allowed until
+//       the SDK 16/17 wave; the markers below are axios-only (none occurs in
+//       feaxios or the SDK's own http-client; e.g. `CancelToken` is NOT usable —
+//       the SDK fetch client defines its own). Section 3c backs them with
+//       Rollup's rendered module ids.
+//   (c) >1 XDR schema chunk/copy is gated above (section 3).
+const CHANNELS_MARKERS = [
+  'ChannelsClient',
+  'PluginTransportError',
+  'baseUrl is required when pluginId is not provided',
+];
+const PASSKEY_SERVER_MARKERS = ['Mercury service not configured', 'get_signers_by_address', 'zephyr/execute'];
+const AXIOS_PACKAGE_MARKERS = [
+  'AxiosHeaders', // class + Symbol.toStringTag value
+  'silentJSONParsing', // defaults.transitional
+  'ERR_DEPRECATED', // axios-only AxiosError code
+  'formSerializer', // axios defaults / toFormData options
+  'HttpStatusCode', // axios.HttpStatusCode
+  'ERR_FR_TOO_MANY_REDIRECTS', // follow-redirects (node http adapter)
+  'axios/dist', // a direct dist import
+];
+
+const feaxiosChunks = [];
+for (const [file, text] of contents) {
+  for (const marker of CHANNELS_MARKERS) {
+    if (text.includes(marker)) failures.push(`OZ Channels client ("${marker}") in client chunk ${file}`);
+  }
+  for (const marker of PASSKEY_SERVER_MARKERS) {
+    if (text.includes(marker)) failures.push(`passkey-kit PasskeyServer ("${marker}") in client chunk ${file}`);
+  }
+  for (const marker of AXIOS_PACKAGE_MARKERS) {
+    if (text.includes(marker)) failures.push(`axios npm package ("${marker}") in client chunk ${file}`);
+  }
+  if (text.includes('AxiosError')) feaxiosChunks.push(file);
+}
+// The feaxios shim is part of the Stellar SDK's RPC client: it may only live in
+// the single SDK (XDR) chunk, never as a separately bundled HTTP client.
+for (const file of feaxiosChunks) {
+  if (!xdrChunks.includes(file)) failures.push(`AxiosError-bearing code outside the Stellar SDK chunk: ${file}`);
+}
+console.log(
+  `axios npm package: 0 bytes required in client chunks (${AXIOS_PACKAGE_MARKERS.length} markers); ` +
+    `SDK feaxios shim allowed in: ${feaxiosChunks.join(', ') || 'none'}`
+);
+
+// 3c. Rendered-module gate. String markers can miss a single axios helper
+//     (e.g. `axios/lib/helpers/combineURLs.js`). The build plugin in astro.config.mjs records,
+//     per emitted client chunk, the module ids Rollup actually RENDERED into it
+//     (`renderedLength > 0`) in `.astro/client-bundle-modules.json` (build-only, never in
+//     dist/). Zero rendered modules may come from these packages in ANY client chunk:
+const CLIENT_MODULES_REPORT = join(ROOT, '.astro', 'client-bundle-modules.json');
+const FORBIDDEN_CLIENT_MODULES = [
+  { name: 'axios npm package', test: (id) => /(?:^|\/)node_modules\/axios\//.test(id) },
+  {
+    name: 'OZ Channels client (@openzeppelin/relayer-plugin-channels)',
+    test: (id) => /(?:^|\/)node_modules\/@openzeppelin\/relayer-plugin-channels\//.test(id),
+  },
+  {
+    name: 'passkey-kit server (PasskeyServer) / barrel',
+    test: (id) => /(?:^|\/)node_modules\/passkey-kit\/(?:(?:src|dist)\/server(?:\.[cm]?[jt]s)?$|src\/index\.ts$|dist\/)/.test(id),
+  },
+];
+/** The SDK's own feaxios shim: allowed, but only inside the single SDK (XDR) chunk. */
+const isFeaxiosModule = (id) => /(?:^|\/)node_modules\/feaxios\//.test(id);
+
+let moduleReport = null;
+try {
+  moduleReport = JSON.parse(readFileSync(CLIENT_MODULES_REPORT, 'utf8'));
+} catch (error) {
+  failures.push(`Missing/unreadable ${CLIENT_MODULES_REPORT} (run \`pnpm build\`): ${error.message}`);
+}
+if (moduleReport) {
+  const reported = moduleReport.chunks ?? {};
+  // The report must describe THIS dist: every emitted client JS chunk is in it (a stale
+  // report from another build fails instead of vacuously passing).
+  const missing = jsFiles.filter((file) => !Array.isArray(reported[file]));
+  if (missing.length) {
+    failures.push(`client-bundle-modules.json is stale: no rendered-module entry for ${missing.slice(0, 5).join(', ')}${missing.length > 5 ? ', ...' : ''}`);
+  }
+  for (const [file, ids] of Object.entries(reported)) {
+    if (!contents.has(file) && ids.length > 0) {
+      failures.push(`client-bundle-modules.json is stale: ${file} has rendered modules but is not in dist/_astro`);
+    }
+  }
+  let moduleCount = 0;
+  const feaxiosModuleChunks = new Set();
+  for (const [file, ids] of Object.entries(reported)) {
+    for (const id of ids) {
+      moduleCount++;
+      for (const rule of FORBIDDEN_CLIENT_MODULES) {
+        if (rule.test(id)) failures.push(`${rule.name}: rendered module ${id} in client chunk ${file}`);
+      }
+      if (isFeaxiosModule(id)) feaxiosModuleChunks.add(file);
+    }
+  }
+  for (const file of feaxiosModuleChunks) {
+    if (!xdrChunks.includes(file)) failures.push(`feaxios module rendered outside the Stellar SDK chunk: ${file}`);
+  }
+  console.log(
+    `Rendered client modules: ${moduleCount} in ${Object.keys(reported).length} chunk(s); ` +
+      `0 allowed from axios / @openzeppelin/relayer-plugin-channels / passkey-kit server; ` +
+      `feaxios rendered in: ${[...feaxiosModuleChunks].join(', ') || 'none'}`
+  );
+}
+
+// 4. Lazy wallet payload: everything statically reachable from the passkey-kit
+//    wrapper chunk (Stellar SDK + passkey-kit + their shared deps). Was ~664 KB gz
+//    with the duplicate SDK; must stay <= 380 KB gz.
+const WALLET_BUDGET_KB = 380;
+const walletEntries = findEntry('passkey-kit');
+if (walletEntries.length === 0) {
+  failures.push('No passkey-kit wallet chunk found');
+} else {
+  const closure = getClosure(walletEntries);
+  let raw = 0;
+  let gz = 0;
+  for (const file of closure) {
+    raw += rawSizes.get(file) ?? 0;
+    gz += gzSizes.get(file) ?? 0;
+  }
+  console.log(
+    `Lazy wallet payload (passkey-kit closure): ${closure.size} chunks | ${(raw / 1024).toFixed(1)} KB raw | ${(gz / 1024).toFixed(1)} KB gz (budget <= ${WALLET_BUDGET_KB} KB gz)`
+  );
+  if (gz / 1024 > WALLET_BUDGET_KB) {
+    failures.push(`Lazy wallet payload is ${(gz / 1024).toFixed(1)} KB gzip (budget <= ${WALLET_BUDGET_KB} KB gzip).`);
+  }
+}
+
+// 5. List top 10 largest client chunks overall for visibility
 const sorted = [...jsFiles]
   .sort((a, b) => (rawSizes.get(b) ?? 0) - (rawSizes.get(a) ?? 0))
   .slice(0, 10);
@@ -169,7 +334,7 @@ for (const file of sorted) {
   );
 }
 
-// 4. Verify zero raw alert/confirm/prompt calls in src/ (strip string literals & comments first)
+// 6. Verify zero raw alert/confirm/prompt calls in src/ (strip string literals & comments first)
 function walkSrc(dir) {
   const out = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -196,7 +361,7 @@ for (const file of walkSrc(SRC_DIR)) {
   }
 }
 
-// 5. Verify single @stellar/stellar-sdk version in pnpm-lock.yaml
+// 7. Verify single @stellar/stellar-sdk version in pnpm-lock.yaml
 const lockfile = readFileSync(join(ROOT, 'pnpm-lock.yaml'), 'utf8');
 const sdkVersions = new Set(
   [...lockfile.matchAll(/'@stellar\/stellar-sdk@([^']+)'/g)].map((m) => m[1])
@@ -219,4 +384,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('\nPASS: All bundle closure, budget, dedupe, and dialog hygiene gates passed.');
+console.log('\nPASS: All bundle closure, budget, single-XDR, wallet-payload, dedupe, and dialog hygiene gates passed.');

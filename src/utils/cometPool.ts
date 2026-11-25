@@ -67,6 +67,8 @@ export async function readCometTradeSnapshot(input: {
   d1Token?: string | null;
   d1Amm?: string | null;
   holder?: string | null;
+  /** Never join an older in-flight read (re-quotes must see the newest ledger). */
+  fresh?: boolean;
 }): Promise<CometTradeSnapshot> {
   const kaleSac = import.meta.env.PUBLIC_KALE_SAC_ID;
   const identity = deriveSmolIdentity(input.songId);
@@ -82,7 +84,7 @@ export async function readCometTradeSnapshot(input: {
     keys.poolRecords,
     ...(kaleKey ? [kaleKey] : []),
     ...(mintKey ? [mintKey] : []),
-  ]);
+  ], { fresh: input.fresh });
 
   const verdict = interpretIdentity(
     identity,
@@ -171,4 +173,28 @@ export function quoteTrade(
     if (error instanceof CometQuoteError && error.issue === 'unsupported') return null;
     throw error;
   }
+}
+
+/**
+ * Aggregate exact-in quote for a mixtape buy batch: song tokens received for
+ * `amountIn` KALE into EACH song's verified pool, summed. Every song's snapshot
+ * is read in the same tick, so the coalescer serves them in ONE
+ * getLedgerEntries call. Returns null when any song can't be quoted locally
+ * (unverified market, pool moved under a different pair, unsupported pool).
+ */
+export async function quoteBuyBatch(
+  tracks: Array<{ id: string; sac: string; pool: string }>,
+  amountIn: bigint
+): Promise<bigint | null> {
+  if (tracks.length === 0) return null;
+  const snapshots = await Promise.all(tracks.map((t) => readCometTradeSnapshot({ songId: t.id, holder: null, fresh: true })));
+  let total = 0n;
+  for (const [i, snap] of snapshots.entries()) {
+    const track = tracks[i];
+    if (!snap.auditedPool || snap.pool !== track.pool || snap.mintToken !== track.sac) return null;
+    const out = quoteTrade(snap, 'buy', amountIn);
+    if (out === null || out <= 0n) return null;
+    total += out;
+  }
+  return total;
 }

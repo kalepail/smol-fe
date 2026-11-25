@@ -4,6 +4,7 @@
  * smolChainIdentity: imports the Stellar SDK, never import from a route
  * component). Pure: no RPC, no env, so it is unit-testable in Node.
  */
+import './bufferGlobal.ts';
 import { Address, Contract, nativeToScVal, xdr } from '@stellar/stellar-sdk/minimal';
 
 /** Persistent contract-data key for `contractId` (same shape as the SDK's own reads). */
