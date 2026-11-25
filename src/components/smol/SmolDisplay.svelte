@@ -9,6 +9,7 @@
   import { toast } from '../../stores/toast.svelte';
   import { toTrack, type Track } from '../../utils/track';
   import { shortenAddress } from '../../utils/address';
+  import { formatTime } from '../../utils/time';
   import {
     PROVIDER_META,
     providerOf,
@@ -147,6 +148,13 @@
     return songs.map((song) => toTrack(trackSmol, song));
   });
 
+  // AE-4: one take → its known length in the hero meta row (TakeSwitcher shows per-take lengths otherwise).
+  const singleTakeDuration = $derived.by(() => {
+    if (showGenerationLoader || songs.length !== 1) return null;
+    const d = songs[0].duration;
+    return typeof d === 'number' && Number.isFinite(d) && d > 0 ? formatTime(d) : null;
+  });
+
   const primaryTrack = $derived.by(() => {
     const playable = takes.filter((t): t is Track => t !== null);
     if (!playable.length) return null;
@@ -243,12 +251,20 @@
     onLikeChanged(nextLiked);
   }
 
-  async function copyText(text: string, label: string, copiedMessage = `${label} copied.`) {
+  const ADDRESS_BAR_HINT = 'Try again, or copy it from the address bar.';
+  const SELECT_TEXT_HINT = 'Try again, or select the text and copy it.';
+
+  async function copyText(
+    text: string,
+    label: string,
+    copiedMessage = `${label} copied.`,
+    fallbackHint = ADDRESS_BAR_HINT
+  ) {
     try {
       await navigator.clipboard.writeText(text);
       toast.success(copiedMessage);
     } catch {
-      toast.error(`Could not copy ${label.toLowerCase()}. Try again, or copy it from the address bar.`);
+      toast.error(`Could not copy ${label.toLowerCase()}. ${fallbackHint}`);
     }
   }
 
@@ -397,6 +413,10 @@
           {/if}
           {#if formattedCreatedAt}
             <span>{formattedCreatedAt}</span>
+            <span aria-hidden="true">·</span>
+          {/if}
+          {#if singleTakeDuration}
+            <span class="tabular" data-song-duration><span class="sr-only">{'Duration '}</span>{singleTakeDuration}</span>
             <span aria-hidden="true">·</span>
           {/if}
           <Chip tone="neutral">{providerLabel}</Chip>
@@ -587,7 +607,7 @@
                   variant="ghost"
                   size="sm"
                   class="min-h-11"
-                  onclick={() => copyText(kv_do.payload!.prompt!, 'Prompt')}
+                  onclick={() => copyText(kv_do.payload!.prompt!, 'Prompt', undefined, SELECT_TEXT_HINT)}
                 >
                   <Icon name="copy" size={15} />
                   <span>Copy</span>
@@ -672,7 +692,7 @@
     isPlaying={isSongPlaying}
     playerReady={player.ready}
     onPlayToggle={handlePrimaryPlay}
-    onCopy={() => void copyText(rawLyrics, 'Lyrics')}
+    onCopy={() => void copyText(rawLyrics, 'Lyrics', undefined, SELECT_TEXT_HINT)}
     onClose={() => (lyricsOpen = false)}
   />
 {/if}

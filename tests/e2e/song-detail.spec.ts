@@ -690,6 +690,43 @@ test.describe('FE-POST-1 song page: take durations, share fallback', () => {
     await expect(takes).toContainText(/Take 2(?! ·)/);
   });
 
+  test('AE-4 hero shows a single take length only when known', async ({ page }) => {
+    const heroDuration = page.locator('article header [data-song-duration]');
+    await page.goto('/smol-1take'); // ElevenLabs, 1 take, duration 120
+    await expect(heroDuration).toHaveText('Duration 2:00');
+    await expect(heroDuration).toBeVisible();
+    await page.goto('/smol-2take'); // Classic, 2 takes: TakeSwitcher owns durations
+    await expect(page.locator('section[aria-label="Takes"]')).toContainText('Take 1 · 3:19');
+    await expect(heroDuration).toHaveCount(0);
+    await page.goto('/smol-private'); // 1 take, no duration
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(heroDuration).toHaveCount(0);
+  });
+
+  test('AE-7 copy failures: lyrics/prompt say select the text; song link keeps the address-bar hint', async ({ page, context }) => {
+    await context.addInitScript(() => {
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: { writeText: () => Promise.reject(new DOMException('denied', 'NotAllowedError')) },
+      });
+    });
+    await page.goto('/smol-2take');
+    const toasts = page.getByRole('status');
+    const prompt = page.locator('section', { has: page.getByRole('heading', { name: 'Prompt' }) });
+    await prompt.getByRole('button', { name: 'Copy', exact: true }).click();
+    await expect(toasts.filter({ hasText: 'Could not copy prompt. Try again, or select the text and copy it.' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Lyrics', exact: true }).click();
+    const drawer = page.locator('dialog[open]');
+    await drawer.getByRole('button', { name: 'Copy', exact: true }).click();
+    await expect(toasts.filter({ hasText: 'Could not copy lyrics. Try again, or select the text and copy it.' })).toBeVisible();
+    await drawer.getByRole('button', { name: 'Close' }).click();
+
+    await page.getByRole('button', { name: 'More options' }).click();
+    await page.locator('dialog[open]').getByRole('button', { name: 'Copy song link' }).click();
+    await expect(toasts.filter({ hasText: 'Could not copy song link. Try again, or copy it from the address bar.' })).toBeVisible();
+  });
+
   test('AE-7 share falls back to copy (not on cancel); a private link says anyone with it can listen', async ({
     page,
     context,

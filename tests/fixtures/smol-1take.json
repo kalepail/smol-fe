@@ -31,7 +31,7 @@
       "style": ["Lo-Fi", "Piano", "Ambient"]
     },
     "songs": [
-      { "music_id": "el-only-1", "status": 4, "audio": "http://127.0.0.1:4329/song/el-only-1.mp3" }
+      { "music_id": "el-only-1", "status": 4, "audio": "http://127.0.0.1:4329/song/el-only-1.mp3", "duration": 120 }
     ]
   },
   "liked": true
