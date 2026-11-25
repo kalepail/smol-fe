@@ -107,7 +107,7 @@ export function readAuthEpochCookie(doc?: Pick<Document, 'cookie'> | null): stri
 /**
  * Format the `Set-Cookie` / `document.cookie` assignment for `smol_auth_epoch`,
  * scoped identically to `smol_token` (`.smol.xyz` on smol.xyz hosts, host-only
- * on localhost / 127.0.0.1 / pages.dev previews; `Secure` on HTTPS).
+ * on localhost / 127.0.0.1; `Secure` on HTTPS).
  */
 export function buildAuthEpochCookieString(
   marker: string,

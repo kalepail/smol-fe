@@ -62,10 +62,6 @@ export interface User {
   username?: string;
 }
 
-export interface MixtapeModeState {
-  active: boolean;
-}
-
 export interface GenerationMeta {
   requested_provider: MusicProvider;
   actual_provider: MusicProvider | null;

@@ -16,7 +16,7 @@ import { installStellarMock, type ChainScenario } from './helpers/stellarMock';
 
 // Mixtape single-page collector experience (Report 30, S0–S9). RPC is mocked
 // with real XDR; nothing is ever signed or submitted.
-const RENDERS_DIR = '/home/tyler/code/smol/orchestration/renders/mixtape-single';
+const RENDERS_DIR = 'test-results/renders/mixtape-single';
 const KALE = (n: number) => BigInt(n) * 10_000_000n;
 const OWNED = 10_000_000n * 10_000_000n; // 10M tokens (a mint)
 

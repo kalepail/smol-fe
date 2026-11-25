@@ -17,14 +17,6 @@ export function clearTurnstileToken() {
   turnstileState.token = null;
 }
 
-export function getTurnstileToken(): string | null {
-  return turnstileState.token;
-}
-
-export function turnstileCallback(token: string) {
-  setTurnstileToken(token);
-}
-
 function loadTurnstileScript(): Promise<void> {
   if (typeof window === 'undefined') return Promise.resolve();
   if ((window as unknown as { turnstile?: unknown }).turnstile) return Promise.resolve();

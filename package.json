@@ -28,7 +28,6 @@
     "@astrojs/cloudflare": "^14.4.9",
     "@astrojs/svelte": "^9.1.6",
     "@playwright/test": "^1.65.1",
-    "@simplewebauthn/browser": "^13.2.2",
     "@tailwindcss/vite": "^4.3.5",
     "@types/node": "^26.6.6",
     "astro": "^7.4.13",

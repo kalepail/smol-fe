@@ -443,14 +443,6 @@ export async function fetchMixtapeDetail(
   return { kind: 'found', detail: toMixtapeDetail(await response.json()) };
 }
 
-export async function getMixtapeDetail(
-  id: string,
-  signal?: AbortSignal
-): Promise<MixtapeDetail | null> {
-  const result = await fetchMixtapeDetail(id, { signal });
-  return result.kind === 'found' ? result.detail : null;
-}
-
 // ---------------------------------------------------------------------------
 // Owner lifecycle (smol-workflow src/api/mixtapes.ts)
 // ---------------------------------------------------------------------------

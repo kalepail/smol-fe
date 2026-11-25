@@ -1,4 +1,4 @@
-import type { MusicProvider, SmolDetailResponse, SongData } from '../types/domain';
+import type { MusicProvider, SmolDetailResponse } from '../types/domain';
 
 export type { MusicProvider };
 
@@ -104,8 +104,4 @@ export function expectedTakeCount(provider: MusicProvider): 1 | 2 {
 
 export function otherProviderOf(provider: MusicProvider): MusicProvider {
   return provider === 'elevenlabs' ? 'aisonggenerator' : 'elevenlabs';
-}
-
-export function isSongPlayable(song: SongData): boolean {
-  return song.status >= 4 ? Boolean(song.music_id) : Boolean(song.audio);
 }

@@ -3,12 +3,46 @@ import assert from 'node:assert/strict';
 import {
   draftPayloadKey,
   isEditSessionDirty,
-  parseEditSlots,
   type MergeSourceSnapshot,
   type MixtapeEditSession,
 } from '../../src/stores/mixtape/operations.ts';
+import {
+  editSlotKey,
+  loadEditSlotsFromStorage,
+  persistEditSlot,
+} from '../../src/stores/mixtape/persistence.ts';
 import { createLatestGate } from '../../src/utils/latestRequest.ts';
 import { parseRetryAfter } from '../../src/utils/httpRetry.ts';
+
+function withMockLocalStorage(initial: Record<string, string>, run: () => void) {
+  const backing = new Map<string, string>(Object.entries(initial));
+  const localStorage = new Proxy(
+    {
+      getItem: (key: string) => backing.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        backing.set(key, String(value));
+      },
+      removeItem: (key: string) => {
+        backing.delete(key);
+      },
+    },
+    {
+      ownKeys: () => [...backing.keys()],
+      getOwnPropertyDescriptor: (_target, prop) =>
+        typeof prop === 'string' && backing.has(prop)
+          ? { enumerable: true, configurable: true, value: backing.get(prop) }
+          : undefined,
+    }
+  );
+  const prevWindow = (globalThis as { window?: unknown }).window;
+  (globalThis as { window?: unknown }).window = { localStorage };
+  try {
+    run();
+  } finally {
+    if (prevWindow === undefined) delete (globalThis as { window?: unknown }).window;
+    else (globalThis as { window?: unknown }).window = prevWindow;
+  }
+}
 
 const session = (creator: string, mixtapeId: string, extra: Partial<MixtapeEditSession> = {}) => ({
   kind: 'edit',
@@ -29,33 +63,45 @@ const session = (creator: string, mixtapeId: string, extra: Partial<MixtapeEditS
   ...extra,
 });
 
-test('25d P1-2: edit slots are per owner; foreign / creator-less slots never surface', () => {
-  const slots = parseEditSlots({ CA: session('CA', 'm1'), CB: session('CB', 'm2') });
-  assert.deepEqual(Object.keys(slots).sort(), ['CA', 'CB']);
-  assert.equal(slots.CA.mixtapeId, 'm1');
-  assert.equal(slots.CB.mixtapeId, 'm2');
+test('edit slots load per owner from localStorage; foreign / creator-less / corrupt slots never surface', () => {
+  withMockLocalStorage(
+    {
+      [editSlotKey('CA')]: JSON.stringify(session('CA', 'm1')),
+      [editSlotKey('CB')]: JSON.stringify(session('CB', 'm2')),
+      [editSlotKey('CC')]: JSON.stringify(session('CA', 'm3')), // foreign owner mismatch
+      [editSlotKey('')]: JSON.stringify(session('', 'm4')), // empty owner
+      [editSlotKey('CD')]: JSON.stringify({ mixtapeId: 'm5' }), // missing baseline
+      [editSlotKey('CE')]: '{not-json',
+      'unrelated:key': JSON.stringify(session('CA', 'm9')),
+    },
+    () => {
+      const slots = loadEditSlotsFromStorage();
+      assert.deepEqual(Object.keys(slots).sort(), ['CA', 'CB']);
+      assert.equal(slots.CA.mixtapeId, 'm1');
+      assert.equal(slots.CB.mixtapeId, 'm2');
 
-  // A slot filed under another account's key is dropped (B can never load A's edit).
-  assert.deepEqual(parseEditSlots({ CB: session('CA', 'm1') }), {});
-  // Creator-less (pre-isolation) data is dropped rather than shown to whoever is signed in.
-  assert.deepEqual(parseEditSlots({ '': session('', 'm1') }), {});
-  // Legacy single-session value migrates under its own creator only.
-  const legacy = parseEditSlots(session('CA', 'm9'));
-  assert.deepEqual(Object.keys(legacy), ['CA']);
-  assert.equal(legacy.CA.mixtapeId, 'm9');
-  assert.equal(legacy.CA.revision, 3);
-  // Garbage never throws.
-  for (const bad of [null, 1, 'x', [], { CA: { mixtapeId: 'm1' } }]) assert.deepEqual(parseEditSlots(bad), {});
+      // persistEditSlot refuses foreign writes and removes on null.
+      persistEditSlot('CB', session('CA', 'm99') as MixtapeEditSession);
+      assert.equal(loadEditSlotsFromStorage().CB, undefined);
+    }
+  );
 });
 
 test('edit slot keeps mergeFrom and dirty tracking', () => {
   const reviewed: MergeSourceSnapshot = { id: 'src', title: 'Old copy' };
-  const slots = parseEditSlots({ CA: session('CA', 'm1', { mergeFrom: reviewed }) });
-  assert.deepEqual(slots.CA.mergeFrom, reviewed);
-  const junk = parseEditSlots({ CA: { ...session('CA', 'm1'), mergeFrom: { title: 'no id' } } });
-  assert.equal(junk.CA.mergeFrom, null);
-  assert.equal(isEditSessionDirty(slots.CA), true, 'title differs from baseline');
-  assert.equal(isEditSessionDirty({ ...slots.CA, title: 'Server title' }), false);
+  withMockLocalStorage(
+    {
+      [editSlotKey('CA')]: JSON.stringify(session('CA', 'm1', { mergeFrom: reviewed })),
+      [editSlotKey('CB')]: JSON.stringify({ ...session('CB', 'm2'), mergeFrom: { title: 'no id' } }),
+    },
+    () => {
+      const slots = loadEditSlotsFromStorage();
+      assert.deepEqual(slots.CA.mergeFrom, reviewed);
+      assert.equal(slots.CB.mergeFrom, null);
+      assert.equal(isEditSessionDirty(slots.CA), true, 'title differs from baseline');
+      assert.equal(isEditSessionDirty({ ...slots.CA, title: 'Server title' }), false);
+    }
+  );
 });
 
 test('25d P2-5: overlapping requests — only the newest id may write, in any resolution order', async () => {

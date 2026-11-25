@@ -1,25 +1,17 @@
 import type { MixtapeDraft, MixtapeTrack } from '../../types/domain';
-import { parseEditSession, parseTracks, type MixtapeEditSession } from './operations';
-import * as storage from '../../services/localStorage';
+import { parseEditSession, parseTracks, type MixtapeEditSession } from './operations.ts';
+import * as storage from '../../services/localStorage.ts';
 
 /** Create slot (unchanged key + shape since Report 19). */
 const STORAGE_KEY = 'smol:mixtape-draft';
 /** Edit slot (Report 24 §4): the published mixtape currently being edited. */
 const EDIT_STORAGE_KEY = 'smol:mixtape-edit';
-const LEGACY_MODE_STORAGE_KEY = 'smol:mixtape-mode';
-
-export function clearLegacyModeStorage() {
-  storage.removeItem(LEGACY_MODE_STORAGE_KEY);
-}
 
 export function persistDraft(draft: MixtapeDraft) {
   storage.setItem(STORAGE_KEY, draft);
 }
 
 export function loadDraftFromStorage(): MixtapeDraft | null {
-  // One-time cleanup of retired mixtape-mode flag.
-  clearLegacyModeStorage();
-
   const parsed = storage.getItem<Partial<MixtapeDraft>>(STORAGE_KEY);
 
   if (!parsed || typeof parsed !== 'object') {
@@ -37,7 +29,6 @@ export function loadDraftFromStorage(): MixtapeDraft | null {
 
 export function removeDraftFromStorage() {
   storage.removeItem(STORAGE_KEY);
-  clearLegacyModeStorage();
 }
 
 /**

@@ -59,14 +59,6 @@ export function captureSessionTicket(): SessionTicket | null {
   return { contractId, keyId, generation: sessionGeneration };
 }
 
-export function isSessionTicketCurrent(ticket: SessionTicket): boolean {
-  return (
-    userState.contractId === ticket.contractId &&
-    userState.keyId === ticket.keyId &&
-    sessionGeneration === ticket.generation
-  );
-}
-
 export const userState = $state<{
   contractId: string | null;
   keyId: string | null;

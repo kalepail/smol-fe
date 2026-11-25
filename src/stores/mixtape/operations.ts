@@ -150,27 +150,6 @@ export function parseTracks(value: unknown): MixtapeTrack[] {
     }));
 }
 
-/**
- * Parse the persisted edit slots (`{ [creator]: session }`). A legacy single
- * session (Report 24 v1) migrates under its own creator; any slot without a
- * creator — or filed under someone else's key — is dropped, so an edit can
- * never surface for an account that did not start it (25d P1-2).
- */
-export function parseEditSlots(raw: unknown): Record<string, MixtapeEditSession> {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
-  const record = raw as Record<string, unknown>;
-  const entries: Array<[string | null, unknown]> =
-    'mixtapeId' in record ? [[null, record]] : Object.entries(record);
-  const slots: Record<string, MixtapeEditSession> = {};
-  for (const [key, candidate] of entries) {
-    const session = parseEditSession(candidate);
-    if (!session || !session.creator) continue;
-    if (key !== null && key !== session.creator) continue;
-    if (!slots[session.creator]) slots[session.creator] = session;
-  }
-  return slots;
-}
-
 export function parseEditSession(value: unknown): MixtapeEditSession | null {
   const parsed = value as Partial<MixtapeEditSession> | null;
   if (!parsed || typeof parsed !== 'object' || typeof parsed.mixtapeId !== 'string' || !parsed.mixtapeId) {

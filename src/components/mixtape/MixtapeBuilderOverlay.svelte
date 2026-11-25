@@ -3,7 +3,7 @@
 
   let BuilderSheetComp = $state<typeof import('./MixtapeBuilderSheet.svelte').default | null>(null);
 
-  // Lazy-load Sheet + MixtapeBuilder + svelte-dnd-action ONLY when the builder sheet opens.
+  // Lazy-load Sheet + MixtapeBuilder ONLY when the builder sheet opens.
   $effect(() => {
     if (!mixtapeSheetState.open || BuilderSheetComp) return;
     void import('./MixtapeBuilderSheet.svelte').then((mod) => {

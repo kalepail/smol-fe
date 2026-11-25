@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-const RENDERS_DIR = resolve('/home/tyler/code/smol/orchestration/renders/next');
+const RENDERS_DIR = resolve('test-results/renders/next');
 const fixtureMp3 = readFileSync(new URL('../fixtures/tone.mp3', import.meta.url));
 const OWNER_CONTRACT = 'CFIXTUREUSER0000000000000000000000000000000000000000000001';
 

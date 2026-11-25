@@ -39,9 +39,6 @@ importers:
       '@playwright/test':
         specifier: ^1.65.1
         version: 1.65.1
-      '@simplewebauthn/browser':
-        specifier: ^13.2.2
-        version: 13.2.2
       '@tailwindcss/vite':
         specifier: ^4.3.5
         version: 4.3.5(vite@8.3.8(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(sass@1.93.2)(yaml@2.9.1))

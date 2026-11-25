@@ -234,12 +234,6 @@ function adoptDivergentDurableEdit(owner: string) {
   editSlots.byOwner[owner] = durable;
 }
 
-/** Close the signed-in owner's edit after a successful save. */
-export function finishEdit() {
-  const edit = currentEdit();
-  if (edit) finishEditFor(edit.creator, edit.mixtapeId);
-}
-
 /** Freeze (or release) one owner's edit while its PUT is in flight. */
 export function setEditSaving(target: { owner: string; mixtapeId: string } | null) {
   if (target) flushPendingPersist();
@@ -294,16 +288,4 @@ export function rebaseEdit(mixtape: EditableMixtape, options: { keepLocal?: bool
   }
   session.updatedAt = new Date().toISOString();
   persistOwner(owner);
-}
-
-/** Snapshot of whichever slot is active (edit ?? create). */
-export function getActiveSnapshot(): MixtapeDraft {
-  const session = currentEdit() ?? mixtapeDraftState;
-  return {
-    draftId: session.draftId,
-    title: session.title,
-    description: session.description,
-    tracks: session.tracks.map((track) => ({ ...track })),
-    updatedAt: session.updatedAt,
-  };
 }
