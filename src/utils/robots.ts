@@ -2,7 +2,7 @@
  * `<meta name="robots">` policy (PURE — used by Layout.astro and unit tests).
  *
  * - Only the production host `smol.xyz` is ever indexable; every other host
- *   (next.smol.xyz, previews, localhost) is `noindex, nofollow` globally.
+ *   (previews, localhost) is `noindex, nofollow` globally.
  * - On smol.xyz a page can opt out with `noindex` (e.g. a mixtape hidden from
  *   the Mixtapes page) or `noindex` + `nofollow` (a private / restricted song).
  */

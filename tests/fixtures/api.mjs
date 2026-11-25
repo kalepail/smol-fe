@@ -159,6 +159,53 @@ const smolHidden = (() => {
   return s;
 })();
 
+// GET /created?q= (smol-workflow AE-8): case-insensitive LITERAL title substring over the
+// signed-in owner's songs, private (Public = 0) and public alike, cursor-paginated.
+const CREATED_PAGED_OWNER = 'CPAGEDOWNER00000000000000000000000000000000000000000000001';
+const CREATED_OTHER_OWNER = 'COTHERCREATOR000000000000000000000000000000000000000000001';
+const createdPrivate = [
+  { Id: 'created-neon-private', Title: 'Neon Private Sketch', Song_1: 'first', Public: 0 },
+  { Id: 'created-percent', Title: '100% Pure_Signal', Song_1: 'first', Public: 0 },
+].map((track) => ({ ...track, Address: address, Plays: 0, Views: 0 }));
+const createdCatalogs = new Map([
+  [CREATED_PAGED_OWNER, {
+    // 36 songs, 12 per page: "Drift 6", "Drift 12", … and 30 "Loop N" (3 filtered pages).
+    pageSize: 12,
+    smols: Array.from({ length: 36 }, (_, i) => ({
+      Id: `paged-${i + 1}`,
+      Title: `${(i + 1) % 6 === 0 ? 'Drift' : 'Loop'} ${i + 1}`,
+      Song_1: 'first',
+      Address: CREATED_PAGED_OWNER,
+      Public: i % 2,
+    })),
+  }],
+  [CREATED_OTHER_OWNER, {
+    pageSize: 100,
+    smols: [{ Id: 'other-owner-song', Title: 'Other Owner Neon Song', Song_1: 'first', Address: CREATED_OTHER_OWNER, Public: 0 }],
+  }],
+]);
+const defaultCreated = { pageSize: 100, smols: [...tracks, ...createdPrivate] };
+
+function cookieSub(req) {
+  const token = /(?:^|;\s*)smol_token=([^;]+)/.exec(req.headers.cookie ?? '')?.[1];
+  try {
+    return token ? JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8')).sub : null;
+  } catch {
+    return null;
+  }
+}
+
+function createdList(url, req) {
+  const catalog = createdCatalogs.get(cookieSub(req)) ?? defaultCreated;
+  const q = (url.searchParams.get('q') ?? '').trim().toLowerCase();
+  const matches = q ? catalog.smols.filter((s) => s.Title.toLowerCase().includes(q)) : catalog.smols;
+  const offset = Number(url.searchParams.get('cursor') ?? 0) || 0;
+  const pageSize = Math.min(catalog.pageSize, Number(url.searchParams.get('limit') ?? 100) || 100);
+  const smols = matches.slice(offset, offset + pageSize);
+  const hasMore = offset + pageSize < matches.length;
+  return { smols, users: [artist], pagination: { hasMore, nextCursor: hasMore ? String(offset + pageSize) : null } };
+}
+
 const DEFAULT_QUOTA = {
   classic: { limit: 10, used: 3, remaining: 7, resetAt: '2026-11-24T00:00:00.000Z' },
   elevenlabs: { limit: 3, used: 1, remaining: 2, resetAt: '2026-11-24T00:00:00.000Z' },
@@ -168,7 +215,6 @@ const routes = new Map([
   ['/__ready', {}],
   ['/', list],
   ['/quota', DEFAULT_QUOTA],
-  ['/created', list],
   ['/liked', { ...list, smols: tracks.slice(0, 3) }],
   ['/playlist/arcade', list],
   ['/artists/fixture-artist/smols', { ...list, artist }],
@@ -508,7 +554,7 @@ createServer(async (req, res) => {
 
   requests.set(path, (requests.get(path) ?? 0) + 1);
   recordSsrCookie(path, req);
-  const data = routes.get(path);
+  const data = path === '/created' && req.method === 'GET' ? createdList(url, req) : routes.get(path);
   res.writeHead(data === undefined ? 404 : 200, { ...headers, 'Content-Type': 'application/json' })
     .end(JSON.stringify(data ?? {}));
 }).listen(Number(process.env.FIXTURE_API_PORT ?? 4329), '127.0.0.1');

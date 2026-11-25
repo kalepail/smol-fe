@@ -1,11 +1,12 @@
 <script lang="ts">
-  import { onDestroy, onMount, untrack } from 'svelte';
+  import { onDestroy, onMount, untrack, type Snippet } from 'svelte';
   import type { Smol } from '../../types/domain';
   import type { ArtistProfile, SmolListResponse } from '../../types/api';
   import SmolCard from './SmolCard.svelte';
   import Skeleton from '../ui/Skeleton.svelte';
   import StateFeedback from '../ui/StateFeedback.svelte';
   import Loader from '../ui/Loader.svelte';
+  import type { IconName } from '../ui/Icon.svelte';
   import { playSmolQueue, setTrackLiked } from '../../stores/audio.svelte';
   import { toggleDraftTrack } from '../../stores/mixtape.svelte';
   import { userState } from '../../stores/user.svelte';
@@ -21,6 +22,12 @@
     initialData?: SmolListResponse | null;
     emptyTitle?: string;
     emptyDescription?: string;
+    /** Active (trimmed) title filter, sent as `?q=` on every list page (owner `/created` only). */
+    query?: string;
+    /** Replaces the default empty state (e.g. "No matching songs" for a filtered list). */
+    emptyState?: { title: string; message: string; icon?: IconName; actionLabel: string; onAction: () => void };
+    /** Rendered under the heading, outside the loading/empty states (keeps input focus across reloads). */
+    toolbar?: Snippet;
   }
 
   let {
@@ -30,6 +37,9 @@
     initialData = null,
     emptyTitle = 'No songs yet',
     emptyDescription = '',
+    query = '',
+    emptyState,
+    toolbar,
   }: Props = $props();
 
   let results = $state<Smol[]>([]);
@@ -55,6 +65,7 @@
   let likesController: AbortController | null = null;
   let lastEndpoint: string | undefined;
   let lastAccount: string | null | undefined;
+  let lastQuery: string | undefined;
 
   type LikesFetchResult = { ok: true; ids: string[] } | { ok: false };
 
@@ -70,7 +81,17 @@
   );
   const likesBusy = $derived(likesUnavailable && (!likesError || retryingLikes));
 
-  const feedback = $derived(
+  type Feedback = {
+    kind: 'error' | 'empty';
+    title: string;
+    message: string;
+    icon?: IconName;
+    actionLabel: string;
+    actionHref?: string;
+    onAction?: () => void;
+  };
+
+  const feedback = $derived<Feedback | null>(
     needsAuth
       ? {
           kind: 'empty' as const,
@@ -92,6 +113,8 @@
               void fetchInitialData();
             },
           }
+        : results.length === 0 && emptyState
+          ? { kind: 'empty' as const, ...emptyState }
         : results.length === 0
           ? {
               kind: 'empty' as const,
@@ -175,6 +198,7 @@
       window.location.origin
     );
     url.searchParams.set('limit', '100');
+    if (query) url.searchParams.set('q', query);
     if (cursorValue) url.searchParams.set('cursor', cursorValue);
     return url;
   }
@@ -316,18 +340,23 @@
   $effect(() => {
     const account = userState.contractId;
     const currentEndpoint = endpoint;
+    const currentQuery = query;
     const endpointChanged = currentEndpoint !== lastEndpoint;
     const accountChanged = account !== lastAccount;
-    if (!endpointChanged && !accountChanged) return;
+    const queryChanged = currentQuery !== lastQuery;
+    if (!endpointChanged && !accountChanged && !queryChanged) return;
 
     const isFirst = lastEndpoint === undefined;
     if (accountChanged) localLikeOverrides.clear();
     lastEndpoint = currentEndpoint;
     lastAccount = account;
+    lastQuery = currentQuery;
 
     untrack(() => {
-      if (isFirst || endpointChanged || isAuthOnlyEndpoint || error || results.length === 0) {
-        const seed = isFirst || (!endpointChanged && !isAuthOnlyEndpoint && !error) ? initialData : null;
+      // A new filter restarts from page 1 (fetchInitialData aborts list/load-more and resets the cursor).
+      if (isFirst || endpointChanged || queryChanged || isAuthOnlyEndpoint || error || results.length === 0) {
+        const seed =
+          isFirst || (!endpointChanged && !queryChanged && !isAuthOnlyEndpoint && !error) ? initialData : null;
         void fetchInitialData(seed, account);
       } else {
         void syncPublicLikes(account);
@@ -409,6 +438,8 @@
       <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight text-ink-1">{heading}</h1>
     </header>
   {/if}
+
+  {@render toolbar?.()}
 
   {#if !needsAuth && (loading || awaitingAuthLoad)}
     <Skeleton variant="card" count={12} />

@@ -1,8 +1,8 @@
 ---
-import Home from '../components/Home.svelte';
+import CreatedSongs from '../components/CreatedSongs.svelte';
 import Layout from '../layouts/Layout.astro';
 ---
 
 <Layout title="Created">
-  <Home endpoint="created" heading="Created" emptyTitle="No created songs yet" client:only="svelte" />
+  <CreatedSongs client:only="svelte" />
 </Layout>

@@ -130,8 +130,8 @@ const routes = [
     budget: BROWSE_BUDGET,
   },
   { name: '/account', entries: [...shellEntries, ...findEntry('Account')], budget: APP_BUDGET },
-  // /created and /liked render the Home grid with a different endpoint.
-  { name: '/created', entries: [...shellEntries, ...findEntry('Home')], budget: BROWSE_BUDGET },
+  // /created wraps the shared grid with its owner title filter; /liked renders the Home grid.
+  { name: '/created', entries: [...shellEntries, ...findEntry('CreatedSongs')], budget: BROWSE_BUDGET },
   { name: '/liked', entries: [...shellEntries, ...findEntry('Home')], budget: BROWSE_BUDGET },
 ];
 
