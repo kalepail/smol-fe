@@ -27,6 +27,7 @@ test('/ is full SSR HTML; hashed /_astro JS is served immutable by Static Assets
   const html = await home.text();
   expect(html).toMatch(/^<!DOCTYPE html>/i);
   expect(html).toContain('<meta name="robots" content="noindex, nofollow"');
+  expect(html).toContain('<meta property="og:description" content="Smol art onchain"');
   const scripts = [...new Set(html.match(/\/_astro\/[\w.-]+\.js/g))];
   expect(scripts.length).toBeGreaterThan(0);
   for (const script of scripts) {
@@ -41,7 +42,14 @@ test('/ is full SSR HTML; hashed /_astro JS is served immutable by Static Assets
 
 test('song and mixtape SSR go through the SMOL_API binding; unknown songs are real 404s', async ({ request }) => {
   const before = (await bindingRequests(request)).length;
-  expect((await request.get(PUBLIC_SONG)).status()).toBe(200);
+  const songRes = await request.get(PUBLIC_SONG);
+  expect(songRes.status()).toBe(200);
+  const songHtml = await songRes.text();
+  expect(songHtml).toContain('<meta property="og:title"');
+  expect(songHtml).toContain('<meta property="og:image"');
+  expect(songHtml).not.toContain('name="description"');
+  expect(songHtml).not.toContain('property="og:description"');
+  expect(songHtml).not.toContain('name="twitter:description"');
   expect((await request.get(`/${'f'.repeat(64)}`)).status()).toBe(404);
   expect((await request.get('/mixtapes')).status()).toBe(200);
   const viaBinding = (await bindingRequests(request)).slice(before);

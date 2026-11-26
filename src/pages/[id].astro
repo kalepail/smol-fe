@@ -25,7 +25,8 @@ if (isNotFound) Astro.response.status = 404;
 const initialData = result.status === 200 ? result.data : null;
 const apiUrl = import.meta.env.PUBLIC_API_URL;
 const title = initialData?.kv_do?.lyrics?.title || initialData?.d1?.Title || (isNotFound ? 'Song not found' : 'Song');
-const description = initialData?.kv_do?.payload?.prompt || initialData?.kv_do?.description;
+// Omit description meta tags on song pages so link previews show only title + cover art, not raw prompts.
+const description = null;
 const image_url = id && !isNotFound ? `${apiUrl}/image/${id}.png` : null;
 const musicId = initialData?.d1?.Song_1;
 const firstReady = initialData?.kv_do?.songs?.[0];

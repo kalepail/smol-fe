@@ -13,7 +13,8 @@ import '../styles/global.css';
 
 interface Props {
 	title?: string;
-	description?: string;
+	/** Pass `null` to omit description meta tags (e.g. song pages whose unfurls show only title + cover). */
+	description?: string | null;
 	song_url?: string | null;
 	image_url?: string | null;
 	/** Keep this page out of search indexes (e.g. a mixtape hidden from the Mixtapes page). */
@@ -71,11 +72,11 @@ if (session.shouldDeleteCookie) {
 		<ClientRouter />
 
 		<title transition:animate="fade">{pageTitle}</title>
-		<meta name="description" content={description} />
+		{description && <meta name="description" content={description} />}
 		<link rel="canonical" href={Astro.url} />
 
 		<meta property="og:title" content={pageTitle} />
-		<meta property="og:description" content={description} />
+		{description && <meta property="og:description" content={description} />}
 		<meta property="og:type" content={song_url ? 'music.song' : 'website'} />
 		<meta property="og:url" content={Astro.url} />
 		<meta property="og:image" content={image_url ? `${image_url}?scale=16` : 'https://smol.xyz/meta.png'} />
@@ -84,7 +85,7 @@ if (session.shouldDeleteCookie) {
 
 		<meta name="twitter:card" content="summary_large_image" />
 		<meta name="twitter:title" content={pageTitle} />
-		<meta name="twitter:description" content={description} />
+		{description && <meta name="twitter:description" content={description} />}
 		<meta name="twitter:image" content={image_url ? `${image_url}?scale=16` : 'https://smol.xyz/meta.png'} />
 		<meta name="twitter:url" content={Astro.url} />
 	</head>
