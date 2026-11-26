@@ -13,10 +13,15 @@ import '../styles/global.css';
 
 interface Props {
 	title?: string;
-	/** Pass `null` to omit description meta tags (e.g. song pages whose unfurls show only title + cover). */
+	/** Pass `null` to omit description meta tags. */
 	description?: string | null;
 	song_url?: string | null;
 	image_url?: string | null;
+	image_width?: number | null;
+	image_height?: number | null;
+	image_type?: string | null;
+	image_alt?: string | null;
+	oembed_url?: string | null;
 	/** Keep this page out of search indexes (e.g. a mixtape hidden from the Mixtapes page). */
 	noindex?: boolean;
 	/** With `noindex`: also don't follow links (private / restricted songs). */
@@ -28,9 +33,17 @@ const {
 	description = 'Smol art onchain',
 	song_url = null,
 	image_url,
+	image_width = null,
+	image_height = null,
+	image_type = null,
+	image_alt = null,
+	oembed_url = null,
 	noindex = false,
 	nofollow = false,
 } = Astro.props;
+
+const resolvedImageUrl = image_url ? `${image_url}?scale=16` : 'https://smol.xyz/meta.png';
+const ogType = song_url ? 'music.song' : 'website';
 
 // E2E only (compiled out unless PUBLIC_E2E_SEAMS=1): the dev server can't be
 // reached as smol.xyz, so Playwright names the production host in a header to
@@ -40,6 +53,11 @@ const robotsHost =
 const robots = robotsContent({ hostname: robotsHost, noindex, nofollow });
 
 const pageTitle = title ? (title.includes('SMOL') ? title : `${title} · SMOL`) : 'SMOL';
+// Keep og:title free of site suffix since og:site_name is set (Apple TN3156 + Discord).
+const ogTitle = title || 'SMOL';
+
+// Prevent clickjacking on wallet/app pages; only /embed/[id] opts into cross-origin framing.
+Astro.response.headers.set('Content-Security-Policy', "frame-ancestors 'self'");
 
 const cookieRead = readSessionCookieFromRequest(Astro);
 if (cookieRead.present) {
@@ -75,19 +93,27 @@ if (session.shouldDeleteCookie) {
 		{description && <meta name="description" content={description} />}
 		<link rel="canonical" href={Astro.url} />
 
-		<meta property="og:title" content={pageTitle} />
+		<meta property="og:site_name" content="SMOL" />
+		<meta property="og:title" content={ogTitle} />
 		{description && <meta property="og:description" content={description} />}
-		<meta property="og:type" content={song_url ? 'music.song' : 'website'} />
+		<meta property="og:type" content={ogType} />
 		<meta property="og:url" content={Astro.url} />
-		<meta property="og:image" content={image_url ? `${image_url}?scale=16` : 'https://smol.xyz/meta.png'} />
+		<meta property="og:image" content={resolvedImageUrl} />
+		{image_url && image_type && <meta property="og:image:type" content={image_type} />}
+		{image_url && image_width && <meta property="og:image:width" content={String(image_width)} />}
+		{image_url && image_height && <meta property="og:image:height" content={String(image_height)} />}
+		{image_url && image_alt && <meta property="og:image:alt" content={image_alt} />}
 		{song_url && <meta property="og:audio" content={song_url} />}
+		{song_url && <meta property="og:audio:secure_url" content={song_url} />}
 		{song_url && <meta property="og:audio:type" content="audio/mpeg" />}
 
 		<meta name="twitter:card" content="summary_large_image" />
-		<meta name="twitter:title" content={pageTitle} />
+		<meta name="twitter:title" content={ogTitle} />
 		{description && <meta name="twitter:description" content={description} />}
-		<meta name="twitter:image" content={image_url ? `${image_url}?scale=16` : 'https://smol.xyz/meta.png'} />
+		<meta name="twitter:image" content={resolvedImageUrl} />
+		{image_url && image_alt && <meta name="twitter:image:alt" content={image_alt} />}
 		<meta name="twitter:url" content={Astro.url} />
+		{oembed_url && <link rel="alternate" type="application/json+oembed" href={oembed_url} title={ogTitle} />}
 	</head>
 	<body class="bg-canvas text-ink-1 antialiased">
 		<TopBar {_kid} {_cid} client:only="svelte" transition:persist="header" />

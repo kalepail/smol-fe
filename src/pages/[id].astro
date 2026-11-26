@@ -5,6 +5,7 @@ import Layout from '../layouts/Layout.astro';
 import { serverApiFetchResult } from '../services/api/ssr';
 import type { SmolDetailResponse } from '../types/domain';
 import { isIndexableSong } from '../utils/robots';
+import { songSafety } from '../utils/songSafety';
 
 const { id } = Astro.params;
 // F6: song ids are 64-hex; anything else (`/quota`, `/leaderboard`, typos) is a 404 without
@@ -25,23 +26,41 @@ if (isNotFound) Astro.response.status = 404;
 const initialData = result.status === 200 ? result.data : null;
 const apiUrl = import.meta.env.PUBLIC_API_URL;
 const title = initialData?.kv_do?.lyrics?.title || initialData?.d1?.Title || (isNotFound ? 'Song not found' : 'Song');
-// Omit description meta tags on song pages so link previews show only title + cover art, not raw prompts.
-const description = null;
-const image_url = id && !isNotFound ? `${apiUrl}/image/${id}.png` : null;
+// Short constant satisfies WhatsApp's non-empty og:description rule without leaking prompts or lyrics.
+const description = isNotFound ? 'This song could not be found.' : 'Listen on SMOL';
+const isPublished = Boolean(initialData?.d1);
+const isRestricted = songSafety(initialData?.kv_do?.nsfw).restricted;
+// Shared preview metadata requires an authoritative 200 published, unrestricted song.
+const shareable = Boolean(id && result.status === 200 && isPublished && !isRestricted);
+const image_url = shareable ? `${apiUrl}/image/${id}.png` : null;
 const musicId = initialData?.d1?.Song_1;
 const firstReady = initialData?.kv_do?.songs?.[0];
-const song_url = musicId
-  ? `${apiUrl}/song/${musicId}.mp3`
-  : firstReady && firstReady.status >= 4 && firstReady.music_id
-    ? `${apiUrl}/song/${firstReady.music_id}.mp3`
-    : null;
+const resolvedMusicId = musicId || (firstReady && firstReady.status >= 4 && firstReady.music_id ? firstReady.music_id : null);
+const playable = Boolean(shareable && resolvedMusicId);
+const song_url = playable ? `${apiUrl}/song/${encodeURIComponent(resolvedMusicId!)}.mp3` : null;
+const siteOrigin = Astro.url.origin;
+const oembed_url = playable
+  ? `${siteOrigin}/oembed?url=${encodeURIComponent(`${siteOrigin}/${id}`)}`
+  : null;
 // AE-3: private (Public === 0), restricted (flagged) or unpublished songs are
 // never indexed — not even on smol.xyz, where an owner's or a shared link's
 // SSR would otherwise emit `index, follow`.
 const noindex = !isIndexableSong(initialData);
 ---
 
-<Layout {title} {description} {song_url} {image_url} {noindex} nofollow={noindex}>
+<Layout
+  {title}
+  {description}
+  {song_url}
+  {image_url}
+  image_width={image_url ? 1024 : null}
+  image_height={image_url ? 1024 : null}
+  image_type={image_url ? 'image/png' : null}
+  image_alt={image_url ? `${title} cover art` : null}
+  {oembed_url}
+  {noindex}
+  nofollow={noindex}
+>
   {isNotFound ? (
     <div class="app-container py-16">
       <StateFeedback

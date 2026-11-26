@@ -756,6 +756,23 @@
         <Icon name="copy" size={18} class="text-ink-2" />
         <span>Copy song link</span>
       </button>
+
+      {#if activeSongTrack?.src && activeSongTrack.src.endsWith('.mp3')}
+        <button
+          type="button"
+          onclick={() => {
+            moreOpen = false;
+            const audioNotice = isPrivate
+              ? 'Audio link copied — anyone with this link can listen'
+              : 'Audio link (.mp3) copied';
+            void copyText(activeSongTrack.src, 'Audio link', audioNotice, 'Copy the audio link from the song menu.');
+          }}
+          class="focus-ring flex min-h-12 w-full items-center gap-3 px-4 text-left text-sm font-medium text-ink-1 hover:bg-white/5"
+        >
+          <Icon name="copy" size={18} class="text-ink-2" />
+          <span>Copy audio link (.mp3)</span>
+        </button>
+      {/if}
     {/if}
 
     {#if kv_do?.payload?.prompt && !showGenerationLoader}
