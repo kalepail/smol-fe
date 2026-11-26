@@ -19,6 +19,9 @@ interface Props {
 	video_url?: string | null;
 	video_width?: number | null;
 	video_height?: number | null;
+	twitter_player_url?: string | null;
+	twitter_player_width?: number | null;
+	twitter_player_height?: number | null;
 	image_url?: string | null;
 	image_width?: number | null;
 	image_height?: number | null;
@@ -38,6 +41,9 @@ const {
 	video_url = null,
 	video_width = null,
 	video_height = null,
+	twitter_player_url = null,
+	twitter_player_width = null,
+	twitter_player_height = null,
 	image_url,
 	image_width = null,
 	image_height = null,
@@ -99,13 +105,16 @@ if (session.shouldDeleteCookie) {
 		{description && <meta name="description" content={description} />}
 		<link rel="canonical" href={Astro.url} />
 
-		{/* Emit twitter:card before og:type so Discord's "last layout tag wins" rule picks og:type=video.other while X keeps summary_large_image. */}
-		<meta name="twitter:card" content="summary_large_image" />
+		{/* Emit twitter:card before og:type so Discord's "last layout tag wins" rule picks og:type=video.other while X keeps player (Twitterbot) or summary_large_image. */}
+		<meta name="twitter:card" content={twitter_player_url ? 'player' : 'summary_large_image'} />
 		<meta name="twitter:title" content={ogTitle} />
 		{description && <meta name="twitter:description" content={description} />}
 		<meta name="twitter:image" content={resolvedImageUrl} />
 		{image_url && image_alt && <meta name="twitter:image:alt" content={image_alt} />}
 		<meta name="twitter:url" content={Astro.url} />
+		{twitter_player_url && <meta name="twitter:player" content={twitter_player_url} />}
+		{twitter_player_url && <meta name="twitter:player:width" content={String(twitter_player_width ?? 480)} />}
+		{twitter_player_url && <meta name="twitter:player:height" content={String(twitter_player_height ?? 480)} />}
 
 		<meta property="og:site_name" content="SMOL" />
 		<meta property="og:title" content={ogTitle} />

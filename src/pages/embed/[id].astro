@@ -44,7 +44,7 @@ Astro.response.headers.set(
   'Content-Security-Policy',
   `default-src 'none'; img-src ${apiOrigin} 'self'; media-src ${apiOrigin}; connect-src ${apiOrigin}; style-src 'unsafe-inline'; script-src 'unsafe-inline'; frame-ancestors *`
 );
-Astro.response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+Astro.response.headers.set('X-Robots-Tag', 'noindex, follow');
 
 // Never leak titles of restricted or missing songs into <title>.
 const title = playable ? data!.kv_do?.lyrics?.title || data!.d1!.Title || 'SMOL Song' : 'SMOL';
@@ -59,7 +59,8 @@ const songHref = id && isSongId ? `${Astro.url.origin}/${id}` : Astro.url.origin
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="robots" content="noindex, nofollow" />
+    <meta name="robots" content="noindex, follow" />
+    <link rel="canonical" href={songHref} />
     <title>{playable ? `${title} · SMOL` : 'SMOL'}</title>
     <style>
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -216,6 +217,12 @@ const songHref = id && isSongId ? `${Astro.url.origin}/${id}` : Astro.url.origin
         font-size: 14px;
       }
       .empty a { color: #9ae600; text-decoration: none; font-weight: 600; }
+      @media (max-width: 300px) {
+        .top { top: 8px; left: 8px; right: 8px; }
+        .controls { padding: 10px 10px 12px; gap: 6px; }
+        .play-btn { width: 40px; height: 40px; }
+        .title { font-size: 14px; }
+      }
     </style>
   </head>
   <body>
@@ -308,14 +315,32 @@ const songHref = id && isSongId ? `${Astro.url.origin}/${id}` : Astro.url.origin
               if (errEl) errEl.style.display = 'block';
             };
 
-            toggle.addEventListener('click', () => {
+            const togglePlay = () => {
               if (errEl) errEl.style.display = 'none';
               if (audio.paused || audio.ended) {
                 audio.play().catch(showError);
               } else {
                 audio.pause();
               }
+            };
+
+            toggle.addEventListener('click', (ev) => {
+              ev.stopPropagation();
+              togglePlay();
             });
+
+            stage.addEventListener('click', (ev) => {
+              if (ev.target && ev.target.closest('a, button, input, audio')) return;
+              togglePlay();
+            });
+
+            // X appends ?autoplay=1&auto_play=true when the user clicks Play on the Player Card.
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('autoplay') === '1' || params.get('auto_play') === 'true') {
+              audio.play().catch(() => {
+                // Browser blocked unmuted autoplay before an inside-frame gesture; keep Play ready.
+              });
+            }
 
             audio.addEventListener('loadedmetadata', () => {
               dur.textContent = fmt(audio.duration);

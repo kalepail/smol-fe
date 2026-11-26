@@ -73,6 +73,19 @@ test('song and mixtape SSR go through the SMOL_API binding; unknown songs are re
   const fallbackHtml = await fallbackRes.text();
   expect(fallbackHtml).toContain('<meta property="og:type" content="music.song"');
   expect(fallbackHtml).not.toContain('og:video');
+  expect(fallbackHtml).not.toContain('twitter:player');
+
+  // Twitterbot gets the 480x480 interactive X Player Card -> /embed/[id] (without twitter:player:stream)
+  const xRes = await request.get(PUBLIC_SONG, { headers: { 'user-agent': 'Twitterbot/1.0' } });
+  expect(xRes.status()).toBe(200);
+  expect(xRes.headers()['vary']?.toLowerCase()).toContain('user-agent');
+  const xHtml = await xRes.text();
+  expect(xHtml).toContain('<meta name="twitter:card" content="player"');
+  expect(xHtml.match(/name="twitter:card"/g)?.length).toBe(1);
+  expect(xHtml).toContain(`<meta name="twitter:player" content="http://127.0.0.1:4331/embed${PUBLIC_SONG}"`);
+  expect(xHtml).toContain('<meta name="twitter:player:width" content="480"');
+  expect(xHtml).toContain('<meta name="twitter:player:height" content="480"');
+  expect(xHtml).not.toContain('twitter:player:stream');
   expect((await request.get(`/${'f'.repeat(64)}`)).status()).toBe(404);
   expect((await request.get('/mixtapes')).status()).toBe(200);
   const viaBinding = (await bindingRequests(request)).slice(before);

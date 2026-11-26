@@ -46,6 +46,14 @@ const siteOrigin = Astro.url.origin;
 const oembed_url = playable
   ? `${siteOrigin}/oembed?url=${encodeURIComponent(`${siteOrigin}/${id}`)}`
   : null;
+// Serve X Player Card (480x480 iframe -> /embed/[id]) exclusively to Twitterbot so
+// Discord/iMessage/Slack/WhatsApp keep their verified summary_large_image + og:video layout.
+Astro.response.headers.append('Vary', 'User-Agent');
+const isTwitterbot = /Twitterbot/i.test(Astro.request.headers.get('user-agent') || '');
+const twitter_player_url =
+  playable && isTwitterbot && import.meta.env.PUBLIC_DISABLE_X_PLAYER !== '1'
+    ? `${siteOrigin}/embed/${id}`
+    : null;
 // AE-3: private (Public === 0), restricted (flagged) or unpublished songs are
 // never indexed — not even on smol.xyz, where an owner's or a shared link's
 // SSR would otherwise emit `index, follow`.
@@ -59,6 +67,9 @@ const noindex = !isIndexableSong(initialData);
   {video_url}
   video_width={video_url ? 1024 : null}
   video_height={video_url ? 1024 : null}
+  {twitter_player_url}
+  twitter_player_width={twitter_player_url ? 480 : null}
+  twitter_player_height={twitter_player_url ? 480 : null}
   {image_url}
   image_width={image_url ? 1024 : null}
   image_height={image_url ? 1024 : null}
