@@ -135,6 +135,8 @@ export interface SmolDetailResponse {
   liked?: boolean;
   /** True when the song's cover + primary MP3 exist in R2 within the iMessage/Discord video size cap. */
   video_eligible?: boolean;
+  /** Versioned API path (e.g. `/video/v2/<smolId>/<musicId>.mp4`) supplied by the backend when `video_eligible` is true. */
+  video_path?: string;
 }
 
 export interface SongData {

@@ -41,15 +41,19 @@ const song_url = playable ? `${apiUrl}/song/${encodeURIComponent(resolvedMusicId
 const video_eligible = Boolean(
   playable && initialData?.video_eligible === true && import.meta.env.PUBLIC_DISABLE_OG_VIDEO !== '1'
 );
-const video_url = video_eligible ? `${apiUrl}/video/v1/${id}/${encodeURIComponent(resolvedMusicId!)}.mp4` : null;
+const videoPath =
+  typeof initialData?.video_path === 'string' && initialData.video_path.startsWith('/video/')
+    ? initialData.video_path
+    : `/video/v2/${id}/${encodeURIComponent(resolvedMusicId!)}.mp4`;
+const video_url = video_eligible ? `${apiUrl}${videoPath}` : null;
 const siteOrigin = Astro.url.origin;
 const oembed_url = playable
   ? `${siteOrigin}/oembed?url=${encodeURIComponent(`${siteOrigin}/${id}`)}`
   : null;
-// Serve X Player Card (480x480 iframe -> /embed/[id]) exclusively to Twitterbot so
-// Discord/iMessage/Slack/WhatsApp keep their verified summary_large_image + og:video layout.
+// Serve X Player Card (480x480 iframe -> /embed/[id]) exclusively to genuine X/Twitter crawlers
+// (`Twitterbot/1.0`), NOT Telegram (`TelegramBot (like TwitterBot)`) or iMessage (`... Facebot Twitterbot/1.0`).
 Astro.response.headers.append('Vary', 'User-Agent');
-const isTwitterbot = /Twitterbot/i.test(Astro.request.headers.get('user-agent') || '');
+const isTwitterbot = /^Twitterbot\//i.test(Astro.request.headers.get('user-agent') || '');
 const twitter_player_url =
   playable && isTwitterbot && import.meta.env.PUBLIC_DISABLE_X_PLAYER !== '1'
     ? `${siteOrigin}/embed/${id}`

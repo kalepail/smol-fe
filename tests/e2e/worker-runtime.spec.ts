@@ -55,8 +55,8 @@ test('song and mixtape SSR go through the SMOL_API binding; unknown songs are re
   expect(songHtml).toContain('<meta property="og:image:type" content="image/png"');
   expect(songHtml).toContain('<meta property="og:image:width" content="1024"');
   expect(songHtml).toContain('<meta property="og:image:height" content="1024"');
-  expect(songHtml).toContain('<meta property="og:video" content="https://api.smol.xyz/video/v1/');
-  expect(songHtml).toContain('<meta property="og:video:secure_url" content="https://api.smol.xyz/video/v1/');
+  expect(songHtml).toContain('<meta property="og:video" content="https://api.smol.xyz/video/v2/');
+  expect(songHtml).toContain('<meta property="og:video:secure_url" content="https://api.smol.xyz/video/v2/');
   expect(songHtml).toContain('<meta property="og:video:type" content="video/mp4"');
   expect(songHtml).toContain('<meta property="og:video:width" content="1024"');
   expect(songHtml).toContain('<meta property="og:video:height" content="1024"');
@@ -86,6 +86,19 @@ test('song and mixtape SSR go through the SMOL_API binding; unknown songs are re
   expect(xHtml).toContain('<meta name="twitter:player:width" content="480"');
   expect(xHtml).toContain('<meta name="twitter:player:height" content="480"');
   expect(xHtml).not.toContain('twitter:player:stream');
+
+  // Telegram and Apple iMessage UAs both contain "TwitterBot"/"Twitterbot" — must NOT get X Player Card
+  for (const ua of [
+    'TelegramBot (like TwitterBot)',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_1) AppleWebKit/601.2.4 (KHTML, like Gecko) Version/9.0.1 Safari/601.2.4 facebookexternalhit/1.1 Facebot Twitterbot/1.0',
+  ]) {
+    const otherRes = await request.get(PUBLIC_SONG, { headers: { 'user-agent': ua } });
+    expect(otherRes.status()).toBe(200);
+    const otherHtml = await otherRes.text();
+    expect(otherHtml, ua).toContain('<meta name="twitter:card" content="summary_large_image"');
+    expect(otherHtml, ua).toContain('<meta property="og:type" content="video.other"');
+    expect(otherHtml, ua).not.toContain('twitter:player');
+  }
   expect((await request.get(`/${'f'.repeat(64)}`)).status()).toBe(404);
   expect((await request.get('/mixtapes')).status()).toBe(200);
   const viaBinding = (await bindingRequests(request)).slice(before);
@@ -97,6 +110,7 @@ test('/oembed and /embed/:id serve frameable player embeds, obey size bounds, an
   const oembedRes = await request.get(`/oembed?url=${encodeURIComponent(songUrl)}`);
   expect(oembedRes.status()).toBe(200);
   expect(oembedRes.headers()['content-type']).toContain('application/json');
+  expect(oembedRes.headers()['access-control-allow-origin']).toBe('*');
   expect(oembedRes.headers()['x-robots-tag']).toContain('noindex');
   const oembed = await oembedRes.json();
   expect(oembed.version).toBe('1.0');
