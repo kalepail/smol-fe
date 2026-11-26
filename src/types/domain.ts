@@ -133,6 +133,8 @@ export interface SmolDetailResponse {
     status: 'queued' | 'running' | 'paused' | 'errored' | 'terminated' | 'complete' | 'waiting' | 'waitingForPause' | 'unknown';
   };
   liked?: boolean;
+  /** True when the song's cover + primary MP3 exist in R2 within the iMessage/Discord video size cap. */
+  video_eligible?: boolean;
 }
 
 export interface SongData {

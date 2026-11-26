@@ -48,18 +48,31 @@ test('song and mixtape SSR go through the SMOL_API binding; unknown songs are re
   expect(songRes.headers()['content-security-policy']).toContain("frame-ancestors 'self'");
   const songHtml = await songRes.text();
   expect(songHtml).toContain('<meta property="og:site_name" content="SMOL"');
-  expect(songHtml).toContain('<meta property="og:type" content="music.song"');
+  expect(songHtml).toContain('<meta property="og:type" content="video.other"');
   expect(songHtml).toContain('<meta property="og:title" content="Neon Arcade Runner"');
   expect(songHtml).toContain('<meta property="og:description" content="Listen on SMOL"');
   expect(songHtml).toContain('<meta property="og:image"');
   expect(songHtml).toContain('<meta property="og:image:type" content="image/png"');
   expect(songHtml).toContain('<meta property="og:image:width" content="1024"');
   expect(songHtml).toContain('<meta property="og:image:height" content="1024"');
+  expect(songHtml).toContain('<meta property="og:video" content="https://api.smol.xyz/video/v1/');
+  expect(songHtml).toContain('<meta property="og:video:secure_url" content="https://api.smol.xyz/video/v1/');
+  expect(songHtml).toContain('<meta property="og:video:type" content="video/mp4"');
+  expect(songHtml).toContain('<meta property="og:video:width" content="1024"');
+  expect(songHtml).toContain('<meta property="og:video:height" content="1024"');
   expect(songHtml).toContain('<meta property="og:audio" content="https://api.smol.xyz/song/');
   expect(songHtml).toContain('<meta property="og:audio:secure_url" content="https://api.smol.xyz/song/');
   expect(songHtml).toContain('<meta name="twitter:card" content="summary_large_image"');
+  // Discord picks the last layout tag; twitter:card must precede og:type=video.other so X keeps summary_large_image.
+  expect(songHtml.indexOf('name="twitter:card"')).toBeLessThan(songHtml.indexOf('property="og:type"'));
   expect(songHtml).toContain('type="application/json+oembed"');
-  expect(songHtml).not.toContain('og:video');
+
+  // Songs that are not video_eligible (e.g. >9 MiB) fall back cleanly to music.song with no og:video
+  const fallbackRes = await request.get('/025d00727202437e4a2cba22ed3e0b9a5e39daaa09ed7fc550e6b0ff742f00ec');
+  expect(fallbackRes.status()).toBe(200);
+  const fallbackHtml = await fallbackRes.text();
+  expect(fallbackHtml).toContain('<meta property="og:type" content="music.song"');
+  expect(fallbackHtml).not.toContain('og:video');
   expect((await request.get(`/${'f'.repeat(64)}`)).status()).toBe(404);
   expect((await request.get('/mixtapes')).status()).toBe(200);
   const viaBinding = (await bindingRequests(request)).slice(before);

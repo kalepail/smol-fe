@@ -38,6 +38,10 @@ const firstReady = initialData?.kv_do?.songs?.[0];
 const resolvedMusicId = musicId || (firstReady && firstReady.status >= 4 && firstReady.music_id ? firstReady.music_id : null);
 const playable = Boolean(shareable && resolvedMusicId);
 const song_url = playable ? `${apiUrl}/song/${encodeURIComponent(resolvedMusicId!)}.mp3` : null;
+const video_eligible = Boolean(
+  playable && initialData?.video_eligible === true && import.meta.env.PUBLIC_DISABLE_OG_VIDEO !== '1'
+);
+const video_url = video_eligible ? `${apiUrl}/video/v1/${id}/${encodeURIComponent(resolvedMusicId!)}.mp4` : null;
 const siteOrigin = Astro.url.origin;
 const oembed_url = playable
   ? `${siteOrigin}/oembed?url=${encodeURIComponent(`${siteOrigin}/${id}`)}`
@@ -52,6 +56,9 @@ const noindex = !isIndexableSong(initialData);
   {title}
   {description}
   {song_url}
+  {video_url}
+  video_width={video_url ? 1024 : null}
+  video_height={video_url ? 1024 : null}
   {image_url}
   image_width={image_url ? 1024 : null}
   image_height={image_url ? 1024 : null}

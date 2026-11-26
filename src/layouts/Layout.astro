@@ -16,6 +16,9 @@ interface Props {
 	/** Pass `null` to omit description meta tags. */
 	description?: string | null;
 	song_url?: string | null;
+	video_url?: string | null;
+	video_width?: number | null;
+	video_height?: number | null;
 	image_url?: string | null;
 	image_width?: number | null;
 	image_height?: number | null;
@@ -32,6 +35,9 @@ const {
 	title,
 	description = 'Smol art onchain',
 	song_url = null,
+	video_url = null,
+	video_width = null,
+	video_height = null,
 	image_url,
 	image_width = null,
 	image_height = null,
@@ -43,7 +49,7 @@ const {
 } = Astro.props;
 
 const resolvedImageUrl = image_url ? `${image_url}?scale=16` : 'https://smol.xyz/meta.png';
-const ogType = song_url ? 'music.song' : 'website';
+const ogType = video_url ? 'video.other' : song_url ? 'music.song' : 'website';
 
 // E2E only (compiled out unless PUBLIC_E2E_SEAMS=1): the dev server can't be
 // reached as smol.xyz, so Playwright names the production host in a header to
@@ -93,6 +99,14 @@ if (session.shouldDeleteCookie) {
 		{description && <meta name="description" content={description} />}
 		<link rel="canonical" href={Astro.url} />
 
+		{/* Emit twitter:card before og:type so Discord's "last layout tag wins" rule picks og:type=video.other while X keeps summary_large_image. */}
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={ogTitle} />
+		{description && <meta name="twitter:description" content={description} />}
+		<meta name="twitter:image" content={resolvedImageUrl} />
+		{image_url && image_alt && <meta name="twitter:image:alt" content={image_alt} />}
+		<meta name="twitter:url" content={Astro.url} />
+
 		<meta property="og:site_name" content="SMOL" />
 		<meta property="og:title" content={ogTitle} />
 		{description && <meta property="og:description" content={description} />}
@@ -103,16 +117,14 @@ if (session.shouldDeleteCookie) {
 		{image_url && image_width && <meta property="og:image:width" content={String(image_width)} />}
 		{image_url && image_height && <meta property="og:image:height" content={String(image_height)} />}
 		{image_url && image_alt && <meta property="og:image:alt" content={image_alt} />}
+		{video_url && <meta property="og:video" content={video_url} />}
+		{video_url && <meta property="og:video:secure_url" content={video_url} />}
+		{video_url && <meta property="og:video:type" content="video/mp4" />}
+		{video_url && video_width && <meta property="og:video:width" content={String(video_width)} />}
+		{video_url && video_height && <meta property="og:video:height" content={String(video_height)} />}
 		{song_url && <meta property="og:audio" content={song_url} />}
 		{song_url && <meta property="og:audio:secure_url" content={song_url} />}
 		{song_url && <meta property="og:audio:type" content="audio/mpeg" />}
-
-		<meta name="twitter:card" content="summary_large_image" />
-		<meta name="twitter:title" content={ogTitle} />
-		{description && <meta name="twitter:description" content={description} />}
-		<meta name="twitter:image" content={resolvedImageUrl} />
-		{image_url && image_alt && <meta name="twitter:image:alt" content={image_alt} />}
-		<meta name="twitter:url" content={Astro.url} />
 		{oembed_url && <link rel="alternate" type="application/json+oembed" href={oembed_url} title={ogTitle} />}
 	</head>
 	<body class="bg-canvas text-ink-1 antialiased">

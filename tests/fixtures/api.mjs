@@ -250,7 +250,8 @@ const routes = new Map([
   }],
   ['/smol-2take', smol2Take],
   // A real-shaped 64-hex public song id (tests/e2e/worker-runtime.spec.ts, production build).
-  ['/025d00727202437e4a2cba22ed3e0b9a5e39daaa09ed7fc550e6b0ff742f00eb', smol2Take],
+  ['/025d00727202437e4a2cba22ed3e0b9a5e39daaa09ed7fc550e6b0ff742f00eb', { ...smol2Take, video_eligible: true }],
+  ['/025d00727202437e4a2cba22ed3e0b9a5e39daaa09ed7fc550e6b0ff742f00ec', { ...smol2Take, video_eligible: false }],
   ['/smol-1take', smol1Take],
   ['/smol-fallback', smolFallback],
   ['/smol-failed', smolFailed],
