@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { AsyncDispatchGuardError, relayXdr, runDispatchGuard } from '../../src/utils/relayDispatch.ts';
+import { AsyncDispatchGuardError, RelayError, relayXdr, runDispatchGuard } from '../../src/utils/relayDispatch.ts';
 
 /**
  * FE-1 pass 4, P1: the relayer POST is preceded, in the SAME tick and after
@@ -80,7 +80,7 @@ test('an asynchronous beforeDispatch is refused: nothing sent', async () => {
       beforeDispatch: (async () => {}) as unknown as () => void,
       fetchImpl: h.fetchImpl,
     }),
-    (e: unknown) => e instanceof AsyncDispatchGuardError
+    (e: unknown) => e instanceof RelayError && e.preDispatch && e.cause instanceof AsyncDispatchGuardError
   );
   assert.equal(h.sent.length, 0);
 });
@@ -89,9 +89,50 @@ test('no relayer configured: fails before asking Turnstile', async () => {
   let asked = false;
   await assert.rejects(
     relayXdr({ xdr: 'AAAA', relayerUrl: '', getToken: async () => ((asked = true), 't'), clearToken: () => {} }),
-    /Relayer URL not configured/
+    (e: unknown) => e instanceof RelayError && e.preDispatch && e.message === 'Relayer URL not configured'
   );
   assert.equal(asked, false);
+});
+
+test('a Turnstile failure is explicitly pre-dispatch', async () => {
+  const h = harness();
+  const cause = new Error('Turnstile is unavailable');
+  await assert.rejects(relayXdr({
+    xdr: 'AAAA',
+    relayerUrl: 'https://relay.test',
+    getToken: async () => { throw cause; },
+    clearToken: () => assert.fail('The token must be kept when the POST never ran'),
+    fetchImpl: h.fetchImpl,
+  }), (e: unknown) => e instanceof RelayError && e.preDispatch && e.cause === cause);
+  assert.equal(h.sent.length, 0);
+});
+
+test('a relayer rejection preserves its HTTP status and structured error fields', async () => {
+  await assert.rejects(relayXdr({
+    xdr: 'AAAA',
+    relayerUrl: 'https://relay.test',
+    getToken: async () => 'token',
+    clearToken: () => {},
+    fetchImpl: async () => Response.json({ error: 'Turnstile rejected', code: 'turnstile', retryable: false }, { status: 403 }),
+  }), {
+    name: 'RelayError',
+    message: 'Relayer proxy error: Turnstile rejected',
+    status: 403,
+    preDispatch: false,
+    code: 'turnstile',
+    retryable: false,
+  });
+});
+
+test('a timeout at the POST leaves the relay outcome unknown', async () => {
+  const cause = new DOMException('Timed out', 'TimeoutError');
+  await assert.rejects(relayXdr({
+    xdr: 'AAAA',
+    relayerUrl: 'https://relay.test',
+    getToken: async () => 'token',
+    clearToken: () => {},
+    fetchImpl: async () => { throw cause; },
+  }), (e: unknown) => e instanceof RelayError && !e.preDispatch && e.status === undefined && e.cause === cause);
 });
 
 test('runDispatchGuard: sync guards run; thenables are refused; no guard is a no-op', () => {

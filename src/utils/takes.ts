@@ -27,7 +27,7 @@ export const PROVIDER_META: Record<MusicProvider, ProviderMeta> = {
   elevenlabs: {
     id: 'elevenlabs',
     label: 'ElevenLabs',
-    takeCopy: '1 take · usually ~1 min',
+    takeCopy: '1 take · about a minute',
     etaCopy: 'ElevenLabs creates 1 take, usually in about a minute. You can leave this page while it finishes.',
     description: 'Faster generation producing one complete track.',
     expectedTakes: 1,

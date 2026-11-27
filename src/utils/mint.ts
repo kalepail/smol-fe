@@ -4,7 +4,6 @@ import { Client as SmolClient } from 'smol-sdk';
 import { signWithPasskey } from './passkeySign';
 import { assertWalletAction, type WalletActionTicket } from './wallet';
 import { SMOL_ISSUER } from './smolIdentity';
-export { MINT_POLL_INTERVAL, MINT_POLL_TIMEOUT } from './mintConstants';
 
 export interface MintOptions {
   id: string;
@@ -83,6 +82,7 @@ export async function submitMintTransaction(id: string, xdr: string, apiUrl: str
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ xdr }),
+      signal: AbortSignal.timeout(30_000),
     }
   );
 
@@ -91,5 +91,6 @@ export async function submitMintTransaction(id: string, xdr: string, apiUrl: str
     throw new Error(message || 'Failed to start mint workflow');
   }
 
-  return response;
+  const body = await response.json().catch(() => null) as { workflowId?: unknown } | null;
+  return { workflowId: typeof body?.workflowId === 'string' ? body.workflowId : undefined };
 }

@@ -1,5 +1,6 @@
 import type { MusicProvider, SmolDetailResponse } from '../types/domain';
 import { DEFAULT_PROVIDER } from '../utils/takes';
+import { combineAbortSignals } from '../utils/pollLoop';
 import { extractErrorMessage, parseQuotaExceededError } from '../utils/quota';
 
 export interface GenerationStatus {
@@ -27,6 +28,7 @@ export function useSmolGeneration() {
     const id = await fetch(import.meta.env.PUBLIC_API_URL, {
       method: 'POST',
       credentials: 'include',
+      signal: AbortSignal.timeout(30_000),
       headers: {
         'Content-Type': 'application/json',
       },
@@ -53,6 +55,7 @@ export function useSmolGeneration() {
     const newId = await fetch(`${import.meta.env.PUBLIC_API_URL}/retry/${id}`, {
       method: 'POST',
       credentials: 'include',
+      signal: AbortSignal.timeout(30_000),
       headers: {
         'Content-Type': 'application/json',
       },
@@ -74,9 +77,10 @@ export function useSmolGeneration() {
     return newId;
   }
 
-  async function getGen(id: string): Promise<SmolDetailResponse> {
-    return fetch(`${import.meta.env.PUBLIC_API_URL}/${id}`, {
+  async function getGen(id: string, signal: AbortSignal): Promise<SmolDetailResponse> {
+    return fetch(`${import.meta.env.PUBLIC_API_URL}/${id}?no_view=1`, {
       credentials: 'include',
+      signal: combineAbortSignals(signal, AbortSignal.timeout(30_000)),
     }).then(async (res) => {
       if (res.ok) return res.json();
       const message = await res.text();

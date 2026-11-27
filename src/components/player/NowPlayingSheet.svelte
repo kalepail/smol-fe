@@ -1,10 +1,12 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { navigate } from 'astro:transitions/client';
   import { next, player, previous, seek, setTrackLiked, toggle } from '../../stores/audio.svelte';
   import { userState } from '../../stores/user.svelte';
   import { mixtapeTrackIds, toggleDraftTrack } from '../../stores/mixtape.svelte';
   import { toast } from '../../stores/toast.svelte';
   import { parseLyricBlocks } from '../../utils/lyrics';
+  import { combineAbortSignals } from '../../utils/pollLoop';
   import Sheet from '../ui/Sheet.svelte';
   import CoverArt from '../ui/CoverArt.svelte';
   import Icon from '../ui/Icon.svelte';
@@ -29,9 +31,11 @@
   let lyricsLoading = $state(false);
   let lyricsError = $state(false);
   let loadedLyricsSmolId = $state<string | null>(null);
+  let lyricsRequest: AbortController | undefined;
   let lyricsCardEl = $state<HTMLDivElement | null>(null);
 
   const track = $derived(player.track);
+  const lyricsSmolId = $derived(track?.smolId);
   const position = $derived(track && scrub?.key === track.key ? scrub.seconds : player.currentTime);
   const remaining = $derived(Math.max(0, player.duration - position));
   const loading = $derived(player.status === 'loading' || player.buffering);
@@ -43,40 +47,55 @@
   const lyricBlocks = $derived(lyricsText ? parseLyricBlocks(lyricsText) : []);
 
   $effect(() => {
-    const id = track?.smolId ?? null;
-    if (id !== loadedLyricsSmolId) {
-      lyricsExpanded = false;
-      lyricsText = null;
-      lyricsIsInstrumental = false;
-      lyricsError = false;
-      loadedLyricsSmolId = null;
-    }
+    lyricsSmolId;
+    lyricsExpanded = false;
+    lyricsText = null;
+    lyricsIsInstrumental = false;
+    lyricsError = false;
+    lyricsLoading = false;
+    loadedLyricsSmolId = null;
+    return () => lyricsRequest?.abort();
   });
 
   async function fetchLyricsForCurrentTrack() {
     if (!track) return;
     const smolId = track.smolId;
+    lyricsRequest?.abort();
+    const request = new AbortController();
+    lyricsRequest = request;
+    const isCurrent = () => !request.signal.aborted && player.track?.smolId === smolId;
     lyricsLoading = true;
     lyricsError = false;
     try {
-      const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/${smolId}`, {
+      const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/${smolId}?no_view=1`, {
         credentials: 'include',
+        signal: combineAbortSignals(request.signal, AbortSignal.timeout(30_000)),
       });
+      if (!isCurrent()) return;
       if (!response.ok) {
         lyricsError = true;
         return;
       }
       const data = await response.json();
-      if (player.track?.smolId !== smolId) return;
+      if (!isCurrent()) return;
       const instrumental = Boolean(data?.kv_do?.payload?.instrumental || data?.d1?.Instrumental);
       lyricsIsInstrumental = instrumental;
       lyricsText = instrumental ? null : (data?.kv_do?.lyrics?.lyrics?.trim() || null);
       loadedLyricsSmolId = smolId;
     } catch {
-      if (player.track?.smolId === smolId) lyricsError = true;
+      if (isCurrent()) lyricsError = true;
     } finally {
-      lyricsLoading = false;
+      if (isCurrent()) lyricsLoading = false;
     }
+  }
+
+  async function showLyrics() {
+    const smolId = track?.smolId;
+    if (!smolId) return;
+    lyricsExpanded = true;
+    if (loadedLyricsSmolId !== smolId && !lyricsLoading) void fetchLyricsForCurrentTrack();
+    await tick();
+    if (track?.smolId === smolId) lyricsCardEl?.scrollIntoView({ behavior: 'auto', block: 'nearest' });
   }
 
   let prevOpen = false;
@@ -87,22 +106,12 @@
       lyricsExpanded = false;
       return;
     }
-    if (justOpened && initialLyricsOpen && track) {
-      lyricsExpanded = true;
-      if (loadedLyricsSmolId !== track.smolId && !lyricsLoading && !lyricsError) {
-        void fetchLyricsForCurrentTrack();
-      }
-      queueMicrotask(() => {
-        lyricsCardEl?.scrollIntoView({ behavior: 'auto', block: 'nearest' });
-      });
-    }
+    if (justOpened && initialLyricsOpen) void showLyrics();
   });
 
-  async function toggleLyrics() {
-    if (!track) return;
-    lyricsExpanded = !lyricsExpanded;
-    if (!lyricsExpanded || (loadedLyricsSmolId === track.smolId && !lyricsError)) return;
-    await fetchLyricsForCurrentTrack();
+  function toggleLyrics() {
+    if (lyricsExpanded) lyricsExpanded = false;
+    else void showLyrics();
   }
 
   async function copyLyrics() {
@@ -298,7 +307,7 @@
               size={16}
               class={isInMixtape ? 'text-accent' : ''}
             />
-            <span>{isInMixtape ? 'In mixtape' : 'Add to mixtape'}</span>
+            <span>{isInMixtape ? 'Remove from mixtape' : 'Add to mixtape'}</span>
           </Button>
         {/if}
 

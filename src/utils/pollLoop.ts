@@ -9,6 +9,21 @@ export function abortError(signal: AbortSignal): unknown {
   return signal.reason ?? new DOMException('Aborted', 'AbortError');
 }
 
+/** Keep cancellation available in browsers that support timeouts but lack AbortSignal.any. */
+export function combineAbortSignals(signal: AbortSignal, timeout: AbortSignal): AbortSignal {
+  if (typeof AbortSignal.any === 'function') return AbortSignal.any([signal, timeout]);
+  const controller = new AbortController();
+  for (const source of [signal, timeout]) {
+    const abort = () => controller.abort(source.reason);
+    if (source.aborted) {
+      abort();
+      break;
+    }
+    source.addEventListener('abort', abort, { signal: controller.signal });
+  }
+  return controller.signal;
+}
+
 export function abortableSleep(ms: number, signal: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal.aborted) {

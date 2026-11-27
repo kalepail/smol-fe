@@ -92,7 +92,7 @@
         <Loader classNames="size-4" textColor="text-accent" />
         <span class="font-medium">{stageLabel}</span>
       </div>
-      <span class="text-xs text-ink-3">{expected === 1 ? 'Usually ~1 min' : 'Usually 2–6 min'} · Safe to leave</span>
+      <span class="text-xs text-ink-3">{expected === 1 ? 'About a minute' : 'Usually 2–6 min'} · Safe to leave</span>
     </div>
 
     <ol class="grid grid-cols-1 gap-2 sm:grid-cols-3">

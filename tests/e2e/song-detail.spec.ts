@@ -237,7 +237,8 @@ for (const vp of VIEWPORTS) {
         // 2. Flagged / NSFW song: cover art stays visible, danger banner above grid, no duplicate Flagged chip, no Mint/Publish/Mixtape/More like this
         await page.goto('/smol-flagged');
         await expect(page.locator('article img.pixelated').first()).toBeVisible();
-        await expect(page.getByText(/Flagged for sensitive content \(explicit\)/)).toBeVisible();
+        await expect(page.getByText(/Flagged for sensitive content\. Kept private/)).toBeVisible();
+        await expect(page.getByText(/Flagged for sensitive content \(/)).toHaveCount(0);
         await expect(page.locator('article header').getByText('Flagged', { exact: true })).toHaveCount(0);
         await expect(page.locator('section[aria-label="Collectible"]')).toHaveCount(0);
         await expect(page.getByRole('button', { name: 'Publish to feed' })).toHaveCount(0);
@@ -326,7 +327,7 @@ test.describe('Fable Report 36 & 37 edge-case regressions', () => {
     await context.addCookies([{ name: 'smol_token', value: fakeSmolJwt(), url: 'http://127.0.0.1:4328' }]);
 
     let polls = 0;
-    await page.route(`${api}/smol-generating-partial`, async (route) => {
+    await page.route((url) => url.href.startsWith(`${api}/smol-generating-partial`) && url.pathname === '/smol-generating-partial', async (route) => {
       polls++;
       const headers = {
         'Access-Control-Allow-Origin': 'http://127.0.0.1:4328',
@@ -464,11 +465,12 @@ test.describe('Fable Report 36 & 37 edge-case regressions', () => {
 
     let lyricsFetches = 0;
     let shouldFail = true;
-    await page.route(`${api}/smol-2take`, async (route) => {
+    await page.route((url) => url.href.startsWith(`${api}/smol-2take`) && url.pathname === '/smol-2take', async (route) => {
       if (route.request().method() !== 'GET') {
         await route.continue();
         return;
       }
+      expect(new URL(route.request().url()).searchParams.get('no_view')).toBe('1');
       lyricsFetches++;
       if (shouldFail) {
         await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'boom' }) });

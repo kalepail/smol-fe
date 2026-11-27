@@ -13,7 +13,6 @@ import {
 } from './persistence';
 import {
   emptyDraft,
-  touchDraft,
   dedupeTracks,
   moveTrackInArray,
   insertTrackInArray,
@@ -282,18 +281,6 @@ export function addTrack(track: MixtapeTrack): AddTrackResult {
   return 'added';
 }
 
-export function insertTrack(track: MixtapeTrack, index: number): AddTrackResult {
-  if (activeIsLocked()) return 'busy';
-  const session = activeSession();
-  const outcome = insertTrackInArray(session.tracks, track, index);
-  if (outcome.result !== 'added') return outcome.result;
-
-  session.tracks = outcome.tracks;
-  session.updatedAt = new Date().toISOString();
-  flushPersistDraft();
-  return 'added';
-}
-
 /** Applies to both slots: visibility is a fact about the song, not the session. */
 export function updateTrackVisibility(id: string, isPublic: 0 | 1) {
   const update = (session: MixtapeDraft): boolean => {
@@ -358,20 +345,6 @@ export function clearDraft() {
   if (!currentEdit()) mixtapeSheetState.browsingDraft = false;
 
   removeDraftFromStorage();
-}
-
-/** Loads into the CREATE slot. */
-export function loadDraft(draft: MixtapeDraft) {
-  flushPendingPersist();
-  const touched = touchDraft(draft);
-
-  mixtapeDraftState.draftId = touched.draftId;
-  mixtapeDraftState.title = touched.title;
-  mixtapeDraftState.description = touched.description;
-  mixtapeDraftState.tracks = touched.tracks;
-  mixtapeDraftState.updatedAt = touched.updatedAt;
-
-  persistDraft(mixtapeDraftState);
 }
 
 export function getSnapshotDraft(): MixtapeDraft {

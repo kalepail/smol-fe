@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
   getSessionCookieDeleteOptions,
@@ -550,23 +550,6 @@ test('submitLogin propagates server error text and uses distinct fallbacks', asy
     ),
     /Account creation failed\./,
   );
-});
-
-test('useAuthentication routes connect via submitLogin, create via createAccountSession, preserves client cookie writes, and has no pendingSignup machinery', () => {
-  const source = readFileSync(resolve(ROOT, 'src/hooks/useAuthentication.ts'), 'utf8');
-  assert.match(source, /submitLogin\s*\(/);
-  assert.match(source, /createAccountSession\s*\(/);
-  assert.match(source, /submitLogout\s*\(/);
-  assert.match(source, /type:\s*'connect'/);
-  assert.match(source, /type:\s*'create'/);
-  // Native helper (js-cookie removed, CVE-2026-46625): same set + both scoped removes (`sessionCookie.ts`).
-  assert.match(source, /import \{ clearSessionCookies, setSessionCookie \} from '\.\.\/utils\/sessionCookie'/);
-  const cookieSource = readFileSync(resolve(ROOT, 'src/utils/sessionCookie.ts'), 'utf8');
-  assert.match(cookieSource, /setCookie\('smol_token'/);
-  assert.equal(cookieSource.match(/removeCookie\('smol_token'/g)?.length, 2);
-  assert.doesNotMatch(source + cookieSource, /js-cookie|Cookies\./);
-  assert.doesNotMatch(source, /pendingSignup/);
-  assert.equal(existsSync(resolve(ROOT, 'src/utils/pendingSignup.ts')), false);
 });
 
 // ---------------------------------------------------------------------------

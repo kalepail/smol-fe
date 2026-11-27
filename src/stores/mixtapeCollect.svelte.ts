@@ -57,6 +57,7 @@ import {
 } from '../utils/mixtapeOwnership';
 import { fitsMaxIn } from '../utils/cometQuote';
 import { QuoteMovedError } from '../utils/slippage';
+import { RelayError } from '../utils/relayDispatch';
 import { BUY_COST_KALE, BUY_COST_STROOPS, MINT_COST_KALE, MINT_COST_STROOPS } from '../utils/mixtapePricing';
 import { logger } from '../utils/logger';
 import { e2eSeams } from '../utils/collectSeams';
@@ -181,7 +182,7 @@ function writeStorage(key: string, value: string | null): boolean {
   }
 }
 
-/** Per-tab identity for signing claims and the storage-lease fallback lock. */
+/** Per-tab identity for signing claims. */
 const TAB_ID = (() => {
   try {
     return crypto.randomUUID();
@@ -189,50 +190,12 @@ const TAB_ID = (() => {
     return `tab-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;
   }
 })();
-const STORAGE_LEASE_MS = 15_000;
 /**
  * Web Locks hand off between tabs immediately, but Chromium propagates
  * localStorage between renderer processes asynchronously. Holding the lock
  * briefly after our last write lets the next holder's in-lock re-read see it.
  */
 const LOCK_RELEASE_GRACE_MS = 150;
-
-type StorageLease = { stillHeld: () => boolean; release: () => void };
-
-/**
- * Cross-tab mutex over localStorage, used only when Web Locks are missing:
- * claim if free or expired, wait, then verify our claim survived concurrent
- * writers. Refreshed while held. `busy` / `unavailable` both fail closed.
- */
-async function acquireStorageLease(key: string): Promise<StorageLease | 'busy' | 'unavailable'> {
-  const read = (): { owner?: string; expiresAt?: number } | null => {
-    try {
-      return JSON.parse(localStorage.getItem(key) ?? 'null');
-    } catch {
-      return null;
-    }
-  };
-  const current = read();
-  if (current?.owner && current.owner !== TAB_ID && (current.expiresAt ?? 0) > Date.now()) return 'busy';
-  const claim = () => writeStorage(key, JSON.stringify({ owner: TAB_ID, expiresAt: Date.now() + STORAGE_LEASE_MS }));
-  if (!claim()) return 'unavailable';
-  await new Promise((r) => setTimeout(r, 60));
-  if (read()?.owner !== TAB_ID) return 'busy';
-  const stillHeld = () => {
-    const lease = read();
-    return lease?.owner === TAB_ID && (lease.expiresAt ?? 0) > Date.now();
-  };
-  const timer = setInterval(() => {
-    if (stillHeld()) claim();
-  }, STORAGE_LEASE_MS / 3);
-  return {
-    stillHeld,
-    release: () => {
-      clearInterval(timer);
-      if (read()?.owner === TAB_ID) writeStorage(key, null);
-    },
-  };
-}
 
 /** Thrown by the pre-relay guard: the signed payload is discarded, never relayed. */
 class SubmitGuardError extends Error {
@@ -453,52 +416,32 @@ export function createCollectController(opts: {
    * re-read before anything is written or signed, so a second tab can never
    * overwrite another tab's submitted/uncertain lock or submit a duplicate buy.
    */
-  let activeLease: StorageLease | null = null;
   let holdingWebLock = false;
 
   async function withCollectLock<T>(fn: () => Promise<T>): Promise<T | undefined> {
     const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
-    const name = `smol-collect:${userState.contractId ?? ''}:${opts.getMixtapeId()}`;
-    const run = async () => {
-      const shared = readSharedSteps(false);
-      steps = shared ?? [];
-      return fn();
-    };
-    if (locks?.request) {
-      return locks.request(name, { mode: 'exclusive' }, async () => {
-        holdingWebLock = true;
-        try {
-          return await run();
-        } finally {
-          holdingWebLock = false;
-          await new Promise((r) => setTimeout(r, LOCK_RELEASE_GRACE_MS));
-        }
-      }) as Promise<T>;
-    }
-
-    // No Web Locks: require the storage lease, else fail closed (nothing is signed).
-    const lease = await acquireStorageLease(`smol:collect-lock:v1:${userState.contractId ?? ''}:${opts.getMixtapeId()}`);
-    if (lease === 'busy' || lease === 'unavailable') {
+    if (!locks?.request) {
       notices = [
         ...notices,
         {
           tone: 'warning',
-          text:
-            lease === 'busy'
-              ? 'Another tab is completing this purchase. Finish it there, then try again.'
-              : "This browser window can't safely coordinate purchases across tabs, so nothing was signed.",
+          text: "This browser can't safely coordinate collect actions across tabs. Open SMOL in a browser with Web Locks to continue.",
         },
       ];
-      return undefined;
+      return;
     }
-    activeLease = lease;
-    try {
-      return await run();
-    } finally {
-      activeLease = null;
-      await new Promise((r) => setTimeout(r, LOCK_RELEASE_GRACE_MS));
-      lease.release();
-    }
+
+    const name = `smol-collect:${userState.contractId ?? ''}:${opts.getMixtapeId()}`;
+    return locks.request(name, { mode: 'exclusive' }, async () => {
+      holdingWebLock = true;
+      try {
+        steps = readSharedSteps(false) ?? [];
+        return await fn();
+      } finally {
+        holdingWebLock = false;
+        await new Promise((r) => setTimeout(r, LOCK_RELEASE_GRACE_MS));
+      }
+    });
   }
 
   /** Durable-save failure before a signature: abort, never sign unrecorded. */
@@ -1113,7 +1056,7 @@ export function createCollectController(opts: {
         return;
       }
       const updated = writeIfStill(step.id, mine(), (shared) => [...patchIn(step.id, narrowed)(shared), ...extra]);
-      if (updated !== 'ok' || (activeLease && !activeLease.stillHeld())) {
+      if (updated !== 'ok') {
         if (updated === 'lost') {
           requireReconfirm('Another tab took over this purchase, so this tab sent nothing. Check the step below.');
         } else {
@@ -1162,8 +1105,7 @@ export function createCollectController(opts: {
        */
       const onBeforeSubmit = ({ expiresAtLedger }: { expiresAtLedger: number }) => {
         if (gen !== generation) throw new SubmitGuardError('stale');
-        const holdsLock = holdingWebLock || Boolean(activeLease?.stillHeld());
-        if (!ownsSigningClaim(readSharedSteps(true), { stepId: step.id, tabId: TAB_ID, attemptId, now: Date.now(), holdsLock })) {
+        if (!ownsSigningClaim(readSharedSteps(true), { stepId: step.id, tabId: TAB_ID, attemptId, now: Date.now(), holdsLock: holdingWebLock })) {
           steps = readSharedSteps(true) ?? [];
           throw new SubmitGuardError('stale');
         }
@@ -1245,8 +1187,10 @@ export function createCollectController(opts: {
         void refresh({ ids: step.trackIds, markLoading: false });
         return;
       }
-      if (error instanceof SubmitGuardError) {
-        if (error.reason === 'stale') {
+      const relayError = error instanceof RelayError ? error : null;
+      const cause = relayError?.preDispatch ? relayError.cause ?? error : error;
+      if (cause instanceof SubmitGuardError) {
+        if (cause.reason === 'stale') {
           // Another tab owns this step now: leave its record untouched, show it.
           steps = readSharedSteps(true) ?? [];
           requireReconfirm('Another tab took over this purchase, so this tab sent nothing. Check the step below.');
@@ -1261,9 +1205,9 @@ export function createCollectController(opts: {
       // safely "not charged"; 5xx / transport errors after submission are
       // `uncertain` and lock their songs until reconciled.
       const failure = classifySubmitFailure({
-        error,
-        status: (error as { status?: number })?.status,
-        phase: phase === 'signing' ? 'signing' : 'submitting',
+        error: cause,
+        status: relayError?.status ?? (cause as { status?: number })?.status,
+        phase: relayError?.preDispatch || phase === 'signing' ? 'signing' : 'submitting',
       });
       const result = writeIfStill(
         step.id,

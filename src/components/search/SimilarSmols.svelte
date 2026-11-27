@@ -93,7 +93,7 @@
       </div>
     {:else if indexing}
       <p class="rounded-[var(--radius-control)] bg-surface-1 px-4 py-3 text-sm text-ink-2 ring-1 ring-inset ring-line">
-        Indexing similar songs. Check back in a moment.
+        Similar songs will appear here once they’re ready.
       </p>
     {:else if results.length > 0}
       <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-6">

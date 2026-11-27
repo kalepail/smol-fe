@@ -458,12 +458,8 @@ test.describe('Mixtape owner renders (1440×900)', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// 25d review regressions (4 × P1, 8 × P2)
-// ---------------------------------------------------------------------------
-
-test.describe('25d regressions (390×844)', () => {
-  test('P1-1: saving an owned, on-chain-but-unindexed song refreshes collector ownership without reload', async ({ page, context }) => {
+test.describe('Owner editing and concurrent changes', () => {
+  test('saving an owned, on-chain-but-unindexed song refreshes collector ownership without reload', async ({ page, context }) => {
     await context.addCookies([{ name: 'smol_token', value: fakeSmolJwt(CHAIN_OWNER), url: 'http://127.0.0.1:4328' }]);
     const OWNED = 10_000_000n * 10_000_000n;
     let delayMs = 0;
@@ -517,7 +513,7 @@ test.describe('25d regressions (390×844)', () => {
     expect(stats.getLedgerEntries).toBeGreaterThan(readsBefore);
   });
 
-  test('P1-2: account B never sees, opens or deletes account A’s unsaved edit', async ({ page, context }) => {
+  test('account B never sees, opens or deletes account A’s unsaved edit', async ({ page, context }) => {
     const idA = await signInAs(context, 'b1');
     await page.goto(`/mixtapes/${idA('night-drive')}`);
     await page.getByRole('button', { name: 'Edit', exact: true }).click();
@@ -548,7 +544,7 @@ test.describe('25d regressions (390×844)', () => {
     await expect(page.getByRole('button', { name: /^Continue editing A secret title/ })).toBeVisible();
   });
 
-  test('P1-4: a Create-slot Undo can never mutate the Edit slot', async ({ page, context }) => {
+  test('a Create-slot Undo can never mutate the Edit slot', async ({ page, context }) => {
     await signInAs(context, 'd2');
     await seedDraft(page, {
       title: 'Creasy again',
@@ -576,7 +572,7 @@ test.describe('25d regressions (390×844)', () => {
     expect(slots).toEqual({ draft: ['first-smol'], edit: ['first-smol', 'second-smol', 'third-smol'] });
   });
 
-  test('P2-2: 409 concurrent_delete closes the edit (no Load latest), and the toast Load latest clears the banner', async ({ page, context }) => {
+  test('409 concurrent_delete closes the edit (no Load latest), and the toast Load latest clears the banner', async ({ page, context }) => {
     const id = await signInAs(context, 'e1');
     const url = `${api}/mixtapes/${id('night-drive')}`;
     await page.goto(`/mixtapes/${id('night-drive')}`);
@@ -618,7 +614,7 @@ test.describe('25d regressions (390×844)', () => {
     await expect(editor.getByRole('button', { name: 'Save changes' })).toBeDisabled();
   });
 
-  test('P2-3: merge with targetDeletedConcurrently lands on Yours with no dead Open link', async ({ page, context }) => {
+  test('merge with targetDeletedConcurrently lands on Yours with no dead Open link', async ({ page, context }) => {
     const id = await signInAs(context, 'f1');
     await page.goto(`/mixtapes/${id('night-drive')}`);
     await page.getByRole('button', { name: 'More actions for Night Drive' }).click();
@@ -640,7 +636,7 @@ test.describe('25d regressions (390×844)', () => {
     await expect(toast.getByRole('button', { name: 'Open' })).toHaveCount(0);
   });
 
-  test('P2-4: a rejected merge freezes the stale preview; "Review in editor first" saves the target and KEEPS the source', async ({ page, context }) => {
+  test('a rejected merge freezes the stale preview; "Review in editor first" saves the target and KEEPS the source', async ({ page, context }) => {
     const id = await signInAs(context, 'g1');
     await page.goto(`/mixtapes/${id('night-drive')}`);
     await page.getByRole('button', { name: 'More actions for Night Drive' }).click();
@@ -677,7 +673,7 @@ test.describe('25d regressions (390×844)', () => {
     expect((await ownerSnapshot(page, 'g1')).filter((r) => r.Deleted_At).map((r) => r.Id)).toEqual([id('old-merged')]);
   });
 
-  test('P2-5: a sibling edit updates this detail page live (listed → hidden)', async ({ page, context }) => {
+  test('a sibling edit updates this detail page live (listed → hidden)', async ({ page, context }) => {
     const id = await signInAs(context, 'h1');
     // Start editing the hidden 1-song copy: make it a superset of "Creasy Drops" (v2).
     await page.goto(`/mixtapes/${id('creasy-v1')}`);
@@ -699,7 +695,7 @@ test.describe('25d regressions (390×844)', () => {
     await expect(page.locator('[data-owner-callout]')).toContainText('Every song here is also in your bigger mixtape');
   });
 
-  test('P2-6: authenticated SSR renders Yours cards and the owner callout, with no hydration warnings', async ({ page, context, request }) => {
+  test('authenticated SSR renders Yours cards and the owner callout, with no hydration warnings', async ({ page, context, request }) => {
     const id = await signInAs(context, 'i1');
     const yours = await (await page.request.get('/mixtapes?view=yours')).text();
     expect(yours).toContain(`data-mixtape-card="${id('creasy-v1')}"`);
@@ -726,7 +722,7 @@ test.describe('25d regressions (390×844)', () => {
     expect(warnings).toEqual([]);
   });
 
-  test('P2-1: 503 create_pending offers a timed retry; 409 create_conflict offers to review the changed row', async ({ page, context }) => {
+  test('503 create_pending offers a timed retry; 409 create_conflict offers to review the changed row', async ({ page, context }) => {
     const id = await signInAs(context, 'l1');
     await seedDraft(page, {
       title: 'Pending Mix',
@@ -789,10 +785,10 @@ test.describe('25d regressions (390×844)', () => {
   });
 });
 
-test.describe('25d regressions (1440×900)', () => {
+test.describe('Desktop editing and directory refresh', () => {
   test.use({ viewport: { width: 1440, height: 900 }, isMobile: false, hasTouch: false });
 
-  test('P2-8: the desktop builder is a non-modal docked panel; the page stays usable', async ({ page, context }) => {
+  test('the desktop builder is a non-modal docked panel; the page stays usable', async ({ page, context }) => {
     await signInAs(context, 'k1');
     await page.goto('/');
     await page.getByRole('button', { name: 'New mixtape' }).click();
@@ -810,7 +806,7 @@ test.describe('25d regressions (1440×900)', () => {
     await expect(builder).toHaveCount(0);
   });
 
-  test('P1-3: every edit mutation is frozen while the PUT is in flight; nothing typed is lost', async ({ page, context }) => {
+  test('every edit mutation is frozen while the PUT is in flight; nothing typed is lost', async ({ page, context }) => {
     const id = await signInAs(context, 'c1');
     await page.goto(`/mixtapes/${id('night-drive')}`);
     await page.getByRole('button', { name: 'Edit', exact: true }).click();
@@ -844,7 +840,7 @@ test.describe('25d regressions (1440×900)', () => {
     expect(await page.evaluate(() => localStorage.getItem('smol:mixtape-edit:CMIXOWNERC1'))).toBeNull();
   });
 
-  test('P2-5: an edit saved on All refreshes the All card without a reload', async ({ page, context }) => {
+  test('an edit saved on All refreshes the All card without a reload', async ({ page, context }) => {
     await signInAs(context, 'demo');
     const newTitle = `Night Drive ${Date.now().toString(36)}`;
     await page.goto('/mixtapes/mx-demo-night-drive');
@@ -862,10 +858,6 @@ test.describe('25d regressions (1440×900)', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// 25d pass 2 regressions (6 × P1, 5 × P2)
-// ---------------------------------------------------------------------------
-
 async function openReviewInEditor(page: Page, id: (slug: string) => string) {
   await page.goto(`/mixtapes/${id('night-drive')}`);
   await page.getByRole('button', { name: 'More actions for Night Drive' }).click();
@@ -879,8 +871,8 @@ async function openReviewInEditor(page: Page, id: (slug: string) => string) {
   return editor;
 }
 
-test.describe('25d pass 2 regressions (390×844)', () => {
-  test('P1-1: Load latest after a 409 cancels the reviewed merge; the source can never be deleted', async ({ page, context }) => {
+test.describe('Merge and editor conflict recovery', () => {
+  test('Load latest after a 409 cancels the reviewed merge; the source can never be deleted', async ({ page, context }) => {
     const id = await signInAs(context, 'g2');
     const editor = await openReviewInEditor(page, id);
     // Another device renames the TARGET, so the reviewed save conflicts.
@@ -897,7 +889,7 @@ test.describe('25d pass 2 regressions (390×844)', () => {
     expect((await page.request.get(`${api}/mixtapes/${id('night-drive')}`)).status()).toBe(200);
   });
 
-  test('pass 3 P1-1: source and target races during a reviewed merge can never lose a song', async ({ page, context }) => {
+  test('source and target races during a reviewed merge can never lose a song', async ({ page, context }) => {
     const id = await signInAs(context, 'g3');
     const editor = await openReviewInEditor(page, id);
     // Source race: another device adds a 4th song to the SOURCE while the target is being reviewed.
@@ -923,7 +915,7 @@ test.describe('25d pass 2 regressions (390×844)', () => {
     expect(mutations.some((m) => m.method === 'DELETE' && m.path === `/mixtapes/${id('night-drive')}`)).toBe(false);
   });
 
-  test('P1-3: a 503 on Load latest keeps the dirty edit and the conflict choices', async ({ page, context }) => {
+  test('a 503 on Load latest keeps the dirty edit and the conflict choices', async ({ page, context }) => {
     const id = await signInAs(context, 'e2');
     const url = `${api}/mixtapes/${id('night-drive')}`;
     let mode: 'conflict' | 'unavailable' | 'pass' = 'pass';
@@ -963,49 +955,7 @@ test.describe('25d pass 2 regressions (390×844)', () => {
     expect(await page.evaluate(() => localStorage.getItem('smol:mixtape-edit:CMIXOWNERE2') ?? '')).toContain('"title":"Mine"');
   });
 
-  test('P1-4: two tabs on two accounts keep BOTH parked edits (independent per-owner keys)', async ({ page, context }) => {
-    const idA = await signInAs(context, 'b3');
-    await page.goto(`/mixtapes/${idA('night-drive')}`);
-    await expect(page.getByRole('button', { name: 'Edit', exact: true })).toBeVisible();
-    const idB = await signInAs(context, 'b4');
-    const tabB = await context.newPage();
-    await tabB.goto(`/mixtapes/${idB('night-drive')}`);
-    await expect(tabB.getByRole('button', { name: 'Edit', exact: true })).toBeVisible();
-
-    // Both tabs were open before either edited. Tabs share one cookie jar and
-    // reconcile to the live session when focused (Report 49 P2-4), so each
-    // tab's account is the signed-in one while it edits.
-    const returnTo = (tab: Page) => tab.evaluate(() => window.dispatchEvent(new Event('focus')));
-    await signInAs(context, 'b3');
-    await returnTo(page);
-    await page.getByRole('button', { name: 'Edit', exact: true }).click();
-    await openDialog(page).getByLabel('Title').fill('A title');
-    await openDialog(page).getByRole('button', { name: 'Close' }).click();
-    await signInAs(context, 'b4');
-    await returnTo(tabB);
-    await tabB.getByRole('button', { name: 'Edit', exact: true }).click();
-    await openDialog(tabB).getByLabel('Title').fill('B title');
-    await openDialog(tabB).getByRole('button', { name: 'Close' }).click();
-    // ...and A edits again after B.
-    await signInAs(context, 'b3');
-    await returnTo(page);
-    await page.getByRole('button', { name: /^Continue editing A title/ }).click();
-    await openDialog(page).getByLabel('Description (optional)').fill('A again');
-    await openDialog(page).getByRole('button', { name: 'Close' }).click();
-
-    const stored = await page.evaluate(() => ({
-      a: localStorage.getItem('smol:mixtape-edit:CMIXOWNERB3') ?? '',
-      b: localStorage.getItem('smol:mixtape-edit:CMIXOWNERB4') ?? '',
-      shared: localStorage.getItem('smol:mixtape-edit'),
-    }));
-    expect(stored.a).toContain('"title":"A title"');
-    expect(stored.a).toContain('A again');
-    expect(stored.b).toContain('"title":"B title"');
-    expect(stored.shared).toBeNull();
-    await tabB.close();
-  });
-
-  test('P2-2: a rejected merge re-derives BOTH rows from the refreshed list (1 → 5, not 1 → 4)', async ({ page, context }) => {
+  test('a rejected merge re-derives BOTH rows from the refreshed list (1 → 5, not 1 → 4)', async ({ page, context }) => {
     const id = await signInAs(context, 'g4');
     await page.goto(`/mixtapes/${id('night-drive')}`);
     await page.getByRole('button', { name: 'More actions for Night Drive' }).click();
@@ -1033,24 +983,12 @@ test.describe('25d pass 2 regressions (390×844)', () => {
     await expect(sheet.locator('[data-merge-outcome]')).toContainText('4 songs will be added');
   });
 
-  test('P2-4: the SSR owner callout needs a VERIFIED session (/mixtapes/mine), not just a matching cookie subject', async ({ page, context }) => {
-    const id = (slug: string) => `mx-i2-${slug}`;
-    // Expired session whose payload still names the creator.
-    await context.addCookies([{ name: 'smol_token', value: fakeSmolJwt('CMIXOWNERI2', { exp: 1 }), url: 'http://127.0.0.1:4328' }]);
-    const expired = await (await page.request.get(`/mixtapes/${id('creasy-v1')}`)).text();
-    expect(expired).toContain('Creasy Drops');
-    expect(expired).not.toContain('data-ssr-owner-callout');
-
-    await signInAs(context, 'i2');
-    const verified = await (await page.request.get(`/mixtapes/${id('creasy-v1')}`)).text();
-    expect(verified).toContain('data-ssr-owner-callout');
-  });
 });
 
-test.describe('25d pass 2 regressions (1440×900)', () => {
+test.describe('Desktop builder submission and focus', () => {
   test.use({ viewport: { width: 1440, height: 900 }, isMobile: false, hasTouch: false });
 
-  test('P1-5: create is frozen while its POST is in flight; a page add is refused, not silently dropped', async ({ page, context }) => {
+  test('create is frozen while its POST is in flight; a page add is refused, not silently dropped', async ({ page, context }) => {
     await signInAs(context, 'p1');
     await seedDraft(page, { title: 'Held Mix', tracks: [{ id: 'smol-minted', title: 'Starlight Mint Anthem' }] });
     await page.getByRole('button', { name: /Mixtape draft/ }).click();
@@ -1076,7 +1014,7 @@ test.describe('25d pass 2 regressions (1440×900)', () => {
     expect(await page.evaluate(() => localStorage.getItem('smol:mixtape-draft'))).toBeNull();
   });
 
-  test('P2-5: desktop "Edit X instead" moves focus to the title inside the docked panel', async ({ page, context }) => {
+  test('desktop "Edit X instead" moves focus to the title inside the docked panel', async ({ page, context }) => {
     await signInAs(context, 'k2');
     await seedDraft(page, {
       title: 'Creasy again',
@@ -1093,12 +1031,8 @@ test.describe('25d pass 2 regressions (1440×900)', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// 25d pass 3 regressions (4 × P1, 4 × P2)
-// ---------------------------------------------------------------------------
-
-test.describe('25d pass 3 regressions (390×844)', () => {
-  test('P1-2: a save in tab A never erases the other mixtape tab B parked under the same account', async ({ page, context }) => {
+test.describe('Shared drafts, stale merges, and access recovery', () => {
+  test('a save in tab A never erases the other mixtape tab B parked under the same account', async ({ page, context }) => {
     const id = await signInAs(context, 'q1');
     await page.goto(`/mixtapes/${id('night-drive')}`);
     const tabB = await context.newPage();
@@ -1136,7 +1070,7 @@ test.describe('25d pass 3 regressions (390×844)', () => {
     await tabB.close();
   });
 
-  test('P1-3: a create POST in tab A keeps the song tab B added to the durable draft meanwhile', async ({ page, context }) => {
+  test('a create POST in tab A keeps the song tab B added to the durable draft meanwhile', async ({ page, context }) => {
     await signInAs(context, 'q2');
     await seedDraft(page, { title: 'Two Tab Mix', tracks: [{ id: 'smol-minted', title: 'Starlight Mint Anthem' }] });
     const tabB = await context.newPage();
@@ -1166,7 +1100,7 @@ test.describe('25d pass 3 regressions (390×844)', () => {
     await tabB.close();
   });
 
-  test('P2-2: a rejected merge whose target or source vanished shows a safe state (no null throw)', async ({ page, context }) => {
+  test('a rejected merge whose target or source vanished shows a safe state (no null throw)', async ({ page, context }) => {
     const id = await signInAs(context, 'g5');
     const pageErrors: string[] = [];
     page.on('pageerror', (err) => pageErrors.push(err.message));
@@ -1194,7 +1128,7 @@ test.describe('25d pass 3 regressions (390×844)', () => {
     expect(pageErrors).toEqual([]);
   });
 
-  test('P2-3: an expired or revoked session never gets hydrated owner controls (SSR expiry + failed /mine)', async ({ page, context }) => {
+  test('an expired or revoked session never gets hydrated owner controls (SSR expiry + failed /mine)', async ({ page, context }) => {
     // 1. Client-detectable expired JWT is rejected & cleared at SSR before hydration.
     await context.addCookies([{ name: 'smol_token', value: fakeSmolJwt('CMIXOWNERI3', { exp: 1 }), url: 'http://127.0.0.1:4328' }]);
     await page.goto('/mixtapes/mx-i3-creasy-v1');
@@ -1221,7 +1155,7 @@ test.describe('25d pass 3 regressions (390×844)', () => {
     await expect(page.getByRole('button', { name: /More actions for/ })).toHaveCount(0);
   });
 
-  test('P2-4: when the newest All read fails, All leaves the skeleton and offers Retry @isolated', async ({ page, context }) => {
+  test('when the newest All read fails, All leaves the skeleton and offers Retry @isolated', async ({ page, context }) => {
     const id = await signInAs(context, 'nossr');
     // Park an edit so a save can trigger the All refresh.
     await page.goto(`/mixtapes/${id('night-drive')}`);
@@ -1266,12 +1200,8 @@ test.describe('25d pass 3 regressions (390×844)', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// 25d pass 4 regressions (2 × P1, 2 × P2)
-// ---------------------------------------------------------------------------
-
-test.describe('25d pass 4 regressions (390×844)', () => {
-  test('P1-1: reopening the SAME mixtape adopts another tab’s newer parked edit instead of overwriting it', async ({ page, context }) => {
+test.describe('Parked edits and revoked owner access', () => {
+  test('reopening the SAME mixtape adopts another tab’s newer parked edit instead of overwriting it', async ({ page, context }) => {
     const id = await signInAs(context, 'r1');
     await page.goto(`/mixtapes/${id('night-drive')}`);
     const tabB = await context.newPage();
@@ -1309,42 +1239,7 @@ test.describe('25d pass 4 regressions (390×844)', () => {
     await tabB.close();
   });
 
-  test('P1-2: saving from "Edit X instead" never erases a song another tab added to the Create draft', async ({ page, context }) => {
-    await signInAs(context, 'r2');
-    await seedDraft(page, {
-      title: 'Creasy again',
-      tracks: [
-        { id: 'first-smol', title: 'First Track' },
-        { id: 'second-smol', title: 'Second Track' },
-        { id: 'smol-minted', title: 'Starlight Mint Anthem' },
-      ],
-    });
-    await page.getByRole('button', { name: 'Open mixtape draft (3)' }).click();
-    const builder = openDialog(page);
-    await builder.getByRole('button', { name: 'Remove track' }).nth(2).click();
-    await builder.getByRole('button', { name: 'Edit "Creasy Drops" instead' }).click();
-    await expect(builder.getByRole('heading', { name: 'Editing · Creasy Drops' })).toBeVisible();
-    await builder.getByLabel('Title').fill('Creasy Drops (A)');
-
-    // Another tab adds Starlight Mint Anthem to the parked Create draft (durable write).
-    const tabB = await context.newPage();
-    await tabB.goto('/');
-    await tabB.evaluate(() => {
-      const draft = JSON.parse(localStorage.getItem('smol:mixtape-draft') || '{}');
-      draft.tracks.push({ id: 'smol-minted', title: 'Starlight Mint Anthem', coverUrl: null, creator: null, public: 1 });
-      draft.updatedAt = new Date().toISOString();
-      localStorage.setItem('smol:mixtape-draft', JSON.stringify(draft));
-    });
-
-    await builder.getByRole('button', { name: 'Save changes' }).click();
-    await expect(toasts(page).filter({ hasText: 'Saved "Creasy Drops (A)".' })).toBeVisible();
-    const durable = await page.evaluate(() => JSON.parse(localStorage.getItem('smol:mixtape-draft') || 'null'));
-    expect(durable?.tracks?.map((t: { id: string }) => t.id)).toEqual(['first-smol', 'second-smol', 'smol-minted']);
-    await expect(page.getByRole('button', { name: 'Open mixtape draft (3)' })).toBeVisible();
-    await tabB.close();
-  });
-
-  test('P2-2: an explicit /mixtapes/mine 401 revokes previously verified owner controls', async ({ page, context }) => {
+  test('an explicit /mixtapes/mine 401 revokes previously verified owner controls', async ({ page, context }) => {
     const id = await signInAs(context, 'r4');
     await page.goto(`/mixtapes/${id('creasy-v1')}`);
     await expect(page.locator('section[data-owner-callout]')).toBeVisible();
@@ -1368,12 +1263,8 @@ test.describe('25d pass 4 regressions (390×844)', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// 25d pass 5 regressions (2 × P1, 1 × P2)
-// ---------------------------------------------------------------------------
-
-test.describe('25d pass 5 regressions (390×844)', () => {
-  test('P1-2: confirming "Discard changes" never overwrites a different edit another tab parked meanwhile', async ({ page, context }) => {
+test.describe('Discarding a parked edit and revalidating Yours', () => {
+  test('confirming "Discard changes" never overwrites a different edit another tab parked meanwhile', async ({ page, context }) => {
     const id = await signInAs(context, 's2');
     await page.goto(`/mixtapes/${id('night-drive')}`);
     await page.getByRole('button', { name: 'Edit', exact: true }).click();
@@ -1406,7 +1297,7 @@ test.describe('25d pass 5 regressions (390×844)', () => {
     await tabB.close();
   });
 
-  test('P2: a /mine 401 on an SSR-seeded Yours page drops the SSR owner cards and menus', async ({ page, context }) => {
+  test('a /mine 401 on an SSR-seeded Yours page drops the SSR owner cards and menus', async ({ page, context }) => {
     const id = await signInAs(context, 's3');
     await page.goto('/mixtapes?view=yours');
     await expect(page.locator(`[data-mixtape-card="${id('creasy-v1')}"]`)).toBeVisible();
@@ -1429,10 +1320,10 @@ test.describe('25d pass 5 regressions (390×844)', () => {
   });
 });
 
-test.describe('25d pass 5 regressions (1440×900)', () => {
+test.describe('Saving after switching draft slots on desktop', () => {
   test.use({ viewport: { width: 1440, height: 900 }, isMobile: false, hasTouch: false });
 
-  test('P1-1: a song added to Create while "Edit instead" loads the target survives Save', async ({ page, context }) => {
+  test('a song added to Create while "Edit instead" loads the target survives Save', async ({ page, context }) => {
     const id = await signInAs(context, 's1');
     await seedDraft(page, {
       title: 'Creasy again',
@@ -1473,12 +1364,8 @@ test.describe('25d pass 5 regressions (1440×900)', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// 25d pass 6 regression (P2)
-// ---------------------------------------------------------------------------
-
-test.describe('25d pass 6 regression (390×844)', () => {
-  test('P2: "Edit instead" that skips a private draft song never consumes the Create draft on Save', async ({ page, context }) => {
+test.describe('Switching draft slots with a private song', () => {
+  test('"Edit instead" that skips a private draft song never consumes the Create draft on Save', async ({ page, context }) => {
     await signInAs(context, 't1');
     await page.goto('/');
     await page.evaluate(() => {

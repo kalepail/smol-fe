@@ -158,18 +158,6 @@ export interface MixtapeMergeResult {
   targetDeletedConcurrently: boolean;
 }
 
-export interface MixtapeUniquenessResult {
-  willBeListed: boolean;
-  visibility: MixtapeVisibilityState;
-  hiddenReason: string | null;
-  matchedMixtape: { id: string; title: string | null } | null;
-  advice: string | null;
-  uniquenessScore: number | null;
-  isBorderline: boolean;
-  borderlineMixtape: { id: string; title: string } | null;
-  impacts: Array<{ id: string; title: string; visibility: MixtapeVisibilityState; hiddenReason: string | null }>;
-}
-
 export type MixtapeActionErrorKind =
   | 'auth'
   | 'forbidden'
@@ -646,29 +634,6 @@ export async function mergeMixtape(
     target: data?.target ? toOwnedMixtape(data.target) : null,
     targetDeletedConcurrently: data?.targetDeletedConcurrently === true,
   };
-}
-
-/** POST /mixtapes/check-uniqueness — Tier 1 server preview (zero AI). */
-export async function checkMixtapeUniqueness(payload: {
-  id?: string;
-  title?: string;
-  description?: string;
-  smols?: string[];
-}): Promise<MixtapeUniquenessResult> {
-  const data = (await ownerRequest(
-    '/mixtapes/check-uniqueness',
-    {
-      method: 'POST',
-      body: {
-        ...(payload.id ? { id: payload.id } : {}),
-        ...(payload.title !== undefined ? { title: payload.title } : {}),
-        ...(payload.description !== undefined ? { desc: payload.description } : {}),
-        ...(payload.smols !== undefined ? { smols: payload.smols } : {}),
-      },
-    },
-    { action: 'check this mixtape' }
-  )) as MixtapeUniquenessResult;
-  return data;
 }
 
 export function toMixtapeDetail(data: ApiMixtapeDetail): MixtapeDetail {

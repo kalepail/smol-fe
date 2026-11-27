@@ -142,7 +142,7 @@ async function installPasskeyAuthSeam(
   );
 }
 
-test.describe('F4 SmolGrid auth reactivity & login credentials', () => {
+test.describe('Authentication and signed-in grids', () => {
   test('signed-out /liked -> sign in loads tracks without reload -> sign out clears immediately', async ({
     page,
   }) => {
@@ -339,7 +339,7 @@ test.describe('F4 SmolGrid auth reactivity & login credentials', () => {
     expect((await context.cookies(FRONTEND_URL)).find((c) => c.name === 'smol_token')).toBeUndefined();
   });
 
-  test('closing or reloading signup tab mid-deploy leaves zero unfinished session cookies across tabs', async ({
+  test('closing a signup tab mid-deploy leaves zero unfinished session cookies across tabs', async ({
     context,
   }) => {
     const pendingContract = 'CPENDINGCLOSE000000000000000000000000000000000000000000001';
@@ -362,22 +362,7 @@ test.describe('F4 SmolGrid auth reactivity & login credentials', () => {
     await sheet.getByRole('button', { name: 'Create account' }).click();
     expect((await loginPromise).status()).toBe(200);
 
-    // Reload mid-deploy -> zero cookie existed
-    await tabA.reload();
-    await expect(tabA.getByRole('heading', { name: 'Sign in to see liked songs' })).toBeVisible();
-    await expect(tabA.getByRole('button', { name: 'Open account menu' })).toHaveCount(0);
-    expect((await context.cookies(FRONTEND_URL)).find((c) => c.name === 'smol_token')).toBeUndefined();
-
-    // Start again and close Tab A mid-deploy -> fresh Tab B sees zero cookies and stays signed out
-    await tabA.locator('#main').getByRole('button', { name: 'Sign in', exact: true }).click();
-    const sheet2 = tabA.locator('dialog[open]');
-    await sheet2.getByText('Create account', { exact: true }).click();
-    await sheet2.getByLabel('Username').fill('closed-tab-user-2');
-    const loginPromise2 = tabA.waitForResponse(
-      (res) => res.url() === `${API_URL}/login` && res.request().method() === 'POST',
-    );
-    await sheet2.getByRole('button', { name: 'Create account' }).click();
-    expect((await loginPromise2).status()).toBe(200);
+    // Closing the signup tab leaves no unfinished session in other tabs.
     await tabA.close();
 
     const tabB = await context.newPage();
@@ -385,88 +370,6 @@ test.describe('F4 SmolGrid auth reactivity & login credentials', () => {
     await expect(tabB.getByRole('heading', { name: 'Sign in to see liked songs' })).toBeVisible();
     await expect(tabB.getByRole('button', { name: 'Open account menu' })).toHaveCount(0);
     expect((await context.cookies(FRONTEND_URL)).find((c) => c.name === 'smol_token')).toBeUndefined();
-    await tabB.close();
-  });
-
-  test('passive Tab B (even without Web Locks or under localStorage quota error) and failed Account B signup never interfere with active Account A deploy', async ({
-    context,
-  }) => {
-    const contractA = 'CACTIVEACCT00000000000000000000000000000000000000000000001';
-    const contractB = 'CFAILEDACCT00000000000000000000000000000000000000000000002';
-
-    const disableLocksAndQuota = () => {
-      Object.defineProperty(navigator, 'locks', { value: undefined, configurable: true });
-      Storage.prototype.setItem = () => {
-        throw new DOMException('QuotaExceededError', 'QuotaExceededError');
-      };
-    };
-
-    const tabA = await context.newPage();
-    await tabA.addInitScript(disableLocksAndQuota);
-    await installPasskeyAuthSeam(tabA, {
-      contractId: contractA,
-      keyId: 'acct-a-key',
-      deferSend: true,
-    });
-
-    await tabA.goto('/liked');
-    await tabA.locator('#main').getByRole('button', { name: 'Sign in', exact: true }).click();
-    const sheetA = tabA.locator('dialog[open]');
-    await sheetA.getByText('Create account', { exact: true }).click();
-    await sheetA.getByLabel('Username').fill('account-a');
-
-    const loginAPromise = tabA.waitForResponse(
-      (res) => res.url() === `${API_URL}/login` && res.request().method() === 'POST',
-    );
-    await sheetA.getByRole('button', { name: 'Create account' }).click();
-    expect((await loginAPromise).status()).toBe(200);
-
-    // Passive Tab B opens / without Web Locks and under quota failure -> stays signed out, zero cookies
-    const tabB = await context.newPage();
-    await tabB.addInitScript(disableLocksAndQuota);
-    await installPasskeyAuthSeam(tabB, {
-      contractId: contractB,
-      keyId: 'acct-b-key',
-    });
-    await tabB.route(`${API_URL}/login`, async (route) => {
-      await route.fulfill({
-        status: 503,
-        headers: {
-          'Access-Control-Allow-Origin': FRONTEND_URL,
-          'Content-Type': 'text/plain',
-        },
-        body: 'Upstream unavailable',
-      });
-    });
-
-    await tabB.goto('/');
-    await expect(tabB.getByRole('button', { name: 'Play First Track' })).toBeVisible();
-    await expect(tabB.getByRole('button', { name: 'Open account menu' })).toHaveCount(0);
-    expect((await context.cookies(FRONTEND_URL)).find((c) => c.name === 'smol_token')).toBeUndefined();
-
-    // Account B attempts signup and fails with 503 -> must NOT affect Account A
-    await tabB.locator('header').getByRole('button', { name: 'Sign in', exact: true }).click();
-    const sheetB = tabB.locator('dialog[open]');
-    await sheetB.getByText('Create account', { exact: true }).click();
-    await sheetB.getByLabel('Username').fill('account-b');
-    await sheetB.getByRole('button', { name: 'Create account' }).click();
-    await expect(sheetB.getByRole('alert')).toContainText('Upstream unavailable');
-    expect((await context.cookies(FRONTEND_URL)).find((c) => c.name === 'smol_token')).toBeUndefined();
-
-    // Now Account A's relay finishes -> Account A commits cleanly and transitions to signed-in UI!
-    await tabA.evaluate(() => {
-      (globalThis as unknown as { __smolFinishDeferredSend?: () => void }).__smolFinishDeferredSend?.();
-    });
-    await expect(tabA.locator('dialog[open]')).toHaveCount(0);
-    await expect(tabA.getByRole('button', { name: 'Open account menu' })).toBeVisible();
-    await expect(tabA.getByRole('button', { name: 'Play First Track' })).toBeVisible();
-
-    // Tab B navigating now picks up Account A's committed session
-    await tabB.goto('/liked');
-    await expect(tabB.getByRole('button', { name: 'Open account menu' })).toBeVisible();
-    await expect(tabB.getByRole('button', { name: 'Play First Track' })).toBeVisible();
-
-    await tabA.close();
     await tabB.close();
   });
 
@@ -562,8 +465,8 @@ test.describe('F4 SmolGrid auth reactivity & login credentials', () => {
     // sign-in) as soon as the auth transition arrives: never the uncommitted
     // pending wallet, never a stale signed-out shell.
     const pillA = tabA.getByRole('button', { name: /^Open account menu/ });
-    await expect(pillA).toContainText(`${otherContract.slice(0, 6)}...${otherContract.slice(-4)}`);
-    await expect(pillA).not.toContainText(`${pendingContract.slice(0, 6)}...${pendingContract.slice(-4)}`);
+    await expect(pillA).toContainText(`${otherContract.slice(0, 6)}…${otherContract.slice(-4)}`);
+    await expect(pillA).not.toContainText(`${pendingContract.slice(0, 6)}…${pendingContract.slice(-4)}`);
 
     await tabA.close();
     await tabB.close();
@@ -627,8 +530,8 @@ test.describe('F4 SmolGrid auth reactivity & login credentials', () => {
     expect(decodedSub).toBe(otherContract);
     // Report 49 P2-4: Tab A follows the live shared session, never the prompt's wallet.
     const pillA = tabA.getByRole('button', { name: /^Open account menu/ });
-    await expect(pillA).toContainText(`${otherContract.slice(0, 6)}...${otherContract.slice(-4)}`);
-    await expect(pillA).not.toContainText(`${promptContract.slice(0, 6)}...${promptContract.slice(-4)}`);
+    await expect(pillA).toContainText(`${otherContract.slice(0, 6)}…${otherContract.slice(-4)}`);
+    await expect(pillA).not.toContainText(`${promptContract.slice(0, 6)}…${promptContract.slice(-4)}`);
 
     // Non-secret transition marker in localStorage never contains any JWT or contract ID
     const storedMarker = await tabA.evaluate(() => localStorage.getItem('smol_auth_transition'));

@@ -114,7 +114,7 @@ const shellEntries = [
 // Two-tier gzip budgets (warn target / hard fail ceiling) per route class.
 // Real regressions (accidental static imports of stellar-sdk/passkey-kit/tldts/buffer)
 // are enforced independently by FORBIDDEN_MARKERS below.
-const BROWSE_BUDGET = { warnKb: 75, failKb: 100 };
+const BROWSE_BUDGET = { warnKb: 70, failKb: 100 };
 const APP_BUDGET = { warnKb: 120, failKb: 150 };
 
 const routes = [
@@ -215,61 +215,7 @@ if (xdrChunks.length > 1) {
 if (xdrTotal > 1) {
   failures.push(`Stellar XDR (TransactionEnvelope) schema is bundled ${xdrTotal} times (max 1)`);
 }
-// 3b. Server-only / HTTP-client gate. Precise markers, no count-based allowances.
-//     Every marker is a string that survives minification (string literals,
-//     property keys, `Symbol.toStringTag` values).
-//
-//   (a) OZ Channels client + passkey-kit's PasskeyServer are server-only.
-//   (b) The `axios` npm package must contribute ZERO bytes to any client chunk.
-//       `AxiosError` is deliberately NOT a marker: @stellar/stellar-sdk@14's RPC
-//       client bundles `feaxios`, a ~10 KB fetch shim that defines its OWN local
-//       `AxiosError` / `isAxiosError` (no axios code). That shim is allowed until
-//       the SDK 16/17 wave; the markers below are axios-only (none occurs in
-//       feaxios or the SDK's own http-client; e.g. `CancelToken` is NOT usable —
-//       the SDK fetch client defines its own). Section 3c backs them with
-//       Rollup's rendered module ids.
-//   (c) >1 XDR schema chunk/copy is gated above (section 3).
-const CHANNELS_MARKERS = [
-  'ChannelsClient',
-  'PluginTransportError',
-  'baseUrl is required when pluginId is not provided',
-];
-const PASSKEY_SERVER_MARKERS = ['Mercury service not configured', 'get_signers_by_address', 'zephyr/execute'];
-const AXIOS_PACKAGE_MARKERS = [
-  'AxiosHeaders', // class + Symbol.toStringTag value
-  'silentJSONParsing', // defaults.transitional
-  'ERR_DEPRECATED', // axios-only AxiosError code
-  'formSerializer', // axios defaults / toFormData options
-  'HttpStatusCode', // axios.HttpStatusCode
-  'ERR_FR_TOO_MANY_REDIRECTS', // follow-redirects (node http adapter)
-  'axios/dist', // a direct dist import
-];
-
-const feaxiosChunks = [];
-for (const [file, text] of contents) {
-  for (const marker of CHANNELS_MARKERS) {
-    if (text.includes(marker)) failures.push(`OZ Channels client ("${marker}") in client chunk ${file}`);
-  }
-  for (const marker of PASSKEY_SERVER_MARKERS) {
-    if (text.includes(marker)) failures.push(`passkey-kit PasskeyServer ("${marker}") in client chunk ${file}`);
-  }
-  for (const marker of AXIOS_PACKAGE_MARKERS) {
-    if (text.includes(marker)) failures.push(`axios npm package ("${marker}") in client chunk ${file}`);
-  }
-  if (text.includes('AxiosError')) feaxiosChunks.push(file);
-}
-// The feaxios shim is part of the Stellar SDK's RPC client: it may only live in
-// the single SDK (XDR) chunk, never as a separately bundled HTTP client.
-for (const file of feaxiosChunks) {
-  if (!xdrChunks.includes(file)) failures.push(`AxiosError-bearing code outside the Stellar SDK chunk: ${file}`);
-}
-console.log(
-  `axios npm package: 0 bytes required in client chunks (${AXIOS_PACKAGE_MARKERS.length} markers); ` +
-    `SDK feaxios shim allowed in: ${feaxiosChunks.join(', ') || 'none'}`
-);
-
-// 3c. Rendered-module gate. String markers can miss a single axios helper
-//     (e.g. `axios/lib/helpers/combineURLs.js`). The build plugin in astro.config.mjs records,
+// 3c. Server-only / HTTP-client gate. The build plugin in astro.config.mjs records,
 //     per emitted client chunk, the module ids Rollup actually RENDERED into it
 //     (`renderedLength > 0`) in `.astro/client-bundle-modules.json` (build-only, never in
 //     dist/). Zero rendered modules may come from these packages in ANY client chunk:

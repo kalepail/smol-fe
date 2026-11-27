@@ -362,7 +362,7 @@ for (const viewport of [
       await expect(builderDialog.getByText('3 songs selected')).toBeVisible();
       await page.unroute(`${api}/mixtapes`);
 
-      // B-01: Now Playing "Add to mixtape" stores public visibility & updates button to "In mixtape" (B-10)
+      // B-01: Now Playing "Add to mixtape" stores public visibility & updates button to "Remove from mixtape" (B-10)
       await builderDialog.getByRole('button', { name: 'Close' }).click();
       await page.getByRole('button', { name: 'Play Neon Arcade Runner' }).click();
       const dock = page.getByRole('region', { name: 'Audio player' });
@@ -373,7 +373,7 @@ for (const viewport of [
       }
       const npDialog = page.locator('dialog[open]');
       await npDialog.getByRole('button', { name: 'Add to mixtape' }).click();
-      await expect(npDialog.getByRole('button', { name: 'In mixtape' })).toBeVisible();
+      await expect(npDialog.getByRole('button', { name: 'Remove from mixtape' })).toBeVisible();
       const allTracksHavePublic = await page.evaluate(() => {
         const draft = JSON.parse(localStorage.getItem('smol:mixtape-draft') || '{}');
         return Array.isArray(draft.tracks) && draft.tracks.length === 4 && draft.tracks.every((t: { public?: number }) => t.public === 1);
@@ -595,7 +595,7 @@ test.describe('FE-POST-1 create flow: visibility carry-over, optimistic details,
     let firstGet!: () => void;
     const held = new Promise<void>((resolve) => (firstGet = resolve));
     let status: Record<string, unknown> = { wf: { status: 'running' } };
-    await page.route(`${api}/smol-generating`, async (route) => {
+    await page.route((url) => url.href.startsWith(`${api}/smol-generating`) && url.pathname === '/smol-generating', async (route) => {
       await held;
       const response = await route.fetch();
       const body = await response.json();

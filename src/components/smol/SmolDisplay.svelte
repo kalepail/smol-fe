@@ -43,6 +43,7 @@
     playlist?: string | null;
     retryError?: string | null;
     minting: boolean;
+    mintError: string | null;
     minted: boolean;
     tradeReady: boolean;
     tradeMintBalance: bigint;
@@ -71,6 +72,7 @@
     playlist = null,
     retryError = null,
     minting,
+    mintError,
     minted,
     tradeReady,
     tradeMintBalance,
@@ -342,7 +344,7 @@
     >
       <Icon name="warning" size={18} class="mt-0.5 shrink-0" />
       <span>
-        Flagged for sensitive content{kv_do?.nsfw?.categories?.length ? ` (${kv_do.nsfw.categories.join(', ')})` : ''}. Kept private from public feeds and cannot be published or minted.
+        Flagged for sensitive content. Kept private from public feeds and cannot be published or minted.
       </span>
     </div>
   {:else if isSafetyUnknown}
@@ -576,6 +578,9 @@
                   ? 'Minting on Stellar… usually under 30 seconds.'
                   : 'Mint for 100 KALE to enable trading and earn creator fees.'}
               </p>
+              {#if mintError}
+                <p class="mt-1 text-xs text-warning" role="alert">{mintError}</p>
+              {/if}
             {/if}
           </div>
 

@@ -1,11 +1,15 @@
 import { navigate } from 'astro:transitions/client';
 import type { SmolDetailResponse } from '../types/domain';
+import { expectedTakeCount, providerOf } from '../utils/takes';
+import { combineAbortSignals } from '../utils/pollLoop';
 import { toast } from './toast.svelte';
 
 interface TrackedGeneration {
   id: string;
   timer: ReturnType<typeof setTimeout> | null;
   delay: number;
+  pageReaders: number;
+  request?: AbortController;
 }
 
 const active = new Map<string, TrackedGeneration>();
@@ -28,27 +32,42 @@ export function clearReadyNotifications() {
 
 export function stopTrackingGeneration(id: string) {
   const entry = active.get(id);
-  if (entry?.timer) clearTimeout(entry.timer);
+  if (!entry) return;
+  if (entry.timer) clearTimeout(entry.timer);
+  entry.request?.abort();
   active.delete(id);
   syncActiveIds();
 }
 
-export function trackGeneration(id: string) {
-  if (typeof window === 'undefined' || !id || active.has(id)) return;
-  const entry: TrackedGeneration = { id, timer: null, delay: 4000 };
-  active.set(id, entry);
-  syncActiveIds();
-  schedulePoll(entry);
+/** Keep the generation in the header, but let the open song view do the reads. */
+export function pauseBackgroundGenerationPolling(id: string): () => void {
+  let entry = active.get(id);
+  if (!entry) {
+    entry = { id, timer: null, delay: 4000, pageReaders: 0 };
+    active.set(id, entry);
+    syncActiveIds();
+  }
+  entry.pageReaders++;
+  if (entry.timer) clearTimeout(entry.timer);
+  entry.request?.abort();
+  return () => {
+    entry.pageReaders--;
+    if (entry.pageReaders === 0 && active.get(id) === entry) schedulePoll(entry);
+  };
 }
 
 function schedulePoll(entry: TrackedGeneration) {
   entry.timer = setTimeout(async () => {
-    if (!active.has(entry.id)) return;
+    if (active.get(entry.id) !== entry || entry.pageReaders) return;
+    const request = new AbortController();
+    entry.request = request;
 
     try {
-      const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/${entry.id}`, {
+      const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/${entry.id}?no_view=1`, {
         credentials: 'include',
+        signal: combineAbortSignals(request.signal, AbortSignal.timeout(30_000)),
       });
+      if (request.signal.aborted) return;
 
       if (response.status === 404) {
         entry.delay = Math.min(entry.delay * 1.5, 15000);
@@ -62,17 +81,9 @@ function schedulePoll(entry: TrackedGeneration) {
       }
 
       const data = (await response.json()) as SmolDetailResponse;
+      if (request.signal.aborted) return;
       const songs = data.kv_do?.songs ?? [];
-      const provider =
-        data.kv_do?.generation_meta?.actual_provider ??
-        data.kv_do?.actual_provider ??
-        data.d1?.Actual_Provider ??
-        data.kv_do?.active_provider ??
-        data.kv_do?.generation_meta?.requested_provider ??
-        data.kv_do?.requested_provider ??
-        data.kv_do?.payload?.provider ??
-        data.d1?.Requested_Provider;
-      const expected = provider === 'elevenlabs' ? 1 : 2;
+      const expected = expectedTakeCount(providerOf(data));
       const ready = songs.length >= expected && songs.every((song) => song.music_id && song.status >= 4);
       const published = Boolean(data.d1?.Id) && !data.wf;
       const wfStatus = data.wf?.status;
@@ -103,8 +114,11 @@ function schedulePoll(entry: TrackedGeneration) {
       entry.delay = Math.min(entry.delay * 1.5, 15000);
       schedulePoll(entry);
     } catch {
+      if (request.signal.aborted) return;
       entry.delay = Math.min(entry.delay * 1.5, 15000);
       schedulePoll(entry);
+    } finally {
+      if (entry.request === request) entry.request = undefined;
     }
   }, entry.delay);
 }

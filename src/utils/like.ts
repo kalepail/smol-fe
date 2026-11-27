@@ -2,6 +2,7 @@
 export async function toggleLike(smolId: string, isLiked: boolean): Promise<boolean> {
     // Call the API to toggle the like
     const response = await fetch(`${import.meta.env.PUBLIC_API_URL}/likes/${smolId}`, {
+        signal: AbortSignal.timeout(30_000),
         method: "PUT",
         credentials: "include",
     });

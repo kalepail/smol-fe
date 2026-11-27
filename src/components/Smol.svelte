@@ -7,12 +7,12 @@
   import SmolTradeSection from './smol/SmolTradeSection.svelte';
   import SimilarSmols from './search/SimilarSmols.svelte';
   import StateFeedback from './ui/StateFeedback.svelte';
-  import { captureSessionTicket, userState } from '../stores/user.svelte';
+  import { captureSessionTicket, getSessionGeneration, userState } from '../stores/user.svelte';
   import { updateContractBalance } from '../stores/balance.svelte';
   import { toast } from '../stores/toast.svelte';
   import { confirmAction } from '../stores/confirm.svelte';
   import { openAuthSheet } from '../stores/authSheet.svelte';
-  import { trackGeneration, stopTrackingGeneration } from '../stores/generations.svelte';
+  import { pauseBackgroundGenerationPolling, stopTrackingGeneration } from '../stores/generations.svelte';
   import { applyQuotaExceeded, decrementQuota, refreshQuota } from '../stores/quota.svelte';
   import { useSmolGeneration } from '../hooks/useSmolGeneration';
   import { useSmolMinting } from '../hooks/useSmolMinting';
@@ -50,8 +50,8 @@
   let best_song = $state<string | undefined>(undefined);
   let savingBest = $state(false);
   let interval = $state<ReturnType<typeof setTimeout> | null>(null);
-  let pollDelay = $state(3000);
-  let pollGeneration = 0;
+  let generationPoll: AbortController | null = null;
+  let resumeBackgroundPolling: (() => void) | undefined;
   let submittingGeneration = $state(false);
   let failed = $state(false);
   let quotaError = $state<string | null>(null);
@@ -59,6 +59,9 @@
   let pendingCreatedId = $state<string | null>(null);
   let playlist = $state<string | null>(null);
   let minting = $state(false);
+  let mintError = $state<string | null>(null);
+  let mintConfirmedId = $state<string | null>(null);
+  let mintRequest: AbortController | null = null;
   let showTradeModal = $state(false);
   let tradeMintBalance = $state<bigint>(0n);
 
@@ -72,7 +75,7 @@
   // unindexed on-chain mint is still minted: never offer a second Mint for it.
   let verifiedMarket = $state<{ songId: string; sac: string; pool: string } | null>(null);
   const chainVerified = $derived(Boolean(verifiedMarket && verifiedMarket.songId === id));
-  const minted = $derived(Boolean(d1?.Mint_Token || d1?.Mint_Amm || chainVerified));
+  const minted = $derived(Boolean(d1?.Mint_Token || d1?.Mint_Amm || chainVerified || (id && mintConfirmedId === id)));
   const tradeReady = $derived(Boolean(id && ((d1?.Mint_Amm && d1?.Mint_Token) || chainVerified)));
   const ownerAddress = $derived(d1?.Address ?? kv_do?.payload?.address ?? null);
   const isOwner = $derived(
@@ -147,18 +150,6 @@
     }
   });
 
-  let mintStartedInSession = $state(false);
-  $effect(() => {
-    if (minted && mintStartedInSession) {
-      mintStartedInSession = false;
-      minting = false;
-      mintingHook.clearMintPolling();
-      if (userState.contractId) {
-        void updateContractBalance(userState.contractId, { force: true });
-      }
-    }
-  });
-
   let lastFetchedId = $state<string | null>(null);
 
   function isTransientCreatedSmol404(smolId: string, status?: number) {
@@ -190,15 +181,14 @@
       if (!interval) {
         startPolling();
       }
-      if (id) trackGeneration(id);
       return;
     }
 
     const published = Boolean(response?.d1?.Id) && !response?.wf;
 
     if (songsArePlaybackReady || published || generationHook.shouldStopPolling(status)) {
-      stopPolling();
       if (id) stopTrackingGeneration(id);
+      stopPolling();
       failed = generationHook.isFailed(status);
     }
   }
@@ -247,10 +237,12 @@
       const smolId = id;
       const seed = lastFetchedId === null ? initialData : null;
       lastFetchedId = smolId;
-      mintStartedInSession = false;
+      mintRequest?.abort();
       minting = false;
+      mintError = null;
       retryError = null;
       untrack(() => {
+        stopPolling();
         if (seed) applySmolData(seed);
         else void fetchSmolData(smolId);
       });
@@ -288,39 +280,37 @@
     }
   });
 
-  function scheduleNextPoll() {
-    const gen = pollGeneration;
+  function scheduleNextPoll(signal: AbortSignal, delay: number) {
     interval = setTimeout(async () => {
       try {
-        await getGen();
+        await getGen(signal);
       } catch (err) {
-        logger.error('smol', 'Poll failed:', err);
+        if (!signal.aborted) logger.error('smol', 'Poll failed:', err);
       }
-      if (gen !== pollGeneration) return;
-      if (interval !== null) {
-        pollDelay = Math.min(pollDelay * 1.5, 15000);
-        scheduleNextPoll();
-      }
-    }, pollDelay);
+      if (signal.aborted) return;
+      scheduleNextPoll(signal, Math.min(15_000, Math.max(3_000, delay * 1.5)));
+    }, delay);
   }
 
-  function startPolling() {
-    if (interval) return;
-    pollGeneration++;
-    pollDelay = 3000;
-    scheduleNextPoll();
+  function startPolling(delay = 3_000) {
+    if (generationPoll || !id) return;
+    generationPoll = new AbortController();
+    resumeBackgroundPolling = pauseBackgroundGenerationPolling(id);
+    scheduleNextPoll(generationPoll.signal, delay);
   }
 
   function stopPolling() {
-    if (interval) {
-      clearTimeout(interval);
-      interval = null;
-    }
+    generationPoll?.abort();
+    generationPoll = null;
+    if (interval) clearTimeout(interval);
+    interval = null;
+    resumeBackgroundPolling?.();
+    resumeBackgroundPolling = undefined;
   }
 
   onDestroy(() => {
     stopPolling();
-    mintingHook.clearMintPolling();
+    mintRequest?.abort();
   });
 
   function removePlaylist() {
@@ -438,9 +428,7 @@
       id = newId;
       prompt = '';
 
-      startPolling();
-      trackGeneration(newId);
-      await getGen();
+      startPolling(0);
     } catch (err) {
       if (err instanceof QuotaExceededError) {
         applyQuotaExceeded(err, userState.contractId);
@@ -476,16 +464,7 @@
       lastFetchedId = newId;
       id = newId;
       failed = false;
-      startPolling();
-      trackGeneration(newId);
-
-      try {
-        await getGen();
-      } catch (err) {
-        if (!isTransientCreatedSmol404(newId, (err as Error & { status?: number }).status)) {
-          throw err;
-        }
-      }
+      startPolling(0);
     } catch (err) {
       if (err instanceof QuotaExceededError) {
         applyQuotaExceeded(err, userState.contractId);
@@ -538,39 +517,32 @@
     // Canonical preflight (C-15): never mint a song that already exists on chain
     // (D1 may not have indexed it yet). An inconclusive check blocks minting.
     const songId = id;
+    const request = new AbortController();
+    mintRequest = request;
     minting = true;
+    mintError = null;
+
     try {
       const { readMixtapeChainSnapshot } = await import('../utils/smolChainIdentity');
       const snapshot = await readMixtapeChainSnapshot({
         tracks: [{ id: songId, mintToken: d1?.Mint_Token ?? null, mintAmm: d1?.Mint_Amm ?? null }],
       });
+      if (request.signal.aborted || songId !== id) return;
       const facts = snapshot.tracks.get(songId)?.facts;
       if (facts?.status === 'minted') {
-        minting = false;
         verifiedMarket = { songId, sac: facts.sac, pool: facts.pool };
         toast.info('This song is already minted. Opening its market.');
         showTradeModal = true;
         return;
       }
       if (facts?.status !== 'unminted') {
-        minting = false;
-        toast.error("Couldn't confirm this song's mint status, so nothing was minted. Try again in a moment.");
+        mintError = "Couldn't confirm this song's mint status, so nothing was minted. Try again in a moment.";
         return;
       }
-    } catch (err) {
-      logger.error('smol', 'Mint preflight failed', err);
-      minting = false;
-      toast.error("Couldn't confirm this song's mint status, so nothing was minted. Try again in a moment.");
-      return;
-    }
-
-    try {
-      mintStartedInSession = true;
-      minting = true;
 
       await mintingHook.triggerMint(
         {
-          id,
+          id: songId,
           session,
           smolContractId,
           rpcUrl: import.meta.env.PUBLIC_RPC_URL as string,
@@ -578,33 +550,56 @@
           creatorAddress: d1?.Address || '',
           kaleSacId: import.meta.env.PUBLIC_KALE_SAC_ID as string,
         },
-        async () => {
-          await getGen();
-        }
+        request.signal,
+        () => toast.success('Mint submitted. Waiting for confirmation.')
       );
-      toast.success('Mint submitted. Waiting for confirmation.');
+      if (request.signal.aborted || songId !== id) return;
+
+      mintConfirmedId = songId;
+      if (session.generation === getSessionGeneration()) {
+        void updateContractBalance(session.contractId, { force: true });
+      }
+
+      // Settlement can precede indexing. Verify the market directly if the
+      // one metadata refresh hasn't picked up the mint yet.
+      try {
+        await getGen(request.signal);
+      } catch (err) {
+        if (!request.signal.aborted) logger.warn('smol', 'Could not refresh mint metadata', err);
+      }
+      if (request.signal.aborted || songId !== id || tradeReady) return;
+      const settled = await readMixtapeChainSnapshot({ tracks: [{ id: songId }] });
+      const market = settled.tracks.get(songId)?.facts;
+      if (!request.signal.aborted && songId === id && market?.status === 'minted') {
+        verifiedMarket = { songId, sac: market.sac, pool: market.pool };
+      }
     } catch (err) {
+      if (request.signal.aborted || songId !== id) return;
       logger.error('smol', err);
-      toast.error(err instanceof Error ? err.message : 'Minting failed.');
-      mintingHook.clearMintPolling();
-      mintStartedInSession = false;
-      minting = false;
+      if (!minted) mintError = err instanceof Error ? err.message : 'Minting failed.';
+    } finally {
+      if (mintRequest === request) {
+        mintRequest = null;
+        minting = false;
+      }
     }
   }
 
-  async function getGen() {
-    if (!id) return;
+  async function getGen(signal: AbortSignal) {
+    const songId = id;
+    if (!songId) return;
 
     let res: SmolDetailResponse;
     try {
-      res = await generationHook.getGen(id);
+      res = await generationHook.getGen(songId, signal);
     } catch (err) {
-      if (isTransientCreatedSmol404(id, (err as Error & { status?: number }).status)) {
+      if (isTransientCreatedSmol404(songId, (err as Error & { status?: number }).status)) {
         return;
       }
       throw err;
     }
 
+    if (id !== songId || signal.aborted) return;
     applySmolData(res);
     return res;
   }
@@ -612,10 +607,6 @@
   function openTradeModal() {
     if (!tradeReady) return;
     showTradeModal = true;
-  }
-
-  function handleTradeComplete() {
-    void getGen();
   }
 </script>
 
@@ -678,6 +669,7 @@
     {playlist}
     {retryError}
     {minting}
+    {mintError}
     {minted}
     {tradeReady}
     {tradeMintBalance}
@@ -713,6 +705,5 @@
     imageUrl={tradeImageUrl}
     bind:mintBalance={tradeMintBalance}
     onClose={() => (showTradeModal = false)}
-    onComplete={handleTradeComplete}
   />
 {/if}

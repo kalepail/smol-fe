@@ -18,13 +18,6 @@ export function emptyDraft(overrides: Partial<MixtapeDraft> = {}): MixtapeDraft 
   };
 }
 
-export function touchDraft(draft: MixtapeDraft): MixtapeDraft {
-  return {
-    ...draft,
-    updatedAt: new Date().toISOString(),
-  };
-}
-
 export function normalizeTrack(track: MixtapeTrack): MixtapeTrack {
   return {
     id: track.id,

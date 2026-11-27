@@ -10,7 +10,6 @@
     imageUrl?: string | null;
     mintBalance: bigint;
     onClose: () => void;
-    onComplete: () => void;
     /** The sheet verified this song's canonical on-chain market. */
     onVerified?: (market: { sac: string; pool: string }) => void;
   }
@@ -24,7 +23,6 @@
     imageUrl = null,
     mintBalance = $bindable(),
     onClose,
-    onComplete,
     onVerified,
   }: Props = $props();
 
@@ -53,7 +51,6 @@
       mintBalance = updatedMintBalance;
     }
     show = false;
-    onComplete();
   }
 </script>
 

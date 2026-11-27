@@ -20,6 +20,28 @@ export class AsyncDispatchGuardError extends Error {
   }
 }
 
+export class RelayError extends Error {
+  readonly status?: number;
+  readonly preDispatch: boolean;
+  readonly code?: string;
+  readonly retryable?: boolean;
+
+  constructor(message: string, options: {
+    preDispatch: boolean;
+    status?: number;
+    code?: string;
+    retryable?: boolean;
+    cause?: unknown;
+  }) {
+    super(message, { cause: options.cause });
+    this.name = 'RelayError';
+    this.status = options.status;
+    this.preDispatch = options.preDispatch;
+    this.code = options.code;
+    this.retryable = options.retryable;
+  }
+}
+
 /**
  * Run a final pre-dispatch guard. It must be synchronous: a guard that returns
  * a promise could let the session change before it settles, so it is refused
@@ -47,29 +69,58 @@ export interface RelayParams {
 
 export async function relayXdr(params: RelayParams): Promise<unknown> {
   const { xdr, relayerUrl } = params;
-  if (!relayerUrl) throw new Error('Relayer URL not configured');
-  const doFetch = params.fetchImpl ?? ((input: RequestInfo | URL, init?: RequestInit) => fetch(input, init));
-
-  const token = await params.getToken();
-
-  // ── No await from here until the request is dispatched. ──
-  runDispatchGuard(params.beforeDispatch);
-  const pending = doFetch(relayerUrl, {
-    method: 'POST',
-    headers: {
-      'X-Turnstile-Response': token,
-    },
-    body: new URLSearchParams({ xdr }),
-  });
-  // ── Dispatched. ──
-
-  const response = await pending;
-  params.clearToken();
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Relayer proxy error: ${error}`);
+  if (!relayerUrl) throw new RelayError('Relayer URL not configured', { preDispatch: true });
+  try {
+    const url = new URL(relayerUrl);
+    if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) {
+      throw new Error('Expected an HTTP(S) URL without embedded credentials');
+    }
+  } catch (cause) {
+    throw new RelayError('Relayer URL is invalid', { preDispatch: true, cause });
   }
 
-  return response.json();
+  let preDispatch = true;
+  let response: Response;
+  try {
+    const token = await params.getToken();
+    const request: RequestInit = {
+      method: 'POST',
+      headers: { 'X-Turnstile-Response': token },
+      body: new URLSearchParams({ xdr }),
+      signal: AbortSignal.timeout(30_000),
+    };
+
+    // No await between the guard and the POST.
+    runDispatchGuard(params.beforeDispatch);
+    preDispatch = false;
+    response = await (params.fetchImpl ?? fetch)(relayerUrl, request);
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : 'Could not submit to the relayer';
+    throw new RelayError(message, { preDispatch, cause });
+  } finally {
+    if (!preDispatch) params.clearToken();
+  }
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    let body: { error?: unknown; code?: unknown; retryable?: unknown } | null = null;
+    try {
+      body = JSON.parse(text);
+    } catch {
+      // The HTTP status still applies if the body is missing or unreadable.
+    }
+    const message = typeof body?.error === 'string' ? body.error : text || `HTTP ${response.status}`;
+    throw new RelayError(`Relayer proxy error: ${message}`, {
+      status: response.status,
+      preDispatch: false,
+      code: typeof body?.code === 'string' ? body.code : undefined,
+      retryable: typeof body?.retryable === 'boolean' ? body.retryable : undefined,
+    });
+  }
+
+  try {
+    return await response.json();
+  } catch (cause) {
+    throw new RelayError('Could not read the relayer response', { status: response.status, preDispatch: false, cause });
+  }
 }
