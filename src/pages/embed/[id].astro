@@ -231,17 +231,21 @@ const songHref = id && isSongId ? `${Astro.url.origin}/${id}` : Astro.url.origin
         <img class="cover" src={imageUrl!} alt={`${title} cover art`} width="1024" height="1024" />
         <div class="scrim"></div>
         <div class="top">
-          <a class="badge" href={songHref} target="_blank" rel="noopener noreferrer">SMOL ↗</a>
+          <a class="badge" href={songHref} target="_blank" rel="noopener noreferrer">
+            <span>SMOL</span>
+            <svg width="10" height="10" viewBox="0 0 15 15" fill="currentColor" aria-hidden="true">
+              <path d="M13.5 1.5h.5a.5.5 0 0 0-.5-.5zm0-.5H8v1h5.5zm-.5.5V7h1V1.5zm.146-.354l-12 12l.708.708l12-12z" />
+            </svg>
+          </a>
         </div>
         <div class="controls">
           <div class="meta">
             <button id="toggle" class="play-btn js-only" type="button" aria-label={`Play ${title}`}>
-              <svg id="icon-play" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M8 5.14v13.72a1 1 0 0 0 1.52.85l11-6.86a1 1 0 0 0 0-1.7l-11-6.86A1 1 0 0 0 8 5.14z" />
+              <svg id="icon-play" width="20" height="20" viewBox="0 0 15 15" fill="currentColor" aria-hidden="true">
+                <path d="M4.79 2.093A.5.5 0 0 0 4 2.5v10a.5.5 0 0 0 .79.407l7-5a.5.5 0 0 0 0-.814z" />
               </svg>
-              <svg id="icon-pause" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="display:none">
-                <rect x="6" y="4" width="4" height="16" rx="1" />
-                <rect x="14" y="4" width="4" height="16" rx="1" />
+              <svg id="icon-pause" width="20" height="20" viewBox="0 0 15 15" fill="currentColor" aria-hidden="true" style="display:none">
+                <path d="M4 2.5h2.25v10H4zm4.75 0H11v10H8.75z" />
               </svg>
             </button>
             <div class="titles">
@@ -256,7 +260,7 @@ const songHref = id && isSongId ? `${Astro.url.origin}/${id}` : Astro.url.origin
             <span id="dur" class="time end">--:--</span>
           </div>
           <p id="err" class="err-msg">
-            Playback unavailable here. <a href={songHref} target="_blank" rel="noopener noreferrer">Open on SMOL ↗</a>
+            Playback unavailable here. <a href={songHref} target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:4px"><span>Open on SMOL</span><svg width="10" height="10" viewBox="0 0 15 15" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5h.5a.5.5 0 0 0-.5-.5zm0-.5H8v1h5.5zm-.5.5V7h1V1.5zm.146-.354l-12 12l.708.708l12-12z" /></svg></a>
           </p>
         </div>
         <script is:inline define:vars={{ apiUrl, musicId, title }}>
@@ -392,7 +396,7 @@ const songHref = id && isSongId ? `${Astro.url.origin}/${id}` : Astro.url.origin
       <div class="stage">
         <div class="empty">
           <p>{isOutage ? 'Temporarily unavailable.' : 'This song cannot be embedded.'}</p>
-          <p style="margin-top:8px"><a href={songHref} target="_blank" rel="noopener noreferrer">Open SMOL ↗</a></p>
+          <p style="margin-top:8px"><a href={songHref} target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:5px"><span>Open SMOL</span><svg width="11" height="11" viewBox="0 0 15 15" fill="currentColor" aria-hidden="true"><path d="M13.5 1.5h.5a.5.5 0 0 0-.5-.5zm0-.5H8v1h5.5zm-.5.5V7h1V1.5zm.146-.354l-12 12l.708.708l12-12z" /></svg></a></p>
         </div>
       </div>
     )}

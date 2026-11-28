@@ -1,11 +1,18 @@
 /**
- * Owner-management icons. Registered on import by the (lazily loaded) owner surfaces only,
- * so the shared Icon component — and therefore the Home bundle — doesn't carry them.
+ * Owner-management icons (Teenyicons, MIT, 15x15 grid). Registered on import by
+ * the (lazily loaded) owner surfaces only, so the shared Icon component — and
+ * therefore the Home bundle — doesn't carry them.
  */
-import { extraIconPaths } from './Icon.svelte';
+import { extraFilledPaths, extraStrokedPaths } from './Icon.svelte';
 
-Object.assign(extraIconPaths, {
-  'eye-off': 'M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88',
-  pencil: 'm16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10',
-  merge: 'M7.5 3.75v4.5a4.5 4.5 0 0 0 4.5 4.5h0a4.5 4.5 0 0 1 4.5 4.5v3m-9-12a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Zm0 0v12m0 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm9 1.5 2.25-2.25m-2.25 2.25-2.25-2.25',
+Object.assign(extraFilledPaths, {
+  'eye-off':
+    'M7.5 9C5.186 9 3.561 7.848 2.497 6.666a9.4 9.4 0 0 1-1.449-2.164l-.08-.18l-.004-.007v-.001L.5 4.5l-.464.186v.002l.003.004l.026.063l.078.173a10.4 10.4 0 0 0 1.61 2.406C2.94 8.652 4.814 10 7.5 10zm7-4.5l-.464-.186l-.003.008l-.015.035l-.066.145a9.4 9.4 0 0 1-1.449 2.164C11.44 7.848 9.814 9 7.5 9v1c2.686 0 4.561-1.348 5.747-2.666a10.4 10.4 0 0 0 1.61-2.406a6 6 0 0 0 .104-.236l.002-.004v-.001h.001zM8 12V9.5H7V12zm-6.646-1.646l2-2l-.708-.708l-2 2zm10.292-2l2 2l.708-.708l-2-2z',
+  pencil:
+    'm.5 9.5l-.354-.354L0 9.293V9.5zm9-9l.354-.354a.5.5 0 0 0-.708 0zm5 5l.354.354a.5.5 0 0 0 0-.708zm-9 9v.5h.207l.147-.146zm-5 0H0a.5.5 0 0 0 .5.5zm.354-4.646l9-9l-.708-.708l-9 9zm8.292-9l5 5l.708-.708l-5-5zm5 4.292l-9 9l.708.708l9-9zM5.5 14h-5v1h5zm-4.5.5v-5H0v5zM6.146 3.854l5 5l.708-.708l-5-5zM8 15h7v-1H8z',
+});
+
+Object.assign(extraStrokedPaths, {
+  merge:
+    'M2.5 10.5a2 2 0 1 0 0 4a2 2 0 0 0 0-4Zm0 0v-6m2-2a2 2 0 1 0-2 2m2-2a2 2 0 0 1-2 2m2-2h5a3 3 0 0 1 3 3v2m0 0a2 2 0 1 0 0 4a2 2 0 0 0 0-4Z',
 });

@@ -129,7 +129,7 @@
             {:else if playing}
               <Icon name="pause" size={20} />
             {:else}
-              <Icon name="play" size={20} class="translate-x-0.5" />
+              <Icon name="play" size={20} />
             {/if}
           </button>
 

@@ -39,11 +39,11 @@
     {:else if pill.icon === 'spinner'}
       <Loader classNames="size-3" />
     {:else if pill.icon === 'diamond'}
-      <span class="size-1.5 rotate-45 rounded-[1px] bg-current" aria-hidden="true"></span>
+      <Icon name="diamond" size={10} />
     {:else if pill.icon === 'ring'}
       <span class="size-2 rounded-full ring-1 ring-current" aria-hidden="true"></span>
     {:else if pill.icon === 'question'}
-      <span class="font-semibold" aria-hidden="true">?</span>
+      <Icon name="question" size={12} />
     {/if}
     <span>{pill.label}</span>
     {#if pill.suffix && state === 'owned'}
